@@ -1,4 +1,11 @@
-fn main()
+/**/
+
+use penne::lexer;
+
+fn main() -> Result<(), anyhow::Error>
 {
-	println!("Hello, world!");
+	let program = include_str!("samples/do_nothing.pn");
+	let tokens = lexer::lex(program)?;
+	println!("{:?}", tokens);
+	Ok(())
 }
