@@ -1,0 +1,7 @@
+[package]
+name = "penne"
+version = "0.1.0"
+authors = ["Sander in 't Veld <sanderintveld@hotmail.com>"]
+edition = "2018"
+
+[dependencies]

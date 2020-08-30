@@ -1,0 +1,92 @@
+%YAML 1.2
+---
+# See http://www.sublimetext.com/docs/3/syntax.html
+name: Penne
+file_extensions:
+  - pn
+scope: source.penne
+
+variables:
+  identifier: '[[:alpha:]][_[:alnum:]]*|_[_[:alnum:]]+'
+
+contexts:
+  main:
+    - match: '//'
+      scope: punctuation.definition.comment.penne
+      push: line_comment
+
+    - match: '\b(fn)\s+(?={{identifier}})\b'
+      captures:
+        1: storage.type.function.penne
+      push: fn_definition
+
+  statements:
+    - match: '"'
+      scope: punctuation.definition.string.begin.penne
+      push: double_quoted_string
+
+    - match: '//'
+      scope: punctuation.definition.comment.penne
+      push: line_comment
+
+    - match: '\b(if|else|loop)\b'
+      scope: keyword.control.penne
+
+    - match: '\b(-)?[0-9.]+\b'
+      scope: constant.numeric.penne
+
+  double_quoted_string:
+    - meta_scope: string.quoted.double.penne
+    - match: '\\.'
+      scope: constant.character.escape.penne
+    - match: '"'
+      scope: punctuation.definition.string.end.penne
+      pop: true
+
+  line_comment:
+    - meta_scope: comment.line.penne
+    - match: $
+      pop: true
+
+  fn_definition:
+    - meta_scope: meta.function.penne
+    - match: '{{identifier}}'
+      scope: entity.name.function.penne
+      set: fn_generic
+
+  fn_generic:
+    - match: '(?=\()'
+      set: fn_parameters
+
+  fn_parameters:
+    - meta_scope: meta.function.penne
+    - match: '\)'
+      scope: meta.function.parameters.penne punctuation.definition.parameters.end.penne
+      set: fn_return
+    - match: '\('
+      scope: punctuation.definition.parameters.begin.penne
+      push:
+        - meta_scope: meta.function.parameters.penne
+        - match: '(?=\))'
+          pop: true
+        #- include: pattern_param
+
+  fn_return:
+    - meta_scope: meta.function.penne
+    - match: '(?=\{)'
+      set: fn_body
+    #- include: return_type
+
+  fn_body:
+    - meta_scope: meta.function.penne
+    - match: '\}'
+      scope: meta.block.penne punctuation.definition.block.end.penne
+      pop: true
+    - match: '\{'
+      scope: punctuation.definition.block.begin.penne
+      push:
+        - meta_scope: meta.block.penne
+        - match: '(?=\})'
+          pop: true
+        - include: statements
+
