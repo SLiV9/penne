@@ -10,12 +10,15 @@ pub enum Token
 	ParenRight,
 	BraceLeft,
 	BraceRight,
+	Plus,
+	Minus,
 
 	// Keywords.
 	Fn,
 
 	// Literals.
 	Identifier(String),
+	Int32(i32),
 }
 
 pub fn lex(source: &str) -> Result<Vec<Token>, anyhow::Error>
@@ -30,6 +33,8 @@ pub fn lex(source: &str) -> Result<Vec<Token>, anyhow::Error>
 			')' => Token::ParenRight,
 			'{' => Token::BraceLeft,
 			'}' => Token::BraceRight,
+			'+' => Token::Plus,
+			'-' => Token::Minus,
 			'/' => match iter.peek()
 			{
 				Some('/') =>
@@ -72,6 +77,24 @@ pub fn lex(source: &str) -> Result<Vec<Token>, anyhow::Error>
 					"fn" => Token::Fn,
 					_ => Token::Identifier(identifier),
 				}
+			}
+			'0'..='9' =>
+			{
+				let mut literal = x.to_string();
+				while let Some(&y) = iter.peek()
+				{
+					if y.is_digit(10)
+					{
+						literal.push(y);
+						iter.next();
+					}
+					else
+					{
+						break;
+					}
+				}
+				let value = literal.parse()?;
+				Token::Int32(value)
 			}
 			' ' | '\t' | '\r' | '\n' => continue,
 			_ => return Err(anyhow!("unexpected character '{}'", x)),

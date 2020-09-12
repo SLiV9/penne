@@ -1,0 +1,5 @@
+fn main()
+{
+	// This should be 9.
+	2 + 7
+}

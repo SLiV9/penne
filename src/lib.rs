@@ -18,7 +18,10 @@ mod tests
 			declarations,
 			vec![parser::Declaration::Function {
 				name: "main".to_string(),
-				body: vec![]
+				body: parser::Block {
+					statements: vec![],
+					value: parser::Expression::Void
+				}
 			}]
 		);
 		Ok(())
