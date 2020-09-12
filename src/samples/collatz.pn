@@ -1,0 +1,36 @@
+fn main()
+{
+	var x = 12;
+
+	var steps = 0;
+	{
+		if x == 1
+			jump end;
+		var y = x;
+		{
+			if y == 0
+			{
+				if y + y == x
+				{
+					x = y
+					jump next;
+				}
+				y = y + 1;
+				loop;
+			}
+			else if y == 1
+			{
+				x = x + x + x + 1;
+				jump next;
+			}
+			y -= 2;
+			loop;
+		}
+		next:
+		steps = steps + 1;
+		loop;
+	}
+
+	end:
+	steps
+}

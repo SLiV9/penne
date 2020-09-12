@@ -12,9 +12,17 @@ pub enum Token
 	BraceRight,
 	Plus,
 	Minus,
+	Colon,
+	Semicolon,
+	Equals,
 
 	// Keywords.
 	Fn,
+	Var,
+	If,
+	Jump,
+	Loop,
+	Else,
 
 	// Literals.
 	Identifier(String),
@@ -35,6 +43,9 @@ pub fn lex(source: &str) -> Result<Vec<Token>, anyhow::Error>
 			'}' => Token::BraceRight,
 			'+' => Token::Plus,
 			'-' => Token::Minus,
+			':' => Token::Colon,
+			';' => Token::Semicolon,
+			'=' => Token::Equals,
 			'/' => match iter.peek()
 			{
 				Some('/') =>
@@ -75,6 +86,11 @@ pub fn lex(source: &str) -> Result<Vec<Token>, anyhow::Error>
 				match identifier.as_str()
 				{
 					"fn" => Token::Fn,
+					"var" => Token::Var,
+					"if" => Token::If,
+					"jump" => Token::Jump,
+					"loop" => Token::Loop,
+					"else" => Token::Else,
 					_ => Token::Identifier(identifier),
 				}
 			}

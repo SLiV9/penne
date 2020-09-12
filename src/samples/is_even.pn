@@ -1,0 +1,20 @@
+fn main()
+{
+	var x = 33;
+
+	var is_even = false;
+	{
+		if x == 0
+		{
+			is_even = true;
+			jump return;
+		}
+		else if x == 1
+			jump return;
+		x -= 2;
+		loop;
+	}
+
+	return:
+	is_even
+}

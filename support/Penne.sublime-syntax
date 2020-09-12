@@ -29,11 +29,26 @@ contexts:
       scope: punctuation.definition.comment.penne
       push: line_comment
 
-    - match: '\b(if|else|loop)\b'
+    - match: '\b(if|else)\b'
+      scope: keyword.control.conditional.penne
+
+    - match: '\b(loop|jump)\b'
       scope: keyword.control.penne
+
+    - match: '\b(var)\b'
+      scope: keyword.other.penne
 
     - match: '\b(-)?[0-9.]+\b'
       scope: constant.numeric.penne
+
+    - match: '\b(true|false)\b'
+      scope: constant.language.penne
+
+    - match: '(?=\{)'
+      push: block
+
+    - match: '\b({{identifier}}):'
+      scope: entity.name.label.penne
 
   double_quoted_string:
     - meta_scope: string.quoted.double.penne
@@ -90,3 +105,16 @@ contexts:
           pop: true
         - include: statements
 
+  block:
+    - match: '\}'
+      scope: meta.block.penne punctuation.definition.block.end.penne
+      pop: true
+    - match: '\{'
+      scope: punctuation.definition.block.begin.penne
+      push: block_body
+
+  block_body:
+    - meta_scope: meta.block.penne
+    - match: '(?=\})'
+      pop: true
+    - include: statements
