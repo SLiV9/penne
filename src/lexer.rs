@@ -2,7 +2,7 @@
 
 use anyhow::anyhow;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Token
 {
 	// Single-character tokens.
