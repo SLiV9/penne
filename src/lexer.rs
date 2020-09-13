@@ -14,19 +14,23 @@ pub enum Token
 	Minus,
 	Colon,
 	Semicolon,
-	Equals,
+	Assignment, // =
+
+	// Double-character tokens.
+	Equals, // ==
 
 	// Keywords.
 	Fn,
 	Var,
 	If,
-	Jump,
+	Goto,
 	Loop,
 	Else,
 
 	// Literals.
 	Identifier(String),
 	Int32(i32),
+	Bool(bool),
 }
 
 pub fn lex(source: &str) -> Result<Vec<Token>, anyhow::Error>
@@ -45,7 +49,15 @@ pub fn lex(source: &str) -> Result<Vec<Token>, anyhow::Error>
 			'-' => Token::Minus,
 			':' => Token::Colon,
 			';' => Token::Semicolon,
-			'=' => Token::Equals,
+			'=' => match iter.peek()
+			{
+				Some('=') =>
+				{
+					iter.next();
+					Token::Equals
+				}
+				_ => Token::Assignment,
+			},
 			'/' => match iter.peek()
 			{
 				Some('/') =>
@@ -88,9 +100,11 @@ pub fn lex(source: &str) -> Result<Vec<Token>, anyhow::Error>
 					"fn" => Token::Fn,
 					"var" => Token::Var,
 					"if" => Token::If,
-					"jump" => Token::Jump,
+					"goto" => Token::Goto,
 					"loop" => Token::Loop,
 					"else" => Token::Else,
+					"true" => Token::Bool(true),
+					"false" => Token::Bool(false),
 					_ => Token::Identifier(identifier),
 				}
 			}
