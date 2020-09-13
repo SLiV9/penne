@@ -46,7 +46,27 @@ pub enum Statement
 	{
 		label: String,
 	},
+	If
+	{
+		condition: Comparison,
+		then_branch: Box<Statement>,
+		else_branch: Option<Box<Statement>>,
+	},
 	Block(Block),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Comparison
+{
+	op: ComparisonOp,
+	left: Expression,
+	right: Expression,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ComparisonOp
+{
+	Equals,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -74,6 +94,7 @@ pub enum BinaryOp
 pub enum Literal
 {
 	Int32(i32),
+	Bool(bool),
 }
 
 pub fn parse(tokens: Vec<Token>) -> Result<Vec<Declaration>, anyhow::Error>
@@ -256,6 +277,66 @@ fn parse_statement_or_final_expression(
 			let statement = Statement::Block(block);
 			Ok(StatementOrFinalExpression::Statement(statement))
 		}
+		Some(Token::If) =>
+		{
+			let condition = parse_comparison(tokens)?;
+			let statement = parse_statement_or_final_expression(tokens)?;
+			let then_stmt = match statement
+			{
+				StatementOrFinalExpression::Statement(statement) => statement,
+				StatementOrFinalExpression::FinalExpression(expression) =>
+				{
+					return Err(anyhow!(
+						"unexpected expression '{:?}'",
+						expression
+					));
+				}
+			};
+			let then_branch = Box::new(then_stmt);
+
+			match tokens.front()
+			{
+				Some(Token::Else) =>
+				{
+					tokens.pop_front();
+
+					let statement =
+						parse_statement_or_final_expression(tokens)?;
+					let else_stmt = match statement
+					{
+						StatementOrFinalExpression::Statement(statement) =>
+						{
+							statement
+						}
+						StatementOrFinalExpression::FinalExpression(
+							expression,
+						) =>
+						{
+							return Err(anyhow!(
+								"unexpected expression '{:?}'",
+								expression
+							));
+						}
+					};
+					let else_branch = Some(Box::new(else_stmt));
+					let statement = Statement::If {
+						condition,
+						then_branch,
+						else_branch,
+					};
+					Ok(StatementOrFinalExpression::Statement(statement))
+				}
+				_ =>
+				{
+					let statement = Statement::If {
+						condition,
+						then_branch,
+						else_branch: None,
+					};
+					Ok(StatementOrFinalExpression::Statement(statement))
+				}
+			}
+		}
 		Some(Token::Loop) => match tokens.pop_front()
 		{
 			Some(Token::Semicolon) =>
@@ -282,7 +363,7 @@ fn parse_statement_or_final_expression(
 				Some(token) =>
 				{
 					return Err(anyhow!(
-						"unexpected '{:?}', expected semicolon",
+						"unexpected '{:?}', expected identifier",
 						token
 					));
 				}
@@ -320,7 +401,7 @@ fn parse_statement_or_final_expression(
 				Some(token) =>
 				{
 					return Err(anyhow!(
-						"unexpected '{:?}', expected semicolon",
+						"unexpected '{:?}', expected identifier",
 						token
 					));
 				}
@@ -447,6 +528,30 @@ fn parse_statement_or_final_expression(
 	}
 }
 
+fn parse_comparison(
+	tokens: &mut VecDeque<Token>,
+) -> Result<Comparison, anyhow::Error>
+{
+	let left = parse_expression(tokens)?;
+
+	loop
+	{
+		let op = match tokens.front()
+		{
+			Some(Token::Equals) => ComparisonOp::Equals,
+			_ =>
+			{
+				return Err(anyhow!("expected comparison"));
+			}
+		};
+		tokens.pop_front();
+
+		let right = parse_expression(tokens)?;
+
+		return Ok(Comparison { op, left, right });
+	}
+}
+
 fn parse_expression(
 	tokens: &mut VecDeque<Token>,
 ) -> Result<Expression, anyhow::Error>
@@ -500,6 +605,11 @@ fn parse_primary_expression(
 		{
 			let value: i32 = literal;
 			Ok(Expression::Literal(Literal::Int32(value)))
+		}
+		Some(Token::Bool(literal)) =>
+		{
+			let value: bool = literal;
+			Ok(Expression::Literal(Literal::Bool(value)))
 		}
 		Some(Token::Identifier(name)) => Ok(Expression::Variable(name)),
 		Some(other) =>

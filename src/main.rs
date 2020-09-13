@@ -11,7 +11,7 @@ fn main() -> Result<(), anyhow::Error>
 	}
 	else
 	{
-		vec!["src/samples/goto_end.pn".to_string()]
+		vec!["src/samples/collatz.pn".to_string()]
 	};
 
 	for filename in filenames

@@ -12,7 +12,7 @@ fn main()
 			{
 				if y + y == x
 				{
-					x = y
+					x = y;
 					goto next;
 				}
 				y = y + 1;
