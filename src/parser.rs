@@ -25,7 +25,29 @@ pub struct Block
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Statement {}
+pub enum Statement
+{
+	Declaration
+	{
+		name: String,
+		value: Option<Expression>,
+	},
+	Assignment
+	{
+		name: String,
+		value: Expression,
+	},
+	Loop,
+	Goto
+	{
+		label: String,
+	},
+	Label
+	{
+		label: String,
+	},
+	Block(Block),
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Expression
@@ -37,6 +59,7 @@ pub enum Expression
 		right: Box<Expression>,
 	},
 	Literal(Literal),
+	Variable(String),
 	Void,
 }
 
@@ -116,9 +139,7 @@ fn parse_declaration(
 		}
 		None =>
 		{
-			return Err(anyhow!(
-				"unexpected end of tokens, expected declaration"
-			));
+			return Err(anyhow!("unexpected end of tokens, left paren"));
 		}
 	}
 
@@ -128,14 +149,14 @@ fn parse_declaration(
 		Some(token) =>
 		{
 			return Err(anyhow!(
-				"unexpected '{:?}', expected left paren",
+				"unexpected '{:?}', expected right paren",
 				token
 			));
 		}
 		None =>
 		{
 			return Err(anyhow!(
-				"unexpected end of tokens, expected declaration"
+				"unexpected end of tokens, expected right paren"
 			));
 		}
 	}
@@ -155,14 +176,14 @@ fn parse_block(tokens: &mut VecDeque<Token>) -> Result<Block, anyhow::Error>
 		Some(token) =>
 		{
 			return Err(anyhow!(
-				"unexpected '{:?}', expected left paren",
+				"unexpected '{:?}', expected left brace",
 				token
 			));
 		}
 		None =>
 		{
 			return Err(anyhow!(
-				"unexpected end of tokens, expected declaration"
+				"unexpected end of tokens, expected left brace"
 			));
 		}
 	}
@@ -191,8 +212,9 @@ fn parse_block(tokens: &mut VecDeque<Token>) -> Result<Block, anyhow::Error>
 			}
 			StatementOrFinalExpression::FinalExpression(expression) =>
 			{
-				if let Some(Token::BraceRight) = tokens.pop_front()
+				if let Some(Token::BraceRight) = tokens.front()
 				{
+					tokens.pop_front();
 					let block = Block {
 						statements,
 						value: expression,
@@ -201,7 +223,10 @@ fn parse_block(tokens: &mut VecDeque<Token>) -> Result<Block, anyhow::Error>
 				}
 				else
 				{
-					return Err(anyhow!("expected closing brace"));
+					return Err(anyhow!(
+						"unexpected '{:?}', expected closing brace",
+						tokens.front()
+					));
 				}
 			}
 		}
@@ -219,9 +244,207 @@ fn parse_statement_or_final_expression(
 	tokens: &mut VecDeque<Token>,
 ) -> Result<StatementOrFinalExpression, anyhow::Error>
 {
-	let expression = parse_expression(tokens)?;
+	match tokens.pop_front()
+	{
+		Some(Token::BraceLeft) =>
+		{
+			// Oops.
+			// TODO avoid pushing to the front of the VecDeque
+			tokens.push_front(Token::BraceLeft);
 
-	Ok(StatementOrFinalExpression::FinalExpression(expression))
+			let block = parse_block(tokens)?;
+			let statement = Statement::Block(block);
+			Ok(StatementOrFinalExpression::Statement(statement))
+		}
+		Some(Token::Loop) => match tokens.pop_front()
+		{
+			Some(Token::Semicolon) =>
+			{
+				Ok(StatementOrFinalExpression::Statement(Statement::Loop))
+			}
+			Some(token) =>
+			{
+				return Err(anyhow!(
+					"unexpected '{:?}', expected semicolon",
+					token
+				));
+			}
+			None =>
+			{
+				return Err(anyhow!("unexpected end of tokens"));
+			}
+		},
+		Some(Token::Goto) =>
+		{
+			let label = match tokens.pop_front()
+			{
+				Some(Token::Identifier(x)) => x,
+				Some(token) =>
+				{
+					return Err(anyhow!(
+						"unexpected '{:?}', expected semicolon",
+						token
+					));
+				}
+				None =>
+				{
+					return Err(anyhow!("unexpected end of tokens"));
+				}
+			};
+
+			match tokens.pop_front()
+			{
+				Some(Token::Semicolon) =>
+				{
+					let statement = Statement::Goto { label };
+					Ok(StatementOrFinalExpression::Statement(statement))
+				}
+				Some(token) =>
+				{
+					return Err(anyhow!(
+						"unexpected '{:?}', expected semicolon",
+						token
+					));
+				}
+				None =>
+				{
+					return Err(anyhow!("unexpected end of tokens"));
+				}
+			}
+		}
+		Some(Token::Var) =>
+		{
+			let name = match tokens.pop_front()
+			{
+				Some(Token::Identifier(x)) => x,
+				Some(token) =>
+				{
+					return Err(anyhow!(
+						"unexpected '{:?}', expected semicolon",
+						token
+					));
+				}
+				None =>
+				{
+					return Err(anyhow!("unexpected end of tokens"));
+				}
+			};
+
+			match tokens.pop_front()
+			{
+				Some(Token::Assignment) =>
+				{
+					let expression = parse_expression(tokens)?;
+
+					match tokens.pop_front()
+					{
+						Some(Token::Semicolon) =>
+						{
+							let statement = Statement::Declaration {
+								name,
+								value: Some(expression),
+							};
+							Ok(StatementOrFinalExpression::Statement(statement))
+						}
+						Some(token) =>
+						{
+							return Err(anyhow!(
+								"unexpected '{:?}', expected semicolon",
+								token
+							));
+						}
+						None =>
+						{
+							return Err(anyhow!("unexpected end of tokens"));
+						}
+					}
+				}
+				Some(Token::Semicolon) =>
+				{
+					let statement =
+						Statement::Declaration { name, value: None };
+					Ok(StatementOrFinalExpression::Statement(statement))
+				}
+				Some(token) =>
+				{
+					return Err(anyhow!(
+						"unexpected '{:?}', expected semicolon or assignment",
+						token
+					));
+				}
+				None =>
+				{
+					return Err(anyhow!("unexpected end of tokens"));
+				}
+			}
+		}
+		Some(Token::Identifier(x)) => match tokens.pop_front()
+		{
+			Some(Token::Assignment) =>
+			{
+				let expression = parse_expression(tokens)?;
+
+				match tokens.pop_front()
+				{
+					Some(Token::Semicolon) =>
+					{
+						let statement = Statement::Assignment {
+							name: x,
+							value: expression,
+						};
+						Ok(StatementOrFinalExpression::Statement(statement))
+					}
+					Some(token) =>
+					{
+						return Err(anyhow!(
+							"unexpected '{:?}', expected semicolon",
+							token
+						));
+					}
+					None =>
+					{
+						return Err(anyhow!("unexpected end of tokens"));
+					}
+				}
+			}
+			Some(Token::Colon) =>
+			{
+				let statement = Statement::Label { label: x };
+				Ok(StatementOrFinalExpression::Statement(statement))
+			}
+			Some(token) =>
+			{
+				// Oops.
+				// TODO avoid pushing to the front of the VecDeque
+				tokens.push_front(token);
+				tokens.push_front(Token::Identifier(x));
+
+				let expression = parse_expression(tokens)?;
+
+				Ok(StatementOrFinalExpression::FinalExpression(expression))
+			}
+			None =>
+			{
+				return Err(anyhow!("unexpected end of tokens"));
+			}
+		},
+		Some(other) =>
+		{
+			// Oops.
+			// TODO avoid pushing to the front of the VecDeque
+			tokens.push_front(other);
+
+			let expression = parse_expression(tokens)?;
+
+			Ok(StatementOrFinalExpression::FinalExpression(expression))
+		}
+		None =>
+		{
+			let expression = parse_expression(tokens)?;
+
+			Ok(StatementOrFinalExpression::FinalExpression(expression))
+		}
+	}
 }
 
 fn parse_expression(
@@ -271,15 +494,22 @@ fn parse_primary_expression(
 	tokens: &mut VecDeque<Token>,
 ) -> Result<Expression, anyhow::Error>
 {
-	match tokens.front()
+	match tokens.pop_front()
 	{
 		Some(Token::Int32(literal)) =>
 		{
-			let value: i32 = *literal;
-			tokens.pop_front();
+			let value: i32 = literal;
 			Ok(Expression::Literal(Literal::Int32(value)))
 		}
-		_ =>
+		Some(Token::Identifier(name)) => Ok(Expression::Variable(name)),
+		Some(other) =>
+		{
+			// Oops.
+			// TODO avoid pushing to the front of the VecDeque
+			tokens.push_front(other);
+			return Ok(Expression::Void);
+		}
+		None =>
 		{
 			return Ok(Expression::Void);
 		}

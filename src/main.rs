@@ -11,15 +11,18 @@ fn main() -> Result<(), anyhow::Error>
 	}
 	else
 	{
-		vec!["src/samples/collatz.pn".to_string()]
+		vec!["src/samples/goto_end.pn".to_string()]
 	};
 
 	for filename in filenames
 	{
-		println!("{}:::", filename);
-		let program = std::fs::read_to_string(filename)?;
+		println!();
+		let program = std::fs::read_to_string(&filename)?;
+		println!("Lexing {}...", filename);
 		let tokens = lexer::lex(&program)?;
 		println!("{:?}", tokens);
+		println!();
+		println!("Parsing {}...", filename);
 		let declarations = parser::parse(tokens)?;
 		println!("{:?}", declarations);
 		println!();
