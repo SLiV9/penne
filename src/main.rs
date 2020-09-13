@@ -35,9 +35,14 @@ fn main() -> Result<(), anyhow::Error>
 		};
 		let code = rebuilder::rebuild(&declarations, &indentation)?;
 		println!("{}", code);
-		println!("Generating {}...", filename);
+		println!("Generating IR for {}...", filename);
 		let ir = generator::generate(&declarations, &filename)?;
 		println!("{}", ir);
+		let outputfilename = format!("bin/{}.ll", filename);
+		let dirname = std::path::Path::new(&outputfilename).parent().unwrap();
+		std::fs::create_dir_all(dirname)?;
+		println!("Writing to {}...", outputfilename);
+		std::fs::write(outputfilename, ir)?;
 	}
 	println!("Done.");
 
