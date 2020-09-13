@@ -58,9 +58,9 @@ pub enum Statement
 #[derive(Debug, PartialEq, Eq)]
 pub struct Comparison
 {
-	op: ComparisonOp,
-	left: Expression,
-	right: Expression,
+	pub op: ComparisonOp,
+	pub left: Expression,
+	pub right: Expression,
 }
 
 #[derive(Debug, PartialEq, Eq)]

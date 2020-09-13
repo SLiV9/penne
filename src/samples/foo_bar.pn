@@ -1,0 +1,26 @@
+
+fn foo()
+{
+	33
+}
+
+fn bar()
+{
+	var x = 1;
+	var y = x;
+	y
+}
+
+fn main()
+{
+	var x = 33;
+	var y;
+	{
+		goto return;
+		x = x + 1;
+		loop;
+	}
+	y = x;
+	return:
+	is_even
+}

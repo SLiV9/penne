@@ -2,6 +2,7 @@
 
 use penne::lexer;
 use penne::parser;
+use penne::rebuilder;
 
 fn main() -> Result<(), anyhow::Error>
 {
@@ -26,7 +27,15 @@ fn main() -> Result<(), anyhow::Error>
 		let declarations = parser::parse(tokens)?;
 		println!("{:?}", declarations);
 		println!();
+		println!("Rebuilding {}...", filename);
+		let indentation = rebuilder::Indentation {
+			value: "\u{00a6}   ",
+			amount: 1,
+		};
+		let code = rebuilder::rebuild(declarations, &indentation)?;
+		println!("{}", code);
 	}
+	println!("Done.");
 
 	Ok(())
 }

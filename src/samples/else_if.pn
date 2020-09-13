@@ -1,0 +1,30 @@
+fn main()
+{
+	var x = 33;
+
+	if x == 0
+	{
+		x = 10;
+		goto return;
+	}
+	else if x == 1
+		goto return;
+	else if x == 2
+	{
+		if x == 5
+		{
+			x = 17;
+		}
+		else
+			goto return;
+	}
+	else if x == 3
+		goto return;
+	else
+	{
+		x = 55;
+	}
+
+	return:
+	is_even
+}

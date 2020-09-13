@@ -2,6 +2,7 @@
 
 pub mod lexer;
 pub mod parser;
+pub mod rebuilder;
 
 #[cfg(test)]
 mod tests
@@ -24,6 +25,21 @@ mod tests
 				}
 			}]
 		);
+		Ok(())
+	}
+
+	#[test]
+	fn rebuild_foo_bar() -> Result<(), anyhow::Error>
+	{
+		let source = include_str!("samples/foo_bar.pn");
+		let tokens = lexer::lex(source)?;
+		let declarations = parser::parse(tokens)?;
+		let indentation = rebuilder::Indentation {
+			value: "\t",
+			amount: 0,
+		};
+		let code = rebuilder::rebuild(declarations, &indentation)?;
+		assert_eq!(code, source);
 		Ok(())
 	}
 }
