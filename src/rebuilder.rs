@@ -6,7 +6,7 @@ use crate::parser::{Block, Declaration, Statement};
 use std::fmt::Write;
 
 pub fn rebuild(
-	program: Vec<Declaration>,
+	program: &Vec<Declaration>,
 	indentation: &Indentation,
 ) -> Result<String, anyhow::Error>
 {

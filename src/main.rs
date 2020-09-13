@@ -1,5 +1,6 @@
 /**/
 
+use penne::generator;
 use penne::lexer;
 use penne::parser;
 use penne::rebuilder;
@@ -32,8 +33,11 @@ fn main() -> Result<(), anyhow::Error>
 			value: "\u{00a6}   ",
 			amount: 1,
 		};
-		let code = rebuilder::rebuild(declarations, &indentation)?;
+		let code = rebuilder::rebuild(&declarations, &indentation)?;
 		println!("{}", code);
+		println!("Generating {}...", filename);
+		let ir = generator::generate(&declarations, &filename)?;
+		println!("{}", ir);
 	}
 	println!("Done.");
 

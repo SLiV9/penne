@@ -1,5 +1,6 @@
 /**/
 
+pub mod generator;
 pub mod lexer;
 pub mod parser;
 pub mod rebuilder;
@@ -38,7 +39,7 @@ mod tests
 			value: "\t",
 			amount: 0,
 		};
-		let code = rebuilder::rebuild(declarations, &indentation)?;
+		let code = rebuilder::rebuild(&declarations, &indentation)?;
 		assert_eq!(code, source);
 		Ok(())
 	}
