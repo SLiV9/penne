@@ -41,8 +41,7 @@ fn main() -> Result<(), anyhow::Error>
 		println!("{:?}", declarations);
 		println!();
 		println!("Generating IR for {}...", filename);
-		let module = generator::generate(&declarations, &filename)?;
-		let ir = module.generate_ir()?;
+		let ir = generator::generate(&declarations, &filename)?;
 		println!("{}", ir);
 		let outputfilename = format!("bin/{}.ll", filename);
 		let dirname = std::path::Path::new(&outputfilename).parent().unwrap();

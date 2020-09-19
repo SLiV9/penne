@@ -9,16 +9,13 @@ use std::ffi::{CStr, CString};
 
 use llvm_sys::analysis::*;
 use llvm_sys::core::*;
-use llvm_sys::execution_engine::*;
 use llvm_sys::prelude::*;
 use llvm_sys::{LLVMBuilder, LLVMContext, LLVMModule};
-
-use anyhow::anyhow;
 
 pub fn generate(
 	program: &Vec<Declaration>,
 	source_filename: &str,
-) -> Result<Module, anyhow::Error>
+) -> Result<String, anyhow::Error>
 {
 	// TODO replace with module name based on filename or something like that
 	let mut generator = Generator::new(source_filename)?;
@@ -29,95 +26,8 @@ pub fn generate(
 	}
 
 	generator.verify();
-
-	let module = Module(generator);
-	Ok(module)
-}
-
-pub struct Module(Generator);
-
-impl Module
-{
-	pub fn generate_ir(&self) -> Result<String, anyhow::Error>
-	{
-		self.0.generate_ir()
-	}
-
-	pub fn execute(self) -> Result<Option<i32>, anyhow::Error>
-	{
-		unsafe {
-			LLVMLinkInMCJIT();
-			if llvm_sys::target::LLVM_InitializeNativeTarget() != 0
-			{
-				return Err(anyhow!("failed to initialize native target"));
-			}
-		}
-
-		// Extract the module from the generator because the execution engine
-		// will dispose of it, for some reason.
-		let module: *mut LLVMModule = std::ptr::null_mut();
-		unsafe {
-			std::ptr::swap(self.0.module, module);
-		}
-
-		let engine = unsafe {
-			let mut engine: LLVMExecutionEngineRef = std::ptr::null_mut();
-			let mut error: *mut i8 = std::ptr::null_mut();
-			let status = LLVMCreateExecutionEngineForModule(
-				&mut engine as *mut LLVMExecutionEngineRef,
-				module,
-				&mut error as *mut *mut i8,
-			);
-			if status != 0
-			{
-				if !error.is_null()
-				{
-					let errorvalue = anyhow!(
-						"failed to create execution engine: {}",
-						CStr::from_ptr(error).to_string_lossy()
-					);
-					LLVMDisposeMessage(error);
-					return Err(errorvalue);
-				}
-				else
-				{
-					return Err(anyhow!("failed to create execution engine"));
-				}
-			}
-			engine
-		};
-
-		let main_name = CString::new("main")?;
-		let result = unsafe {
-			let mut main: LLVMValueRef = std::ptr::null_mut();
-			let status = LLVMFindFunction(
-				engine,
-				main_name.as_ptr(),
-				&mut main as *mut LLVMValueRef,
-			);
-			if status != 0
-			{
-				return Err(anyhow!("failed to find main"));
-			}
-			let mut args = vec![];
-			let result = LLVMRunFunction(engine, main, 0, args.as_mut_ptr());
-			if self.0.returns_int
-			{
-				let x = LLVMGenericValueToInt(result, 1) as i32;
-				Some(x)
-			}
-			else
-			{
-				None
-			}
-		};
-
-		unsafe {
-			LLVMDisposeExecutionEngine(engine);
-		}
-
-		Ok(result)
-	}
+	let ircode = generator.generate_ir()?;
+	Ok(ircode)
 }
 
 struct Generator
@@ -125,7 +35,6 @@ struct Generator
 	module: *mut LLVMModule,
 	context: *mut LLVMContext,
 	builder: *mut LLVMBuilder,
-	returns_int: bool,
 }
 
 impl Generator
@@ -144,7 +53,6 @@ impl Generator
 				module,
 				context,
 				builder,
-				returns_int: false,
 			}
 		};
 		Ok(generator)
@@ -189,18 +97,9 @@ impl Drop for Generator
 	fn drop(&mut self)
 	{
 		unsafe {
-			if !self.builder.is_null()
-			{
-				LLVMDisposeBuilder(self.builder);
-			}
-			if !self.module.is_null()
-			{
-				LLVMDisposeModule(self.module);
-			}
-			if !self.context.is_null()
-			{
-				LLVMContextDispose(self.context);
-			}
+			LLVMDisposeBuilder(self.builder);
+			LLVMDisposeModule(self.module);
+			LLVMContextDispose(self.context);
 		}
 	}
 }
@@ -234,15 +133,7 @@ impl Generatable for Declaration
 			{
 				let return_type = match return_type
 				{
-					Some(return_type) =>
-					{
-						if return_type.is_integral()
-						{
-							llvm.returns_int = true;
-						}
-
-						return_type.generate(llvm)?
-					}
+					Some(return_type) => return_type.generate(llvm)?,
 
 					None =>
 					unsafe { LLVMVoidTypeInContext(llvm.context) },

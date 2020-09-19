@@ -44,17 +44,4 @@ mod tests
 		assert_eq!(code, source);
 		Ok(())
 	}
-
-	#[test]
-	fn execute_five() -> Result<(), anyhow::Error>
-	{
-		let source = include_str!("samples/five.pn");
-		let tokens = lexer::lex(source)?;
-		let declarations = parser::parse(tokens)?;
-		let declarations = analyzer::analyze(declarations)?;
-		let module = generator::generate(&declarations, "samples/five.pn")?;
-		let result = module.execute()?;
-		assert_eq!(result, Some(5));
-		Ok(())
-	}
 }
