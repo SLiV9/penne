@@ -10,6 +10,7 @@ pub mod rebuilder;
 mod tests
 {
 	use super::*;
+	use std::io::Write;
 
 	#[test]
 	fn parse_do_nothing() -> Result<(), anyhow::Error>
@@ -42,6 +43,24 @@ mod tests
 		};
 		let code = rebuilder::rebuild(&declarations, &indentation)?;
 		assert_eq!(code, source);
+		Ok(())
+	}
+
+	#[test]
+	fn execute_five() -> Result<(), anyhow::Error>
+	{
+		let source = include_str!("samples/five.pn");
+		let tokens = lexer::lex(source)?;
+		let declarations = parser::parse(tokens)?;
+		let declarations = analyzer::analyze(declarations)?;
+		let ir = generator::generate(&declarations, "samples/five.pn")?;
+		let mut cmd = std::process::Command::new("lli")
+			.stdin(std::process::Stdio::piped())
+			.spawn()?;
+		cmd.stdin.as_mut().unwrap().write_all(ir.as_bytes())?;
+		let status = cmd.wait()?;
+		let exitcode = status.code().unwrap();
+		assert_eq!(exitcode, 5);
 		Ok(())
 	}
 }
