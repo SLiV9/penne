@@ -5,7 +5,7 @@ fn main()
 	var steps = 0;
 	{
 		if x == 1
-			goto end;
+			goto return;
 		var y = x;
 		{
 			if y == 0
@@ -31,6 +31,6 @@ fn main()
 		loop;
 	}
 
-	end:
+	return:
 	steps
 }

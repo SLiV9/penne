@@ -13,6 +13,7 @@ pub enum Declaration
 	{
 		name: String,
 		//parameters: Vec<Parameter>,
+		// return type
 		body: Block,
 	},
 }

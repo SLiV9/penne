@@ -4,12 +4,11 @@ fn main()
 
 	var y;
 	{
-		goto return;
+		goto end;
 		x = x + 1;
 		loop;
 	}
 	y = x;
 
-	return:
-	is_even
+	end:
 }

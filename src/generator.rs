@@ -104,20 +104,28 @@ impl Drop for Generator
 
 trait Generatable
 {
-	fn generate(&self, gen: &mut Generator) -> Result<(), anyhow::Error>;
+	type Item;
+
+	fn generate(
+		&self,
+		gen: &mut Generator,
+	) -> Result<Self::Item, anyhow::Error>;
 }
 
 impl Generatable for Declaration
 {
-	fn generate(&self, llvm: &mut Generator) -> Result<(), anyhow::Error>
+	type Item = ();
+
+	fn generate(
+		&self,
+		llvm: &mut Generator,
+	) -> Result<Self::Item, anyhow::Error>
 	{
 		match self
 		{
 			Declaration::Function { name, body } =>
 			{
 				let function_name = CString::new(name.as_bytes())?;
-
-				let entry_block_name = CString::new("entry")?;
 
 				let function = unsafe {
 					let void = LLVMVoidTypeInContext(llvm.context);
@@ -133,20 +141,21 @@ impl Generatable for Declaration
 						function_name.as_ptr(),
 						function_type,
 					);
+					function
+				};
 
+				let entry_block_name = CString::new("entry")?;
+
+				unsafe {
 					let entry_block = LLVMAppendBasicBlockInContext(
 						llvm.context,
 						function,
 						entry_block_name.as_ptr(),
 					);
 					LLVMPositionBuilderAtEnd(llvm.builder, entry_block);
-
-					// TODO iets met body
-
-					LLVMBuildRetVoid(llvm.builder);
-
-					function
 				};
+
+				body.generate(llvm)?;
 
 				llvm.verify_function(function);
 
@@ -158,23 +167,44 @@ impl Generatable for Declaration
 
 impl Generatable for Block
 {
-	fn generate(&self, llvm: &mut Generator) -> Result<(), anyhow::Error>
+	type Item = ();
+
+	fn generate(
+		&self,
+		llvm: &mut Generator,
+	) -> Result<Self::Item, anyhow::Error>
 	{
 		for statement in &self.statements
 		{
-			unimplemented!()
+			statement.generate(llvm)?;
 		}
-		if self.value != Expression::Void
+
+		if self.value == Expression::Void
 		{
-			unimplemented!()
+			unsafe {
+				LLVMBuildRetVoid(llvm.builder);
+			};
 		}
+		else
+		{
+			let result: LLVMValueRef = self.value.generate(llvm)?;
+			unsafe {
+				LLVMBuildRet(llvm.builder, result);
+			};
+		}
+
 		Ok(())
 	}
 }
 
 impl Generatable for Statement
 {
-	fn generate(&self, llvm: &mut Generator) -> Result<(), anyhow::Error>
+	type Item = ();
+
+	fn generate(
+		&self,
+		llvm: &mut Generator,
+	) -> Result<Self::Item, anyhow::Error>
 	{
 		match self
 		{
@@ -204,7 +234,12 @@ impl Generatable for Statement
 
 impl Generatable for Comparison
 {
-	fn generate(&self, llvm: &mut Generator) -> Result<(), anyhow::Error>
+	type Item = ();
+
+	fn generate(
+		&self,
+		llvm: &mut Generator,
+	) -> Result<Self::Item, anyhow::Error>
 	{
 		match self.op
 		{
@@ -215,7 +250,12 @@ impl Generatable for Comparison
 
 impl Generatable for Expression
 {
-	fn generate(&self, llvm: &mut Generator) -> Result<(), anyhow::Error>
+	type Item = LLVMValueRef;
+
+	fn generate(
+		&self,
+		llvm: &mut Generator,
+	) -> Result<Self::Item, anyhow::Error>
 	{
 		match self
 		{
@@ -233,13 +273,31 @@ impl Generatable for Expression
 
 impl Generatable for Literal
 {
-	fn generate(&self, llvm: &mut Generator) -> Result<(), anyhow::Error>
+	type Item = LLVMValueRef;
+
+	fn generate(
+		&self,
+		llvm: &mut Generator,
+	) -> Result<Self::Item, anyhow::Error>
 	{
 		match self
 		{
-			Literal::Int32(value) => unimplemented!(),
-			Literal::Bool(true) => unimplemented!(),
-			Literal::Bool(false) => unimplemented!(),
+			Literal::Int32(value) =>
+			{
+				let result = unsafe {
+					let inttype = LLVMInt32TypeInContext(llvm.context);
+					LLVMConstInt(inttype, *value as u64, 1)
+				};
+				Ok(result)
+			}
+			Literal::Bool(value) =>
+			{
+				let result = unsafe {
+					let bytetype = LLVMInt8TypeInContext(llvm.context);
+					LLVMConstInt(bytetype, *value as u64, 0)
+				};
+				Ok(result)
+			}
 		}
 	}
 }

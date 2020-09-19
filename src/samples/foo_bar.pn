@@ -1,14 +1,14 @@
 
 fn foo()
 {
-	33
+	return: 33
 }
 
 fn bar()
 {
 	var x = 1;
 	var y = x;
-	y
+	return: y
 }
 
 fn main()
