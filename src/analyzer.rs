@@ -18,6 +18,18 @@ pub enum ValueType
 	Bool,
 }
 
+impl ValueType
+{
+	pub fn is_integral(&self) -> bool
+	{
+		match self
+		{
+			ValueType::Int32 => true,
+			ValueType::Bool => true,
+		}
+	}
+}
+
 pub trait Typed
 {
 	fn value_type(&self) -> Option<ValueType>;
