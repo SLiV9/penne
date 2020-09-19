@@ -1,5 +1,6 @@
 /**/
 
+use penne::analyzer;
 use penne::generator;
 use penne::lexer;
 use penne::parser;
@@ -13,7 +14,7 @@ fn main() -> Result<(), anyhow::Error>
 	}
 	else
 	{
-		vec!["src/samples/collatz.pn".to_string()]
+		vec!["src/samples/five.pn".to_string()]
 	};
 
 	for filename in filenames
@@ -35,6 +36,10 @@ fn main() -> Result<(), anyhow::Error>
 		};
 		let code = rebuilder::rebuild(&declarations, &indentation)?;
 		println!("{}", code);
+		println!("Analyzing {:?}...", declarations);
+		let declarations = analyzer::analyze(declarations)?;
+		println!("{:?}", declarations);
+		println!();
 		println!("Generating IR for {}...", filename);
 		let ir = generator::generate(&declarations, &filename)?;
 		println!("{}", ir);

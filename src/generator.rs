@@ -1,7 +1,9 @@
 /**/
 
-use crate::parser::{BinaryOp, Comparison, ComparisonOp, Expression, Literal};
-use crate::parser::{Block, Declaration, Statement};
+use crate::analyzer::ValueType;
+use crate::analyzer::{BinaryOp, ComparisonOp};
+use crate::analyzer::{Block, Declaration, Statement};
+use crate::analyzer::{Comparison, Expression, Literal};
 
 use std::ffi::{CStr, CString};
 
@@ -123,15 +125,26 @@ impl Generatable for Declaration
 	{
 		match self
 		{
-			Declaration::Function { name, body } =>
+			Declaration::Function {
+				name,
+				body,
+				return_type,
+			} =>
 			{
+				let return_type = match return_type
+				{
+					Some(return_type) => return_type.generate(llvm)?,
+
+					None =>
+					unsafe { LLVMVoidTypeInContext(llvm.context) },
+				};
+
 				let function_name = CString::new(name.as_bytes())?;
 
 				let function = unsafe {
-					let void = LLVMVoidTypeInContext(llvm.context);
 					let mut param_types: Vec<LLVMTypeRef> = vec![];
 					let function_type = LLVMFunctionType(
-						void,
+						return_type,
 						param_types.as_mut_ptr(),
 						param_types.len() as u32,
 						0,
@@ -211,12 +224,21 @@ impl Generatable for Statement
 			Statement::Declaration {
 				name,
 				value: Some(value),
+				value_type: _,
 			} => unimplemented!(),
-			Statement::Declaration { name, value: None } => unimplemented!(),
+			Statement::Declaration {
+				name,
+				value: None,
+				value_type: _,
+			} => unimplemented!(),
 			Statement::Assignment { name, value } => unimplemented!(),
 			Statement::Loop => unimplemented!(),
 			Statement::Goto { label } => unimplemented!(),
-			Statement::Label { label } => unimplemented!(),
+			Statement::Label { label } =>
+			{
+				// TODO
+				Ok(())
+			}
 			Statement::If {
 				condition,
 				then_branch,
@@ -265,7 +287,7 @@ impl Generatable for Expression
 				BinaryOp::Subtract => unimplemented!(),
 			},
 			Expression::Literal(literal) => literal.generate(llvm),
-			Expression::Variable(var) => unimplemented!(),
+			Expression::Variable { name, value_type } => unimplemented!(),
 			Expression::Void => unimplemented!(),
 		}
 	}
@@ -299,5 +321,25 @@ impl Generatable for Literal
 				Ok(result)
 			}
 		}
+	}
+}
+
+impl Generatable for ValueType
+{
+	type Item = LLVMTypeRef;
+
+	fn generate(
+		&self,
+		llvm: &mut Generator,
+	) -> Result<Self::Item, anyhow::Error>
+	{
+		let typeref = match self
+		{
+			ValueType::Int32 =>
+			unsafe { LLVMInt32TypeInContext(llvm.context) },
+			ValueType::Bool =>
+			unsafe { LLVMInt8TypeInContext(llvm.context) },
+		};
+		Ok(typeref)
 	}
 }

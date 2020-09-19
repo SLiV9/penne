@@ -13,7 +13,6 @@ pub enum Declaration
 	{
 		name: String,
 		//parameters: Vec<Parameter>,
-		// return type
 		body: Block,
 	},
 }
@@ -64,7 +63,7 @@ pub struct Comparison
 	pub right: Expression,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ComparisonOp
 {
 	Equals,
@@ -84,14 +83,14 @@ pub enum Expression
 	Void,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinaryOp
 {
 	Add,
 	Subtract,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Literal
 {
 	Int32(i32),
