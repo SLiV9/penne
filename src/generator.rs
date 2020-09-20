@@ -12,6 +12,8 @@ use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::{LLVMBuilder, LLVMContext, LLVMModule};
 
+use anyhow::anyhow;
+
 pub fn generate(
 	program: &Vec<Declaration>,
 	source_filename: &str,
@@ -34,6 +36,7 @@ struct Generator
 	module: *mut LLVMModule,
 	context: *mut LLVMContext,
 	builder: *mut LLVMBuilder,
+	cache: std::collections::HashMap<String, LLVMValueRef>,
 }
 
 impl Generator
@@ -52,6 +55,7 @@ impl Generator
 				module,
 				context,
 				builder,
+				cache: std::collections::HashMap::new(),
 			}
 		};
 		Ok(generator)
@@ -240,14 +244,63 @@ impl Generatable for Statement
 			Statement::Declaration {
 				name,
 				value: Some(value),
-				value_type: _,
-			} => unimplemented!(),
+				value_type: Some(vt),
+			} =>
+			{
+				let cname = CString::new(name as &str)?;
+				let vtype = vt.generate(llvm)?;
+				let loc = unsafe {
+					LLVMBuildAlloca(llvm.builder, vtype, cname.as_ptr())
+				};
+				llvm.cache.insert(name.to_string(), loc);
+				let value = value.generate(llvm)?;
+				unsafe {
+					LLVMBuildStore(llvm.builder, value, loc);
+				}
+				Ok(())
+			}
 			Statement::Declaration {
 				name,
 				value: None,
-				value_type: _,
-			} => unimplemented!(),
-			Statement::Assignment { name, value } => unimplemented!(),
+				value_type: Some(vt),
+			} =>
+			{
+				let cname = CString::new(name as &str)?;
+				let vtype = vt.generate(llvm)?;
+				let loc = unsafe {
+					LLVMBuildAlloca(llvm.builder, vtype, cname.as_ptr())
+				};
+				llvm.cache.insert(name.to_string(), loc);
+				Ok(())
+			}
+			Statement::Declaration {
+				name,
+				value,
+				value_type: None,
+			} => Err(anyhow!(
+				"failed to infer type for '{}' = {:?}",
+				name,
+				value
+			)),
+			Statement::Assignment { name, value } =>
+			{
+				let loc = match llvm.cache.get(name)
+				{
+					Some(loc) => *loc,
+					None =>
+					{
+						return Err(anyhow!(
+							"undefined reference to '{}'",
+							name
+						))
+					}
+				};
+				let value = value.generate(llvm)?;
+				unsafe {
+					LLVMBuildStore(llvm.builder, value, loc);
+				}
+				Ok(())
+			}
 			Statement::Loop => unimplemented!(),
 			Statement::Goto { label } => unimplemented!(),
 			Statement::Label { label } =>
@@ -316,7 +369,28 @@ impl Generatable for Expression
 				Ok(result)
 			}
 			Expression::Literal(literal) => literal.generate(llvm),
-			Expression::Variable { name, value_type } => unimplemented!(),
+			Expression::Variable {
+				name,
+				value_type: _,
+			} =>
+			{
+				let tmpname = CString::new("tmp")?;
+				let loc = match llvm.cache.get(name)
+				{
+					Some(loc) => *loc,
+					None =>
+					{
+						return Err(anyhow!(
+							"undefined reference to '{}'",
+							name
+						))
+					}
+				};
+				let result = unsafe {
+					LLVMBuildLoad(llvm.builder, loc, tmpname.as_ptr())
+				};
+				Ok(result)
+			}
 		}
 	}
 }

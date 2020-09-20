@@ -62,6 +62,14 @@ mod tests
 		Ok(())
 	}
 
+	#[test]
+	fn execute_addition() -> Result<(), anyhow::Error>
+	{
+		let result = execute_calculation("src/samples/addition.pn")?;
+		assert_eq!(result, 10);
+		Ok(())
+	}
+
 	fn execute_calculation(filename: &str) -> Result<i32, anyhow::Error>
 	{
 		let source = std::fs::read_to_string(&filename)?;

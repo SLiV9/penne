@@ -1,0 +1,8 @@
+fn main()
+{
+	var x = 2;
+	var y = 7;
+	var z = 1;
+	// This should be 10.
+	return: x + y + z
+}
