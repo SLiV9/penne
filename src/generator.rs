@@ -38,6 +38,7 @@ struct Generator
 	builder: *mut LLVMBuilder,
 	local_variables: std::collections::HashMap<String, LLVMValueRef>,
 	local_labeled_blocks: std::collections::HashMap<String, LLVMBasicBlockRef>,
+	is_pending_unreachable: bool,
 }
 
 impl Generator
@@ -58,6 +59,7 @@ impl Generator
 				builder,
 				local_variables: std::collections::HashMap::new(),
 				local_labeled_blocks: std::collections::HashMap::new(),
+				is_pending_unreachable: false,
 			}
 		};
 		Ok(generator)
@@ -249,6 +251,8 @@ impl Generatable for Block
 				statement.generate(llvm)?;
 			}
 
+			check_pending_unreachable(llvm)?;
+
 			let cname = CString::new("after-looped-block")?;
 			unsafe {
 				let function = LLVMGetBasicBlockParent(inner_block);
@@ -272,6 +276,29 @@ impl Generatable for Block
 	}
 }
 
+fn check_pending_unreachable(llvm: &mut Generator)
+	-> Result<(), anyhow::Error>
+{
+	if llvm.is_pending_unreachable
+	{
+		let cname = CString::new("unreachable-after-goto")?;
+		unsafe {
+			let current_block = LLVMGetInsertBlock(llvm.builder);
+			let function = LLVMGetBasicBlockParent(current_block);
+			let unreachable_block = LLVMAppendBasicBlockInContext(
+				llvm.context,
+				function,
+				cname.as_ptr(),
+			);
+			//LLVMPositionBuilderAtEnd(llvm.builder, current_block);
+			//LLVMBuildBr(llvm.builder, unreachable_block);
+			LLVMPositionBuilderAtEnd(llvm.builder, unreachable_block);
+		};
+		llvm.is_pending_unreachable = false;
+	}
+	Ok(())
+}
+
 impl Generatable for Statement
 {
 	type Item = ();
@@ -289,6 +316,7 @@ impl Generatable for Statement
 				value_type: Some(vt),
 			} =>
 			{
+				check_pending_unreachable(llvm)?;
 				let cname = CString::new(name as &str)?;
 				let vtype = vt.generate(llvm)?;
 				let loc = unsafe {
@@ -307,6 +335,7 @@ impl Generatable for Statement
 				value_type: Some(vt),
 			} =>
 			{
+				check_pending_unreachable(llvm)?;
 				let cname = CString::new(name as &str)?;
 				let vtype = vt.generate(llvm)?;
 				let loc = unsafe {
@@ -326,6 +355,7 @@ impl Generatable for Statement
 			)),
 			Statement::Assignment { name, value } =>
 			{
+				check_pending_unreachable(llvm)?;
 				let loc = match llvm.local_variables.get(name)
 				{
 					Some(loc) => *loc,
@@ -346,30 +376,22 @@ impl Generatable for Statement
 			Statement::Loop => Err(anyhow!("misplaced loop")),
 			Statement::Goto { label } =>
 			{
-				let current_block = unsafe { LLVMGetInsertBlock(llvm.builder) };
-				let cname = CString::new("unreachable-after-goto")?;
-				let unreachable_block = unsafe {
-					let function = LLVMGetBasicBlockParent(current_block);
-					let unreachable_block = LLVMAppendBasicBlockInContext(
-						llvm.context,
-						function,
-						cname.as_ptr(),
-					);
-					unreachable_block
-				};
+				check_pending_unreachable(llvm)?;
 				let labeled_block = find_or_append_labeled_block(llvm, label)?;
 				unsafe {
+					let current_block = LLVMGetInsertBlock(llvm.builder);
 					LLVMPositionBuilderAtEnd(llvm.builder, current_block);
 					LLVMBuildBr(llvm.builder, labeled_block);
-					LLVMPositionBuilderAtEnd(llvm.builder, unreachable_block);
 				}
+				llvm.is_pending_unreachable = true;
 				Ok(())
 			}
 			Statement::Label { label } =>
 			{
-				let current_block = unsafe { LLVMGetInsertBlock(llvm.builder) };
+				llvm.is_pending_unreachable = false;
 				let labeled_block = find_or_append_labeled_block(llvm, label)?;
 				unsafe {
+					let current_block = LLVMGetInsertBlock(llvm.builder);
 					LLVMPositionBuilderAtEnd(llvm.builder, current_block);
 					LLVMBuildBr(llvm.builder, labeled_block);
 					LLVMPositionBuilderAtEnd(llvm.builder, labeled_block);
@@ -382,10 +404,12 @@ impl Generatable for Statement
 				else_branch,
 			} =>
 			{
+				check_pending_unreachable(llvm)?;
 				let condition = condition.generate(llvm)?;
 				let cond_block = unsafe { LLVMGetInsertBlock(llvm.builder) };
 				let function = unsafe { LLVMGetBasicBlockParent(cond_block) };
 
+				llvm.is_pending_unreachable = false;
 				let cname = CString::new("then")?;
 				let then_start_block = unsafe {
 					let then_block = LLVMAppendBasicBlockInContext(
@@ -404,6 +428,7 @@ impl Generatable for Statement
 
 				let else_blocks = if let Some(else_branch) = else_branch
 				{
+					llvm.is_pending_unreachable = false;
 					let cname = CString::new("else")?;
 					let start_block = unsafe {
 						let else_block = LLVMAppendBasicBlockInContext(
@@ -426,6 +451,7 @@ impl Generatable for Statement
 					None
 				};
 
+				llvm.is_pending_unreachable = false;
 				let cname = CString::new("after")?;
 				let after_block = unsafe {
 					let after_block = LLVMAppendBasicBlockInContext(
@@ -461,7 +487,11 @@ impl Generatable for Statement
 				}
 				Ok(())
 			}
-			Statement::Block(block) => block.generate(llvm),
+			Statement::Block(block) =>
+			{
+				check_pending_unreachable(llvm)?;
+				block.generate(llvm)
+			}
 		}
 	}
 }
