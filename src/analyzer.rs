@@ -4,11 +4,16 @@ pub use crate::parser::{BinaryOp, ComparisonOp, Literal};
 
 use crate::parser;
 
+use anyhow::anyhow;
+
 pub fn analyze(
 	program: Vec<parser::Declaration>,
 ) -> Result<Vec<Declaration>, anyhow::Error>
 {
-	program.iter().map(|x| x.analyze()).collect()
+	let mut analyzer = Analyzer {
+		symbols: std::collections::HashMap::new(),
+	};
+	program.iter().map(|x| x.analyze(&mut analyzer)).collect()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -16,6 +21,41 @@ pub enum ValueType
 {
 	Int32,
 	Bool,
+}
+
+struct Analyzer
+{
+	symbols: std::collections::HashMap<String, ValueType>,
+}
+
+impl Analyzer
+{
+	fn put_symbol(
+		&mut self,
+		name: &str,
+		value_type: Option<ValueType>,
+	) -> Result<(), anyhow::Error>
+	{
+		if let Some(vt) = value_type
+		{
+			let old_type = self.symbols.insert(name.to_string(), vt);
+			match old_type
+			{
+				Some(ot) if ot == vt => Ok(()),
+				Some(ot) => Err(anyhow!(
+					"conflicting types for '{}', {:?} and {:?}",
+					name,
+					ot,
+					vt
+				)),
+				None => Ok(()),
+			}
+		}
+		else
+		{
+			Ok(())
+		}
+	}
 }
 
 pub trait Typed
@@ -39,7 +79,10 @@ trait Analyzable
 {
 	type Item;
 
-	fn analyze(&self) -> Result<Self::Item, anyhow::Error>;
+	fn analyze(
+		&self,
+		analyzer: &mut Analyzer,
+	) -> Result<Self::Item, anyhow::Error>;
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -69,13 +112,20 @@ impl Analyzable for parser::Declaration
 {
 	type Item = Declaration;
 
-	fn analyze(&self) -> Result<Self::Item, anyhow::Error>
+	fn analyze(
+		&self,
+		analyzer: &mut Analyzer,
+	) -> Result<Self::Item, anyhow::Error>
 	{
 		match self
 		{
 			parser::Declaration::Function { name, body } =>
 			{
-				let body = body.analyze()?;
+				// Pre-analyze the function body because it might contain
+				// untyped declarations, e.g. "var x;", whose types won't be
+				// determined in the first pass.
+				body.analyze(analyzer)?;
+				let body = body.analyze(analyzer)?;
 				let return_type = body.value_type();
 				let function = Declaration::Function {
 					name: name.clone(),
@@ -107,14 +157,18 @@ impl Analyzable for parser::Block
 {
 	type Item = Block;
 
-	fn analyze(&self) -> Result<Self::Item, anyhow::Error>
+	fn analyze(
+		&self,
+		analyzer: &mut Analyzer,
+	) -> Result<Self::Item, anyhow::Error>
 	{
-		// TODO this needs to be more sophisticated because we need to find
-		// the types
-		let statements: Result<Vec<Statement>, anyhow::Error> =
-			self.statements.iter().map(|x| x.analyze()).collect();
+		let statements: Result<Vec<Statement>, anyhow::Error> = self
+			.statements
+			.iter()
+			.map(|x| x.analyze(analyzer))
+			.collect();
 		let statements = statements?;
-		let value = self.value.analyze()?;
+		let value = self.value.analyze(analyzer)?;
 		Ok(Block { statements, value })
 	}
 }
@@ -163,7 +217,10 @@ impl Analyzable for parser::Statement
 {
 	type Item = Statement;
 
-	fn analyze(&self) -> Result<Self::Item, anyhow::Error>
+	fn analyze(
+		&self,
+		analyzer: &mut Analyzer,
+	) -> Result<Self::Item, anyhow::Error>
 	{
 		match self
 		{
@@ -172,8 +229,9 @@ impl Analyzable for parser::Statement
 				value: Some(value),
 			} =>
 			{
-				let value = value.analyze()?;
+				let value = value.analyze(analyzer)?;
 				let value_type = value.value_type();
+				analyzer.put_symbol(name, value_type)?;
 				let stmt = Statement::Declaration {
 					name: name.clone(),
 					value: Some(value),
@@ -183,16 +241,19 @@ impl Analyzable for parser::Statement
 			}
 			parser::Statement::Declaration { name, value: None } =>
 			{
+				let value_type = analyzer.symbols.get(name).cloned();
 				let stmt = Statement::Declaration {
 					name: name.clone(),
 					value: None,
-					value_type: None,
+					value_type,
 				};
 				Ok(stmt)
 			}
 			parser::Statement::Assignment { name, value } =>
 			{
-				let value = value.analyze()?;
+				let value = value.analyze(analyzer)?;
+				let value_type = value.value_type();
+				analyzer.put_symbol(name, value_type)?;
 				let stmt = Statement::Assignment {
 					name: name.clone(),
 					value,
@@ -212,14 +273,14 @@ impl Analyzable for parser::Statement
 				else_branch,
 			} =>
 			{
-				let condition = condition.analyze()?;
+				let condition = condition.analyze(analyzer)?;
 				let then_branch = {
-					let branch = then_branch.analyze()?;
+					let branch = then_branch.analyze(analyzer)?;
 					Box::new(branch)
 				};
 				let else_branch = if let Some(else_branch) = else_branch
 				{
-					let branch = else_branch.analyze()?;
+					let branch = else_branch.analyze(analyzer)?;
 					Some(Box::new(branch))
 				}
 				else
@@ -235,7 +296,7 @@ impl Analyzable for parser::Statement
 			}
 			parser::Statement::Block(block) =>
 			{
-				let block = block.analyze()?;
+				let block = block.analyze(analyzer)?;
 				Ok(Statement::Block(block))
 			}
 		}
@@ -254,10 +315,13 @@ impl Analyzable for parser::Comparison
 {
 	type Item = Comparison;
 
-	fn analyze(&self) -> Result<Self::Item, anyhow::Error>
+	fn analyze(
+		&self,
+		analyzer: &mut Analyzer,
+	) -> Result<Self::Item, anyhow::Error>
 	{
-		let left = self.left.analyze()?;
-		let right = self.right.analyze()?;
+		let left = self.left.analyze(analyzer)?;
+		let right = self.right.analyze(analyzer)?;
 		let expr = Comparison {
 			op: self.op,
 			left,
@@ -303,14 +367,17 @@ impl Analyzable for parser::Expression
 {
 	type Item = Expression;
 
-	fn analyze(&self) -> Result<Self::Item, anyhow::Error>
+	fn analyze(
+		&self,
+		analyzer: &mut Analyzer,
+	) -> Result<Self::Item, anyhow::Error>
 	{
 		match self
 		{
 			parser::Expression::Binary { op, left, right } =>
 			{
-				let left = left.analyze()?;
-				let right = right.analyze()?;
+				let left = left.analyze(analyzer)?;
+				let right = right.analyze(analyzer)?;
 				let expr = Expression::Binary {
 					op: *op,
 					left: Box::new(left),
@@ -324,8 +391,7 @@ impl Analyzable for parser::Expression
 			}
 			parser::Expression::Variable(name) =>
 			{
-				// TODO determine value_type
-				let value_type = None;
+				let value_type = analyzer.symbols.get(name).cloned();
 				let expr = Expression::Variable {
 					name: name.clone(),
 					value_type,

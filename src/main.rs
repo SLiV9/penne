@@ -36,7 +36,7 @@ fn main() -> Result<(), anyhow::Error>
 		};
 		let code = rebuilder::rebuild(&declarations, &indentation)?;
 		println!("{}", code);
-		println!("Analyzing {:?}...", declarations);
+		println!("Analyzing {:?}...", filename);
 		let declarations = analyzer::analyze(declarations)?;
 		println!("{:?}", declarations);
 		println!();

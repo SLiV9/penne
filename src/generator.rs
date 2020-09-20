@@ -17,7 +17,6 @@ pub fn generate(
 	source_filename: &str,
 ) -> Result<String, anyhow::Error>
 {
-	// TODO replace with module name based on filename or something like that
 	let mut generator = Generator::new(source_filename)?;
 
 	for declaration in program
