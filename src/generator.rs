@@ -36,7 +36,8 @@ struct Generator
 	module: *mut LLVMModule,
 	context: *mut LLVMContext,
 	builder: *mut LLVMBuilder,
-	cache: std::collections::HashMap<String, LLVMValueRef>,
+	local_variables: std::collections::HashMap<String, LLVMValueRef>,
+	local_blocks: std::collections::HashMap<String, LLVMBasicBlockRef>,
 }
 
 impl Generator
@@ -55,7 +56,8 @@ impl Generator
 				module,
 				context,
 				builder,
-				cache: std::collections::HashMap::new(),
+				local_variables: std::collections::HashMap::new(),
+				local_blocks: std::collections::HashMap::new(),
 			}
 		};
 		Ok(generator)
@@ -252,7 +254,7 @@ impl Generatable for Statement
 				let loc = unsafe {
 					LLVMBuildAlloca(llvm.builder, vtype, cname.as_ptr())
 				};
-				llvm.cache.insert(name.to_string(), loc);
+				llvm.local_variables.insert(name.to_string(), loc);
 				let value = value.generate(llvm)?;
 				unsafe {
 					LLVMBuildStore(llvm.builder, value, loc);
@@ -270,7 +272,7 @@ impl Generatable for Statement
 				let loc = unsafe {
 					LLVMBuildAlloca(llvm.builder, vtype, cname.as_ptr())
 				};
-				llvm.cache.insert(name.to_string(), loc);
+				llvm.local_variables.insert(name.to_string(), loc);
 				Ok(())
 			}
 			Statement::Declaration {
@@ -284,7 +286,7 @@ impl Generatable for Statement
 			)),
 			Statement::Assignment { name, value } =>
 			{
-				let loc = match llvm.cache.get(name)
+				let loc = match llvm.local_variables.get(name)
 				{
 					Some(loc) => *loc,
 					None =>
@@ -302,10 +304,36 @@ impl Generatable for Statement
 				Ok(())
 			}
 			Statement::Loop => unimplemented!(),
-			Statement::Goto { label } => unimplemented!(),
+			Statement::Goto { label } =>
+			{
+				let current_block = unsafe { LLVMGetInsertBlock(llvm.builder) };
+				let cname = CString::new("unreachable-after-goto")?;
+				let unreachable_block = unsafe {
+					let function = LLVMGetBasicBlockParent(current_block);
+					let unreachable_block = LLVMAppendBasicBlockInContext(
+						llvm.context,
+						function,
+						cname.as_ptr(),
+					);
+					unreachable_block
+				};
+				let labeled_block = find_or_append_labeled_block(llvm, label)?;
+				unsafe {
+					LLVMPositionBuilderAtEnd(llvm.builder, current_block);
+					LLVMBuildBr(llvm.builder, labeled_block);
+					LLVMPositionBuilderAtEnd(llvm.builder, unreachable_block);
+				}
+				Ok(())
+			}
 			Statement::Label { label } =>
 			{
-				// TODO
+				let current_block = unsafe { LLVMGetInsertBlock(llvm.builder) };
+				let labeled_block = find_or_append_labeled_block(llvm, label)?;
+				unsafe {
+					LLVMPositionBuilderAtEnd(llvm.builder, current_block);
+					LLVMBuildBr(llvm.builder, labeled_block);
+					LLVMPositionBuilderAtEnd(llvm.builder, labeled_block);
+				}
 				Ok(())
 			}
 			Statement::If {
@@ -320,6 +348,33 @@ impl Generatable for Statement
 			} => unimplemented!(),
 			Statement::Block(block) => block.generate(llvm),
 		}
+	}
+}
+
+fn find_or_append_labeled_block(
+	llvm: &mut Generator,
+	label: &str,
+) -> Result<LLVMBasicBlockRef, anyhow::Error>
+{
+	if let Some(block) = llvm.local_blocks.get(label)
+	{
+		Ok(*block)
+	}
+	else
+	{
+		let cname = CString::new(label)?;
+		let block = unsafe {
+			let current_block = LLVMGetInsertBlock(llvm.builder);
+			let function = LLVMGetBasicBlockParent(current_block);
+			let labeled_block = LLVMAppendBasicBlockInContext(
+				llvm.context,
+				function,
+				cname.as_ptr(),
+			);
+			labeled_block
+		};
+		llvm.local_blocks.insert(label.to_string(), block);
+		Ok(block)
 	}
 }
 
@@ -375,7 +430,7 @@ impl Generatable for Expression
 			} =>
 			{
 				let tmpname = CString::new("tmp")?;
-				let loc = match llvm.cache.get(name)
+				let loc = match llvm.local_variables.get(name)
 				{
 					Some(loc) => *loc,
 					None =>
