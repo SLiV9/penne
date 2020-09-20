@@ -174,6 +174,8 @@ impl Generatable for Declaration
 				};
 
 				body.generate(llvm)?;
+				llvm.local_variables.clear();
+				llvm.local_blocks.clear();
 
 				llvm.verify_function(function);
 
@@ -224,9 +226,47 @@ impl Generatable for Block
 		llvm: &mut Generator,
 	) -> Result<Self::Item, anyhow::Error>
 	{
-		for statement in &self.statements
+		if self.statements.last() == Some(&Statement::Loop)
 		{
-			statement.generate(llvm)?;
+			let cname = CString::new("looped-block")?;
+			let inner_block = unsafe {
+				let current_block = LLVMGetInsertBlock(llvm.builder);
+				let function = LLVMGetBasicBlockParent(current_block);
+				let inner_block = LLVMAppendBasicBlockInContext(
+					llvm.context,
+					function,
+					cname.as_ptr(),
+				);
+				LLVMPositionBuilderAtEnd(llvm.builder, current_block);
+				LLVMBuildBr(llvm.builder, inner_block);
+				LLVMPositionBuilderAtEnd(llvm.builder, inner_block);
+				inner_block
+			};
+
+			let len = self.statements.len() - 1;
+			for statement in &self.statements[0..len]
+			{
+				statement.generate(llvm)?;
+			}
+
+			let cname = CString::new("after-looped-block")?;
+			unsafe {
+				let function = LLVMGetBasicBlockParent(inner_block);
+				LLVMBuildBr(llvm.builder, inner_block);
+				let after_block = LLVMAppendBasicBlockInContext(
+					llvm.context,
+					function,
+					cname.as_ptr(),
+				);
+				LLVMPositionBuilderAtEnd(llvm.builder, after_block);
+			}
+		}
+		else
+		{
+			for statement in &self.statements
+			{
+				statement.generate(llvm)?;
+			}
 		}
 		Ok(())
 	}
@@ -303,7 +343,7 @@ impl Generatable for Statement
 				}
 				Ok(())
 			}
-			Statement::Loop => unimplemented!(),
+			Statement::Loop => Err(anyhow!("misplaced loop")),
 			Statement::Goto { label } =>
 			{
 				let current_block = unsafe { LLVMGetInsertBlock(llvm.builder) };
