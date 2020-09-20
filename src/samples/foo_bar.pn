@@ -1,6 +1,9 @@
 
 fn foo()
 {
+	{
+		baz:
+	}
 	return:
 	33
 }

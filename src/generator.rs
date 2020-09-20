@@ -37,7 +37,7 @@ struct Generator
 	context: *mut LLVMContext,
 	builder: *mut LLVMBuilder,
 	local_variables: std::collections::HashMap<String, LLVMValueRef>,
-	local_blocks: std::collections::HashMap<String, LLVMBasicBlockRef>,
+	local_labeled_blocks: std::collections::HashMap<String, LLVMBasicBlockRef>,
 }
 
 impl Generator
@@ -57,7 +57,7 @@ impl Generator
 				context,
 				builder,
 				local_variables: std::collections::HashMap::new(),
-				local_blocks: std::collections::HashMap::new(),
+				local_labeled_blocks: std::collections::HashMap::new(),
 			}
 		};
 		Ok(generator)
@@ -175,7 +175,7 @@ impl Generatable for Declaration
 
 				body.generate(llvm)?;
 				llvm.local_variables.clear();
-				llvm.local_blocks.clear();
+				llvm.local_labeled_blocks.clear();
 
 				llvm.verify_function(function);
 
@@ -379,13 +379,88 @@ impl Generatable for Statement
 			Statement::If {
 				condition,
 				then_branch,
-				else_branch: Some(else_branch),
-			} => unimplemented!(),
-			Statement::If {
-				condition,
-				then_branch,
-				else_branch: None,
-			} => unimplemented!(),
+				else_branch,
+			} =>
+			{
+				let condition = condition.generate(llvm)?;
+				let cond_block = unsafe { LLVMGetInsertBlock(llvm.builder) };
+				let function = unsafe { LLVMGetBasicBlockParent(cond_block) };
+
+				let cname = CString::new("then")?;
+				let then_start_block = unsafe {
+					let then_block = LLVMAppendBasicBlockInContext(
+						llvm.context,
+						function,
+						cname.as_ptr(),
+					);
+					LLVMPositionBuilderAtEnd(llvm.builder, then_block);
+					then_block
+				};
+				then_branch.generate(llvm)?;
+				let then_end_block = unsafe {
+					let block = LLVMGetInsertBlock(llvm.builder);
+					block
+				};
+
+				let else_blocks = if let Some(else_branch) = else_branch
+				{
+					let cname = CString::new("else")?;
+					let start_block = unsafe {
+						let else_block = LLVMAppendBasicBlockInContext(
+							llvm.context,
+							function,
+							cname.as_ptr(),
+						);
+						LLVMPositionBuilderAtEnd(llvm.builder, else_block);
+						else_block
+					};
+					else_branch.generate(llvm)?;
+					let end_block = unsafe {
+						let block = LLVMGetInsertBlock(llvm.builder);
+						block
+					};
+					Some((start_block, end_block))
+				}
+				else
+				{
+					None
+				};
+
+				let cname = CString::new("after")?;
+				let after_block = unsafe {
+					let after_block = LLVMAppendBasicBlockInContext(
+						llvm.context,
+						function,
+						cname.as_ptr(),
+					);
+					after_block
+				};
+				unsafe {
+					LLVMPositionBuilderAtEnd(llvm.builder, then_end_block);
+					LLVMBuildBr(llvm.builder, after_block);
+				}
+				let else_start_block = match else_blocks
+				{
+					Some((else_start_block, else_end_block)) =>
+					unsafe {
+						LLVMPositionBuilderAtEnd(llvm.builder, else_end_block);
+						LLVMBuildBr(llvm.builder, after_block);
+						else_start_block
+					},
+					None => after_block,
+				};
+				unsafe {
+					LLVMPositionBuilderAtEnd(llvm.builder, cond_block);
+					LLVMBuildCondBr(
+						llvm.builder,
+						condition,
+						then_start_block,
+						else_start_block,
+					);
+					LLVMPositionBuilderAtEnd(llvm.builder, after_block);
+				}
+				Ok(())
+			}
 			Statement::Block(block) => block.generate(llvm),
 		}
 	}
@@ -396,7 +471,7 @@ fn find_or_append_labeled_block(
 	label: &str,
 ) -> Result<LLVMBasicBlockRef, anyhow::Error>
 {
-	if let Some(block) = llvm.local_blocks.get(label)
+	if let Some(block) = llvm.local_labeled_blocks.get(label)
 	{
 		Ok(*block)
 	}
@@ -413,24 +488,32 @@ fn find_or_append_labeled_block(
 			);
 			labeled_block
 		};
-		llvm.local_blocks.insert(label.to_string(), block);
+		llvm.local_labeled_blocks.insert(label.to_string(), block);
 		Ok(block)
 	}
 }
 
 impl Generatable for Comparison
 {
-	type Item = ();
+	type Item = LLVMValueRef;
 
 	fn generate(
 		&self,
 		llvm: &mut Generator,
 	) -> Result<Self::Item, anyhow::Error>
 	{
-		match self.op
+		let left = self.left.generate(llvm)?;
+		let right = self.right.generate(llvm)?;
+		let name = CString::new("tmp")?;
+		// TODO non-integral comparisons
+		let pred = match self.op
 		{
-			ComparisonOp::Equals => unimplemented!(),
-		}
+			ComparisonOp::Equals => llvm_sys::LLVMIntPredicate::LLVMIntEQ,
+		};
+		let result = unsafe {
+			LLVMBuildICmp(llvm.builder, pred, left, right, name.as_ptr())
+		};
+		Ok(result)
 	}
 }
 
