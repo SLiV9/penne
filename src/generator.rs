@@ -297,11 +297,24 @@ impl Generatable for Expression
 	{
 		match self
 		{
-			Expression::Binary { op, left, right } => match op
+			Expression::Binary { op, left, right } =>
 			{
-				BinaryOp::Add => unimplemented!(),
-				BinaryOp::Subtract => unimplemented!(),
-			},
+				let left = left.generate(llvm)?;
+				let right = right.generate(llvm)?;
+				let name = CString::new("tmp")?;
+				let result = match op
+				{
+					BinaryOp::Add =>
+					unsafe {
+						LLVMBuildAdd(llvm.builder, left, right, name.as_ptr())
+					},
+					BinaryOp::Subtract =>
+					unsafe {
+						LLVMBuildSub(llvm.builder, left, right, name.as_ptr())
+					},
+				};
+				Ok(result)
+			}
 			Expression::Literal(literal) => literal.generate(llvm),
 			Expression::Variable { name, value_type } => unimplemented!(),
 		}

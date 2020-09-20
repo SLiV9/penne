@@ -49,18 +49,32 @@ mod tests
 	#[test]
 	fn execute_five() -> Result<(), anyhow::Error>
 	{
-		let source = include_str!("samples/five.pn");
-		let tokens = lexer::lex(source)?;
+		let result = execute_calculation("src/samples/five.pn")?;
+		assert_eq!(result, 5);
+		Ok(())
+	}
+
+	#[test]
+	fn execute_two_plus_seven() -> Result<(), anyhow::Error>
+	{
+		let result = execute_calculation("src/samples/two_plus_seven.pn")?;
+		assert_eq!(result, 9);
+		Ok(())
+	}
+
+	fn execute_calculation(filename: &str) -> Result<i32, anyhow::Error>
+	{
+		let source = std::fs::read_to_string(&filename)?;
+		let tokens = lexer::lex(&source)?;
 		let declarations = parser::parse(tokens)?;
 		let declarations = analyzer::analyze(declarations)?;
-		let ir = generator::generate(&declarations, "samples/five.pn")?;
+		let ir = generator::generate(&declarations, filename)?;
 		let mut cmd = std::process::Command::new("lli")
 			.stdin(std::process::Stdio::piped())
 			.spawn()?;
 		cmd.stdin.as_mut().unwrap().write_all(ir.as_bytes())?;
 		let status = cmd.wait()?;
 		let exitcode = status.code().unwrap();
-		assert_eq!(exitcode, 5);
-		Ok(())
+		Ok(exitcode)
 	}
 }
