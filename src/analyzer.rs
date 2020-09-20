@@ -92,7 +92,7 @@ pub enum Declaration
 	{
 		name: String,
 		//parameters: Vec<Parameter>,
-		body: Block,
+		body: FunctionBody,
 		return_type: Option<ValueType>,
 	},
 }
@@ -139,18 +139,59 @@ impl Analyzable for parser::Declaration
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Block
+pub struct FunctionBody
 {
 	pub statements: Vec<Statement>,
-	pub value: Expression,
+	pub return_value: Option<Expression>,
 }
 
-impl Typed for Block
+impl Typed for FunctionBody
 {
 	fn value_type(&self) -> Option<ValueType>
 	{
-		self.value.value_type()
+		match &self.return_value
+		{
+			Some(value) => value.value_type(),
+			None => None,
+		}
 	}
+}
+
+impl Analyzable for parser::FunctionBody
+{
+	type Item = FunctionBody;
+
+	fn analyze(
+		&self,
+		analyzer: &mut Analyzer,
+	) -> Result<Self::Item, anyhow::Error>
+	{
+		let statements: Result<Vec<Statement>, anyhow::Error> = self
+			.statements
+			.iter()
+			.map(|x| x.analyze(analyzer))
+			.collect();
+		let statements = statements?;
+		let return_value = match &self.return_value
+		{
+			Some(value) =>
+			{
+				let value = value.analyze(analyzer)?;
+				Some(value)
+			}
+			None => None,
+		};
+		Ok(FunctionBody {
+			statements,
+			return_value,
+		})
+	}
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Block
+{
+	pub statements: Vec<Statement>,
 }
 
 impl Analyzable for parser::Block
@@ -168,8 +209,7 @@ impl Analyzable for parser::Block
 			.map(|x| x.analyze(analyzer))
 			.collect();
 		let statements = statements?;
-		let value = self.value.analyze(analyzer)?;
-		Ok(Block { statements, value })
+		Ok(Block { statements })
 	}
 }
 
@@ -203,14 +243,6 @@ pub enum Statement
 		else_branch: Option<Box<Statement>>,
 	},
 	Block(Block),
-}
-
-impl Typed for Statement
-{
-	fn value_type(&self) -> Option<ValueType>
-	{
-		None
-	}
 }
 
 impl Analyzable for parser::Statement
@@ -346,7 +378,6 @@ pub enum Expression
 		name: String,
 		value_type: Option<ValueType>,
 	},
-	Void,
 }
 
 impl Typed for Expression
@@ -358,7 +389,6 @@ impl Typed for Expression
 			Expression::Binary { left, .. } => left.value_type(),
 			Expression::Literal(literal) => literal.value_type(),
 			Expression::Variable { value_type, .. } => *value_type,
-			Expression::Void => None,
 		}
 	}
 }
@@ -398,7 +428,6 @@ impl Analyzable for parser::Expression
 				};
 				Ok(expr)
 			}
-			parser::Expression::Void => Ok(Expression::Void),
 		}
 	}
 }

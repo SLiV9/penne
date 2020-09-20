@@ -1,7 +1,7 @@
 /**/
 
 use crate::parser::{BinaryOp, Comparison, ComparisonOp, Expression, Literal};
-use crate::parser::{Block, Declaration, Statement};
+use crate::parser::{Block, Declaration, FunctionBody, Statement};
 
 use std::fmt::Write;
 
@@ -75,7 +75,7 @@ impl Rebuildable for Declaration
 	}
 }
 
-impl Rebuildable for Block
+impl Rebuildable for FunctionBody
 {
 	fn rebuild(
 		&self,
@@ -92,13 +92,35 @@ impl Rebuildable for Block
 				statement.rebuild(&indentation.increased())?
 			)?;
 		}
-		if self.value != Expression::Void
+		if let Some(value) = &self.return_value
 		{
 			write!(
 				&mut buffer,
 				"{}{}\n",
 				indentation.increased(),
-				self.value.rebuild(&indentation.increased())?
+				value.rebuild(&indentation.increased())?
+			)?;
+		}
+		write!(&mut buffer, "{}}}\n", indentation)?;
+		Ok(buffer)
+	}
+}
+
+impl Rebuildable for Block
+{
+	fn rebuild(
+		&self,
+		indentation: &Indentation,
+	) -> Result<String, anyhow::Error>
+	{
+		let mut buffer = String::new();
+		write!(&mut buffer, "{}{{\n", indentation)?;
+		for statement in &self.statements
+		{
+			write!(
+				&mut buffer,
+				"{}",
+				statement.rebuild(&indentation.increased())?
 			)?;
 		}
 		write!(&mut buffer, "{}}}\n", indentation)?;
@@ -212,7 +234,6 @@ impl Rebuildable for Expression
 			},
 			Expression::Literal(literal) => literal.rebuild(indentation),
 			Expression::Variable(var) => Ok(var.to_string()),
-			Expression::Void => Ok("".to_string()),
 		}
 	}
 }

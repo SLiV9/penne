@@ -22,9 +22,9 @@ mod tests
 			declarations,
 			vec![parser::Declaration::Function {
 				name: "main".to_string(),
-				body: parser::Block {
+				body: parser::FunctionBody {
 					statements: vec![],
-					value: parser::Expression::Void
+					return_value: None,
 				}
 			}]
 		);

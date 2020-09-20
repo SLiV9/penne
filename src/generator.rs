@@ -2,7 +2,7 @@
 
 use crate::analyzer::ValueType;
 use crate::analyzer::{BinaryOp, ComparisonOp};
-use crate::analyzer::{Block, Declaration, Statement};
+use crate::analyzer::{Block, Declaration, FunctionBody, Statement};
 use crate::analyzer::{Comparison, Expression, Literal};
 
 use std::ffi::{CStr, CString};
@@ -177,7 +177,7 @@ impl Generatable for Declaration
 	}
 }
 
-impl Generatable for Block
+impl Generatable for FunctionBody
 {
 	type Item = ();
 
@@ -191,20 +191,37 @@ impl Generatable for Block
 			statement.generate(llvm)?;
 		}
 
-		if self.value == Expression::Void
+		if let Some(value) = &self.return_value
+		{
+			let result: LLVMValueRef = value.generate(llvm)?;
+			unsafe {
+				LLVMBuildRet(llvm.builder, result);
+			};
+		}
+		else
 		{
 			unsafe {
 				LLVMBuildRetVoid(llvm.builder);
 			};
 		}
-		else
-		{
-			let result: LLVMValueRef = self.value.generate(llvm)?;
-			unsafe {
-				LLVMBuildRet(llvm.builder, result);
-			};
-		}
 
+		Ok(())
+	}
+}
+
+impl Generatable for Block
+{
+	type Item = ();
+
+	fn generate(
+		&self,
+		llvm: &mut Generator,
+	) -> Result<Self::Item, anyhow::Error>
+	{
+		for statement in &self.statements
+		{
+			statement.generate(llvm)?;
+		}
 		Ok(())
 	}
 }
@@ -287,7 +304,6 @@ impl Generatable for Expression
 			},
 			Expression::Literal(literal) => literal.generate(llvm),
 			Expression::Variable { name, value_type } => unimplemented!(),
-			Expression::Void => unimplemented!(),
 		}
 	}
 }
