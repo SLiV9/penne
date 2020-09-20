@@ -26,5 +26,5 @@ fn main()
 	}
 
 	return:
-	is_even
+	x
 }

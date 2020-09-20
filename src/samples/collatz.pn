@@ -1,6 +1,6 @@
 fn main()
 {
-	var x = 12;
+	var x = 27;
 
 	var steps = 0;
 	{
