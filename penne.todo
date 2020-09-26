@@ -1,0 +1,37 @@
+Features:
+	☐	Forward-only goto's
+	☐	If-statement-based pattern matching
+	☐	Static nullability analysis through if-statement pattern matching
+	☐	Tagged unions for error handling
+
+Functionality:
+	☐	Strings
+	☐	printf()
+	☐	fopen(), fclose()
+	☐	Floats
+	☐	Casting
+	☐	Strong enums
+	☐	Function calls
+	☐	Function parameters
+	☐	Structs
+
+Syntactic sugar:
+	☐	Pre-block scope-merging variable declarations
+		var i = 0,
+		{
+			...
+		}
+		// i is not in scope here
+	☐	C-style string literal concatenation
+
+Syntax errors:
+	☐	Non-goto statement after if without braces
+	☐	Loop statement anywhere except at the end of a brace
+
+Linting errors:
+	☐	Unreachable code
+	☐	Non-const functions in if-statement conditions
+
+Usability:
+	☐	Error recovery
+	☐	Errors with line numbers
