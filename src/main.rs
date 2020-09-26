@@ -1,10 +1,10 @@
 /**/
 
-use penne::analyzer;
 use penne::generator;
 use penne::lexer;
 use penne::parser;
 use penne::rebuilder;
+use penne::typer;
 
 fn main() -> Result<(), anyhow::Error>
 {
@@ -37,7 +37,7 @@ fn main() -> Result<(), anyhow::Error>
 		let code = rebuilder::rebuild(&declarations, &indentation)?;
 		println!("{}", code);
 		println!("Analyzing {:?}...", filename);
-		let declarations = analyzer::analyze(declarations)?;
+		let declarations = typer::analyze(declarations)?;
 		println!("{:?}", declarations);
 		println!();
 		println!("Generating IR for {}...", filename);

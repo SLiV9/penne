@@ -1,10 +1,10 @@
 /**/
 
-pub mod analyzer;
 pub mod generator;
 pub mod lexer;
 pub mod parser;
 pub mod rebuilder;
+pub mod typer;
 
 #[cfg(test)]
 mod tests
@@ -75,7 +75,7 @@ mod tests
 		let source = std::fs::read_to_string(&filename)?;
 		let tokens = lexer::lex(&source)?;
 		let declarations = parser::parse(tokens)?;
-		let declarations = analyzer::analyze(declarations)?;
+		let declarations = typer::analyze(declarations)?;
 		let ir = generator::generate(&declarations, filename)?;
 		let mut cmd = std::process::Command::new("lli")
 			.stdin(std::process::Stdio::piped())

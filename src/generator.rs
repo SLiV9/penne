@@ -1,9 +1,9 @@
 /**/
 
-use crate::analyzer::ValueType;
-use crate::analyzer::{BinaryOp, ComparisonOp};
-use crate::analyzer::{Block, Declaration, FunctionBody, Statement};
-use crate::analyzer::{Comparison, Expression, Literal};
+use crate::typer::ValueType;
+use crate::typer::{BinaryOp, ComparisonOp};
+use crate::typer::{Block, Declaration, FunctionBody, Statement};
+use crate::typer::{Comparison, Expression, Literal};
 
 use std::ffi::{CStr, CString};
 
@@ -505,7 +505,6 @@ impl Generatable for Comparison
 		let left = self.left.generate(llvm)?;
 		let right = self.right.generate(llvm)?;
 		let name = CString::new("tmp")?;
-		// TODO non-integral comparisons
 		let pred = match self.op
 		{
 			ComparisonOp::Equals => llvm_sys::LLVMIntPredicate::LLVMIntEQ,

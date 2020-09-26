@@ -10,10 +10,10 @@ pub fn analyze(
 	program: Vec<parser::Declaration>,
 ) -> Result<Vec<Declaration>, anyhow::Error>
 {
-	let mut analyzer = Analyzer {
+	let mut typer = Typer {
 		symbols: std::collections::HashMap::new(),
 	};
-	program.iter().map(|x| x.analyze(&mut analyzer)).collect()
+	program.iter().map(|x| x.analyze(&mut typer)).collect()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,12 +23,12 @@ pub enum ValueType
 	Bool,
 }
 
-struct Analyzer
+struct Typer
 {
 	symbols: std::collections::HashMap<String, ValueType>,
 }
 
-impl Analyzer
+impl Typer
 {
 	fn put_symbol(
 		&mut self,
@@ -79,10 +79,7 @@ trait Analyzable
 {
 	type Item;
 
-	fn analyze(
-		&self,
-		analyzer: &mut Analyzer,
-	) -> Result<Self::Item, anyhow::Error>;
+	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>;
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -112,10 +109,7 @@ impl Analyzable for parser::Declaration
 {
 	type Item = Declaration;
 
-	fn analyze(
-		&self,
-		analyzer: &mut Analyzer,
-	) -> Result<Self::Item, anyhow::Error>
+	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
 	{
 		match self
 		{
@@ -124,8 +118,8 @@ impl Analyzable for parser::Declaration
 				// Pre-analyze the function body because it might contain
 				// untyped declarations, e.g. "var x;", whose types won't be
 				// determined in the first pass.
-				body.analyze(analyzer)?;
-				let body = body.analyze(analyzer)?;
+				body.analyze(typer)?;
+				let body = body.analyze(typer)?;
 				let return_type = body.value_type();
 				let function = Declaration::Function {
 					name: name.clone(),
@@ -161,22 +155,16 @@ impl Analyzable for parser::FunctionBody
 {
 	type Item = FunctionBody;
 
-	fn analyze(
-		&self,
-		analyzer: &mut Analyzer,
-	) -> Result<Self::Item, anyhow::Error>
+	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
 	{
-		let statements: Result<Vec<Statement>, anyhow::Error> = self
-			.statements
-			.iter()
-			.map(|x| x.analyze(analyzer))
-			.collect();
+		let statements: Result<Vec<Statement>, anyhow::Error> =
+			self.statements.iter().map(|x| x.analyze(typer)).collect();
 		let statements = statements?;
 		let return_value = match &self.return_value
 		{
 			Some(value) =>
 			{
-				let value = value.analyze(analyzer)?;
+				let value = value.analyze(typer)?;
 				Some(value)
 			}
 			None => None,
@@ -198,16 +186,10 @@ impl Analyzable for parser::Block
 {
 	type Item = Block;
 
-	fn analyze(
-		&self,
-		analyzer: &mut Analyzer,
-	) -> Result<Self::Item, anyhow::Error>
+	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
 	{
-		let statements: Result<Vec<Statement>, anyhow::Error> = self
-			.statements
-			.iter()
-			.map(|x| x.analyze(analyzer))
-			.collect();
+		let statements: Result<Vec<Statement>, anyhow::Error> =
+			self.statements.iter().map(|x| x.analyze(typer)).collect();
 		let statements = statements?;
 		Ok(Block { statements })
 	}
@@ -249,10 +231,7 @@ impl Analyzable for parser::Statement
 {
 	type Item = Statement;
 
-	fn analyze(
-		&self,
-		analyzer: &mut Analyzer,
-	) -> Result<Self::Item, anyhow::Error>
+	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
 	{
 		match self
 		{
@@ -261,9 +240,9 @@ impl Analyzable for parser::Statement
 				value: Some(value),
 			} =>
 			{
-				let value = value.analyze(analyzer)?;
+				let value = value.analyze(typer)?;
 				let value_type = value.value_type();
-				analyzer.put_symbol(name, value_type)?;
+				typer.put_symbol(name, value_type)?;
 				let stmt = Statement::Declaration {
 					name: name.clone(),
 					value: Some(value),
@@ -273,7 +252,7 @@ impl Analyzable for parser::Statement
 			}
 			parser::Statement::Declaration { name, value: None } =>
 			{
-				let value_type = analyzer.symbols.get(name).cloned();
+				let value_type = typer.symbols.get(name).cloned();
 				let stmt = Statement::Declaration {
 					name: name.clone(),
 					value: None,
@@ -283,9 +262,9 @@ impl Analyzable for parser::Statement
 			}
 			parser::Statement::Assignment { name, value } =>
 			{
-				let value = value.analyze(analyzer)?;
+				let value = value.analyze(typer)?;
 				let value_type = value.value_type();
-				analyzer.put_symbol(name, value_type)?;
+				typer.put_symbol(name, value_type)?;
 				let stmt = Statement::Assignment {
 					name: name.clone(),
 					value,
@@ -305,14 +284,14 @@ impl Analyzable for parser::Statement
 				else_branch,
 			} =>
 			{
-				let condition = condition.analyze(analyzer)?;
+				let condition = condition.analyze(typer)?;
 				let then_branch = {
-					let branch = then_branch.analyze(analyzer)?;
+					let branch = then_branch.analyze(typer)?;
 					Box::new(branch)
 				};
 				let else_branch = if let Some(else_branch) = else_branch
 				{
-					let branch = else_branch.analyze(analyzer)?;
+					let branch = else_branch.analyze(typer)?;
 					Some(Box::new(branch))
 				}
 				else
@@ -328,7 +307,7 @@ impl Analyzable for parser::Statement
 			}
 			parser::Statement::Block(block) =>
 			{
-				let block = block.analyze(analyzer)?;
+				let block = block.analyze(typer)?;
 				Ok(Statement::Block(block))
 			}
 		}
@@ -347,13 +326,10 @@ impl Analyzable for parser::Comparison
 {
 	type Item = Comparison;
 
-	fn analyze(
-		&self,
-		analyzer: &mut Analyzer,
-	) -> Result<Self::Item, anyhow::Error>
+	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
 	{
-		let left = self.left.analyze(analyzer)?;
-		let right = self.right.analyze(analyzer)?;
+		let left = self.left.analyze(typer)?;
+		let right = self.right.analyze(typer)?;
 		let expr = Comparison {
 			op: self.op,
 			left,
@@ -397,17 +373,14 @@ impl Analyzable for parser::Expression
 {
 	type Item = Expression;
 
-	fn analyze(
-		&self,
-		analyzer: &mut Analyzer,
-	) -> Result<Self::Item, anyhow::Error>
+	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
 	{
 		match self
 		{
 			parser::Expression::Binary { op, left, right } =>
 			{
-				let left = left.analyze(analyzer)?;
-				let right = right.analyze(analyzer)?;
+				let left = left.analyze(typer)?;
+				let right = right.analyze(typer)?;
 				let expr = Expression::Binary {
 					op: *op,
 					left: Box::new(left),
@@ -421,7 +394,7 @@ impl Analyzable for parser::Expression
 			}
 			parser::Expression::Variable(name) =>
 			{
-				let value_type = analyzer.symbols.get(name).cloned();
+				let value_type = typer.symbols.get(name).cloned();
 				let expr = Expression::Variable {
 					name: name.clone(),
 					value_type,
