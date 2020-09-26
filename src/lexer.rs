@@ -1,6 +1,6 @@
 /**/
 
-use anyhow::anyhow;
+use thiserror::Error;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token
@@ -12,6 +12,8 @@ pub enum Token
 	BraceRight,
 	Plus,
 	Minus,
+	Times,
+	Divide,
 	Colon,
 	Semicolon,
 	Assignment, // =
@@ -33,57 +35,103 @@ pub enum Token
 	Bool(bool),
 }
 
-pub fn lex(source: &str) -> Result<Vec<Token>, anyhow::Error>
+#[derive(Debug, Error)]
+pub enum Error
+{
+	#[error("unexpected character {character:?}")]
+	UnexpectedCharacter
+	{
+		character: char
+	},
+	#[error("invalid integer literal")]
+	InvalidIntegerLiteral(#[from] std::num::ParseIntError),
+}
+
+#[derive(Debug)]
+pub struct Location
+{
+	source_filename: String,
+	line: String,
+	line_number: usize,
+	line_offset: usize,
+}
+
+impl Location
+{
+	pub fn format(&self) -> String
+	{
+		format!(
+			"at {}:{}:{} ('{}')",
+			self.source_filename, self.line_number, self.line_offset, self.line
+		)
+	}
+}
+
+#[derive(Debug)]
+pub struct LexedToken
+{
+	pub result: Result<Token, Error>,
+	pub location: Location,
+}
+
+pub fn lex(source: &str, source_filename: &str) -> Vec<LexedToken>
 {
 	let mut tokens = Vec::new();
-	let mut iter = source.chars().peekable();
-	while let Some(x) = iter.next()
+	for (line_number, line) in source.lines().enumerate()
 	{
-		let token = match x
+		lex_line(line, source_filename, line_number, &mut tokens);
+	}
+	tokens
+}
+
+fn lex_line(
+	line: &str,
+	source_filename: &str,
+	line_number: usize,
+	tokens: &mut Vec<LexedToken>,
+)
+{
+	let mut iter = line.chars().enumerate().peekable();
+	while let Some((line_offset, x)) = iter.next()
+	{
+		let location = Location {
+			source_filename: source_filename.to_string(),
+			line: line.to_string(),
+			line_number,
+			line_offset,
+		};
+		let result = match x
 		{
-			'(' => Token::ParenLeft,
-			')' => Token::ParenRight,
-			'{' => Token::BraceLeft,
-			'}' => Token::BraceRight,
-			'+' => Token::Plus,
-			'-' => Token::Minus,
-			':' => Token::Colon,
-			';' => Token::Semicolon,
+			'(' => Ok(Token::ParenLeft),
+			')' => Ok(Token::ParenRight),
+			'{' => Ok(Token::BraceLeft),
+			'}' => Ok(Token::BraceRight),
+			'+' => Ok(Token::Plus),
+			'-' => Ok(Token::Minus),
+			'*' => Ok(Token::Times),
+			':' => Ok(Token::Colon),
+			';' => Ok(Token::Semicolon),
 			'=' => match iter.peek()
 			{
-				Some('=') =>
+				Some((_, '=')) =>
 				{
 					iter.next();
-					Token::Equals
+					Ok(Token::Equals)
 				}
-				_ => Token::Assignment,
+				_ => Ok(Token::Assignment),
 			},
 			'/' => match iter.peek()
 			{
-				Some('/') =>
+				Some((_, '/')) =>
 				{
-					while let Some(y) = iter.next()
-					{
-						if y == '\n'
-						{
-							break;
-						}
-					}
-					continue;
+					break;
 				}
-				Some(y) =>
-				{
-					return Err(anyhow!("unexpected sequence '{}' '{}'", x, y));
-				}
-				None =>
-				{
-					return Err(anyhow!("unexpected final character '{}'", x));
-				}
+				_ => Ok(Token::Divide),
 			},
 			'a'..='z' | 'A'..='Z' | '_' =>
 			{
 				let mut identifier = x.to_string();
-				while let Some(&y) = iter.peek()
+				while let Some(&(_, y)) = iter.peek()
 				{
 					if is_identifier_continuation(y)
 					{
@@ -95,7 +143,7 @@ pub fn lex(source: &str) -> Result<Vec<Token>, anyhow::Error>
 						break;
 					}
 				}
-				match identifier.as_str()
+				let token = match identifier.as_str()
 				{
 					"fn" => Token::Fn,
 					"var" => Token::Var,
@@ -106,12 +154,13 @@ pub fn lex(source: &str) -> Result<Vec<Token>, anyhow::Error>
 					"true" => Token::Bool(true),
 					"false" => Token::Bool(false),
 					_ => Token::Identifier(identifier),
-				}
+				};
+				Ok(token)
 			}
 			'0'..='9' =>
 			{
 				let mut literal = x.to_string();
-				while let Some(&y) = iter.peek()
+				while let Some(&(_, y)) = iter.peek()
 				{
 					if y.is_digit(10)
 					{
@@ -123,15 +172,17 @@ pub fn lex(source: &str) -> Result<Vec<Token>, anyhow::Error>
 						break;
 					}
 				}
-				let value = literal.parse()?;
-				Token::Int32(value)
+				match literal.parse()
+				{
+					Ok(value) => Ok(Token::Int32(value)),
+					Err(error) => Err(error.into()),
+				}
 			}
-			' ' | '\t' | '\r' | '\n' => continue,
-			_ => return Err(anyhow!("unexpected character '{}'", x)),
+			' ' | '\t' => continue,
+			_ => Err(Error::UnexpectedCharacter { character: x }),
 		};
-		tokens.push(token);
+		tokens.push(LexedToken { result, location });
 	}
-	Ok(tokens)
 }
 
 fn is_identifier_continuation(x: char) -> bool

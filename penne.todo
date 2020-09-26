@@ -25,6 +25,7 @@ Syntactic sugar:
 	☐	C-style string literal concatenation
 
 Syntax errors:
+	These are syntax errors because they would cause errors during IR generation
 	☐	Non-goto statement after if without braces
 	☐	Loop statement anywhere except at the end of a brace
 
@@ -34,4 +35,4 @@ Linting errors:
 
 Usability:
 	☐	Error recovery
-	☐	Errors with line numbers
+	✔	Errors with line numbers @done (2020-09-26 21:26)

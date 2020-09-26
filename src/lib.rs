@@ -10,13 +10,16 @@ pub mod typer;
 mod tests
 {
 	use super::*;
+	use anyhow::anyhow;
+	use pretty_assertions::assert_eq;
 	use std::io::Write;
 
 	#[test]
 	fn parse_do_nothing() -> Result<(), anyhow::Error>
 	{
-		let source = include_str!("samples/do_nothing.pn");
-		let tokens = lexer::lex(source)?;
+		let filename = "src/samples/do_nothing.pn";
+		let source = std::fs::read_to_string(&filename)?;
+		let tokens = lexer::lex(&source, filename);
 		let declarations = parser::parse(tokens)?;
 		assert_eq!(
 			declarations,
@@ -25,24 +28,53 @@ mod tests
 				body: parser::FunctionBody {
 					statements: vec![],
 					return_value: None,
-				}
-			}]
+				},
+			}],
 		);
 		Ok(())
 	}
 
 	#[test]
+	fn fail_to_parse_invalid_character() -> Result<(), anyhow::Error>
+	{
+		let filename = "src/samples/invalid_character.pn";
+		let source = std::fs::read_to_string(&filename)?;
+		let tokens = lexer::lex(&source, filename);
+		match parser::parse(tokens)
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_parse_integer_too_big() -> Result<(), anyhow::Error>
+	{
+		let filename = "src/samples/integer_too_big.pn";
+		let source = std::fs::read_to_string(&filename)?;
+		let tokens = lexer::lex(&source, filename);
+		match parser::parse(tokens)
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
 	fn rebuild_foo_bar() -> Result<(), anyhow::Error>
 	{
-		let source = include_str!("samples/foo_bar.pn");
-		let tokens = lexer::lex(source)?;
+		let filename = "src/samples/foo_bar.pn";
+		let source = std::fs::read_to_string(&filename)?;
+		let tokens = lexer::lex(&source, filename);
 		let declarations = parser::parse(tokens)?;
 		let indentation = rebuilder::Indentation {
 			value: "\t",
 			amount: 0,
 		};
 		let code = rebuilder::rebuild(&declarations, &indentation)?;
-		assert_eq!(code, source);
+		let code_lines: Vec<&str> = code.lines().collect();
+		let source_lines: Vec<&str> = source.lines().collect();
+		assert_eq!(code_lines, source_lines);
 		Ok(())
 	}
 
@@ -73,7 +105,7 @@ mod tests
 	fn execute_calculation(filename: &str) -> Result<i32, anyhow::Error>
 	{
 		let source = std::fs::read_to_string(&filename)?;
-		let tokens = lexer::lex(&source)?;
+		let tokens = lexer::lex(&source, filename);
 		let declarations = parser::parse(tokens)?;
 		let declarations = typer::analyze(declarations)?;
 		let ir = generator::generate(&declarations, filename)?;

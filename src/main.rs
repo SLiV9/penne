@@ -22,7 +22,7 @@ fn main() -> Result<(), anyhow::Error>
 		println!();
 		let program = std::fs::read_to_string(&filename)?;
 		println!("Lexing {}...", filename);
-		let tokens = lexer::lex(&program)?;
+		let tokens = lexer::lex(&program, &filename);
 		println!("{:?}", tokens);
 		println!();
 		println!("Parsing {}...", filename);
