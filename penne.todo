@@ -29,11 +29,12 @@ Syntax errors:
 	These are syntax errors because they would cause errors during IR generation
 	✔	Goto statement without corresponding label @done (2020-10-18 14:44)
 	✔	Duplicate label @done (2020-10-18 14:44)
-	☐	Non-goto statement after if without braces
-	☐	Loop statement anywhere except at the end of a brace
+	✔	Non-goto statement after if without braces @done (2020-10-18 15:15)
+	✔	Loop statement anywhere except at the end of a block @done (2020-10-18 15:23)
 
 Linting errors:
 	☐	Unreachable code
+	☐	Loop as only statement in an if-branch
 	☐	Non-const functions in if-statement conditions
 
 Usability:

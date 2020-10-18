@@ -35,13 +35,20 @@ mod tests
 		Ok(())
 	}
 
+	fn parse(
+		filename: &str,
+	) -> Result<Result<Vec<parser::Declaration>, anyhow::Error>, anyhow::Error>
+	{
+		let source = std::fs::read_to_string(filename)?;
+		let tokens = lexer::lex(&source, filename);
+		Ok(parser::parse(tokens))
+	}
+
 	#[test]
 	fn fail_to_parse_invalid_character() -> Result<(), anyhow::Error>
 	{
-		let filename = "src/samples/invalid_character.pn";
-		let source = std::fs::read_to_string(&filename)?;
-		let tokens = lexer::lex(&source, filename);
-		match parser::parse(tokens)
+		let parse_result = parse("src/samples/invalid_character.pn")?;
+		match parse_result
 		{
 			Ok(_) => Err(anyhow!("broken test")),
 			Err(_) => Ok(()),
@@ -51,10 +58,129 @@ mod tests
 	#[test]
 	fn fail_to_parse_integer_too_big() -> Result<(), anyhow::Error>
 	{
-		let filename = "src/samples/integer_too_big.pn";
-		let source = std::fs::read_to_string(&filename)?;
+		let parse_result = parse("src/samples/integer_too_big.pn")?;
+		match parse_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_parse_duplicate_return() -> Result<(), anyhow::Error>
+	{
+		let parse_result = parse("src/samples/duplicate_return.pn")?;
+		match parse_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	fn analyze(
+		filename: &str,
+	) -> Result<Result<(), anyhow::Error>, anyhow::Error>
+	{
+		let source = std::fs::read_to_string(filename)?;
 		let tokens = lexer::lex(&source, filename);
-		match parser::parse(tokens)
+		let declarations = parser::parse(tokens)?;
+		let declarations = typer::analyze(declarations)?;
+		Ok(analyzer::analyze(&declarations))
+	}
+
+	#[test]
+	fn fail_to_analyze_duplicate_label() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/duplicate_label.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_analyze_foobar_variable() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/foobar_variable.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_analyze_illegal_jump_back() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/illegal_jump_back.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_analyze_label_in_else() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/label_in_else.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_analyze_loop_in_function() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/loop_in_function.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_analyze_loop_nonfinal() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/loop_nonfinal.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_analyze_missing_label() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/missing_label.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_analyze_missing_variable() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/missing_variable.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_analyze_outscoped_variable() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/outscoped_variable.pn")?;
+		match analysis_result
 		{
 			Ok(_) => Err(anyhow!("broken test")),
 			Err(_) => Ok(()),

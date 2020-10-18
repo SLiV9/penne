@@ -9,7 +9,7 @@ pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 	let mut analyzer = Analyzer {
 		label_stack: Vec::new(),
 	};
-	for declaration in program.iter()
+	for declaration in program
 	{
 		declaration.analyze(&mut analyzer)?;
 	}

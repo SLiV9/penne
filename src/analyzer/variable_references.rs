@@ -10,7 +10,7 @@ pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 	let mut analyzer = Analyzer {
 		variable_stack: Vec::new(),
 	};
-	for declaration in program.iter()
+	for declaration in program
 	{
 		declaration.analyze(&mut analyzer)?;
 	}
@@ -104,7 +104,7 @@ impl Analyzable for FunctionBody
 	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
 	{
 		analyzer.push_scope();
-		for statement in self.statements.iter()
+		for statement in &self.statements
 		{
 			statement.analyze(analyzer)?;
 		}
@@ -122,7 +122,7 @@ impl Analyzable for Block
 	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
 	{
 		analyzer.push_scope();
-		for statement in self.statements.iter()
+		for statement in &self.statements
 		{
 			statement.analyze(analyzer)?;
 		}

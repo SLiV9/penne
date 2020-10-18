@@ -1,0 +1,13 @@
+fn main()
+{
+	var x = 33;
+
+	{
+		x = x + 1;
+		loop;
+		x = 0;
+	}
+
+	return:
+	x
+}
