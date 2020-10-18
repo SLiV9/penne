@@ -1,0 +1,12 @@
+fn main()
+{
+	start:
+	var x = 33;
+
+	goto start;
+
+	x = 100;
+
+	return:
+	x
+}

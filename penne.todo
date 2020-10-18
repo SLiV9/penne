@@ -1,5 +1,6 @@
 Features:
-	☐	Forward-only goto's
+	✔	Forward-only goto's @done (2020-10-18 14:46)
+		☐	Add note when trying to do so anyway
 	☐	If-statement-based pattern matching
 	☐	Static nullability analysis through if-statement pattern matching
 	☐	Tagged unions for error handling
@@ -26,8 +27,8 @@ Syntactic sugar:
 
 Syntax errors:
 	These are syntax errors because they would cause errors during IR generation
-	☐	Goto statement without corresponding label
-	☐	Duplicate label
+	✔	Goto statement without corresponding label @done (2020-10-18 14:44)
+	✔	Duplicate label @done (2020-10-18 14:44)
 	☐	Non-goto statement after if without braces
 	☐	Loop statement anywhere except at the end of a brace
 

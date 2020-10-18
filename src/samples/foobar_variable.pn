@@ -1,0 +1,11 @@
+fn foo()
+{
+	var x = 13;
+}
+
+fn main()
+{
+
+	return:
+	x
+}
