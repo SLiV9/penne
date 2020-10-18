@@ -26,6 +26,8 @@ Syntactic sugar:
 
 Syntax errors:
 	These are syntax errors because they would cause errors during IR generation
+	☐	Goto statement without corresponding label
+	☐	Duplicate label
 	☐	Non-goto statement after if without braces
 	☐	Loop statement anywhere except at the end of a brace
 

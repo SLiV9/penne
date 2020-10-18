@@ -1,5 +1,6 @@
 /**/
 
+use penne::analyzer;
 use penne::generator;
 use penne::lexer;
 use penne::parser;
@@ -36,9 +37,12 @@ fn main() -> Result<(), anyhow::Error>
 		};
 		let code = rebuilder::rebuild(&declarations, &indentation)?;
 		println!("{}", code);
-		println!("Analyzing {:?}...", filename);
+		println!("Typing {:?}...", filename);
 		let declarations = typer::analyze(declarations)?;
 		println!("{:?}", declarations);
+		println!("Analyzing {:?}...", filename);
+		analyzer::analyze(&declarations)?;
+		println!("Analysis complete.");
 		println!();
 		println!("Generating IR for {}...", filename);
 		let ir = generator::generate(&declarations, &filename)?;

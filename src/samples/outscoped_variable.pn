@@ -1,0 +1,9 @@
+fn main()
+{
+	{
+		var x = 13;
+	}
+
+	return:
+	x
+}

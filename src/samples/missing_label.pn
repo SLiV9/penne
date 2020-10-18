@@ -1,0 +1,11 @@
+fn main()
+{
+	var x = 33;
+
+	goto foo;
+
+	x = 100;
+
+	return:
+	x
+}
