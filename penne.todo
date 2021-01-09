@@ -1,6 +1,5 @@
 Features:
 	✔	Forward-only goto's @done (2020-10-18 14:46)
-		☐	Add note when trying to do so anyway
 	☐	If-statement-based pattern matching
 	☐	Static nullability analysis through if-statement pattern matching
 	☐	Tagged unions for error handling
@@ -34,9 +33,12 @@ Syntax errors:
 
 Linting errors:
 	☐	Unreachable code
-	☐	Loop as only statement in an if-branch
+	✔	Loop as only statement in an if-branch @done (2021-01-09 12:45)
 	☐	Non-const functions in if-statement conditions
 
 Usability:
 	☐	Error recovery
 	✔	Errors with line numbers @done (2020-09-26 21:26)
+		☐	Also for analysis errors and linting warnings
+	☐	Add helpful note when trying to jump backwards
+		☐	Similarly, add note when referencing variable declared later

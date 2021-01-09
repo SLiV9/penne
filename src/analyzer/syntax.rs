@@ -7,7 +7,7 @@ use anyhow::anyhow;
 pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 {
 	let mut analyzer = Analyzer {
-		is_naked_if_branch: false,
+		is_naked_branch: false,
 		is_final_statement_in_block: false,
 	};
 	for declaration in program
@@ -19,7 +19,7 @@ pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 
 struct Analyzer
 {
-	is_naked_if_branch: bool,
+	is_naked_branch: bool,
 	is_final_statement_in_block: bool,
 }
 
@@ -81,7 +81,7 @@ impl Analyzable for Statement
 {
 	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
 	{
-		if analyzer.is_naked_if_branch
+		if analyzer.is_naked_branch
 		{
 			match self
 			{
@@ -116,21 +116,21 @@ impl Analyzable for Statement
 			{
 				analyzer.is_final_statement_in_block = false;
 
-				analyzer.is_naked_if_branch = true;
+				analyzer.is_naked_branch = true;
 				then_branch.analyze(analyzer)?;
 
 				if let Some(else_branch) = else_branch
 				{
-					analyzer.is_naked_if_branch = true;
+					analyzer.is_naked_branch = true;
 					else_branch.analyze(analyzer)?;
 				}
-				analyzer.is_naked_if_branch = false;
+				analyzer.is_naked_branch = false;
 
 				Ok(())
 			}
 			Statement::Block(block) =>
 			{
-				analyzer.is_naked_if_branch = false;
+				analyzer.is_naked_branch = false;
 				block.analyze(analyzer)
 			}
 		}

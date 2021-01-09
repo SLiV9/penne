@@ -1,0 +1,9 @@
+fn main()
+{
+	var x = y;
+
+	var y = 13;
+
+	return:
+	x
+}

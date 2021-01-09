@@ -3,6 +3,7 @@
 pub mod analyzer;
 pub mod generator;
 pub mod lexer;
+pub mod linter;
 pub mod parser;
 pub mod rebuilder;
 pub mod typer;

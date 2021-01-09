@@ -1,0 +1,14 @@
+fn main()
+{
+	var x = 33;
+
+	{
+		x = x + 1;
+		if x == 100
+			loop;
+		x = 0;
+	}
+
+	return:
+	x
+}

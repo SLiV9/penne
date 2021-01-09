@@ -3,6 +3,7 @@
 use penne::analyzer;
 use penne::generator;
 use penne::lexer;
+use penne::linter;
 use penne::parser;
 use penne::rebuilder;
 use penne::typer;
@@ -40,9 +41,14 @@ fn main() -> Result<(), anyhow::Error>
 		println!("Typing {:?}...", filename);
 		let declarations = typer::analyze(declarations)?;
 		println!("{:?}", declarations);
+		println!();
 		println!("Analyzing {:?}...", filename);
 		analyzer::analyze(&declarations)?;
 		println!("Analysis complete.");
+		println!();
+		println!("Linting {:?}...", filename);
+		linter::lint(&declarations);
+		println!("Linting complete.");
 		println!();
 		println!("Generating IR for {}...", filename);
 		let ir = generator::generate(&declarations, &filename)?;
