@@ -87,7 +87,15 @@ impl Analyzable for Statement
 			{
 				Statement::Goto { .. } => (),
 				Statement::Block(..) => (),
-				_ => return Err(anyhow!("Missing braces around if-branch")),
+				statement =>
+				{
+					return Err(anyhow!("missing braces")
+						.context(statement.location().format())
+						.context(
+							"braces around if statement branches \
+							can only be omitted for goto statements",
+						))
+				}
 			}
 		}
 
@@ -95,7 +103,7 @@ impl Analyzable for Statement
 		{
 			Statement::Declaration { .. } => Ok(()),
 			Statement::Assignment { .. } => Ok(()),
-			Statement::Loop =>
+			Statement::Loop { location } =>
 			{
 				if analyzer.is_final_statement_in_block
 				{
@@ -103,7 +111,12 @@ impl Analyzable for Statement
 				}
 				else
 				{
-					Err(anyhow!("Misplaced loop statement"))
+					Err(anyhow!("misplaced loop statement")
+						.context(location.format())
+						.context(
+							"loop statement must be final statement \
+							in code block",
+						))
 				}
 			}
 			Statement::Goto { .. } => Ok(()),
@@ -112,6 +125,7 @@ impl Analyzable for Statement
 				condition: _,
 				then_branch,
 				else_branch,
+				location: _,
 			} =>
 			{
 				analyzer.is_final_statement_in_block = false;

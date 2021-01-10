@@ -68,7 +68,7 @@ impl Rebuildable for Declaration
 			Declaration::Function { name, body } => Ok(format!(
 				"{}fn {}()\n{}",
 				indentation,
-				name,
+				name.name,
 				body.rebuild(indentation)?
 			)),
 		}
@@ -140,35 +140,45 @@ impl Rebuildable for Statement
 			Statement::Declaration {
 				name,
 				value: Some(value),
+				location: _,
 			} => Ok(format!(
 				"{}var {} = {};\n",
 				indentation,
-				name,
+				name.name,
 				value.rebuild(&indentation.increased())?
 			)),
-			Statement::Declaration { name, value: None } =>
-			{
-				Ok(format!("{}var {};\n", indentation, name))
-			}
-			Statement::Assignment { name, value } => Ok(format!(
+			Statement::Declaration {
+				name,
+				value: None,
+				location: _,
+			} => Ok(format!("{}var {};\n", indentation, name.name)),
+			Statement::Assignment {
+				name,
+				value,
+				location: _,
+			} => Ok(format!(
 				"{}{} = {};\n",
 				indentation,
-				name,
+				name.name,
 				value.rebuild(&indentation.increased())?
 			)),
-			Statement::Loop => Ok(format!("{}loop;\n", indentation)),
-			Statement::Goto { label } =>
+			Statement::Loop { location: _ } =>
 			{
-				Ok(format!("{}goto {};\n", indentation, label))
+				Ok(format!("{}loop;\n", indentation))
 			}
-			Statement::Label { label } =>
+			Statement::Goto { label, location: _ } =>
 			{
-				Ok(format!("{}{}:\n", indentation, label))
+				Ok(format!("{}goto {};\n", indentation, label.name))
+			}
+			Statement::Label { label, location: _ } =>
+			{
+				Ok(format!("{}{}:\n", indentation, label.name))
 			}
 			Statement::If {
 				condition,
 				then_branch,
 				else_branch: Some(else_branch),
+				location: _,
 			} => Ok(format!(
 				"{}if {}\n{}{}else\n{}",
 				indentation,
@@ -181,6 +191,7 @@ impl Rebuildable for Statement
 				condition,
 				then_branch,
 				else_branch: None,
+				location: _,
 			} => Ok(format!(
 				"{}if {}\n{}",
 				indentation,
@@ -219,7 +230,12 @@ impl Rebuildable for Expression
 	{
 		match self
 		{
-			Expression::Binary { op, left, right } => match op
+			Expression::Binary {
+				op,
+				left,
+				right,
+				location: _,
+			} => match op
 			{
 				BinaryOp::Add => Ok(format!(
 					"{} + {}",
@@ -233,7 +249,7 @@ impl Rebuildable for Expression
 				)),
 			},
 			Expression::Literal(literal) => literal.rebuild(indentation),
-			Expression::Variable(var) => Ok(var.to_string()),
+			Expression::Variable(var) => Ok(var.name.to_string()),
 		}
 	}
 }

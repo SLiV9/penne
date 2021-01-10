@@ -1,6 +1,6 @@
 /**/
 
-use crate::typer::{Block, Declaration, FunctionBody, Statement};
+use crate::typer::{Block, Declaration, FunctionBody, Identifier, Statement};
 
 use anyhow::anyhow;
 
@@ -18,46 +18,60 @@ pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 
 struct Analyzer
 {
-	label_stack: Vec<Vec<String>>,
+	label_stack: Vec<Vec<Identifier>>,
 }
 
 impl Analyzer
 {
-	fn declare_label(&mut self, name: &str) -> Result<(), anyhow::Error>
+	fn declare_label(
+		&mut self,
+		identifier: &Identifier,
+	) -> Result<(), anyhow::Error>
 	{
 		for scope in &self.label_stack
 		{
-			if scope.iter().any(|x| x == name)
+			if let Some(previous_identifier) =
+				scope.iter().find(|x| x.name == identifier.name)
 			{
 				return Err(anyhow!(
-					"Multiple labels '{}' with overlapping scope",
-					name
-				));
+					"previous declaration {}",
+					previous_identifier.location.format()
+				)
+				.context(identifier.location.format())
+				.context(format!(
+					"a label named '{}' is already defined in this scope",
+					identifier.name
+				)));
 			}
 		}
 
 		if let Some(scope) = self.label_stack.last_mut()
 		{
-			scope.push(name.to_string());
+			scope.push(identifier.clone());
 		}
 		else
 		{
-			self.label_stack.push(vec![name.to_string()]);
+			self.label_stack.push(vec![identifier.clone()]);
 		}
 		Ok(())
 	}
 
-	fn use_label(&self, name: &str) -> Result<(), anyhow::Error>
+	fn use_label(&self, identifier: &Identifier) -> Result<(), anyhow::Error>
 	{
 		for scope in &self.label_stack
 		{
-			if scope.iter().any(|x| x == name)
+			if scope.iter().any(|x| x.name == identifier.name)
 			{
 				return Ok(());
 			}
 		}
 
-		Err(anyhow!("Reference to undefined label '{}'", name))
+		Err(anyhow!("undefined label '{}'", identifier.name)
+			.context(identifier.location.format())
+			.context(format!(
+				"reference to undefined label '{}'",
+				identifier.name
+			)))
 	}
 
 	fn push_scope(&mut self)
@@ -133,13 +147,17 @@ impl Analyzable for Statement
 		{
 			Statement::Declaration { .. } => Ok(()),
 			Statement::Assignment { .. } => Ok(()),
-			Statement::Loop => Ok(()),
-			Statement::Goto { label } => analyzer.use_label(label),
-			Statement::Label { label } => analyzer.declare_label(label),
+			Statement::Loop { location: _ } => Ok(()),
+			Statement::Goto { label, location: _ } => analyzer.use_label(label),
+			Statement::Label { label, location: _ } =>
+			{
+				analyzer.declare_label(label)
+			}
 			Statement::If {
 				condition: _,
 				then_branch,
 				else_branch,
+				location: _,
 			} =>
 			{
 				then_branch.analyze(analyzer)?;

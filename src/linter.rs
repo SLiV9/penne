@@ -83,19 +83,20 @@ impl Lintable for Statement
 		{
 			Statement::Declaration { .. } => (),
 			Statement::Assignment { .. } => (),
-			Statement::Loop =>
+			Statement::Loop { location } =>
 			{
 				if linter.is_first_statement_of_branch
 				{
 					println!(
-						"{}",
-						anyhow!(
-							"Infinite loop: \
-							loop statement inside conditional code block \
-							causes infinite loop if condition is met; \
-							use conditional goto to break out of loop, \
-							or add label to surpress this warning."
-						)
+						"Warning: {:?}",
+						anyhow!("loop statement")
+							.context(location.format())
+							.context(
+								"loop statement inside conditional code block \
+								causes infinite loop if condition is met; \
+								use conditional goto to break out of loop, \
+								or add label to surpress this warning."
+							)
 					);
 				}
 			}
@@ -105,6 +106,7 @@ impl Lintable for Statement
 				condition: _,
 				then_branch,
 				else_branch,
+				location: _,
 			} =>
 			{
 				linter.is_first_statement_of_branch = false;

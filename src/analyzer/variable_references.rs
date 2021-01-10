@@ -1,9 +1,10 @@
 /**/
 
 use crate::typer::{Block, Declaration, FunctionBody, Statement};
-use crate::typer::{Comparison, Expression};
+use crate::typer::{Comparison, Expression, Identifier};
 
 use anyhow::anyhow;
+use anyhow::Context;
 
 pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 {
@@ -19,46 +20,60 @@ pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 
 struct Analyzer
 {
-	variable_stack: Vec<Vec<String>>,
+	variable_stack: Vec<Vec<Identifier>>,
 }
 
 impl Analyzer
 {
-	fn declare_variable(&mut self, name: &str) -> Result<(), anyhow::Error>
+	fn declare_variable(
+		&mut self,
+		identifier: &Identifier,
+	) -> Result<(), anyhow::Error>
 	{
 		for scope in &self.variable_stack
 		{
-			if scope.iter().any(|x| x == name)
+			if let Some(previous_identifier) =
+				scope.iter().find(|x| x.name == identifier.name)
 			{
 				return Err(anyhow!(
-					"Multiple variables named '{}' with overlapping scope",
-					name
-				));
+					"previous declaration {}",
+					previous_identifier.location.format()
+				)
+				.context(identifier.location.format())
+				.context(format!(
+					"a variables named '{}' is already defined in this scope",
+					identifier.name
+				)));
 			}
 		}
 
 		if let Some(scope) = self.variable_stack.last_mut()
 		{
-			scope.push(name.to_string());
+			scope.push(identifier.clone());
 		}
 		else
 		{
-			self.variable_stack.push(vec![name.to_string()]);
+			self.variable_stack.push(vec![identifier.clone()]);
 		}
 		Ok(())
 	}
 
-	fn use_variable(&self, name: &str) -> Result<(), anyhow::Error>
+	fn use_variable(&self, identifier: &Identifier)
+		-> Result<(), anyhow::Error>
 	{
 		for scope in &self.variable_stack
 		{
-			if scope.iter().any(|x| x == name)
+			if scope.iter().any(|x| x.name == identifier.name)
 			{
 				return Ok(());
 			}
 		}
 
-		Err(anyhow!("Reference to undefined variable named '{}'", name))
+		Err(anyhow!(
+			"Reference to undefined variable named '{}'",
+			identifier.name
+		)
+		.context(identifier.location.format()))
 	}
 
 	fn push_scope(&mut self)
@@ -141,9 +156,10 @@ impl Analyzable for Statement
 				name,
 				value: Some(value),
 				value_type: _,
+				location,
 			} =>
 			{
-				value.analyze(analyzer)?;
+				value.analyze(analyzer).with_context(|| location.format())?;
 				analyzer.declare_variable(name)?;
 				Ok(())
 			}
@@ -151,27 +167,41 @@ impl Analyzable for Statement
 				name,
 				value: None,
 				value_type: _,
+				location: _,
 			} =>
 			{
 				analyzer.declare_variable(name)?;
 				Ok(())
 			}
-			Statement::Assignment { name, value } =>
+			Statement::Assignment {
+				name,
+				value,
+				location,
+			} =>
 			{
-				value.analyze(analyzer)?;
+				value.analyze(analyzer).with_context(|| location.format())?;
 				analyzer.use_variable(name)?;
 				Ok(())
 			}
-			Statement::Loop => Ok(()),
-			Statement::Goto { label: _ } => Ok(()),
-			Statement::Label { label: _ } => Ok(()),
+			Statement::Loop { location: _ } => Ok(()),
+			Statement::Goto {
+				label: _,
+				location: _,
+			} => Ok(()),
+			Statement::Label {
+				label: _,
+				location: _,
+			} => Ok(()),
 			Statement::If {
 				condition,
 				then_branch,
 				else_branch,
+				location,
 			} =>
 			{
-				condition.analyze(analyzer)?;
+				condition
+					.analyze(analyzer)
+					.with_context(|| location.format())?;
 				then_branch.analyze(analyzer)?;
 				if let Some(else_branch) = else_branch
 				{
@@ -188,8 +218,12 @@ impl Analyzable for Comparison
 {
 	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
 	{
-		self.left.analyze(analyzer)?;
-		self.right.analyze(analyzer)?;
+		self.left
+			.analyze(analyzer)
+			.with_context(|| self.location.format())?;
+		self.right
+			.analyze(analyzer)
+			.with_context(|| self.location.format())?;
 		Ok(())
 	}
 }
@@ -200,10 +234,15 @@ impl Analyzable for Expression
 	{
 		match self
 		{
-			Expression::Binary { op: _, left, right } =>
+			Expression::Binary {
+				op: _,
+				left,
+				right,
+				location,
+			} =>
 			{
-				left.analyze(analyzer)?;
-				right.analyze(analyzer)?;
+				left.analyze(analyzer).with_context(|| location.format())?;
+				right.analyze(analyzer).with_context(|| location.format())?;
 				Ok(())
 			}
 			Expression::Literal(_lit) => Ok(()),

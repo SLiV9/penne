@@ -7,7 +7,9 @@ fn main()
 	if y == 33
 		goto foo;
 	else
+	{
 		foo:
+	}
 	x = 12;
 
 	return:

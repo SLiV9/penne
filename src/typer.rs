@@ -1,6 +1,7 @@
 /**/
 
-pub use crate::parser::{BinaryOp, ComparisonOp, Literal};
+pub use crate::lexer::Location;
+pub use crate::parser::{BinaryOp, ComparisonOp, Identifier, Literal};
 
 use crate::parser;
 
@@ -25,35 +26,49 @@ pub enum ValueType
 
 struct Typer
 {
-	symbols: std::collections::HashMap<String, ValueType>,
+	symbols: std::collections::HashMap<String, (Identifier, ValueType)>,
 }
 
 impl Typer
 {
 	fn put_symbol(
 		&mut self,
-		name: &str,
+		identifier: &Identifier,
 		value_type: Option<ValueType>,
 	) -> Result<(), anyhow::Error>
 	{
 		if let Some(vt) = value_type
 		{
-			let old_type = self.symbols.insert(name.to_string(), vt);
-			match old_type
+			let old_value = self
+				.symbols
+				.insert(identifier.name.to_string(), (identifier.clone(), vt));
+			match old_value
 			{
-				Some(ot) if ot == vt => Ok(()),
-				Some(ot) => Err(anyhow!(
+				Some((_, ot)) if ot == vt => Ok(()),
+				Some((old_identifier, old_type)) => Err(anyhow!(
+					"first occurrence {}",
+					old_identifier.location.format()
+				)
+				.context(identifier.location.format())
+				.context(format!(
 					"conflicting types for '{}', {:?} and {:?}",
-					name,
-					ot,
-					vt
-				)),
+					identifier.name, old_type, vt
+				))),
 				None => Ok(()),
 			}
 		}
 		else
 		{
 			Ok(())
+		}
+	}
+
+	fn get_symbol(&self, name: &Identifier) -> Option<ValueType>
+	{
+		match self.symbols.get(&name.name)
+		{
+			Some((_, vt)) => Some(*vt),
+			None => None,
 		}
 	}
 }
@@ -82,12 +97,12 @@ trait Analyzable
 	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>;
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum Declaration
 {
 	Function
 	{
-		name: String,
+		name: Identifier,
 		//parameters: Vec<Parameter>,
 		body: FunctionBody,
 		return_type: Option<ValueType>,
@@ -132,7 +147,7 @@ impl Analyzable for parser::Declaration
 	}
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct FunctionBody
 {
 	pub statements: Vec<Statement>,
@@ -176,10 +191,11 @@ impl Analyzable for parser::FunctionBody
 	}
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct Block
 {
 	pub statements: Vec<Statement>,
+	pub location: Location,
 }
 
 impl Analyzable for parser::Block
@@ -191,40 +207,68 @@ impl Analyzable for parser::Block
 		let statements: Result<Vec<Statement>, anyhow::Error> =
 			self.statements.iter().map(|x| x.analyze(typer)).collect();
 		let statements = statements?;
-		Ok(Block { statements })
+		Ok(Block {
+			statements,
+			location: self.location.clone(),
+		})
 	}
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum Statement
 {
 	Declaration
 	{
-		name: String,
+		name: Identifier,
 		value: Option<Expression>,
 		value_type: Option<ValueType>,
+		location: Location,
 	},
 	Assignment
 	{
-		name: String,
+		name: Identifier,
 		value: Expression,
+		location: Location,
 	},
-	Loop,
+	Loop
+	{
+		location: Location,
+	},
 	Goto
 	{
-		label: String,
+		label: Identifier,
+		location: Location,
 	},
 	Label
 	{
-		label: String,
+		label: Identifier,
+		location: Location,
 	},
 	If
 	{
 		condition: Comparison,
 		then_branch: Box<Statement>,
 		else_branch: Option<Box<Statement>>,
+		location: Location,
 	},
 	Block(Block),
+}
+
+impl Statement
+{
+	pub fn location(&self) -> &Location
+	{
+		match self
+		{
+			Statement::Declaration { location, .. } => location,
+			Statement::Assignment { location, .. } => location,
+			Statement::Loop { location } => location,
+			Statement::Goto { location, .. } => location,
+			Statement::Label { location, .. } => location,
+			Statement::If { location, .. } => location,
+			Statement::Block(block) => &block.location,
+		}
+	}
 }
 
 impl Analyzable for parser::Statement
@@ -238,6 +282,7 @@ impl Analyzable for parser::Statement
 			parser::Statement::Declaration {
 				name,
 				value: Some(value),
+				location,
 			} =>
 			{
 				let value = value.analyze(typer)?;
@@ -247,20 +292,30 @@ impl Analyzable for parser::Statement
 					name: name.clone(),
 					value: Some(value),
 					value_type,
+					location: location.clone(),
 				};
 				Ok(stmt)
 			}
-			parser::Statement::Declaration { name, value: None } =>
+			parser::Statement::Declaration {
+				name,
+				value: None,
+				location,
+			} =>
 			{
-				let value_type = typer.symbols.get(name).cloned();
+				let value_type = typer.get_symbol(name);
 				let stmt = Statement::Declaration {
 					name: name.clone(),
 					value: None,
 					value_type,
+					location: location.clone(),
 				};
 				Ok(stmt)
 			}
-			parser::Statement::Assignment { name, value } =>
+			parser::Statement::Assignment {
+				name,
+				value,
+				location,
+			} =>
 			{
 				let value = value.analyze(typer)?;
 				let value_type = value.value_type();
@@ -268,20 +323,32 @@ impl Analyzable for parser::Statement
 				let stmt = Statement::Assignment {
 					name: name.clone(),
 					value,
+					location: location.clone(),
 				};
 				Ok(stmt)
 			}
-			parser::Statement::Loop => Ok(Statement::Loop),
-			parser::Statement::Goto { label } => Ok(Statement::Goto {
-				label: label.clone(),
+			parser::Statement::Loop { location } => Ok(Statement::Loop {
+				location: location.clone(),
 			}),
-			parser::Statement::Label { label } => Ok(Statement::Label {
-				label: label.clone(),
-			}),
+			parser::Statement::Goto { label, location } =>
+			{
+				Ok(Statement::Goto {
+					label: label.clone(),
+					location: location.clone(),
+				})
+			}
+			parser::Statement::Label { label, location } =>
+			{
+				Ok(Statement::Label {
+					label: label.clone(),
+					location: location.clone(),
+				})
+			}
 			parser::Statement::If {
 				condition,
 				then_branch,
 				else_branch,
+				location,
 			} =>
 			{
 				let condition = condition.analyze(typer)?;
@@ -302,6 +369,7 @@ impl Analyzable for parser::Statement
 					condition,
 					then_branch,
 					else_branch,
+					location: location.clone(),
 				};
 				Ok(stmt)
 			}
@@ -314,12 +382,13 @@ impl Analyzable for parser::Statement
 	}
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct Comparison
 {
 	pub op: ComparisonOp,
 	pub left: Expression,
 	pub right: Expression,
+	pub location: Location,
 }
 
 impl Analyzable for parser::Comparison
@@ -334,12 +403,13 @@ impl Analyzable for parser::Comparison
 			op: self.op,
 			left,
 			right,
+			location: self.location.clone(),
 		};
 		Ok(expr)
 	}
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum Expression
 {
 	Binary
@@ -347,11 +417,12 @@ pub enum Expression
 		op: BinaryOp,
 		left: Box<Expression>,
 		right: Box<Expression>,
+		location: Location,
 	},
 	Literal(Literal),
 	Variable
 	{
-		name: String,
+		name: Identifier,
 		value_type: Option<ValueType>,
 	},
 }
@@ -377,7 +448,12 @@ impl Analyzable for parser::Expression
 	{
 		match self
 		{
-			parser::Expression::Binary { op, left, right } =>
+			parser::Expression::Binary {
+				op,
+				left,
+				right,
+				location,
+			} =>
 			{
 				let left = left.analyze(typer)?;
 				let right = right.analyze(typer)?;
@@ -385,6 +461,7 @@ impl Analyzable for parser::Expression
 					op: *op,
 					left: Box::new(left),
 					right: Box::new(right),
+					location: location.clone(),
 				};
 				Ok(expr)
 			}
@@ -394,7 +471,7 @@ impl Analyzable for parser::Expression
 			}
 			parser::Expression::Variable(name) =>
 			{
-				let value_type = typer.symbols.get(name).cloned();
+				let value_type = typer.get_symbol(name);
 				let expr = Expression::Variable {
 					name: name.clone(),
 					value_type,

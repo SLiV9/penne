@@ -1,0 +1,9 @@
+fn main()
+{
+	var x = true;
+
+	x = 100;
+
+	return:
+	x
+}

@@ -23,16 +23,7 @@ mod tests
 		let source = std::fs::read_to_string(&filename)?;
 		let tokens = lexer::lex(&source, filename);
 		let declarations = parser::parse(tokens)?;
-		assert_eq!(
-			declarations,
-			vec![parser::Declaration::Function {
-				name: "main".to_string(),
-				body: parser::FunctionBody {
-					statements: vec![],
-					return_value: None,
-				},
-			}],
-		);
+		assert_eq!(declarations.len(), 1);
 		Ok(())
 	}
 

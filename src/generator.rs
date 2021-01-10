@@ -144,7 +144,7 @@ impl Generatable for Declaration
 					unsafe { LLVMVoidTypeInContext(llvm.context) },
 				};
 
-				let function_name = CString::new(name.as_bytes())?;
+				let function_name = CString::new(name.name.as_bytes())?;
 
 				let function = unsafe {
 					let mut param_types: Vec<LLVMTypeRef> = vec![];
@@ -226,7 +226,7 @@ impl Generatable for Block
 		llvm: &mut Generator,
 	) -> Result<Self::Item, anyhow::Error>
 	{
-		if self.statements.last() == Some(&Statement::Loop)
+		if let Some(&Statement::Loop { .. }) = self.statements.last()
 		{
 			let cname = CString::new("looped-block")?;
 			let inner_block = unsafe {
@@ -287,14 +287,15 @@ impl Generatable for Statement
 				name,
 				value: Some(value),
 				value_type: Some(vt),
+				location: _,
 			} =>
 			{
-				let cname = CString::new(name as &str)?;
+				let cname = CString::new(&name.name as &str)?;
 				let vtype = vt.generate(llvm)?;
 				let loc = unsafe {
 					LLVMBuildAlloca(llvm.builder, vtype, cname.as_ptr())
 				};
-				llvm.local_variables.insert(name.to_string(), loc);
+				llvm.local_variables.insert(name.name.to_string(), loc);
 				let value = value.generate(llvm)?;
 				unsafe {
 					LLVMBuildStore(llvm.builder, value, loc);
@@ -305,35 +306,41 @@ impl Generatable for Statement
 				name,
 				value: None,
 				value_type: Some(vt),
+				location: _,
 			} =>
 			{
-				let cname = CString::new(name as &str)?;
+				let cname = CString::new(&name.name as &str)?;
 				let vtype = vt.generate(llvm)?;
 				let loc = unsafe {
 					LLVMBuildAlloca(llvm.builder, vtype, cname.as_ptr())
 				};
-				llvm.local_variables.insert(name.to_string(), loc);
+				llvm.local_variables.insert(name.name.to_string(), loc);
 				Ok(())
 			}
 			Statement::Declaration {
 				name,
 				value,
 				value_type: None,
+				location: _,
 			} => Err(anyhow!(
 				"failed to infer type for '{}' = {:?}",
-				name,
+				name.name,
 				value
 			)),
-			Statement::Assignment { name, value } =>
+			Statement::Assignment {
+				name,
+				value,
+				location: _,
+			} =>
 			{
-				let loc = match llvm.local_variables.get(name)
+				let loc = match llvm.local_variables.get(&name.name)
 				{
 					Some(loc) => *loc,
 					None =>
 					{
 						return Err(anyhow!(
 							"undefined reference to '{}'",
-							name
+							name.name
 						))
 					}
 				};
@@ -343,8 +350,8 @@ impl Generatable for Statement
 				}
 				Ok(())
 			}
-			Statement::Loop => Err(anyhow!("misplaced loop")),
-			Statement::Goto { label } =>
+			Statement::Loop { location: _ } => Err(anyhow!("misplaced loop")),
+			Statement::Goto { label, location: _ } =>
 			{
 				let current_block = unsafe { LLVMGetInsertBlock(llvm.builder) };
 				let cname = CString::new("unreachable-after-goto")?;
@@ -357,7 +364,8 @@ impl Generatable for Statement
 					);
 					unreachable_block
 				};
-				let labeled_block = find_or_append_labeled_block(llvm, label)?;
+				let labeled_block =
+					find_or_append_labeled_block(llvm, &label.name)?;
 				unsafe {
 					LLVMPositionBuilderAtEnd(llvm.builder, current_block);
 					LLVMBuildBr(llvm.builder, labeled_block);
@@ -365,10 +373,11 @@ impl Generatable for Statement
 				}
 				Ok(())
 			}
-			Statement::Label { label } =>
+			Statement::Label { label, location: _ } =>
 			{
 				let current_block = unsafe { LLVMGetInsertBlock(llvm.builder) };
-				let labeled_block = find_or_append_labeled_block(llvm, label)?;
+				let labeled_block =
+					find_or_append_labeled_block(llvm, &label.name)?;
 				unsafe {
 					LLVMPositionBuilderAtEnd(llvm.builder, current_block);
 					LLVMBuildBr(llvm.builder, labeled_block);
@@ -380,6 +389,7 @@ impl Generatable for Statement
 				condition,
 				then_branch,
 				else_branch,
+				location: _,
 			} =>
 			{
 				let condition = condition.generate(llvm)?;
@@ -527,7 +537,12 @@ impl Generatable for Expression
 	{
 		match self
 		{
-			Expression::Binary { op, left, right } =>
+			Expression::Binary {
+				op,
+				left,
+				right,
+				location: _,
+			} =>
 			{
 				let left = left.generate(llvm)?;
 				let right = right.generate(llvm)?;
@@ -552,14 +567,14 @@ impl Generatable for Expression
 			} =>
 			{
 				let tmpname = CString::new("tmp")?;
-				let loc = match llvm.local_variables.get(name)
+				let loc = match llvm.local_variables.get(&name.name)
 				{
 					Some(loc) => *loc,
 					None =>
 					{
 						return Err(anyhow!(
 							"undefined reference to '{}'",
-							name
+							name.name
 						))
 					}
 				};

@@ -39,6 +39,7 @@ Linting errors:
 Usability:
 	☐	Error recovery
 	✔	Errors with line numbers @done (2020-09-26 21:26)
-		☐	Also for analysis errors and linting warnings
+		✔	Also for analysis errors and linting warnings @done (2021-01-10 14:32)
+		☐	Account for (variable) tab width in Location
 	☐	Add helpful note when trying to jump backwards
 		☐	Similarly, add note when referencing variable declared later

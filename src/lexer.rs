@@ -47,7 +47,7 @@ pub enum Error
 	InvalidIntegerLiteral(#[from] std::num::ParseIntError),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Location
 {
 	source_filename: String,

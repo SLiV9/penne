@@ -7,67 +7,77 @@ use std::collections::VecDeque;
 use anyhow::anyhow;
 use anyhow::Context;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum Declaration
 {
 	Function
 	{
-		name: String,
+		name: Identifier,
 		//parameters: Vec<Parameter>,
 		body: FunctionBody,
 	},
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct FunctionBody
 {
 	pub statements: Vec<Statement>,
 	pub return_value: Option<Expression>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct Block
 {
 	pub statements: Vec<Statement>,
+	pub location: Location,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum Statement
 {
 	Declaration
 	{
-		name: String,
+		name: Identifier,
 		value: Option<Expression>,
+		location: Location,
 	},
 	Assignment
 	{
-		name: String,
+		name: Identifier,
 		value: Expression,
+		location: Location,
 	},
-	Loop,
+	Loop
+	{
+		location: Location,
+	},
 	Goto
 	{
-		label: String,
+		label: Identifier,
+		location: Location,
 	},
 	Label
 	{
-		label: String,
+		label: Identifier,
+		location: Location,
 	},
 	If
 	{
 		condition: Comparison,
 		then_branch: Box<Statement>,
 		else_branch: Option<Box<Statement>>,
+		location: Location,
 	},
 	Block(Block),
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct Comparison
 {
 	pub op: ComparisonOp,
 	pub left: Expression,
 	pub right: Expression,
+	pub location: Location,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -76,7 +86,7 @@ pub enum ComparisonOp
 	Equals,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum Expression
 {
 	Binary
@@ -84,9 +94,10 @@ pub enum Expression
 		op: BinaryOp,
 		left: Box<Expression>,
 		right: Box<Expression>,
+		location: Location,
 	},
 	Literal(Literal),
-	Variable(String),
+	Variable(Identifier),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -101,6 +112,13 @@ pub enum Literal
 {
 	Int32(i32),
 	Bool(bool),
+}
+
+#[derive(Debug, Clone)]
+pub struct Identifier
+{
+	pub name: String,
+	pub location: Location,
 }
 
 pub fn parse(tokens: Vec<LexedToken>)
@@ -159,14 +177,14 @@ fn consume(
 
 fn extract_identifier(
 	tokens: &mut VecDeque<LexedToken>,
-) -> Result<String, anyhow::Error>
+) -> Result<Identifier, anyhow::Error>
 {
 	match tokens.pop_front()
 	{
 		Some(LexedToken {
 			result: Ok(Token::Identifier(name)),
-			location: _,
-		}) => Ok(name),
+			location,
+		}) => Ok(Identifier { name, location }),
 		Some(LexedToken {
 			result: Ok(token),
 			location,
@@ -240,7 +258,7 @@ fn parse_function_body(
 
 		let is_return = match &statement
 		{
-			Statement::Label { label } => label == "return",
+			Statement::Label { label, .. } => label.name == "return",
 			_ => false,
 		};
 		statements.push(statement);
@@ -281,9 +299,12 @@ fn parse_rest_of_block(
 	{
 		if let Some(Token::BraceRight) = peek(tokens)
 		{
-			tokens.pop_front();
+			let (_, location) = extract(tokens).unwrap();
 
-			let block = Block { statements };
+			let block = Block {
+				statements,
+				location,
+			};
 			return Ok(block);
 		}
 
@@ -322,6 +343,7 @@ fn parse_statement(
 					condition,
 					then_branch,
 					else_branch,
+					location,
 				};
 				Ok(statement)
 			}
@@ -331,6 +353,7 @@ fn parse_statement(
 					condition,
 					then_branch,
 					else_branch: None,
+					location,
 				};
 				Ok(statement)
 			}
@@ -338,13 +361,13 @@ fn parse_statement(
 		Token::Loop =>
 		{
 			consume(Token::Semicolon, tokens).context("expected semicolon")?;
-			Ok(Statement::Loop)
+			Ok(Statement::Loop { location })
 		}
 		Token::Goto =>
 		{
 			let label = extract_identifier(tokens).context("expected label")?;
 			consume(Token::Semicolon, tokens).context("expected semicolon")?;
-			let statement = Statement::Goto { label };
+			let statement = Statement::Goto { label, location };
 			Ok(statement)
 		}
 		Token::Var =>
@@ -365,7 +388,11 @@ fn parse_statement(
 
 			consume(Token::Semicolon, tokens).context("expected semicolon")?;
 
-			let statement = Statement::Declaration { name, value };
+			let statement = Statement::Declaration {
+				name,
+				value,
+				location,
+			};
 			Ok(statement)
 		}
 		Token::Identifier(x) =>
@@ -373,7 +400,13 @@ fn parse_statement(
 			if let Some(Token::Colon) = peek(tokens)
 			{
 				tokens.pop_front();
-				let statement = Statement::Label { label: x };
+				let statement = Statement::Label {
+					label: Identifier {
+						name: x,
+						location: location.clone(),
+					},
+					location,
+				};
 				return Ok(statement);
 			}
 
@@ -383,8 +416,12 @@ fn parse_statement(
 			consume(Token::Semicolon, tokens).context("expected semicolon")?;
 
 			let statement = Statement::Assignment {
-				name: x,
+				name: Identifier {
+					name: x,
+					location: location.clone(),
+				},
 				value: expression,
+				location,
 			};
 			Ok(statement)
 		}
@@ -415,7 +452,12 @@ fn parse_comparison(
 
 	let right = parse_expression(tokens)?;
 
-	Ok(Comparison { op, left, right })
+	Ok(Comparison {
+		op,
+		left,
+		right,
+		location,
+	})
 }
 
 fn parse_expression(
@@ -442,7 +484,7 @@ fn parse_addition(
 				return Ok(expression);
 			}
 		};
-		tokens.pop_front();
+		let (_, location) = extract(tokens).unwrap();
 
 		let right = parse_unary_expression(tokens)?;
 
@@ -450,6 +492,7 @@ fn parse_addition(
 			op,
 			left: Box::new(expression),
 			right: Box::new(right),
+			location,
 		};
 	}
 }
@@ -471,7 +514,10 @@ fn parse_primary_expression(
 	{
 		Token::Int32(value) => Ok(Expression::Literal(Literal::Int32(value))),
 		Token::Bool(value) => Ok(Expression::Literal(Literal::Bool(value))),
-		Token::Identifier(name) => Ok(Expression::Variable(name)),
+		Token::Identifier(name) =>
+		{
+			Ok(Expression::Variable(Identifier { name, location }))
+		}
 		other => Err(anyhow!("got {:?}", other))
 			.context(location.format())
 			.context("expected literal or identifier"),
