@@ -13,9 +13,15 @@ pub enum Declaration
 	Function
 	{
 		name: Identifier,
-		//parameters: Vec<Parameter>,
+		parameters: Vec<Parameter>,
 		body: FunctionBody,
 	},
+}
+
+#[derive(Debug)]
+pub struct Parameter
+{
+	pub name: Identifier,
 }
 
 #[derive(Debug)]
@@ -229,13 +235,47 @@ fn parse_declaration(
 	let name = extract_identifier(tokens).context("expected function name")?;
 
 	consume(Token::ParenLeft, tokens).context("expected left parenthesis")?;
+
+	let mut parameters = Vec::new();
+	loop
+	{
+		if let Some(Token::ParenRight) = peek(tokens)
+		{
+			break;
+		}
+
+		let parameter = parse_parameter(tokens)?;
+		parameters.push(parameter);
+
+		if let Some(Token::Comma) = peek(tokens)
+		{
+			tokens.pop_front();
+		}
+		else
+		{
+			break;
+		}
+	}
+
 	consume(Token::ParenRight, tokens).context("expected right parenthesis")?;
 
 	let body = parse_function_body(tokens)?;
 
-	let function = Declaration::Function { name, body };
+	let function = Declaration::Function {
+		name,
+		parameters,
+		body,
+	};
 
 	Ok(function)
+}
+
+fn parse_parameter(
+	tokens: &mut VecDeque<LexedToken>,
+) -> Result<Parameter, anyhow::Error>
+{
+	let name = extract_identifier(tokens).context("expected parameter name")?;
+	Ok(Parameter { name })
 }
 
 fn parse_function_body(
@@ -545,20 +585,28 @@ fn parse_arguments(
 	tokens: &mut VecDeque<LexedToken>,
 ) -> Result<Vec<Expression>, anyhow::Error>
 {
-	let mut arguments = Vec::new();
-
 	consume(Token::ParenLeft, tokens).context("expected argument list")?;
+
+	if let Some(Token::ParenRight) = peek(tokens)
+	{
+		let _ = extract(tokens);
+		return Ok(Vec::new());
+	}
+
+	let mut arguments = Vec::new();
 
 	loop
 	{
+		let expression = parse_expression(tokens)?;
+		arguments.push(expression);
+
 		if let Some(Token::ParenRight) = peek(tokens)
 		{
 			let _ = extract(tokens);
-
 			return Ok(arguments);
 		}
 
-		let expression = parse_expression(tokens)?;
-		arguments.push(expression);
+		consume(Token::Comma, tokens)
+			.context("expected comma or right parenthesis")?;
 	}
 }

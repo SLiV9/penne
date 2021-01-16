@@ -1,7 +1,7 @@
 /**/
 
 use crate::parser::{BinaryOp, Comparison, ComparisonOp, Expression, Literal};
-use crate::parser::{Block, Declaration, FunctionBody, Statement};
+use crate::parser::{Block, Declaration, FunctionBody, Parameter, Statement};
 
 use std::fmt::Write;
 
@@ -65,13 +65,49 @@ impl Rebuildable for Declaration
 	{
 		match self
 		{
-			Declaration::Function { name, body } => Ok(format!(
-				"{}fn {}()\n{}",
-				indentation,
-				name.name,
-				body.rebuild(indentation)?
-			)),
+			Declaration::Function {
+				name,
+				parameters,
+				body,
+			} =>
+			{
+				let mut buffer = String::new();
+				write!(&mut buffer, "{}fn {}(", indentation, name.name)?;
+				match parameters.split_first()
+				{
+					Some((first, others)) =>
+					{
+						write!(
+							&mut buffer,
+							"{}",
+							first.rebuild(&indentation.increased())?
+						)?;
+						for parameter in others
+						{
+							write!(
+								&mut buffer,
+								", {}",
+								parameter.rebuild(&indentation.increased())?
+							)?;
+						}
+					}
+					None => (),
+				}
+				write!(&mut buffer, ")\n{}", body.rebuild(indentation)?)?;
+				Ok(buffer)
+			}
 		}
+	}
+}
+
+impl Rebuildable for Parameter
+{
+	fn rebuild(
+		&self,
+		_indentation: &Indentation,
+	) -> Result<String, anyhow::Error>
+	{
+		Ok(self.name.name.to_string())
 	}
 }
 

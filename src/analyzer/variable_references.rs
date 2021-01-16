@@ -1,6 +1,6 @@
 /**/
 
-use crate::typer::{Block, Declaration, FunctionBody, Statement};
+use crate::typer::{Block, Declaration, FunctionBody, Parameter, Statement};
 use crate::typer::{Comparison, Expression, Identifier};
 
 use anyhow::anyhow;
@@ -144,18 +144,31 @@ impl Analyzable for Declaration
 		{
 			Declaration::Function {
 				name,
+				parameters,
 				body,
 				return_type: _,
 			} =>
 			{
 				analyzer.declare_function(name)?;
 				analyzer.push_scope();
-				// parameters in this scope
+				for parameter in parameters
+				{
+					parameter.analyze(analyzer)?;
+				}
 				body.analyze(analyzer)?;
 				analyzer.pop_scope();
 				Ok(())
 			}
 		}
+	}
+}
+
+impl Analyzable for Parameter
+{
+	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
+	{
+		analyzer.declare_variable(&self.name)?;
+		Ok(())
 	}
 }
 

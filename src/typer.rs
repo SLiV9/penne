@@ -103,7 +103,7 @@ pub enum Declaration
 	Function
 	{
 		name: Identifier,
-		//parameters: Vec<Parameter>,
+		parameters: Vec<Parameter>,
 		body: FunctionBody,
 		return_type: Option<ValueType>,
 	},
@@ -128,23 +128,53 @@ impl Analyzable for parser::Declaration
 	{
 		match self
 		{
-			parser::Declaration::Function { name, body } =>
+			parser::Declaration::Function {
+				name,
+				parameters,
+				body,
+			} =>
 			{
 				// Pre-analyze the function body because it might contain
 				// untyped declarations, e.g. "var x;", whose types won't be
 				// determined in the first pass.
 				body.analyze(typer)?;
+
+				let parameters: Result<Vec<Parameter>, anyhow::Error> =
+					parameters.iter().map(|x| x.analyze(typer)).collect();
+				let parameters = parameters?;
 				let body = body.analyze(typer)?;
 				let return_type = body.value_type();
 				typer.put_symbol(name, return_type)?;
 				let function = Declaration::Function {
 					name: name.clone(),
+					parameters,
 					body,
 					return_type,
 				};
 				Ok(function)
 			}
 		}
+	}
+}
+
+#[derive(Debug)]
+pub struct Parameter
+{
+	pub name: Identifier,
+	pub value_type: Option<ValueType>,
+}
+
+impl Analyzable for parser::Parameter
+{
+	type Item = Parameter;
+
+	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
+	{
+		let value_type = typer.get_symbol(&self.name);
+		Ok(Parameter {
+			name: self.name.clone(),
+			value_type,
+		})
 	}
 }
 

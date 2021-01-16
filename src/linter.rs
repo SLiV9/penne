@@ -35,6 +35,7 @@ impl Lintable for Declaration
 		{
 			Declaration::Function {
 				name: _,
+				parameters: _,
 				body,
 				return_type: _,
 			} => body.lint(linter),

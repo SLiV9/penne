@@ -16,6 +16,7 @@ pub enum Token
 	Divide,
 	Colon,
 	Semicolon,
+	Comma,
 	Assignment, // =
 
 	// Double-character tokens.
@@ -111,6 +112,7 @@ fn lex_line(
 			'*' => Ok(Token::Times),
 			':' => Ok(Token::Colon),
 			';' => Ok(Token::Semicolon),
+			',' => Ok(Token::Comma),
 			'=' => match iter.peek()
 			{
 				Some((_, '=')) =>

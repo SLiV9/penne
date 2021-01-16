@@ -1,0 +1,26 @@
+
+fn sum(x, y)
+{
+	return:
+	x + y
+}
+
+fn main()
+{
+	var a = 3;
+	var b = 7;
+	var x = sum(a, b);
+	var y = sum(b, a);
+	if x == y
+	{
+		if x == a + b
+			goto done;
+		else
+			goto hell;
+	}
+	hell:
+	{
+		loop;
+	}
+	done:
+}

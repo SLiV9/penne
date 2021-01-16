@@ -134,6 +134,7 @@ impl Generatable for Declaration
 		{
 			Declaration::Function {
 				name,
+				parameters,
 				body,
 				return_type,
 			} =>
@@ -148,8 +149,23 @@ impl Generatable for Declaration
 
 				let function_name = CString::new(name.name.as_bytes())?;
 
+				let param_types: Result<Vec<LLVMTypeRef>, anyhow::Error> =
+					parameters
+						.iter()
+						.map(|parameter| match parameter.value_type
+						{
+							Some(vt) => vt.generate(llvm),
+							None => Err(anyhow!("failed to infer type")
+								.context(parameter.name.location.format())
+								.context(format!(
+									"failed to infer type for '{}'",
+									name.name
+								))),
+						})
+						.collect();
+				let mut param_types: Vec<LLVMTypeRef> = param_types?;
+
 				let function: LLVMValueRef = unsafe {
-					let mut param_types: Vec<LLVMTypeRef> = vec![];
 					let function_type = LLVMFunctionType(
 						return_type,
 						param_types.as_mut_ptr(),
@@ -174,6 +190,32 @@ impl Generatable for Declaration
 					);
 					LLVMPositionBuilderAtEnd(llvm.builder, entry_block);
 				};
+
+				for (i, (parameter, vtype)) in
+					parameters.iter().zip(param_types.iter()).enumerate()
+				{
+					let param = unsafe { LLVMGetParam(function, i as u32) };
+					// TODO determine mutability
+					let mutable = true;
+					let loc = if mutable
+					{
+						let cname = CString::new(&parameter.name.name as &str)?;
+						let vtype: LLVMTypeRef = *vtype;
+						let loc = unsafe {
+							LLVMBuildAlloca(llvm.builder, vtype, cname.as_ptr())
+						};
+						unsafe {
+							LLVMBuildStore(llvm.builder, param, loc);
+						}
+						loc
+					}
+					else
+					{
+						param
+					};
+					llvm.local_variables
+						.insert(parameter.name.name.to_string(), loc);
+				}
 
 				body.generate(llvm)?;
 				llvm.local_variables.clear();
@@ -611,14 +653,21 @@ impl Generatable for Expression
 							)))
 					}
 				};
+
+				let arguments: Result<Vec<LLVMValueRef>, anyhow::Error> =
+					arguments
+						.iter()
+						.map(|argument| argument.generate(llvm))
+						.collect();
+				let mut arguments: Vec<LLVMValueRef> = arguments?;
+
 				let function_name = CString::new(&name.name as &str)?;
-				// TODO arguments
 				let result = unsafe {
 					LLVMBuildCall(
 						llvm.builder,
 						function,
-						std::ptr::null_mut(),
-						0,
+						arguments.as_mut_ptr(),
+						arguments.len() as u32,
 						function_name.as_ptr(),
 					)
 				};

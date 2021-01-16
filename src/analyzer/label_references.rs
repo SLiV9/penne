@@ -98,6 +98,7 @@ impl Analyzable for Declaration
 		{
 			Declaration::Function {
 				name: _,
+				parameters: _,
 				body,
 				return_type: _,
 			} =>

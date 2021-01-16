@@ -11,8 +11,9 @@ Functionality:
 	☐	Floats
 	☐	Casting
 	☐	Strong enums
-	☐	Function calls
-	☐	Function parameters
+	✔	Function calls @done (2021-01-16 18:03)
+	✔	Function parameters @done (2021-01-16 18:03)
+		☐	Parameter type declarations
 	☐	Structs
 
 Syntactic sugar:
@@ -30,6 +31,7 @@ Syntax errors:
 	✔	Duplicate label @done (2020-10-18 14:44)
 	✔	Non-goto statement after if without braces @done (2020-10-18 15:15)
 	✔	Loop statement anywhere except at the end of a block @done (2020-10-18 15:23)
+	☐	Function argument number mismatch
 
 Linting errors:
 	☐	Unreachable code
@@ -41,5 +43,6 @@ Usability:
 	✔	Errors with line numbers @done (2020-09-26 21:26)
 		✔	Also for analysis errors and linting warnings @done (2021-01-10 14:32)
 		☐	Account for (variable) tab width in Location
+		☐	Switch to something more sensible than anyhow for context
 	☐	Add helpful note when trying to jump backwards
 		☐	Similarly, add note when referencing variable declared later
