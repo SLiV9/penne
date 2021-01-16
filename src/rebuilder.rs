@@ -250,6 +250,21 @@ impl Rebuildable for Expression
 			},
 			Expression::Literal(literal) => literal.rebuild(indentation),
 			Expression::Variable(var) => Ok(var.name.to_string()),
+			Expression::FunctionCall { name, arguments } =>
+			{
+				let mut buffer = String::new();
+				write!(&mut buffer, "{}(", name.name)?;
+				for argument in arguments
+				{
+					write!(
+						&mut buffer,
+						"{}",
+						argument.rebuild(&indentation.increased())?
+					)?;
+				}
+				write!(&mut buffer, ")")?;
+				Ok(buffer)
+			}
 		}
 	}
 }

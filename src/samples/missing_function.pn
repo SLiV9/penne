@@ -1,0 +1,6 @@
+fn main()
+{
+	var x = foo();
+	return:
+	x
+}

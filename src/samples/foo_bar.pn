@@ -18,7 +18,7 @@ fn bar()
 
 fn main()
 {
-	var x = 33;
+	var x = foo();
 	var y;
 	{
 		x = x + 1;

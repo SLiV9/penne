@@ -36,6 +36,7 @@ struct Generator
 	module: *mut LLVMModule,
 	context: *mut LLVMContext,
 	builder: *mut LLVMBuilder,
+	global_functions: std::collections::HashMap<String, LLVMValueRef>,
 	local_variables: std::collections::HashMap<String, LLVMValueRef>,
 	local_labeled_blocks: std::collections::HashMap<String, LLVMBasicBlockRef>,
 }
@@ -56,6 +57,7 @@ impl Generator
 				module,
 				context,
 				builder,
+				global_functions: std::collections::HashMap::new(),
 				local_variables: std::collections::HashMap::new(),
 				local_labeled_blocks: std::collections::HashMap::new(),
 			}
@@ -146,7 +148,7 @@ impl Generatable for Declaration
 
 				let function_name = CString::new(name.name.as_bytes())?;
 
-				let function = unsafe {
+				let function: LLVMValueRef = unsafe {
 					let mut param_types: Vec<LLVMTypeRef> = vec![];
 					let function_type = LLVMFunctionType(
 						return_type,
@@ -178,6 +180,9 @@ impl Generatable for Declaration
 				llvm.local_labeled_blocks.clear();
 
 				llvm.verify_function(function);
+
+				llvm.global_functions
+					.insert(name.name.to_string(), function);
 
 				Ok(())
 			}
@@ -319,18 +324,16 @@ impl Generatable for Statement
 			}
 			Statement::Declaration {
 				name,
-				value,
+				value: _,
 				value_type: None,
-				location: _,
-			} => Err(anyhow!(
-				"failed to infer type for '{}' = {:?}",
-				name.name,
-				value
-			)),
+				location,
+			} => Err(anyhow!("failed to infer type")
+				.context(location.format())
+				.context(format!("failed to infer type for '{}'", name.name))),
 			Statement::Assignment {
 				name,
 				value,
-				location: _,
+				location,
 			} =>
 			{
 				let loc = match llvm.local_variables.get(&name.name)
@@ -338,10 +341,12 @@ impl Generatable for Statement
 					Some(loc) => *loc,
 					None =>
 					{
-						return Err(anyhow!(
-							"undefined reference to '{}'",
-							name.name
-						))
+						return Err(anyhow!("undefined reference")
+							.context(location.format())
+							.context(format!(
+								"undefined reference to '{}'",
+								name.name
+							)))
 					}
 				};
 				let value = value.generate(llvm)?;
@@ -350,7 +355,9 @@ impl Generatable for Statement
 				}
 				Ok(())
 			}
-			Statement::Loop { location: _ } => Err(anyhow!("misplaced loop")),
+			Statement::Loop { location } => Err(anyhow!("misplaced loop")
+				.context(location.format())
+				.context("misplaced loop")),
 			Statement::Goto { label, location: _ } =>
 			{
 				let current_block = unsafe { LLVMGetInsertBlock(llvm.builder) };
@@ -572,14 +579,48 @@ impl Generatable for Expression
 					Some(loc) => *loc,
 					None =>
 					{
-						return Err(anyhow!(
-							"undefined reference to '{}'",
-							name.name
-						))
+						return Err(anyhow!("undefined reference")
+							.context(name.location.format())
+							.context(format!(
+								"undefined reference to '{}'",
+								name.name
+							)))
 					}
 				};
 				let result = unsafe {
 					LLVMBuildLoad(llvm.builder, loc, tmpname.as_ptr())
+				};
+				Ok(result)
+			}
+			Expression::FunctionCall {
+				name,
+				arguments,
+				return_type: _,
+			} =>
+			{
+				let function = match llvm.global_functions.get(&name.name)
+				{
+					Some(function) => *function,
+					None =>
+					{
+						return Err(anyhow!("undefined reference")
+							.context(name.location.format())
+							.context(format!(
+								"undefined reference to function '{}'",
+								name.name
+							)))
+					}
+				};
+				let function_name = CString::new(&name.name as &str)?;
+				// TODO arguments
+				let result = unsafe {
+					LLVMBuildCall(
+						llvm.builder,
+						function,
+						std::ptr::null_mut(),
+						0,
+						function_name.as_ptr(),
+					)
 				};
 				Ok(result)
 			}

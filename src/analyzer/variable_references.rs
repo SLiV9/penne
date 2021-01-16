@@ -9,6 +9,7 @@ use anyhow::Context;
 pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 {
 	let mut analyzer = Analyzer {
+		function_list: Vec::new(),
 		variable_stack: Vec::new(),
 	};
 	for declaration in program
@@ -20,11 +21,53 @@ pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 
 struct Analyzer
 {
+	function_list: Vec<Identifier>,
 	variable_stack: Vec<Vec<Identifier>>,
 }
 
 impl Analyzer
 {
+	fn declare_function(
+		&mut self,
+		identifier: &Identifier,
+	) -> Result<(), anyhow::Error>
+	{
+		if let Some(previous_identifier) = self
+			.function_list
+			.iter()
+			.find(|x| x.name == identifier.name)
+		{
+			return Err(anyhow!(
+				"previous declaration {}",
+				previous_identifier.location.format()
+			)
+			.context(identifier.location.format())
+			.context(format!(
+				"a function named '{}' is already defined",
+				identifier.name
+			)));
+		}
+
+		self.function_list.push(identifier.clone());
+		Ok(())
+	}
+
+	fn use_function(&self, identifier: &Identifier)
+		-> Result<(), anyhow::Error>
+	{
+		if self.function_list.iter().any(|x| x.name == identifier.name)
+		{
+			return Ok(());
+		}
+
+		Err(anyhow!("undefined reference")
+			.context(identifier.location.format())
+			.context(format!(
+				"reference to undefined function named '{}'",
+				identifier.name
+			)))
+	}
+
 	fn declare_variable(
 		&mut self,
 		identifier: &Identifier,
@@ -69,11 +112,12 @@ impl Analyzer
 			}
 		}
 
-		Err(anyhow!(
-			"Reference to undefined variable named '{}'",
-			identifier.name
-		)
-		.context(identifier.location.format()))
+		Err(anyhow!("undefined reference")
+			.context(identifier.location.format())
+			.context(format!(
+				"reference to undefined variable named '{}'",
+				identifier.name
+			)))
 	}
 
 	fn push_scope(&mut self)
@@ -99,11 +143,12 @@ impl Analyzable for Declaration
 		match self
 		{
 			Declaration::Function {
-				name: _,
+				name,
 				body,
 				return_type: _,
 			} =>
 			{
+				analyzer.declare_function(name)?;
 				analyzer.push_scope();
 				// parameters in this scope
 				body.analyze(analyzer)?;
@@ -250,6 +295,19 @@ impl Analyzable for Expression
 				name,
 				value_type: _,
 			} => analyzer.use_variable(name),
+			Expression::FunctionCall {
+				name,
+				arguments,
+				return_type: _,
+			} =>
+			{
+				analyzer.use_function(name)?;
+				for argument in arguments
+				{
+					argument.analyze(analyzer)?;
+				}
+				Ok(())
+			}
 		}
 	}
 }

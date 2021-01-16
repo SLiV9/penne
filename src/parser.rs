@@ -98,6 +98,11 @@ pub enum Expression
 	},
 	Literal(Literal),
 	Variable(Identifier),
+	FunctionCall
+	{
+		name: Identifier,
+		arguments: Vec<Expression>,
+	},
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -516,10 +521,44 @@ fn parse_primary_expression(
 		Token::Bool(value) => Ok(Expression::Literal(Literal::Bool(value))),
 		Token::Identifier(name) =>
 		{
-			Ok(Expression::Variable(Identifier { name, location }))
+			let identifier = Identifier { name, location };
+			if let Some(Token::ParenLeft) = peek(tokens)
+			{
+				let arguments = parse_arguments(tokens)?;
+				Ok(Expression::FunctionCall {
+					name: identifier,
+					arguments,
+				})
+			}
+			else
+			{
+				Ok(Expression::Variable(identifier))
+			}
 		}
 		other => Err(anyhow!("got {:?}", other))
 			.context(location.format())
 			.context("expected literal or identifier"),
+	}
+}
+
+fn parse_arguments(
+	tokens: &mut VecDeque<LexedToken>,
+) -> Result<Vec<Expression>, anyhow::Error>
+{
+	let mut arguments = Vec::new();
+
+	consume(Token::ParenLeft, tokens).context("expected argument list")?;
+
+	loop
+	{
+		if let Some(Token::ParenRight) = peek(tokens)
+		{
+			let _ = extract(tokens);
+
+			return Ok(arguments);
+		}
+
+		let expression = parse_expression(tokens)?;
+		arguments.push(expression);
 	}
 }

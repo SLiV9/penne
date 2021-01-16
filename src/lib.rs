@@ -169,6 +169,17 @@ mod tests
 	}
 
 	#[test]
+	fn fail_to_analyze_missing_function() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/missing_function.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
 	fn fail_to_analyze_outscoped_variable() -> Result<(), anyhow::Error>
 	{
 		let analysis_result = analyze("src/samples/outscoped_variable.pn")?;
@@ -194,6 +205,14 @@ mod tests
 		let code_lines: Vec<&str> = code.lines().collect();
 		let source_lines: Vec<&str> = source.lines().collect();
 		assert_eq!(code_lines, source_lines);
+		Ok(())
+	}
+
+	#[test]
+	fn execute_foo_bar() -> Result<(), anyhow::Error>
+	{
+		let result = execute_calculation("src/samples/foo_bar.pn")?;
+		assert_eq!(result, 34);
 		Ok(())
 	}
 

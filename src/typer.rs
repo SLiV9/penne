@@ -136,6 +136,7 @@ impl Analyzable for parser::Declaration
 				body.analyze(typer)?;
 				let body = body.analyze(typer)?;
 				let return_type = body.value_type();
+				typer.put_symbol(name, return_type)?;
 				let function = Declaration::Function {
 					name: name.clone(),
 					body,
@@ -425,6 +426,12 @@ pub enum Expression
 		name: Identifier,
 		value_type: Option<ValueType>,
 	},
+	FunctionCall
+	{
+		name: Identifier,
+		arguments: Vec<Expression>,
+		return_type: Option<ValueType>,
+	},
 }
 
 impl Typed for Expression
@@ -436,6 +443,7 @@ impl Typed for Expression
 			Expression::Binary { left, .. } => left.value_type(),
 			Expression::Literal(literal) => literal.value_type(),
 			Expression::Variable { value_type, .. } => *value_type,
+			Expression::FunctionCall { return_type, .. } => *return_type,
 		}
 	}
 }
@@ -475,6 +483,19 @@ impl Analyzable for parser::Expression
 				let expr = Expression::Variable {
 					name: name.clone(),
 					value_type,
+				};
+				Ok(expr)
+			}
+			parser::Expression::FunctionCall { name, arguments } =>
+			{
+				let return_type = typer.get_symbol(name);
+				let arguments: Result<Vec<Expression>, anyhow::Error> =
+					arguments.iter().map(|a| a.analyze(typer)).collect();
+				let arguments = arguments?;
+				let expr = Expression::FunctionCall {
+					name: name.clone(),
+					arguments,
+					return_type,
 				};
 				Ok(expr)
 			}
