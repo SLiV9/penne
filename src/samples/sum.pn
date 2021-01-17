@@ -1,5 +1,5 @@
 
-fn sum(x, y)
+fn sum(x: i32, y: i32) -> i32
 {
 	return:
 	x + y
@@ -8,7 +8,7 @@ fn sum(x, y)
 fn main()
 {
 	var a = 3;
-	var b = 7;
+	var b: i32 = 7;
 	var x = sum(a, b);
 	var y = sum(b, a);
 	if x == y

@@ -8,6 +8,8 @@ scope: source.penne
 
 variables:
   identifier: '[[:alpha:]][_[:alnum:]]*|_[_[:alnum:]]+'
+  int_suffixes: '[iu](8|16|32|64|128|size)'
+  float_suffixes: 'f(32|64)'
 
 contexts:
   main:
@@ -37,6 +39,7 @@ contexts:
 
     - match: '\b(var)\b'
       scope: keyword.other.penne
+      push: var_declaration
 
     - match: '\b(-)?[0-9.]+\b'
       scope: constant.numeric.penne
@@ -63,6 +66,16 @@ contexts:
     - match: $
       pop: true
 
+  var_declaration:
+    - match: ':(?!:)'
+      scope: punctuation.separator.rust
+      push:
+        - match: '(?=,|;|=)'
+          pop: true
+        - include: type
+    - match: '(?=;|=)'
+      pop: true
+
   fn_definition:
     - meta_scope: meta.function.penne
     - match: '{{identifier}}'
@@ -84,13 +97,32 @@ contexts:
         - meta_scope: meta.function.parameters.penne
         - match: '(?=\))'
           pop: true
-        #- include: pattern_param
+        - include: pattern_param
+
+  pattern_param:
+    - match: '\b{{identifier}}\b'
+      scope: variable.parameter.penne
+    - match: ':(?!:)'
+      scope: punctuation.separator.rust
+      push:
+        - match: '(?=,|\)|\]|\}|\|)'
+          pop: true
+        - include: type
 
   fn_return:
     - meta_scope: meta.function.penne
     - match: '(?=\{)'
       set: fn_body
-    #- include: return_type
+    - include: return_type
+
+  return_type:
+    - match: '->'
+      scope: punctuation.separator.penne
+      push:
+        - meta_scope: meta.function.return-type.penne
+        - include: type
+        - match: '(?=\S)'
+          pop: true
 
   fn_body:
     - meta_scope: meta.function.penne
@@ -118,3 +150,7 @@ contexts:
     - match: '(?=\})'
       pop: true
     - include: statements
+
+  type:
+    - match: \b({{int_suffixes}}|{{float_suffixes}}|bool)\b
+      scope: storage.type.penne

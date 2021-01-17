@@ -1,6 +1,7 @@
 /**/
 
 use crate::lexer::{LexedToken, Location, Token};
+use crate::typer::ValueType;
 
 use std::collections::VecDeque;
 
@@ -259,6 +260,14 @@ fn parse_declaration(
 
 	consume(Token::ParenRight, tokens).context("expected right parenthesis")?;
 
+	if let Some(Token::Arrow) = peek(tokens)
+	{
+		tokens.pop_front();
+
+		let _ = parse_type(tokens)?;
+		// TODO store type information
+	}
+
 	let body = parse_function_body(tokens)?;
 
 	let function = Declaration::Function {
@@ -275,7 +284,30 @@ fn parse_parameter(
 ) -> Result<Parameter, anyhow::Error>
 {
 	let name = extract_identifier(tokens).context("expected parameter name")?;
+
+	if let Some(Token::Colon) = peek(tokens)
+	{
+		tokens.pop_front();
+
+		let _ = parse_type(tokens)?;
+		// TODO store type information
+	}
+
 	Ok(Parameter { name })
+}
+
+fn parse_type(
+	tokens: &mut VecDeque<LexedToken>,
+) -> Result<ValueType, anyhow::Error>
+{
+	let (token, location) = extract(tokens).context("expected type keyword")?;
+	match token
+	{
+		Token::Type(value_type) => Ok(value_type),
+		token => Err(anyhow!("got {:?}", token))
+			.context(location.format())
+			.context("expected type keyword"),
+	}
 }
 
 fn parse_function_body(
@@ -419,6 +451,19 @@ fn parse_statement(
 		{
 			let name =
 				extract_identifier(tokens).context("expected variable name")?;
+
+			let value_type = if let Some(Token::Colon) = peek(tokens)
+			{
+				tokens.pop_front();
+				let value_type = parse_type(tokens)?;
+				Some(value_type)
+			}
+			else
+			{
+				None
+			};
+			// TODO use value type
+			let _ = value_type;
 
 			let value = if let Some(Token::Assignment) = peek(tokens)
 			{

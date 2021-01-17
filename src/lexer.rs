@@ -2,6 +2,8 @@
 
 use thiserror::Error;
 
+use crate::typer::ValueType;
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token
 {
@@ -21,6 +23,7 @@ pub enum Token
 
 	// Double-character tokens.
 	Equals, // ==
+	Arrow,  // ->
 
 	// Keywords.
 	Fn,
@@ -34,6 +37,9 @@ pub enum Token
 	Identifier(String),
 	Int32(i32),
 	Bool(bool),
+
+	// Types.
+	Type(ValueType),
 }
 
 #[derive(Debug, Error)]
@@ -108,7 +114,6 @@ fn lex_line(
 			'{' => Ok(Token::BraceLeft),
 			'}' => Ok(Token::BraceRight),
 			'+' => Ok(Token::Plus),
-			'-' => Ok(Token::Minus),
 			'*' => Ok(Token::Times),
 			':' => Ok(Token::Colon),
 			';' => Ok(Token::Semicolon),
@@ -121,6 +126,15 @@ fn lex_line(
 					Ok(Token::Equals)
 				}
 				_ => Ok(Token::Assignment),
+			},
+			'-' => match iter.peek()
+			{
+				Some((_, '>')) =>
+				{
+					iter.next();
+					Ok(Token::Arrow)
+				}
+				_ => Ok(Token::Minus),
 			},
 			'/' => match iter.peek()
 			{
@@ -155,6 +169,8 @@ fn lex_line(
 					"else" => Token::Else,
 					"true" => Token::Bool(true),
 					"false" => Token::Bool(false),
+					"i32" => Token::Type(ValueType::Int32),
+					"bool" => Token::Type(ValueType::Bool),
 					_ => Token::Identifier(identifier),
 				};
 				Ok(token)
