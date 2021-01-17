@@ -1,0 +1,12 @@
+
+fn foo(x: i32, y: i32)
+{
+	return:
+	x + y
+}
+
+fn main()
+{
+	return:
+	foo(1, 2, 3)
+}

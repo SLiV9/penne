@@ -31,12 +31,12 @@ Syntax errors:
 	✔	Duplicate label @done (2020-10-18 14:44)
 	✔	Non-goto statement after if without braces @done (2020-10-18 15:15)
 	✔	Loop statement anywhere except at the end of a block @done (2020-10-18 15:23)
-	☐	Function argument number mismatch
+	✔	Function argument number mismatch @done (2021-01-17 16:03)
 
 Linting errors:
 	☐	Unreachable code
 	✔	Loop as only statement in an if-branch @done (2021-01-09 12:45)
-	☐	Non-const functions in if-statement conditions
+	☐	Functions with side effects in if-statement conditions
 
 Usability:
 	☐	Error recovery

@@ -1,6 +1,7 @@
 /**/
 
 use crate::common::*;
+use crate::typer::Typed;
 
 use anyhow::anyhow;
 use anyhow::Context;
@@ -20,7 +21,7 @@ pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 
 struct Analyzer
 {
-	function_list: Vec<Identifier>,
+	function_list: Vec<(Identifier, Vec<Parameter>)>,
 	variable_stack: Vec<Vec<Identifier>>,
 }
 
@@ -29,12 +30,13 @@ impl Analyzer
 	fn declare_function(
 		&mut self,
 		identifier: &Identifier,
+		parameters: &Vec<Parameter>,
 	) -> Result<(), anyhow::Error>
 	{
-		if let Some(previous_identifier) = self
+		if let Some((previous_identifier, _)) = self
 			.function_list
 			.iter()
-			.find(|x| x.name == identifier.name)
+			.find(|(x, _)| x.name == identifier.name)
 		{
 			return Err(anyhow!(
 				"previous declaration {}",
@@ -47,24 +49,79 @@ impl Analyzer
 			)));
 		}
 
-		self.function_list.push(identifier.clone());
+		self.function_list
+			.push((identifier.clone(), parameters.to_vec()));
 		Ok(())
 	}
 
-	fn use_function(&self, identifier: &Identifier)
-		-> Result<(), anyhow::Error>
+	fn use_function(
+		&self,
+		identifier: &Identifier,
+		arguments: Vec<Option<ValueType>>,
+	) -> Result<(), anyhow::Error>
 	{
-		if self.function_list.iter().any(|x| x.name == identifier.name)
+		if let Some((declaration_identifier, parameters)) = self
+			.function_list
+			.iter()
+			.find(|(x, _)| x.name == identifier.name)
 		{
-			return Ok(());
+			if parameters.len() < arguments.len()
+			{
+				Err(anyhow!("too few arguments")
+					.context(format!(
+						"function was declared {}",
+						declaration_identifier.location.format()
+					))
+					.context(identifier.location.format())
+					.context(format!(
+						"too few arguments to function '{}'",
+						identifier.name
+					)))
+			}
+			else if parameters.len() > arguments.len()
+			{
+				Err(anyhow!("too many arguments")
+					.context(format!(
+						"function was declared {}",
+						declaration_identifier.location.format()
+					))
+					.context(identifier.location.format())
+					.context(format!(
+						"too many arguments to function '{}'",
+						identifier.name
+					)))
+			}
+			else if let Some((parameter, argument)) =
+				parameters.iter().zip(arguments.iter()).find(|(p, a)| {
+					p.value_type.is_some() && a.is_some() && p.value_type != **a
+				})
+			{
+				Err(anyhow!("got {:?}", argument)
+					.context(format!("expected {:?}", parameter.value_type))
+					.context(format!(
+						"function was declared {}",
+						declaration_identifier.location.format()
+					))
+					.context(identifier.location.format())
+					.context(format!(
+						"type mismatch of parameter '{}' of function '{}'",
+						parameter.name.name, identifier.name,
+					)))
+			}
+			else
+			{
+				Ok(())
+			}
 		}
-
-		Err(anyhow!("undefined reference")
-			.context(identifier.location.format())
-			.context(format!(
-				"reference to undefined function named '{}'",
-				identifier.name
-			)))
+		else
+		{
+			Err(anyhow!("undefined reference")
+				.context(identifier.location.format())
+				.context(format!(
+					"reference to undefined function named '{}'",
+					identifier.name
+				)))
+		}
 	}
 
 	fn declare_variable(
@@ -148,7 +205,7 @@ impl Analyzable for Declaration
 				return_type: _,
 			} =>
 			{
-				analyzer.declare_function(name)?;
+				analyzer.declare_function(name, parameters)?;
 				analyzer.push_scope();
 				for parameter in parameters
 				{
@@ -313,7 +370,9 @@ impl Analyzable for Expression
 				return_type: _,
 			} =>
 			{
-				analyzer.use_function(name)?;
+				let argument_types =
+					arguments.iter().map(|x| x.value_type()).collect();
+				analyzer.use_function(name, argument_types)?;
 				for argument in arguments
 				{
 					argument.analyze(analyzer)?;

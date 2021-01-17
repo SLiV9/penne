@@ -213,6 +213,39 @@ mod tests
 	}
 
 	#[test]
+	fn fail_to_analyze_argument_type_mismatch() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/argument_type_mismatch.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_analyze_too_few_arguments() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/too_few_arguments.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_analyze_too_many_arguments() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/too_many_arguments.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
 	fn rebuild_foo_bar() -> Result<(), anyhow::Error>
 	{
 		let filename = "src/samples/foo_bar.pn";

@@ -1,0 +1,12 @@
+
+fn foo(x: i32)
+{
+	return:
+	x
+}
+
+fn main()
+{
+	return:
+	foo(true)
+}
