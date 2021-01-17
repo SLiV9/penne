@@ -1,7 +1,6 @@
 /**/
 
-use crate::typer::{Block, Declaration, FunctionBody, Parameter, Statement};
-use crate::typer::{Comparison, Expression, Identifier};
+use crate::common::*;
 
 use anyhow::anyhow;
 use anyhow::Context;

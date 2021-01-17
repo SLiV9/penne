@@ -1,137 +1,12 @@
 /**/
 
-use crate::lexer::{LexedToken, Location, Token};
-use crate::typer::ValueType;
+use crate::common::*;
+use crate::lexer::{LexedToken, Token};
 
 use std::collections::VecDeque;
 
 use anyhow::anyhow;
 use anyhow::Context;
-
-#[derive(Debug)]
-pub enum Declaration
-{
-	Function
-	{
-		name: Identifier,
-		parameters: Vec<Parameter>,
-		body: FunctionBody,
-	},
-}
-
-#[derive(Debug)]
-pub struct Parameter
-{
-	pub name: Identifier,
-}
-
-#[derive(Debug)]
-pub struct FunctionBody
-{
-	pub statements: Vec<Statement>,
-	pub return_value: Option<Expression>,
-}
-
-#[derive(Debug)]
-pub struct Block
-{
-	pub statements: Vec<Statement>,
-	pub location: Location,
-}
-
-#[derive(Debug)]
-pub enum Statement
-{
-	Declaration
-	{
-		name: Identifier,
-		value: Option<Expression>,
-		location: Location,
-	},
-	Assignment
-	{
-		name: Identifier,
-		value: Expression,
-		location: Location,
-	},
-	Loop
-	{
-		location: Location,
-	},
-	Goto
-	{
-		label: Identifier,
-		location: Location,
-	},
-	Label
-	{
-		label: Identifier,
-		location: Location,
-	},
-	If
-	{
-		condition: Comparison,
-		then_branch: Box<Statement>,
-		else_branch: Option<Box<Statement>>,
-		location: Location,
-	},
-	Block(Block),
-}
-
-#[derive(Debug)]
-pub struct Comparison
-{
-	pub op: ComparisonOp,
-	pub left: Expression,
-	pub right: Expression,
-	pub location: Location,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ComparisonOp
-{
-	Equals,
-}
-
-#[derive(Debug)]
-pub enum Expression
-{
-	Binary
-	{
-		op: BinaryOp,
-		left: Box<Expression>,
-		right: Box<Expression>,
-		location: Location,
-	},
-	Literal(Literal),
-	Variable(Identifier),
-	FunctionCall
-	{
-		name: Identifier,
-		arguments: Vec<Expression>,
-	},
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BinaryOp
-{
-	Add,
-	Subtract,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Literal
-{
-	Int32(i32),
-	Bool(bool),
-}
-
-#[derive(Debug, Clone)]
-pub struct Identifier
-{
-	pub name: String,
-	pub location: Location,
-}
 
 pub fn parse(tokens: Vec<LexedToken>)
 	-> Result<Vec<Declaration>, anyhow::Error>
@@ -260,13 +135,17 @@ fn parse_declaration(
 
 	consume(Token::ParenRight, tokens).context("expected right parenthesis")?;
 
-	if let Some(Token::Arrow) = peek(tokens)
+	let return_type = if let Some(Token::Arrow) = peek(tokens)
 	{
 		tokens.pop_front();
 
-		let _ = parse_type(tokens)?;
-		// TODO store type information
+		let value_type = parse_type(tokens)?;
+		Some(value_type)
 	}
+	else
+	{
+		None
+	};
 
 	let body = parse_function_body(tokens)?;
 
@@ -274,6 +153,7 @@ fn parse_declaration(
 		name,
 		parameters,
 		body,
+		return_type,
 	};
 
 	Ok(function)
@@ -285,15 +165,19 @@ fn parse_parameter(
 {
 	let name = extract_identifier(tokens).context("expected parameter name")?;
 
-	if let Some(Token::Colon) = peek(tokens)
+	let value_type = if let Some(Token::Colon) = peek(tokens)
 	{
 		tokens.pop_front();
 
-		let _ = parse_type(tokens)?;
-		// TODO store type information
+		let value_type = parse_type(tokens)?;
+		Some(value_type)
 	}
+	else
+	{
+		None
+	};
 
-	Ok(Parameter { name })
+	Ok(Parameter { name, value_type })
 }
 
 fn parse_type(
@@ -462,8 +346,6 @@ fn parse_statement(
 			{
 				None
 			};
-			// TODO use value type
-			let _ = value_type;
 
 			let value = if let Some(Token::Assignment) = peek(tokens)
 			{
@@ -481,6 +363,7 @@ fn parse_statement(
 			let statement = Statement::Declaration {
 				name,
 				value,
+				value_type,
 				location,
 			};
 			Ok(statement)
@@ -613,11 +496,15 @@ fn parse_primary_expression(
 				Ok(Expression::FunctionCall {
 					name: identifier,
 					arguments,
+					return_type: None,
 				})
 			}
 			else
 			{
-				Ok(Expression::Variable(identifier))
+				Ok(Expression::Variable {
+					name: identifier,
+					value_type: None,
+				})
 			}
 		}
 		other => Err(anyhow!("got {:?}", other))

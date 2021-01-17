@@ -13,7 +13,7 @@ Functionality:
 	☐	Strong enums
 	✔	Function calls @done (2021-01-16 18:03)
 	✔	Function parameters @done (2021-01-16 18:03)
-		☐	Parameter type declarations
+		✔	Parameter type declarations @done (2021-01-17 15:28)
 	☐	Structs
 
 Syntactic sugar:

@@ -4,7 +4,7 @@ mod label_references;
 mod syntax;
 mod variable_references;
 
-use crate::typer::Declaration;
+use crate::common::*;
 
 pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 {

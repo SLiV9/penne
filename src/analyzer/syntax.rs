@@ -1,13 +1,14 @@
 /**/
 
-use crate::typer::{Block, Declaration, FunctionBody, Statement};
+use crate::common::*;
 
 use anyhow::anyhow;
 
 pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 {
 	let mut analyzer = Analyzer {
-		is_naked_branch: false,
+		is_naked_then_branch: false,
+		is_naked_else_branch: false,
 		is_final_statement_in_block: false,
 	};
 	for declaration in program
@@ -19,7 +20,8 @@ pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 
 struct Analyzer
 {
-	is_naked_branch: bool,
+	is_naked_then_branch: bool,
+	is_naked_else_branch: bool,
 	is_final_statement_in_block: bool,
 }
 
@@ -82,18 +84,19 @@ impl Analyzable for Statement
 {
 	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
 	{
-		if analyzer.is_naked_branch
+		if analyzer.is_naked_then_branch || analyzer.is_naked_else_branch
 		{
 			match self
 			{
 				Statement::Goto { .. } => (),
 				Statement::Block(..) => (),
+				Statement::If { .. } if analyzer.is_naked_else_branch => (),
 				statement =>
 				{
 					return Err(anyhow!("missing braces")
 						.context(statement.location().format())
 						.context(
-							"braces around if statement branches \
+							"braces around conditional branches \
 							can only be omitted for goto statements",
 						))
 				}
@@ -131,21 +134,23 @@ impl Analyzable for Statement
 			{
 				analyzer.is_final_statement_in_block = false;
 
-				analyzer.is_naked_branch = true;
+				analyzer.is_naked_then_branch = true;
 				then_branch.analyze(analyzer)?;
+				analyzer.is_naked_then_branch = false;
 
 				if let Some(else_branch) = else_branch
 				{
-					analyzer.is_naked_branch = true;
+					analyzer.is_naked_else_branch = true;
 					else_branch.analyze(analyzer)?;
+					analyzer.is_naked_else_branch = false;
 				}
-				analyzer.is_naked_branch = false;
 
 				Ok(())
 			}
 			Statement::Block(block) =>
 			{
-				analyzer.is_naked_branch = false;
+				analyzer.is_naked_then_branch = false;
+				analyzer.is_naked_else_branch = false;
 				block.analyze(analyzer)
 			}
 		}

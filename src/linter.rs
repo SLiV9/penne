@@ -1,6 +1,6 @@
 /**/
 
-use crate::typer::{Block, Declaration, FunctionBody, Statement};
+use crate::common::*;
 
 use anyhow::anyhow;
 

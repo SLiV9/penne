@@ -42,6 +42,14 @@ fn main() -> Result<(), anyhow::Error>
 		let declarations = typer::analyze(declarations)?;
 		println!("{:?}", declarations);
 		println!();
+		println!("Rebuilding {}...", filename);
+		let indentation = rebuilder::Indentation {
+			value: "\u{00a6}   ",
+			amount: 1,
+		};
+		let code = rebuilder::rebuild(&declarations, &indentation)?;
+		println!("{}", code);
+		println!();
 		println!("Analyzing {:?}...", filename);
 		analyzer::analyze(&declarations)?;
 		println!("Analysis complete.");

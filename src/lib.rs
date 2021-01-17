@@ -1,6 +1,7 @@
 /**/
 
 pub mod analyzer;
+pub mod common;
 pub mod generator;
 pub mod lexer;
 pub mod linter;
@@ -29,7 +30,7 @@ mod tests
 
 	fn parse(
 		filename: &str,
-	) -> Result<Result<Vec<parser::Declaration>, anyhow::Error>, anyhow::Error>
+	) -> Result<Result<Vec<common::Declaration>, anyhow::Error>, anyhow::Error>
 	{
 		let source = std::fs::read_to_string(filename)?;
 		let tokens = lexer::lex(&source, filename);
@@ -63,6 +64,27 @@ mod tests
 	{
 		let parse_result = parse("src/samples/duplicate_return.pn")?;
 		match parse_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	fn do_type(
+		filename: &str,
+	) -> Result<Result<Vec<common::Declaration>, anyhow::Error>, anyhow::Error>
+	{
+		let source = std::fs::read_to_string(filename)?;
+		let tokens = lexer::lex(&source, filename);
+		let declarations = parser::parse(tokens)?;
+		Ok(typer::analyze(declarations))
+	}
+
+	#[test]
+	fn fail_to_type_return_type_mismatch() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = do_type("src/samples/return_type_mismatch.pn")?;
+		match analysis_result
 		{
 			Ok(_) => Err(anyhow!("broken test")),
 			Err(_) => Ok(()),

@@ -2,7 +2,7 @@
 
 use thiserror::Error;
 
-use crate::typer::ValueType;
+use crate::common::*;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token

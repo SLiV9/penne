@@ -1,7 +1,6 @@
 /**/
 
-use crate::parser::{BinaryOp, Comparison, ComparisonOp, Expression, Literal};
-use crate::parser::{Block, Declaration, FunctionBody, Parameter, Statement};
+use crate::common::*;
 
 use std::fmt::Write;
 
@@ -69,6 +68,7 @@ impl Rebuildable for Declaration
 				name,
 				parameters,
 				body,
+				return_type,
 			} =>
 			{
 				let mut buffer = String::new();
@@ -93,7 +93,16 @@ impl Rebuildable for Declaration
 					}
 					None => (),
 				}
-				write!(&mut buffer, ")\n{}", body.rebuild(indentation)?)?;
+				write!(&mut buffer, ")")?;
+				if let Some(value_type) = return_type
+				{
+					write!(
+						&mut buffer,
+						" -> {}",
+						value_type.rebuild(&indentation.increased())?
+					)?;
+				}
+				write!(&mut buffer, "\n{}", body.rebuild(indentation)?)?;
 				Ok(buffer)
 			}
 		}
@@ -104,10 +113,19 @@ impl Rebuildable for Parameter
 {
 	fn rebuild(
 		&self,
-		_indentation: &Indentation,
+		indentation: &Indentation,
 	) -> Result<String, anyhow::Error>
 	{
-		Ok(self.name.name.to_string())
+		let mut buffer = self.name.name.to_string();
+		if let Some(value_type) = self.value_type
+		{
+			write!(
+				&mut buffer,
+				": {}",
+				value_type.rebuild(&indentation.increased())?
+			)?;
+		}
+		Ok(buffer)
 	}
 }
 
@@ -176,6 +194,30 @@ impl Rebuildable for Statement
 			Statement::Declaration {
 				name,
 				value: Some(value),
+				value_type: Some(value_type),
+				location: _,
+			} => Ok(format!(
+				"{}var {}: {} = {};\n",
+				indentation,
+				name.name,
+				value_type.rebuild(&indentation.increased())?,
+				value.rebuild(&indentation.increased())?
+			)),
+			Statement::Declaration {
+				name,
+				value: None,
+				value_type: Some(value_type),
+				location: _,
+			} => Ok(format!(
+				"{}var {}: {};\n",
+				indentation,
+				name.name,
+				value_type.rebuild(&indentation.increased())?,
+			)),
+			Statement::Declaration {
+				name,
+				value: Some(value),
+				value_type: None,
 				location: _,
 			} => Ok(format!(
 				"{}var {} = {};\n",
@@ -186,6 +228,7 @@ impl Rebuildable for Statement
 			Statement::Declaration {
 				name,
 				value: None,
+				value_type: None,
 				location: _,
 			} => Ok(format!("{}var {};\n", indentation, name.name)),
 			Statement::Assignment {
@@ -285,8 +328,15 @@ impl Rebuildable for Expression
 				)),
 			},
 			Expression::Literal(literal) => literal.rebuild(indentation),
-			Expression::Variable(var) => Ok(var.name.to_string()),
-			Expression::FunctionCall { name, arguments } =>
+			Expression::Variable {
+				name: var,
+				value_type: _,
+			} => Ok(var.name.to_string()),
+			Expression::FunctionCall {
+				name,
+				arguments,
+				return_type: _,
+			} =>
 			{
 				let mut buffer = String::new();
 				write!(&mut buffer, "{}(", name.name)?;
@@ -317,6 +367,21 @@ impl Rebuildable for Literal
 			Literal::Int32(value) => Ok(format!("{}", value)),
 			Literal::Bool(true) => Ok("true".to_string()),
 			Literal::Bool(false) => Ok("false".to_string()),
+		}
+	}
+}
+
+impl Rebuildable for ValueType
+{
+	fn rebuild(
+		&self,
+		_indentation: &Indentation,
+	) -> Result<String, anyhow::Error>
+	{
+		match self
+		{
+			ValueType::Int32 => Ok("i32".to_string()),
+			ValueType::Bool => Ok("bool".to_string()),
 		}
 	}
 }

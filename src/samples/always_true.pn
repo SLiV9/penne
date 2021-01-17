@@ -1,0 +1,11 @@
+fn always_true() -> bool
+{
+	return:
+	true
+}
+
+fn main()
+{
+	return:
+	always_true()
+}

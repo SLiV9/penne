@@ -1,27 +1,17 @@
 /**/
 
-pub use crate::lexer::Location;
-pub use crate::parser::{BinaryOp, ComparisonOp, Identifier, Literal};
-
-use crate::parser;
+use crate::common::*;
 
 use anyhow::anyhow;
 
 pub fn analyze(
-	program: Vec<parser::Declaration>,
+	program: Vec<Declaration>,
 ) -> Result<Vec<Declaration>, anyhow::Error>
 {
 	let mut typer = Typer {
 		symbols: std::collections::HashMap::new(),
 	};
 	program.iter().map(|x| x.analyze(&mut typer)).collect()
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ValueType
-{
-	Int32,
-	Bool,
 }
 
 struct Typer
@@ -97,18 +87,6 @@ trait Analyzable
 	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>;
 }
 
-#[derive(Debug)]
-pub enum Declaration
-{
-	Function
-	{
-		name: Identifier,
-		parameters: Vec<Parameter>,
-		body: FunctionBody,
-		return_type: Option<ValueType>,
-	},
-}
-
 impl Typed for Declaration
 {
 	fn value_type(&self) -> Option<ValueType>
@@ -120,7 +98,7 @@ impl Typed for Declaration
 	}
 }
 
-impl Analyzable for parser::Declaration
+impl Analyzable for Declaration
 {
 	type Item = Declaration;
 
@@ -128,12 +106,15 @@ impl Analyzable for parser::Declaration
 	{
 		match self
 		{
-			parser::Declaration::Function {
+			Declaration::Function {
 				name,
 				parameters,
 				body,
+				return_type,
 			} =>
 			{
+				typer.put_symbol(name, *return_type)?;
+
 				// Pre-analyze the function body because it might contain
 				// untyped declarations, e.g. "var x;", whose types won't be
 				// determined in the first pass.
@@ -157,32 +138,19 @@ impl Analyzable for parser::Declaration
 	}
 }
 
-#[derive(Debug)]
-pub struct Parameter
-{
-	pub name: Identifier,
-	pub value_type: Option<ValueType>,
-}
-
-impl Analyzable for parser::Parameter
+impl Analyzable for Parameter
 {
 	type Item = Parameter;
 
 	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
 	{
+		typer.put_symbol(&self.name, self.value_type)?;
 		let value_type = typer.get_symbol(&self.name);
 		Ok(Parameter {
 			name: self.name.clone(),
 			value_type,
 		})
 	}
-}
-
-#[derive(Debug)]
-pub struct FunctionBody
-{
-	pub statements: Vec<Statement>,
-	pub return_value: Option<Expression>,
 }
 
 impl Typed for FunctionBody
@@ -197,7 +165,7 @@ impl Typed for FunctionBody
 	}
 }
 
-impl Analyzable for parser::FunctionBody
+impl Analyzable for FunctionBody
 {
 	type Item = FunctionBody;
 
@@ -222,14 +190,7 @@ impl Analyzable for parser::FunctionBody
 	}
 }
 
-#[derive(Debug)]
-pub struct Block
-{
-	pub statements: Vec<Statement>,
-	pub location: Location,
-}
-
-impl Analyzable for parser::Block
+impl Analyzable for Block
 {
 	type Item = Block;
 
@@ -245,64 +206,7 @@ impl Analyzable for parser::Block
 	}
 }
 
-#[derive(Debug)]
-pub enum Statement
-{
-	Declaration
-	{
-		name: Identifier,
-		value: Option<Expression>,
-		value_type: Option<ValueType>,
-		location: Location,
-	},
-	Assignment
-	{
-		name: Identifier,
-		value: Expression,
-		location: Location,
-	},
-	Loop
-	{
-		location: Location,
-	},
-	Goto
-	{
-		label: Identifier,
-		location: Location,
-	},
-	Label
-	{
-		label: Identifier,
-		location: Location,
-	},
-	If
-	{
-		condition: Comparison,
-		then_branch: Box<Statement>,
-		else_branch: Option<Box<Statement>>,
-		location: Location,
-	},
-	Block(Block),
-}
-
-impl Statement
-{
-	pub fn location(&self) -> &Location
-	{
-		match self
-		{
-			Statement::Declaration { location, .. } => location,
-			Statement::Assignment { location, .. } => location,
-			Statement::Loop { location } => location,
-			Statement::Goto { location, .. } => location,
-			Statement::Label { location, .. } => location,
-			Statement::If { location, .. } => location,
-			Statement::Block(block) => &block.location,
-		}
-	}
-}
-
-impl Analyzable for parser::Statement
+impl Analyzable for Statement
 {
 	type Item = Statement;
 
@@ -310,12 +214,14 @@ impl Analyzable for parser::Statement
 	{
 		match self
 		{
-			parser::Statement::Declaration {
+			Statement::Declaration {
 				name,
 				value: Some(value),
+				value_type,
 				location,
 			} =>
 			{
+				typer.put_symbol(name, *value_type)?;
 				let value = value.analyze(typer)?;
 				let value_type = value.value_type();
 				typer.put_symbol(name, value_type)?;
@@ -327,9 +233,26 @@ impl Analyzable for parser::Statement
 				};
 				Ok(stmt)
 			}
-			parser::Statement::Declaration {
+			Statement::Declaration {
 				name,
 				value: None,
+				value_type: Some(value_type),
+				location,
+			} =>
+			{
+				typer.put_symbol(name, Some(*value_type))?;
+				let stmt = Statement::Declaration {
+					name: name.clone(),
+					value: None,
+					value_type: Some(*value_type),
+					location: location.clone(),
+				};
+				Ok(stmt)
+			}
+			Statement::Declaration {
+				name,
+				value: None,
+				value_type: None,
 				location,
 			} =>
 			{
@@ -342,7 +265,7 @@ impl Analyzable for parser::Statement
 				};
 				Ok(stmt)
 			}
-			parser::Statement::Assignment {
+			Statement::Assignment {
 				name,
 				value,
 				location,
@@ -358,24 +281,18 @@ impl Analyzable for parser::Statement
 				};
 				Ok(stmt)
 			}
-			parser::Statement::Loop { location } => Ok(Statement::Loop {
+			Statement::Loop { location } => Ok(Statement::Loop {
 				location: location.clone(),
 			}),
-			parser::Statement::Goto { label, location } =>
-			{
-				Ok(Statement::Goto {
-					label: label.clone(),
-					location: location.clone(),
-				})
-			}
-			parser::Statement::Label { label, location } =>
-			{
-				Ok(Statement::Label {
-					label: label.clone(),
-					location: location.clone(),
-				})
-			}
-			parser::Statement::If {
+			Statement::Goto { label, location } => Ok(Statement::Goto {
+				label: label.clone(),
+				location: location.clone(),
+			}),
+			Statement::Label { label, location } => Ok(Statement::Label {
+				label: label.clone(),
+				location: location.clone(),
+			}),
+			Statement::If {
 				condition,
 				then_branch,
 				else_branch,
@@ -404,7 +321,7 @@ impl Analyzable for parser::Statement
 				};
 				Ok(stmt)
 			}
-			parser::Statement::Block(block) =>
+			Statement::Block(block) =>
 			{
 				let block = block.analyze(typer)?;
 				Ok(Statement::Block(block))
@@ -413,16 +330,7 @@ impl Analyzable for parser::Statement
 	}
 }
 
-#[derive(Debug)]
-pub struct Comparison
-{
-	pub op: ComparisonOp,
-	pub left: Expression,
-	pub right: Expression,
-	pub location: Location,
-}
-
-impl Analyzable for parser::Comparison
+impl Analyzable for Comparison
 {
 	type Item = Comparison;
 
@@ -440,30 +348,6 @@ impl Analyzable for parser::Comparison
 	}
 }
 
-#[derive(Debug)]
-pub enum Expression
-{
-	Binary
-	{
-		op: BinaryOp,
-		left: Box<Expression>,
-		right: Box<Expression>,
-		location: Location,
-	},
-	Literal(Literal),
-	Variable
-	{
-		name: Identifier,
-		value_type: Option<ValueType>,
-	},
-	FunctionCall
-	{
-		name: Identifier,
-		arguments: Vec<Expression>,
-		return_type: Option<ValueType>,
-	},
-}
-
 impl Typed for Expression
 {
 	fn value_type(&self) -> Option<ValueType>
@@ -478,7 +362,7 @@ impl Typed for Expression
 	}
 }
 
-impl Analyzable for parser::Expression
+impl Analyzable for Expression
 {
 	type Item = Expression;
 
@@ -486,7 +370,7 @@ impl Analyzable for parser::Expression
 	{
 		match self
 		{
-			parser::Expression::Binary {
+			Expression::Binary {
 				op,
 				left,
 				right,
@@ -503,11 +387,23 @@ impl Analyzable for parser::Expression
 				};
 				Ok(expr)
 			}
-			parser::Expression::Literal(lit) =>
+			Expression::Literal(lit) => Ok(Expression::Literal(lit.clone())),
+			Expression::Variable {
+				name,
+				value_type: Some(value_type),
+			} =>
 			{
-				Ok(Expression::Literal(lit.clone()))
+				typer.put_symbol(name, Some(*value_type))?;
+				let expr = Expression::Variable {
+					name: name.clone(),
+					value_type: Some(*value_type),
+				};
+				Ok(expr)
 			}
-			parser::Expression::Variable(name) =>
+			Expression::Variable {
+				name,
+				value_type: None,
+			} =>
 			{
 				let value_type = typer.get_symbol(name);
 				let expr = Expression::Variable {
@@ -516,8 +412,13 @@ impl Analyzable for parser::Expression
 				};
 				Ok(expr)
 			}
-			parser::Expression::FunctionCall { name, arguments } =>
+			Expression::FunctionCall {
+				name,
+				arguments,
+				return_type,
+			} =>
 			{
+				typer.put_symbol(name, *return_type)?;
 				let return_type = typer.get_symbol(name);
 				let arguments: Result<Vec<Expression>, anyhow::Error> =
 					arguments.iter().map(|a| a.analyze(typer)).collect();

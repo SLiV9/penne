@@ -1,9 +1,6 @@
 /**/
 
-use crate::typer::ValueType;
-use crate::typer::{BinaryOp, ComparisonOp};
-use crate::typer::{Block, Declaration, FunctionBody, Statement};
-use crate::typer::{Comparison, Expression, Literal};
+use crate::common::*;
 
 use std::ffi::{CStr, CString};
 
@@ -159,7 +156,7 @@ impl Generatable for Declaration
 								.context(parameter.name.location.format())
 								.context(format!(
 									"failed to infer type for '{}'",
-									name.name
+									parameter.name.name
 								))),
 						})
 						.collect();
