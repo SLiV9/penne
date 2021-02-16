@@ -46,3 +46,6 @@ Usability:
 		☐	Switch to something more sensible than anyhow for context
 	☐	Add helpful note when trying to jump backwards
 		☐	Similarly, add note when referencing variable declared later
+
+Performance:
+  ☐	Detect immutable parameters (Parameter::is_mutable)

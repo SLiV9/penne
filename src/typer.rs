@@ -149,6 +149,7 @@ impl Analyzable for Parameter
 		Ok(Parameter {
 			name: self.name.clone(),
 			value_type,
+			is_mutable: self.is_mutable,
 		})
 	}
 }

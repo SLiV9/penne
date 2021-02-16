@@ -188,18 +188,16 @@ impl Generatable for Declaration
 					LLVMPositionBuilderAtEnd(llvm.builder, entry_block);
 				};
 
-				for (i, (parameter, vtype)) in
+				for (i, (parameter, vartype)) in
 					parameters.iter().zip(param_types.iter()).enumerate()
 				{
 					let param = unsafe { LLVMGetParam(function, i as u32) };
-					// TODO determine mutability
-					let mutable = true;
-					let loc = if mutable
+					let loc = if parameter.is_mutable
 					{
 						let cname = CString::new(&parameter.name.name as &str)?;
-						let vtype: LLVMTypeRef = *vtype;
+						let vt: LLVMTypeRef = *vartype;
 						let loc = unsafe {
-							LLVMBuildAlloca(llvm.builder, vtype, cname.as_ptr())
+							LLVMBuildAlloca(llvm.builder, vt, cname.as_ptr())
 						};
 						unsafe {
 							LLVMBuildStore(llvm.builder, param, loc);
@@ -335,9 +333,9 @@ impl Generatable for Statement
 			} =>
 			{
 				let cname = CString::new(&name.name as &str)?;
-				let vtype = vt.generate(llvm)?;
+				let vartype = vt.generate(llvm)?;
 				let loc = unsafe {
-					LLVMBuildAlloca(llvm.builder, vtype, cname.as_ptr())
+					LLVMBuildAlloca(llvm.builder, vartype, cname.as_ptr())
 				};
 				llvm.local_variables.insert(name.name.to_string(), loc);
 				let value = value.generate(llvm)?;
@@ -354,9 +352,9 @@ impl Generatable for Statement
 			} =>
 			{
 				let cname = CString::new(&name.name as &str)?;
-				let vtype = vt.generate(llvm)?;
+				let vartype = vt.generate(llvm)?;
 				let loc = unsafe {
-					LLVMBuildAlloca(llvm.builder, vtype, cname.as_ptr())
+					LLVMBuildAlloca(llvm.builder, vartype, cname.as_ptr())
 				};
 				llvm.local_variables.insert(name.name.to_string(), loc);
 				Ok(())

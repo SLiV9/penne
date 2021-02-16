@@ -177,7 +177,11 @@ fn parse_parameter(
 		None
 	};
 
-	Ok(Parameter { name, value_type })
+	Ok(Parameter {
+		name,
+		value_type,
+		is_mutable: true,
+	})
 }
 
 fn parse_type(
