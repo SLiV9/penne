@@ -180,7 +180,7 @@ fn parse_parameter(
 	Ok(Parameter {
 		name,
 		value_type,
-		is_mutable: true,
+		is_mutable: false,
 	})
 }
 

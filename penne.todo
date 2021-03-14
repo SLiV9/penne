@@ -15,6 +15,7 @@ Functionality:
 	✔	Function parameters @done (2021-01-16 18:03)
 		✔	Parameter type declarations @done (2021-01-17 15:28)
 	☐	Structs
+  ☐	Explicit mutable parameters (Parameter::is_mutable)
 
 Syntactic sugar:
 	☐	Pre-block scope-merging variable declarations
@@ -48,4 +49,4 @@ Usability:
 		☐	Similarly, add note when referencing variable declared later
 
 Performance:
-  ☐	Detect immutable parameters (Parameter::is_mutable)
+  ✘	Detect immutable parameters (Parameter::is_mutable) @cancelled (2021-03-14 16:39)

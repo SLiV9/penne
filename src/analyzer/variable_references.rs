@@ -22,7 +22,7 @@ pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 struct Analyzer
 {
 	function_list: Vec<(Identifier, Vec<Parameter>)>,
-	variable_stack: Vec<Vec<Identifier>>,
+	variable_stack: Vec<Vec<(Identifier, bool)>>,
 }
 
 impl Analyzer
@@ -127,12 +127,13 @@ impl Analyzer
 	fn declare_variable(
 		&mut self,
 		identifier: &Identifier,
+		is_mutable: bool,
 	) -> Result<(), anyhow::Error>
 	{
 		for scope in &self.variable_stack
 		{
-			if let Some(previous_identifier) =
-				scope.iter().find(|x| x.name == identifier.name)
+			if let Some((previous_identifier, _)) =
+				scope.iter().find(|(x, _)| x.name == identifier.name)
 			{
 				return Err(anyhow!(
 					"previous declaration {}",
@@ -148,22 +149,39 @@ impl Analyzer
 
 		if let Some(scope) = self.variable_stack.last_mut()
 		{
-			scope.push(identifier.clone());
+			scope.push((identifier.clone(), is_mutable));
 		}
 		else
 		{
-			self.variable_stack.push(vec![identifier.clone()]);
+			self.variable_stack
+				.push(vec![(identifier.clone(), is_mutable)]);
 		}
 		Ok(())
 	}
 
-	fn use_variable(&self, identifier: &Identifier)
-		-> Result<(), anyhow::Error>
+	fn use_variable(
+		&self,
+		identifier: &Identifier,
+		is_mutated: bool,
+	) -> Result<(), anyhow::Error>
 	{
 		for scope in &self.variable_stack
 		{
-			if scope.iter().any(|x| x.name == identifier.name)
+			if let Some((previous_identifier, is_mutable)) =
+				scope.iter().find(|(x, _)| x.name == identifier.name)
 			{
+				if is_mutated && !is_mutable
+				{
+					return Err(anyhow!(
+						"previous declaration {}",
+						previous_identifier.location.format()
+					)
+					.context(identifier.location.format())
+					.context(format!(
+						"the variable '{}' is not mutable",
+						identifier.name
+					)));
+				}
 				return Ok(());
 			}
 		}
@@ -223,7 +241,7 @@ impl Analyzable for Parameter
 {
 	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
 	{
-		analyzer.declare_variable(&self.name)?;
+		analyzer.declare_variable(&self.name, self.is_mutable)?;
 		Ok(())
 	}
 }
@@ -274,7 +292,7 @@ impl Analyzable for Statement
 			} =>
 			{
 				value.analyze(analyzer).with_context(|| location.format())?;
-				analyzer.declare_variable(name)?;
+				analyzer.declare_variable(name, true)?;
 				Ok(())
 			}
 			Statement::Declaration {
@@ -284,7 +302,7 @@ impl Analyzable for Statement
 				location: _,
 			} =>
 			{
-				analyzer.declare_variable(name)?;
+				analyzer.declare_variable(name, true)?;
 				Ok(())
 			}
 			Statement::Assignment {
@@ -294,7 +312,7 @@ impl Analyzable for Statement
 			} =>
 			{
 				value.analyze(analyzer).with_context(|| location.format())?;
-				analyzer.use_variable(name)?;
+				analyzer.use_variable(name, true)?;
 				Ok(())
 			}
 			Statement::Loop { location: _ } => Ok(()),
@@ -363,7 +381,7 @@ impl Analyzable for Expression
 			Expression::Variable {
 				name,
 				value_type: _,
-			} => analyzer.use_variable(name),
+			} => analyzer.use_variable(name, false),
 			Expression::FunctionCall {
 				name,
 				arguments,
