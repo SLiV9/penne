@@ -5,10 +5,8 @@ Features:
 	☐	Tagged unions for error handling
 
 Functionality:
+	☐	Arrays
 	☐	Strings
-		✔	Keep it so that, like Zig, tokenizing never requires other lines @done (2021-07-10 10:27)
-			Because that keeps tokenizing fast and parallelizable.
-			☐	Daar ook in de sublime syntax highlighter gebruik van maken
 	  ☐	\xNN and \uNNNNN
 	☐	printf()
 	☐	fopen(), fclose()
@@ -28,7 +26,7 @@ Syntactic sugar:
 			...
 		}
 		// i is not in scope here
-	☐	C-style string literal concatenation
+	✔	C-style string literal concatenation @done (2021-07-10 13:26)
 
 Syntax errors:
 	These are syntax errors because they would cause errors during IR generation

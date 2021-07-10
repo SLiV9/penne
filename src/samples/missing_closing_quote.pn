@@ -1,5 +1,6 @@
 fn main()
 {
-	var x = "
+	var x = "Hey
 	;
+	var y = z;
 }

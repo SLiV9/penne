@@ -699,6 +699,7 @@ impl Generatable for Literal
 				};
 				Ok(result)
 			}
+			Literal::StringLiteral(_value) => unimplemented!(),
 		}
 	}
 }
@@ -718,6 +719,7 @@ impl Generatable for ValueType
 			unsafe { LLVMInt32TypeInContext(llvm.context) },
 			ValueType::Bool =>
 			unsafe { LLVMInt8TypeInContext(llvm.context) },
+			ValueType::StringLiteral => unimplemented!(),
 		};
 		Ok(typeref)
 	}

@@ -144,7 +144,7 @@ pub enum Literal
 {
 	Int32(i32),
 	Bool(bool),
-	//StringLiteral(String),
+	StringLiteral(String),
 }
 
 #[derive(Debug, Clone)]
@@ -159,5 +159,5 @@ pub enum ValueType
 {
 	Int32,
 	Bool,
-	//StringLiteral,
+	StringLiteral,
 }

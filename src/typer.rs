@@ -76,6 +76,7 @@ impl Typed for Literal
 		{
 			Literal::Int32(_) => Some(ValueType::Int32),
 			Literal::Bool(_) => Some(ValueType::Bool),
+			Literal::StringLiteral(_) => Some(ValueType::StringLiteral),
 		}
 	}
 }

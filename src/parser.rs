@@ -491,6 +491,22 @@ fn parse_primary_expression(
 	{
 		Token::Int32(value) => Ok(Expression::Literal(Literal::Int32(value))),
 		Token::Bool(value) => Ok(Expression::Literal(Literal::Bool(value))),
+		Token::StringLiteral(mut value) =>
+		{
+			while let Some(next_token) = peek(tokens)
+			{
+				match next_token
+				{
+					Token::StringLiteral(extra_value) =>
+					{
+						value = value + extra_value;
+						let _ = extract(tokens)?;
+					}
+					_ => break,
+				}
+			}
+			Ok(Expression::Literal(Literal::StringLiteral(value)))
+		}
 		Token::Identifier(name) =>
 		{
 			let identifier = Identifier { name, location };

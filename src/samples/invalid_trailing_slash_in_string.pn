@@ -1,5 +1,7 @@
 fn main()
 {
 	var x = " \
+	this is not a multiline string \
 	";
+	var y = 2;
 }

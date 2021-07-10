@@ -367,6 +367,11 @@ impl Rebuildable for Literal
 			Literal::Int32(value) => Ok(format!("{}", value)),
 			Literal::Bool(true) => Ok("true".to_string()),
 			Literal::Bool(false) => Ok("false".to_string()),
+			Literal::StringLiteral(value) =>
+			{
+				// TODO escape \xNN and \uNNNNN properly instead of \u{NNNNN}
+				Ok(format!("\"{}\"", value.escape_default()))
+			}
 		}
 	}
 }
@@ -382,6 +387,7 @@ impl Rebuildable for ValueType
 		{
 			ValueType::Int32 => Ok("i32".to_string()),
 			ValueType::Bool => Ok("bool".to_string()),
+			ValueType::StringLiteral => Ok("str".to_string()),
 		}
 	}
 }

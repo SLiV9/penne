@@ -60,6 +60,11 @@ contexts:
     - match: '"'
       scope: punctuation.definition.string.end.penne
       pop: true
+    - match: '\\$'
+      scope: invalid.illegal.trailing-backslash
+      pop: true
+    - match: $
+      pop: true
 
   line_comment:
     - meta_scope: comment.line.penne

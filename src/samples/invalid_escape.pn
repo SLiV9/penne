@@ -1,4 +1,4 @@
 fn main()
 {
-	var x = "\z";
+	var x = "Is \z a valid escape?";
 }
