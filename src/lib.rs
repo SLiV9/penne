@@ -81,9 +81,31 @@ mod tests
 	}
 
 	#[test]
+	fn allow_differing_local_variable_types() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = do_type("src/samples/local_variable_types.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Ok(()),
+			Err(error) => Err(error),
+		}
+	}
+
+	#[test]
 	fn fail_to_type_return_type_mismatch() -> Result<(), anyhow::Error>
 	{
 		let analysis_result = do_type("src/samples/return_type_mismatch.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_type_mismatched_assign() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = do_type("src/samples/mismatched_assign.pn")?;
 		match analysis_result
 		{
 			Ok(_) => Err(anyhow!("broken test")),
