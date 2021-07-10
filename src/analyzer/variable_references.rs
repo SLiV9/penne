@@ -360,6 +360,20 @@ impl Analyzable for Comparison
 	}
 }
 
+impl Analyzable for Array
+{
+	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
+	{
+		analyzer.push_scope();
+		for element in &self.elements
+		{
+			element.analyze(analyzer)?;
+		}
+		analyzer.pop_scope();
+		Ok(())
+	}
+}
+
 impl Analyzable for Expression
 {
 	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
@@ -377,7 +391,12 @@ impl Analyzable for Expression
 				right.analyze(analyzer).with_context(|| location.format())?;
 				Ok(())
 			}
-			Expression::Literal(_lit) => Ok(()),
+			Expression::PrimitiveLiteral(_lit) => Ok(()),
+			Expression::ArrayLiteral {
+				array,
+				element_type: _,
+			} => array.analyze(analyzer),
+			Expression::StringLiteral(_lit) => Ok(()),
 			Expression::Variable {
 				name,
 				value_type: _,

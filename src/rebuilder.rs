@@ -300,6 +300,28 @@ impl Rebuildable for Comparison
 	}
 }
 
+impl Rebuildable for Array
+{
+	fn rebuild(
+		&self,
+		indentation: &Indentation,
+	) -> Result<String, anyhow::Error>
+	{
+		let mut buffer = String::new();
+		write!(&mut buffer, "{}[\n", indentation)?;
+		for element in &self.elements
+		{
+			write!(
+				&mut buffer,
+				"{}",
+				element.rebuild(&indentation.increased())?
+			)?;
+		}
+		write!(&mut buffer, "{}]\n", indentation)?;
+		Ok(buffer)
+	}
+}
+
 impl Rebuildable for Expression
 {
 	fn rebuild(
@@ -327,7 +349,19 @@ impl Rebuildable for Expression
 					right.rebuild(&indentation.increased())?
 				)),
 			},
-			Expression::Literal(literal) => literal.rebuild(indentation),
+			Expression::PrimitiveLiteral(literal) =>
+			{
+				literal.rebuild(indentation)
+			}
+			Expression::ArrayLiteral {
+				array,
+				element_type: _,
+			} => array.rebuild(indentation),
+			Expression::StringLiteral(value) =>
+			{
+				// TODO escape \xNN and \uNNNNN properly instead of \u{NNNNN}
+				Ok(format!("\"{}\"", value.escape_default()))
+			}
 			Expression::Variable {
 				name: var,
 				value_type: _,
@@ -355,7 +389,7 @@ impl Rebuildable for Expression
 	}
 }
 
-impl Rebuildable for Literal
+impl Rebuildable for PrimitiveLiteral
 {
 	fn rebuild(
 		&self,
@@ -364,14 +398,9 @@ impl Rebuildable for Literal
 	{
 		match self
 		{
-			Literal::Int32(value) => Ok(format!("{}", value)),
-			Literal::Bool(true) => Ok("true".to_string()),
-			Literal::Bool(false) => Ok("false".to_string()),
-			Literal::StringLiteral(value) =>
-			{
-				// TODO escape \xNN and \uNNNNN properly instead of \u{NNNNN}
-				Ok(format!("\"{}\"", value.escape_default()))
-			}
+			PrimitiveLiteral::Int32(value) => Ok(format!("{}", value)),
+			PrimitiveLiteral::Bool(true) => Ok("true".to_string()),
+			PrimitiveLiteral::Bool(false) => Ok("false".to_string()),
 		}
 	}
 }
@@ -387,7 +416,6 @@ impl Rebuildable for ValueType
 		{
 			ValueType::Int32 => Ok("i32".to_string()),
 			ValueType::Bool => Ok("bool".to_string()),
-			ValueType::StringLiteral => Ok("str".to_string()),
 		}
 	}
 }

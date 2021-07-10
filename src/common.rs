@@ -109,6 +109,13 @@ pub enum ComparisonOp
 }
 
 #[derive(Debug)]
+pub struct Array
+{
+	pub elements: Vec<Expression>,
+	pub location: Location,
+}
+
+#[derive(Debug)]
 pub enum Expression
 {
 	Binary
@@ -118,7 +125,13 @@ pub enum Expression
 		right: Box<Expression>,
 		location: Location,
 	},
-	Literal(Literal),
+	PrimitiveLiteral(PrimitiveLiteral),
+	StringLiteral(String),
+	ArrayLiteral
+	{
+		array: Array,
+		element_type: Option<ValueType>,
+	},
 	Variable
 	{
 		name: Identifier,
@@ -140,11 +153,10 @@ pub enum BinaryOp
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Literal
+pub enum PrimitiveLiteral
 {
 	Int32(i32),
 	Bool(bool),
-	StringLiteral(String),
 }
 
 #[derive(Debug, Clone)]
@@ -159,5 +171,4 @@ pub enum ValueType
 {
 	Int32,
 	Bool,
-	StringLiteral,
 }

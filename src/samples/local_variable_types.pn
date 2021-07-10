@@ -1,0 +1,11 @@
+
+fn foo()
+{
+	var x: bool = true;
+}
+
+
+fn main()
+{
+	var x: i32 = 100;
+}

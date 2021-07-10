@@ -1,0 +1,11 @@
+fn main()
+{
+	var x = [
+		0,
+		1,
+		2,
+	];
+	var z: []i32 = x;
+	var y = x[0] + x[1] + z[2];
+	return: y
+}

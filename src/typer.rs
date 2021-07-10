@@ -68,15 +68,14 @@ pub trait Typed
 	fn value_type(&self) -> Option<ValueType>;
 }
 
-impl Typed for Literal
+impl Typed for PrimitiveLiteral
 {
 	fn value_type(&self) -> Option<ValueType>
 	{
 		match self
 		{
-			Literal::Int32(_) => Some(ValueType::Int32),
-			Literal::Bool(_) => Some(ValueType::Bool),
-			Literal::StringLiteral(_) => Some(ValueType::StringLiteral),
+			PrimitiveLiteral::Int32(_) => Some(ValueType::Int32),
+			PrimitiveLiteral::Bool(_) => Some(ValueType::Bool),
 		}
 	}
 }
@@ -350,6 +349,22 @@ impl Analyzable for Comparison
 	}
 }
 
+impl Analyzable for Array
+{
+	type Item = Array;
+
+	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
+	{
+		let elements: Result<Vec<Expression>, anyhow::Error> =
+			self.elements.iter().map(|x| x.analyze(typer)).collect();
+		let elements = elements?;
+		Ok(Array {
+			elements,
+			location: self.location.clone(),
+		})
+	}
+}
+
 impl Typed for Expression
 {
 	fn value_type(&self) -> Option<ValueType>
@@ -357,7 +372,9 @@ impl Typed for Expression
 		match self
 		{
 			Expression::Binary { left, .. } => left.value_type(),
-			Expression::Literal(literal) => literal.value_type(),
+			Expression::PrimitiveLiteral(literal) => literal.value_type(),
+			Expression::ArrayLiteral { element_type, .. } => *element_type,
+			Expression::StringLiteral(_literal) => None,
 			Expression::Variable { value_type, .. } => *value_type,
 			Expression::FunctionCall { return_type, .. } => *return_type,
 		}
@@ -389,7 +406,32 @@ impl Analyzable for Expression
 				};
 				Ok(expr)
 			}
-			Expression::Literal(lit) => Ok(Expression::Literal(lit.clone())),
+			Expression::PrimitiveLiteral(lit) =>
+			{
+				Ok(Expression::PrimitiveLiteral(lit.clone()))
+			}
+			Expression::ArrayLiteral {
+				array,
+				element_type,
+			} =>
+			{
+				// TODO finish
+				//if let Some(element_type) = element_type
+				//{
+				//	typer.put_symbol()
+				//}
+				let array = array.analyze(typer)?;
+				// TODO determine element type
+				let element_type = *element_type;
+				Ok(Expression::ArrayLiteral {
+					array,
+					element_type,
+				})
+			}
+			Expression::StringLiteral(lit) =>
+			{
+				Ok(Expression::StringLiteral(lit.clone()))
+			}
 			Expression::Variable {
 				name,
 				value_type: Some(value_type),

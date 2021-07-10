@@ -489,8 +489,14 @@ fn parse_primary_expression(
 		extract(tokens).context("expected literal or identifier")?;
 	match token
 	{
-		Token::Int32(value) => Ok(Expression::Literal(Literal::Int32(value))),
-		Token::Bool(value) => Ok(Expression::Literal(Literal::Bool(value))),
+		Token::Int32(value) =>
+		{
+			Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Int32(value)))
+		}
+		Token::Bool(value) =>
+		{
+			Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Bool(value)))
+		}
 		Token::StringLiteral(mut value) =>
 		{
 			while let Some(next_token) = peek(tokens)
@@ -505,7 +511,7 @@ fn parse_primary_expression(
 					_ => break,
 				}
 			}
-			Ok(Expression::Literal(Literal::StringLiteral(value)))
+			Ok(Expression::StringLiteral(value))
 		}
 		Token::Identifier(name) =>
 		{
@@ -526,6 +532,15 @@ fn parse_primary_expression(
 					value_type: None,
 				})
 			}
+		}
+		Token::BracketLeft =>
+		{
+			let array = parse_rest_of_array(tokens)?;
+			let expression = Expression::ArrayLiteral {
+				array,
+				element_type: None,
+			};
+			Ok(expression)
 		}
 		other => Err(anyhow!("got {:?}", other))
 			.context(location.format())
@@ -560,5 +575,36 @@ fn parse_arguments(
 
 		consume(Token::Comma, tokens)
 			.context("expected comma or right parenthesis")?;
+	}
+}
+
+#[allow(dead_code)]
+fn parse_array(
+	tokens: &mut VecDeque<LexedToken>,
+) -> Result<Array, anyhow::Error>
+{
+	consume(Token::BracketLeft, tokens).context("expected array")?;
+
+	parse_rest_of_array(tokens)
+}
+
+fn parse_rest_of_array(
+	tokens: &mut VecDeque<LexedToken>,
+) -> Result<Array, anyhow::Error>
+{
+	let mut elements = Vec::new();
+
+	loop
+	{
+		if let Some(Token::BracketRight) = peek(tokens)
+		{
+			let (_, location) = extract(tokens).unwrap();
+
+			let array = Array { elements, location };
+			return Ok(array);
+		}
+
+		let element = parse_expression(tokens)?;
+		elements.push(element);
 	}
 }

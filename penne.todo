@@ -5,10 +5,10 @@ Features:
 	☐	Tagged unions for error handling
 
 Functionality:
-	☐	Arrays
-	☐	Strings
+	☐	Fixed-length stack-based arrays
+	☐	String literals
 	  ☐	\xNN and \uNNNNN
-	☐	printf()
+	☐	print()
 	☐	fopen(), fclose()
 	☐	Floats
 	☐	Casting
@@ -17,7 +17,10 @@ Functionality:
 	✔	Function parameters @done (2021-01-16 18:03)
 		✔	Parameter type declarations @done (2021-01-17 15:28)
 	☐	Structs
+	☐	Nested arrays
+	☐	Vec and String
 	☐	Explicit mutable parameters (Parameter::is_mutable)
+	☐	Compile-time string and byte-array inclusion from file
 
 Syntactic sugar:
 	☐	Pre-block scope-merging variable declarations

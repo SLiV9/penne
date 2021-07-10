@@ -604,7 +604,9 @@ impl Generatable for Expression
 				};
 				Ok(result)
 			}
-			Expression::Literal(literal) => literal.generate(llvm),
+			Expression::PrimitiveLiteral(literal) => literal.generate(llvm),
+			Expression::ArrayLiteral { .. } => unimplemented!(),
+			Expression::StringLiteral(_literal) => unimplemented!(),
 			Expression::Variable {
 				name,
 				value_type: _,
@@ -672,7 +674,7 @@ impl Generatable for Expression
 	}
 }
 
-impl Generatable for Literal
+impl Generatable for PrimitiveLiteral
 {
 	type Item = LLVMValueRef;
 
@@ -683,7 +685,7 @@ impl Generatable for Literal
 	{
 		match self
 		{
-			Literal::Int32(value) =>
+			PrimitiveLiteral::Int32(value) =>
 			{
 				let result = unsafe {
 					let inttype = LLVMInt32TypeInContext(llvm.context);
@@ -691,7 +693,7 @@ impl Generatable for Literal
 				};
 				Ok(result)
 			}
-			Literal::Bool(value) =>
+			PrimitiveLiteral::Bool(value) =>
 			{
 				let result = unsafe {
 					let bytetype = LLVMInt8TypeInContext(llvm.context);
@@ -699,7 +701,6 @@ impl Generatable for Literal
 				};
 				Ok(result)
 			}
-			Literal::StringLiteral(_value) => unimplemented!(),
 		}
 	}
 }
@@ -719,7 +720,6 @@ impl Generatable for ValueType
 			unsafe { LLVMInt32TypeInContext(llvm.context) },
 			ValueType::Bool =>
 			unsafe { LLVMInt8TypeInContext(llvm.context) },
-			ValueType::StringLiteral => unimplemented!(),
 		};
 		Ok(typeref)
 	}
