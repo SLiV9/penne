@@ -1,0 +1,14 @@
+
+fn main()
+{
+	var y = 400;
+	{
+		var x: i32 = 401;
+		y = x;
+	}
+	{
+		var x: i32 = 200;
+		y = x;
+	}
+	return: y
+}

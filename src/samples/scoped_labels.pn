@@ -1,0 +1,16 @@
+
+fn main()
+{
+	var y = 200;
+	{
+		goto skipped;
+		y = 400;
+		skipped:
+	}
+	{
+		goto skipped;
+		y = 401;
+		skipped:
+	}
+	return: y
+}

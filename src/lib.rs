@@ -317,6 +317,22 @@ mod tests
 		Ok(())
 	}
 
+	#[test]
+	fn execute_scoped_variables() -> Result<(), anyhow::Error>
+	{
+		let result = execute_calculation("src/samples/scoped_variables.pn")?;
+		assert_eq!(result, 200);
+		Ok(())
+	}
+
+	#[test]
+	fn execute_scoped_labels() -> Result<(), anyhow::Error>
+	{
+		let result = execute_calculation("src/samples/scoped_labels.pn")?;
+		assert_eq!(result, 200);
+		Ok(())
+	}
+
 	fn execute_calculation(filename: &str) -> Result<i32, anyhow::Error>
 	{
 		let source = std::fs::read_to_string(&filename)?;
