@@ -71,7 +71,11 @@ fn extract_identifier(
 		Some(LexedToken {
 			result: Ok(Token::Identifier(name)),
 			location,
-		}) => Ok(Identifier { name, location }),
+		}) => Ok(Identifier {
+			name,
+			location,
+			resolution_id: 0,
+		}),
 		Some(LexedToken {
 			result: Ok(token),
 			location,
@@ -381,6 +385,7 @@ fn parse_statement(
 					label: Identifier {
 						name: x,
 						location: location.clone(),
+						resolution_id: 0,
 					},
 					location,
 				};
@@ -396,6 +401,7 @@ fn parse_statement(
 				name: Identifier {
 					name: x,
 					location: location.clone(),
+					resolution_id: 0,
 				},
 				value: expression,
 				location,
@@ -515,7 +521,11 @@ fn parse_primary_expression(
 		}
 		Token::Identifier(name) =>
 		{
-			let identifier = Identifier { name, location };
+			let identifier = Identifier {
+				name,
+				location,
+				resolution_id: 0,
+			};
 			if let Some(Token::ParenLeft) = peek(tokens)
 			{
 				let arguments = parse_arguments(tokens)?;

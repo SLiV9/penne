@@ -9,16 +9,14 @@ pub fn analyze(
 ) -> Result<Vec<Declaration>, anyhow::Error>
 {
 	let mut typer = Typer {
-		global_scope: std::collections::HashMap::new(),
-		scopes: Vec::new(),
+		symbols: std::collections::HashMap::new(),
 	};
 	program.iter().map(|x| x.analyze(&mut typer)).collect()
 }
 
 struct Typer
 {
-	global_scope: std::collections::HashMap<String, (Identifier, ValueType)>,
-	scopes: Vec<std::collections::HashMap<String, (Identifier, ValueType)>>,
+	symbols: std::collections::HashMap<u32, (Identifier, ValueType)>,
 }
 
 impl Typer
@@ -31,16 +29,9 @@ impl Typer
 	{
 		if let Some(vt) = value_type
 		{
-			let scope = if let Some(scope) = self.scopes.last_mut()
-			{
-				scope
-			}
-			else
-			{
-				&mut self.global_scope
-			};
-			let old_value = scope
-				.insert(identifier.name.to_string(), (identifier.clone(), vt));
+			let old_value = self
+				.symbols
+				.insert(identifier.resolution_id, (identifier.clone(), vt));
 			match old_value
 			{
 				Some((_, ot)) if ot == vt => Ok(()),
@@ -64,28 +55,11 @@ impl Typer
 
 	fn get_symbol(&self, name: &Identifier) -> Option<ValueType>
 	{
-		if let Some((_, vt)) = self.global_scope.get(&name.name)
+		match self.symbols.get(&name.resolution_id)
 		{
-			return Some(*vt);
+			Some((_, vt)) => Some(*vt),
+			None => None,
 		}
-		for scope in &self.scopes
-		{
-			if let Some((_, vt)) = scope.get(&name.name)
-			{
-				return Some(*vt);
-			}
-		}
-		None
-	}
-
-	fn push_scope(&mut self)
-	{
-		self.scopes.push(std::collections::HashMap::new());
-	}
-
-	fn pop_scope(&mut self)
-	{
-		self.scopes.pop();
 	}
 }
 
@@ -141,20 +115,15 @@ impl Analyzable for Declaration
 			{
 				typer.put_symbol(name, *return_type)?;
 
-				typer.push_scope();
 				// Pre-analyze the function body because it might contain
 				// untyped declarations, e.g. "var x;", whose types won't be
 				// determined in the first pass.
 				body.analyze(typer)?;
-				typer.pop_scope();
 
-				typer.push_scope();
 				let parameters: Result<Vec<Parameter>, anyhow::Error> =
 					parameters.iter().map(|x| x.analyze(typer)).collect();
 				let parameters = parameters?;
 				let body = body.analyze(typer)?;
-				typer.pop_scope();
-
 				let return_type = body.value_type();
 				typer.put_symbol(name, return_type)?;
 				let function = Declaration::Function {
@@ -203,7 +172,6 @@ impl Analyzable for FunctionBody
 
 	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
 	{
-		typer.push_scope();
 		let statements: Result<Vec<Statement>, anyhow::Error> =
 			self.statements.iter().map(|x| x.analyze(typer)).collect();
 		let statements = statements?;
@@ -216,8 +184,6 @@ impl Analyzable for FunctionBody
 			}
 			None => None,
 		};
-		typer.pop_scope();
-
 		Ok(FunctionBody {
 			statements,
 			return_value,
@@ -231,12 +197,9 @@ impl Analyzable for Block
 
 	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
 	{
-		typer.push_scope();
 		let statements: Result<Vec<Statement>, anyhow::Error> =
 			self.statements.iter().map(|x| x.analyze(typer)).collect();
 		let statements = statements?;
-		typer.pop_scope();
-
 		Ok(Block {
 			statements,
 			location: self.location.clone(),
@@ -392,12 +355,9 @@ impl Analyzable for Array
 
 	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
 	{
-		typer.push_scope();
 		let elements: Result<Vec<Expression>, anyhow::Error> =
 			self.elements.iter().map(|x| x.analyze(typer)).collect();
 		let elements = elements?;
-		typer.pop_scope();
-
 		Ok(Array {
 			elements,
 			location: self.location.clone(),

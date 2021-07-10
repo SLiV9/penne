@@ -6,6 +6,7 @@ use penne::lexer;
 use penne::linter;
 use penne::parser;
 use penne::rebuilder;
+use penne::scoper;
 use penne::typer;
 
 fn main() -> Result<(), anyhow::Error>
@@ -38,6 +39,10 @@ fn main() -> Result<(), anyhow::Error>
 		};
 		let code = rebuilder::rebuild(&declarations, &indentation)?;
 		println!("{}", code);
+		println!("Scoping {:?}...", filename);
+		let declarations = scoper::analyze(declarations)?;
+		println!("{:?}", declarations);
+		println!();
 		println!("Typing {:?}...", filename);
 		let declarations = typer::analyze(declarations)?;
 		println!("{:?}", declarations);

@@ -1,15 +1,15 @@
 /**/
 
-mod label_references;
+mod function_calls;
+mod mutability;
 mod syntax;
-mod variable_references;
 
 use crate::common::*;
 
 pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 {
 	syntax::analyze(program)?;
-	variable_references::analyze(program)?;
-	label_references::analyze(program)?;
+	function_calls::analyze(program)?;
+	mutability::analyze(program)?;
 	Ok(())
 }

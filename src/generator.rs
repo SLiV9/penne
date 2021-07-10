@@ -34,8 +34,8 @@ struct Generator
 	context: *mut LLVMContext,
 	builder: *mut LLVMBuilder,
 	global_functions: std::collections::HashMap<String, LLVMValueRef>,
-	local_variables: std::collections::HashMap<String, LLVMValueRef>,
-	local_labeled_blocks: std::collections::HashMap<String, LLVMBasicBlockRef>,
+	local_variables: std::collections::HashMap<u32, LLVMValueRef>,
+	local_labeled_blocks: std::collections::HashMap<u32, LLVMBasicBlockRef>,
 }
 
 impl Generator
@@ -209,7 +209,7 @@ impl Generatable for Declaration
 						param
 					};
 					llvm.local_variables
-						.insert(parameter.name.name.to_string(), loc);
+						.insert(parameter.name.resolution_id, loc);
 				}
 
 				body.generate(llvm)?;
@@ -337,7 +337,7 @@ impl Generatable for Statement
 				let loc = unsafe {
 					LLVMBuildAlloca(llvm.builder, vartype, cname.as_ptr())
 				};
-				llvm.local_variables.insert(name.name.to_string(), loc);
+				llvm.local_variables.insert(name.resolution_id, loc);
 				let value = value.generate(llvm)?;
 				unsafe {
 					LLVMBuildStore(llvm.builder, value, loc);
@@ -356,7 +356,7 @@ impl Generatable for Statement
 				let loc = unsafe {
 					LLVMBuildAlloca(llvm.builder, vartype, cname.as_ptr())
 				};
-				llvm.local_variables.insert(name.name.to_string(), loc);
+				llvm.local_variables.insert(name.resolution_id, loc);
 				Ok(())
 			}
 			Statement::Declaration {
@@ -373,7 +373,7 @@ impl Generatable for Statement
 				location,
 			} =>
 			{
-				let loc = match llvm.local_variables.get(&name.name)
+				let loc = match llvm.local_variables.get(&name.resolution_id)
 				{
 					Some(loc) => *loc,
 					None =>
@@ -408,8 +408,7 @@ impl Generatable for Statement
 					);
 					unreachable_block
 				};
-				let labeled_block =
-					find_or_append_labeled_block(llvm, &label.name)?;
+				let labeled_block = find_or_append_labeled_block(llvm, &label)?;
 				unsafe {
 					LLVMPositionBuilderAtEnd(llvm.builder, current_block);
 					LLVMBuildBr(llvm.builder, labeled_block);
@@ -420,8 +419,7 @@ impl Generatable for Statement
 			Statement::Label { label, location: _ } =>
 			{
 				let current_block = unsafe { LLVMGetInsertBlock(llvm.builder) };
-				let labeled_block =
-					find_or_append_labeled_block(llvm, &label.name)?;
+				let labeled_block = find_or_append_labeled_block(llvm, &label)?;
 				unsafe {
 					LLVMPositionBuilderAtEnd(llvm.builder, current_block);
 					LLVMBuildBr(llvm.builder, labeled_block);
@@ -522,16 +520,17 @@ impl Generatable for Statement
 
 fn find_or_append_labeled_block(
 	llvm: &mut Generator,
-	label: &str,
+	label: &Identifier,
 ) -> Result<LLVMBasicBlockRef, anyhow::Error>
 {
-	if let Some(block) = llvm.local_labeled_blocks.get(label)
+	if let Some(block) = llvm.local_labeled_blocks.get(&label.resolution_id)
 	{
 		Ok(*block)
 	}
 	else
 	{
-		let cname = CString::new(label)?;
+		let block_name: &str = &label.name;
+		let cname = CString::new(block_name)?;
 		let block = unsafe {
 			let current_block = LLVMGetInsertBlock(llvm.builder);
 			let function = LLVMGetBasicBlockParent(current_block);
@@ -542,7 +541,7 @@ fn find_or_append_labeled_block(
 			);
 			labeled_block
 		};
-		llvm.local_labeled_blocks.insert(label.to_string(), block);
+		llvm.local_labeled_blocks.insert(label.resolution_id, block);
 		Ok(block)
 	}
 }
@@ -613,7 +612,7 @@ impl Generatable for Expression
 			} =>
 			{
 				let tmpname = CString::new("tmp")?;
-				let loc = match llvm.local_variables.get(&name.name)
+				let loc = match llvm.local_variables.get(&name.resolution_id)
 				{
 					Some(loc) => *loc,
 					None =>

@@ -72,7 +72,7 @@ impl Rebuildable for Declaration
 			} =>
 			{
 				let mut buffer = String::new();
-				write!(&mut buffer, "{}fn {}(", indentation, name.name)?;
+				write!(&mut buffer, "{}fn {}(", indentation, identify(name))?;
 				match parameters.split_first()
 				{
 					Some((first, others)) =>
@@ -116,7 +116,7 @@ impl Rebuildable for Parameter
 		indentation: &Indentation,
 	) -> Result<String, anyhow::Error>
 	{
-		let mut buffer = self.name.name.to_string();
+		let mut buffer = identify(&self.name);
 		if let Some(value_type) = self.value_type
 		{
 			write!(
@@ -199,7 +199,7 @@ impl Rebuildable for Statement
 			} => Ok(format!(
 				"{}var {}: {} = {};\n",
 				indentation,
-				name.name,
+				identify(name),
 				value_type.rebuild(&indentation.increased())?,
 				value.rebuild(&indentation.increased())?
 			)),
@@ -211,7 +211,7 @@ impl Rebuildable for Statement
 			} => Ok(format!(
 				"{}var {}: {};\n",
 				indentation,
-				name.name,
+				identify(name),
 				value_type.rebuild(&indentation.increased())?,
 			)),
 			Statement::Declaration {
@@ -222,7 +222,7 @@ impl Rebuildable for Statement
 			} => Ok(format!(
 				"{}var {} = {};\n",
 				indentation,
-				name.name,
+				identify(name),
 				value.rebuild(&indentation.increased())?
 			)),
 			Statement::Declaration {
@@ -230,7 +230,7 @@ impl Rebuildable for Statement
 				value: None,
 				value_type: None,
 				location: _,
-			} => Ok(format!("{}var {};\n", indentation, name.name)),
+			} => Ok(format!("{}var {};\n", indentation, identify(name))),
 			Statement::Assignment {
 				name,
 				value,
@@ -238,7 +238,7 @@ impl Rebuildable for Statement
 			} => Ok(format!(
 				"{}{} = {};\n",
 				indentation,
-				name.name,
+				identify(name),
 				value.rebuild(&indentation.increased())?
 			)),
 			Statement::Loop { location: _ } =>
@@ -247,11 +247,11 @@ impl Rebuildable for Statement
 			}
 			Statement::Goto { label, location: _ } =>
 			{
-				Ok(format!("{}goto {};\n", indentation, label.name))
+				Ok(format!("{}goto {};\n", indentation, identify(label)))
 			}
 			Statement::Label { label, location: _ } =>
 			{
-				Ok(format!("{}{}:\n", indentation, label.name))
+				Ok(format!("{}{}:\n", indentation, identify(label)))
 			}
 			Statement::If {
 				condition,
@@ -365,7 +365,7 @@ impl Rebuildable for Expression
 			Expression::Variable {
 				name: var,
 				value_type: _,
-			} => Ok(var.name.to_string()),
+			} => Ok(identify(var)),
 			Expression::FunctionCall {
 				name,
 				arguments,
@@ -373,7 +373,7 @@ impl Rebuildable for Expression
 			} =>
 			{
 				let mut buffer = String::new();
-				write!(&mut buffer, "{}(", name.name)?;
+				write!(&mut buffer, "{}(", identify(name))?;
 				for argument in arguments
 				{
 					write!(
@@ -417,5 +417,21 @@ impl Rebuildable for ValueType
 			ValueType::Int32 => Ok("i32".to_string()),
 			ValueType::Bool => Ok("bool".to_string()),
 		}
+	}
+}
+
+fn identify(identifier: &Identifier) -> String
+{
+	if identifier.resolution_id > 0
+	{
+		format!(
+			"{}#{}",
+			identifier.name.to_string(),
+			identifier.resolution_id
+		)
+	}
+	else
+	{
+		identifier.name.to_string()
 	}
 }

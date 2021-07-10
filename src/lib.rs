@@ -7,6 +7,7 @@ pub mod lexer;
 pub mod linter;
 pub mod parser;
 pub mod rebuilder;
+pub mod scoper;
 pub mod typer;
 
 #[cfg(test)]
@@ -70,6 +71,16 @@ mod tests
 		}
 	}
 
+	fn do_scope(
+		filename: &str,
+	) -> Result<Result<Vec<common::Declaration>, anyhow::Error>, anyhow::Error>
+	{
+		let source = std::fs::read_to_string(filename)?;
+		let tokens = lexer::lex(&source, filename);
+		let declarations = parser::parse(tokens)?;
+		Ok(scoper::analyze(declarations))
+	}
+
 	fn do_type(
 		filename: &str,
 	) -> Result<Result<Vec<common::Declaration>, anyhow::Error>, anyhow::Error>
@@ -77,6 +88,7 @@ mod tests
 		let source = std::fs::read_to_string(filename)?;
 		let tokens = lexer::lex(&source, filename);
 		let declarations = parser::parse(tokens)?;
+		let declarations = scoper::analyze(declarations)?;
 		Ok(typer::analyze(declarations))
 	}
 
@@ -113,6 +125,50 @@ mod tests
 		}
 	}
 
+	#[test]
+	fn fail_to_scope_duplicate_label() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = do_scope("src/samples/duplicate_label.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_scope_foobar_variable() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = do_scope("src/samples/foobar_variable.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_scope_illegal_jump_back() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = do_scope("src/samples/illegal_jump_back.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_scope_label_in_else() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = do_scope("src/samples/label_in_else.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
 	fn analyze(
 		filename: &str,
 	) -> Result<Result<(), anyhow::Error>, anyhow::Error>
@@ -120,52 +176,9 @@ mod tests
 		let source = std::fs::read_to_string(filename)?;
 		let tokens = lexer::lex(&source, filename);
 		let declarations = parser::parse(tokens)?;
+		let declarations = scoper::analyze(declarations)?;
 		let declarations = typer::analyze(declarations)?;
 		Ok(analyzer::analyze(&declarations))
-	}
-
-	#[test]
-	fn fail_to_analyze_duplicate_label() -> Result<(), anyhow::Error>
-	{
-		let analysis_result = analyze("src/samples/duplicate_label.pn")?;
-		match analysis_result
-		{
-			Ok(_) => Err(anyhow!("broken test")),
-			Err(_) => Ok(()),
-		}
-	}
-
-	#[test]
-	fn fail_to_analyze_foobar_variable() -> Result<(), anyhow::Error>
-	{
-		let analysis_result = analyze("src/samples/foobar_variable.pn")?;
-		match analysis_result
-		{
-			Ok(_) => Err(anyhow!("broken test")),
-			Err(_) => Ok(()),
-		}
-	}
-
-	#[test]
-	fn fail_to_analyze_illegal_jump_back() -> Result<(), anyhow::Error>
-	{
-		let analysis_result = analyze("src/samples/illegal_jump_back.pn")?;
-		match analysis_result
-		{
-			Ok(_) => Err(anyhow!("broken test")),
-			Err(_) => Ok(()),
-		}
-	}
-
-	#[test]
-	fn fail_to_analyze_label_in_else() -> Result<(), anyhow::Error>
-	{
-		let analysis_result = analyze("src/samples/label_in_else.pn")?;
-		match analysis_result
-		{
-			Ok(_) => Err(anyhow!("broken test")),
-			Err(_) => Ok(()),
-		}
 	}
 
 	#[test]
@@ -191,9 +204,9 @@ mod tests
 	}
 
 	#[test]
-	fn fail_to_analyze_missing_label() -> Result<(), anyhow::Error>
+	fn fail_to_scope_missing_label() -> Result<(), anyhow::Error>
 	{
-		let analysis_result = analyze("src/samples/missing_label.pn")?;
+		let analysis_result = do_scope("src/samples/missing_label.pn")?;
 		match analysis_result
 		{
 			Ok(_) => Err(anyhow!("broken test")),
@@ -202,9 +215,9 @@ mod tests
 	}
 
 	#[test]
-	fn fail_to_analyze_missing_variable() -> Result<(), anyhow::Error>
+	fn fail_to_scope_missing_variable() -> Result<(), anyhow::Error>
 	{
-		let analysis_result = analyze("src/samples/missing_variable.pn")?;
+		let analysis_result = do_scope("src/samples/missing_variable.pn")?;
 		match analysis_result
 		{
 			Ok(_) => Err(anyhow!("broken test")),
@@ -224,9 +237,9 @@ mod tests
 	}
 
 	#[test]
-	fn fail_to_analyze_outscoped_variable() -> Result<(), anyhow::Error>
+	fn fail_to_scope_outscoped_variable() -> Result<(), anyhow::Error>
 	{
-		let analysis_result = analyze("src/samples/outscoped_variable.pn")?;
+		let analysis_result = do_scope("src/samples/outscoped_variable.pn")?;
 		match analysis_result
 		{
 			Ok(_) => Err(anyhow!("broken test")),
@@ -338,6 +351,7 @@ mod tests
 		let source = std::fs::read_to_string(&filename)?;
 		let tokens = lexer::lex(&source, filename);
 		let declarations = parser::parse(tokens)?;
+		let declarations = scoper::analyze(declarations)?;
 		let declarations = typer::analyze(declarations)?;
 		let ir = generator::generate(&declarations, filename)?;
 		let mut cmd = std::process::Command::new("lli")

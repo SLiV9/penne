@@ -2,7 +2,7 @@
 
 pub use crate::lexer::Location;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Declaration
 {
 	Function
@@ -22,21 +22,21 @@ pub struct Parameter
 	pub is_mutable: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FunctionBody
 {
 	pub statements: Vec<Statement>,
 	pub return_value: Option<Expression>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Block
 {
 	pub statements: Vec<Statement>,
 	pub location: Location,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Statement
 {
 	Declaration
@@ -93,7 +93,7 @@ impl Statement
 	}
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Comparison
 {
 	pub op: ComparisonOp,
@@ -108,14 +108,14 @@ pub enum ComparisonOp
 	Equals,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Array
 {
 	pub elements: Vec<Expression>,
 	pub location: Location,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expression
 {
 	Binary
@@ -164,6 +164,7 @@ pub struct Identifier
 {
 	pub name: String,
 	pub location: Location,
+	pub resolution_id: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
