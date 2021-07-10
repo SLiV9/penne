@@ -404,7 +404,7 @@ fn parse_statement(
 		}
 		other => Err(anyhow!("got {:?}", other))
 			.context(location.format())
-			.context("expected literal or identifier"),
+			.context("expected keyword, identifier or opening brace"),
 	}
 }
 

@@ -37,6 +37,7 @@ pub enum Token
 	Identifier(String),
 	Int32(i32),
 	Bool(bool),
+	StringLiteral(String),
 
 	// Types.
 	Type(ValueType),
@@ -52,6 +53,15 @@ pub enum Error
 	},
 	#[error("invalid integer literal")]
 	InvalidIntegerLiteral(#[from] std::num::ParseIntError),
+	#[error("invalid escape sequence '\\{sequence:?}'")]
+	InvalidEscapeSequence
+	{
+		sequence: String
+	},
+	#[error("unexpected trailing backslash")]
+	UnexpectedTrailingBackslash,
+	#[error("missing closing quote")]
+	MissingClosingQuote,
 }
 
 #[derive(Debug, Clone)]
@@ -86,6 +96,7 @@ pub fn lex(source: &str, source_filename: &str) -> Vec<LexedToken>
 	let mut tokens = Vec::new();
 	for (line_number, line) in source.lines().enumerate()
 	{
+		// Syntax should remain such that each line can be lexed independently.
 		lex_line(line, source_filename, line_number, &mut tokens);
 	}
 	tokens
@@ -195,6 +206,74 @@ fn lex_line(
 					Ok(value) => Ok(Token::Int32(value)),
 					Err(error) => Err(error.into()),
 				}
+			}
+			'"' =>
+			{
+				let mut literal = String::new();
+				let mut closed = false;
+				let mut end_of_line_offset = line_offset + 1;
+				while let Some((inner_line_offset, x)) = iter.next()
+				{
+					end_of_line_offset = inner_line_offset + 1;
+					if x == '\\'
+					{
+						match iter.next()
+						{
+							Some((_, 'n')) => literal.push('\n'),
+							Some((_, 'r')) => literal.push('\r'),
+							Some((_, '\\')) => literal.push('\\'),
+							Some((_, '\'')) => literal.push('\''),
+							Some((_, '\"')) => literal.push('\"'),
+							Some((_, y)) =>
+							{
+								let warning = LexedToken {
+									result: Err(Error::InvalidEscapeSequence {
+										sequence: y.to_string(),
+									}),
+									location: Location {
+										line_offset: end_of_line_offset,
+										..location.clone()
+									},
+								};
+								tokens.push(warning);
+							}
+							None =>
+							{
+								let warning = LexedToken {
+									result: Err(
+										Error::UnexpectedTrailingBackslash,
+									),
+									location: Location {
+										line_offset: end_of_line_offset,
+										..location.clone()
+									},
+								};
+								tokens.push(warning);
+							}
+						}
+					}
+					else if x == '\"'
+					{
+						closed = true;
+						break;
+					}
+					else
+					{
+						literal.push(x);
+					}
+				}
+				if !closed
+				{
+					let warning = LexedToken {
+						result: Err(Error::MissingClosingQuote),
+						location: Location {
+							line_offset: end_of_line_offset,
+							..location.clone()
+						},
+					};
+					tokens.push(warning);
+				}
+				Ok(Token::StringLiteral(literal))
 			}
 			' ' | '\t' => continue,
 			_ => Err(Error::UnexpectedCharacter { character: x }),

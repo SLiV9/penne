@@ -1,0 +1,10 @@
+fn main()
+{
+	var x = ""
+		"This is the Penne equivalent of a multiline string.\n"
+		"" // with a comment for good measure!
+		"	And it is quite nice to see that if you write a very long sentence "
+		"that does not fit on one line, you can see which whitespace is part "
+		"of the string and which is not."
+		"";
+}
