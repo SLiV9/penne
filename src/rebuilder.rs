@@ -117,7 +117,7 @@ impl Rebuildable for Parameter
 	) -> Result<String, anyhow::Error>
 	{
 		let mut buffer = identify(&self.name);
-		if let Some(value_type) = self.value_type
+		if let Some(value_type) = &self.value_type
 		{
 			write!(
 				&mut buffer,
@@ -308,16 +308,17 @@ impl Rebuildable for Array
 	) -> Result<String, anyhow::Error>
 	{
 		let mut buffer = String::new();
-		write!(&mut buffer, "{}[\n", indentation)?;
+		write!(&mut buffer, "[\n")?;
 		for element in &self.elements
 		{
 			write!(
 				&mut buffer,
-				"{}",
+				"{}{},\n",
+				indentation.increased(),
 				element.rebuild(&indentation.increased())?
 			)?;
 		}
-		write!(&mut buffer, "{}]\n", indentation)?;
+		write!(&mut buffer, "{}]", indentation)?;
 		Ok(buffer)
 	}
 }
@@ -359,13 +360,27 @@ impl Rebuildable for Expression
 			} => array.rebuild(indentation),
 			Expression::StringLiteral(value) =>
 			{
-				// TODO escape \xNN and \uNNNNN properly instead of \u{NNNNN}
 				Ok(format!("\"{}\"", value.escape_default()))
 			}
 			Expression::Variable {
 				name: var,
 				value_type: _,
 			} => Ok(identify(var)),
+			Expression::ArrayAccess {
+				name,
+				argument,
+				element_type: _,
+			} =>
+			{
+				let mut buffer = String::new();
+				write!(
+					&mut buffer,
+					"{}[{}]",
+					identify(name),
+					argument.rebuild(&indentation.increased())?
+				)?;
+				Ok(buffer)
+			}
 			Expression::FunctionCall {
 				name,
 				arguments,
@@ -409,13 +424,17 @@ impl Rebuildable for ValueType
 {
 	fn rebuild(
 		&self,
-		_indentation: &Indentation,
+		indentation: &Indentation,
 	) -> Result<String, anyhow::Error>
 	{
 		match self
 		{
 			ValueType::Int32 => Ok("i32".to_string()),
 			ValueType::Bool => Ok("bool".to_string()),
+			ValueType::Array { element_type } =>
+			{
+				Ok(format!("[]{}", element_type.rebuild(indentation)?))
+			}
 		}
 	}
 }

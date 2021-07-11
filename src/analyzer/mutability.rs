@@ -1,6 +1,7 @@
 /**/
 
 use crate::common::*;
+use crate::typer::Typed;
 
 use anyhow::anyhow;
 use anyhow::Context;
@@ -274,6 +275,16 @@ impl Analyzable for Expression
 				name,
 				value_type: _,
 			} => analyzer.use_variable(name, false),
+			Expression::ArrayAccess {
+				name,
+				argument,
+				element_type: _,
+			} =>
+			{
+				analyzer.use_variable(name, false)?;
+				argument.analyze(analyzer)?;
+				Ok(())
+			}
 			Expression::FunctionCall {
 				name: _,
 				arguments,

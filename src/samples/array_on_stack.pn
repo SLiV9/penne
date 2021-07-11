@@ -5,7 +5,8 @@ fn main()
 		1,
 		2,
 	];
-	var z: []i32 = x;
-	var y = x[0] + x[1] + z[2];
+	var a = x[0];
+	var b: i32 = x[2];
+	var y = a + b + x[1];
 	return: y
 }

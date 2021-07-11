@@ -27,14 +27,15 @@ impl Typer
 		value_type: Option<ValueType>,
 	) -> Result<(), anyhow::Error>
 	{
-		if let Some(vt) = value_type
+		if let Some(vt) = &value_type
 		{
-			let old_value = self
-				.symbols
-				.insert(identifier.resolution_id, (identifier.clone(), vt));
+			let old_value = self.symbols.insert(
+				identifier.resolution_id,
+				(identifier.clone(), vt.clone()),
+			);
 			match old_value
 			{
-				Some((_, ot)) if ot == vt => Ok(()),
+				Some((_, ot)) if ot == *vt => Ok(()),
 				Some((old_identifier, old_type)) => Err(anyhow!(
 					"first occurrence {}",
 					old_identifier.location.format()
@@ -57,8 +58,35 @@ impl Typer
 	{
 		match self.symbols.get(&name.resolution_id)
 		{
-			Some((_, vt)) => Some(*vt),
+			Some((_, vt)) => Some(vt.clone()),
 			None => None,
+		}
+	}
+
+	fn get_element_type_of_array(
+		&self,
+		name: &Identifier,
+	) -> Result<Option<ValueType>, anyhow::Error>
+	{
+		match self.symbols.get(&name.resolution_id)
+		{
+			Some((_, ValueType::Array { element_type })) =>
+			{
+				Ok(Some(ValueType::clone(element_type)))
+			}
+			Some((old_identifier, other_type)) =>
+			{
+				return Err(anyhow!(
+					"first occurrence {}",
+					old_identifier.location.format()
+				)
+				.context(name.location.format())
+				.context(format!(
+					"conflicting types for '{}', got {:?} expected array",
+					name.name, other_type,
+				)))
+			}
+			None => Ok(None),
 		}
 	}
 }
@@ -93,7 +121,7 @@ impl Typed for Declaration
 	{
 		match self
 		{
-			Declaration::Function { return_type, .. } => *return_type,
+			Declaration::Function { return_type, .. } => return_type.clone(),
 		}
 	}
 }
@@ -113,7 +141,7 @@ impl Analyzable for Declaration
 				return_type,
 			} =>
 			{
-				typer.put_symbol(name, *return_type)?;
+				typer.put_symbol(name, return_type.clone())?;
 
 				// Pre-analyze the function body because it might contain
 				// untyped declarations, e.g. "var x;", whose types won't be
@@ -125,7 +153,7 @@ impl Analyzable for Declaration
 				let parameters = parameters?;
 				let body = body.analyze(typer)?;
 				let return_type = body.value_type();
-				typer.put_symbol(name, return_type)?;
+				typer.put_symbol(name, return_type.clone())?;
 				let function = Declaration::Function {
 					name: name.clone(),
 					parameters,
@@ -144,7 +172,7 @@ impl Analyzable for Parameter
 
 	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
 	{
-		typer.put_symbol(&self.name, self.value_type)?;
+		typer.put_symbol(&self.name, self.value_type.clone())?;
 		let value_type = typer.get_symbol(&self.name);
 		Ok(Parameter {
 			name: self.name.clone(),
@@ -222,10 +250,10 @@ impl Analyzable for Statement
 				location,
 			} =>
 			{
-				typer.put_symbol(name, *value_type)?;
+				typer.put_symbol(name, value_type.clone())?;
 				let value = value.analyze(typer)?;
 				let value_type = value.value_type();
-				typer.put_symbol(name, value_type)?;
+				typer.put_symbol(name, value_type.clone())?;
 				let stmt = Statement::Declaration {
 					name: name.clone(),
 					value: Some(value),
@@ -241,11 +269,11 @@ impl Analyzable for Statement
 				location,
 			} =>
 			{
-				typer.put_symbol(name, Some(*value_type))?;
+				typer.put_symbol(name, Some(value_type.clone()))?;
 				let stmt = Statement::Declaration {
 					name: name.clone(),
 					value: None,
-					value_type: Some(*value_type),
+					value_type: Some(value_type.clone()),
 					location: location.clone(),
 				};
 				Ok(stmt)
@@ -358,9 +386,19 @@ impl Analyzable for Array
 		let elements: Result<Vec<Expression>, anyhow::Error> =
 			self.elements.iter().map(|x| x.analyze(typer)).collect();
 		let elements = elements?;
+
+		{
+			let name = self.get_identifier();
+			for element in &elements
+			{
+				typer.put_symbol(&name, element.value_type())?;
+			}
+		}
+
 		Ok(Array {
 			elements,
 			location: self.location.clone(),
+			resolution_id: self.resolution_id,
 		})
 	}
 }
@@ -373,10 +411,20 @@ impl Typed for Expression
 		{
 			Expression::Binary { left, .. } => left.value_type(),
 			Expression::PrimitiveLiteral(literal) => literal.value_type(),
-			Expression::ArrayLiteral { element_type, .. } => *element_type,
+			Expression::ArrayLiteral { element_type, .. } => match element_type
+			{
+				Some(element_type) => Some(ValueType::Array {
+					element_type: Box::new(element_type.clone()),
+				}),
+				None => None,
+			},
 			Expression::StringLiteral(_literal) => None,
-			Expression::Variable { value_type, .. } => *value_type,
-			Expression::FunctionCall { return_type, .. } => *return_type,
+			Expression::Variable { value_type, .. } => value_type.clone(),
+			Expression::ArrayAccess { element_type, .. } =>
+			{
+				element_type.clone()
+			}
+			Expression::FunctionCall { return_type, .. } => return_type.clone(),
 		}
 	}
 }
@@ -415,14 +463,13 @@ impl Analyzable for Expression
 				element_type,
 			} =>
 			{
-				// TODO finish
-				//if let Some(element_type) = element_type
-				//{
-				//	typer.put_symbol()
-				//}
+				let name = array.get_identifier();
+				if element_type.is_some()
+				{
+					typer.put_symbol(&name, element_type.clone())?;
+				}
 				let array = array.analyze(typer)?;
-				// TODO determine element type
-				let element_type = *element_type;
+				let element_type = typer.get_symbol(&name);
 				Ok(Expression::ArrayLiteral {
 					array,
 					element_type,
@@ -437,10 +484,10 @@ impl Analyzable for Expression
 				value_type: Some(value_type),
 			} =>
 			{
-				typer.put_symbol(name, Some(*value_type))?;
+				typer.put_symbol(name, Some(value_type.clone()))?;
 				let expr = Expression::Variable {
 					name: name.clone(),
-					value_type: Some(*value_type),
+					value_type: Some(value_type.clone()),
 				};
 				Ok(expr)
 			}
@@ -456,13 +503,35 @@ impl Analyzable for Expression
 				};
 				Ok(expr)
 			}
+			Expression::ArrayAccess {
+				name,
+				argument,
+				element_type,
+			} =>
+			{
+				if let Some(element_type) = element_type
+				{
+					let array_type = ValueType::Array {
+						element_type: Box::new(element_type.clone()),
+					};
+					typer.put_symbol(name, Some(array_type))?;
+				}
+				let element_type = typer.get_element_type_of_array(name)?;
+				let argument = argument.analyze(typer)?;
+				let expr = Expression::ArrayAccess {
+					name: name.clone(),
+					argument: Box::new(argument),
+					element_type,
+				};
+				Ok(expr)
+			}
 			Expression::FunctionCall {
 				name,
 				arguments,
 				return_type,
 			} =>
 			{
-				typer.put_symbol(name, *return_type)?;
+				typer.put_symbol(name, return_type.clone())?;
 				let return_type = typer.get_symbol(name);
 				let arguments: Result<Vec<Expression>, anyhow::Error> =
 					arguments.iter().map(|a| a.analyze(typer)).collect();

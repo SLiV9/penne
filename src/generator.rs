@@ -149,7 +149,7 @@ impl Generatable for Declaration
 				let param_types: Result<Vec<LLVMTypeRef>, anyhow::Error> =
 					parameters
 						.iter()
-						.map(|parameter| match parameter.value_type
+						.map(|parameter| match &parameter.value_type
 						{
 							Some(vt) => vt.generate(llvm),
 							None => Err(anyhow!("failed to infer type")
@@ -604,7 +604,23 @@ impl Generatable for Expression
 				Ok(result)
 			}
 			Expression::PrimitiveLiteral(literal) => literal.generate(llvm),
-			Expression::ArrayLiteral { .. } => unimplemented!(),
+			Expression::ArrayLiteral {
+				array: Array { elements, .. },
+				element_type: Some(element_type),
+			} =>
+			{
+				let element_type: LLVMTypeRef = element_type.generate(llvm)?;
+				// TODO initialize elements
+				unimplemented!()
+			}
+			Expression::ArrayLiteral {
+				element_type: None,
+				array: Array { location, .. },
+			} => Err(anyhow!("failed to infer type")
+				.context(location.format())
+				.context(format!(
+					"failed to infer array literal element type"
+				))),
 			Expression::StringLiteral(_literal) => unimplemented!(),
 			Expression::Variable {
 				name,
@@ -629,6 +645,30 @@ impl Generatable for Expression
 					LLVMBuildLoad(llvm.builder, loc, tmpname.as_ptr())
 				};
 				Ok(result)
+			}
+			Expression::ArrayAccess {
+				name,
+				argument,
+				element_type: _,
+			} =>
+			{
+				let argument: LLVMValueRef = argument.generate(llvm)?;
+				// TODO transform argument into offset
+
+				let loc = match llvm.local_variables.get(&name.resolution_id)
+				{
+					Some(loc) => *loc,
+					None =>
+					{
+						return Err(anyhow!("undefined reference")
+							.context(name.location.format())
+							.context(format!(
+								"undefined reference to '{}'",
+								name.name
+							)))
+					}
+				};
+				unimplemented!()
 			}
 			Expression::FunctionCall {
 				name,
@@ -719,6 +759,14 @@ impl Generatable for ValueType
 			unsafe { LLVMInt32TypeInContext(llvm.context) },
 			ValueType::Bool =>
 			unsafe { LLVMInt8TypeInContext(llvm.context) },
+			ValueType::Array { element_type } =>
+			{
+				let element_type = element_type.generate(llvm)?;
+				// TODO determine length
+				let actual_length = 0;
+				let length = 100;
+				unsafe { LLVMArrayType(element_type, length) }
+			}
 		};
 		Ok(typeref)
 	}

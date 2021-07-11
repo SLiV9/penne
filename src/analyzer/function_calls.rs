@@ -10,6 +10,7 @@ pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 {
 	let mut analyzer = Analyzer {
 		function_list: Vec::new(),
+		array_list: Vec::new(),
 	};
 	for declaration in program
 	{
@@ -21,6 +22,7 @@ pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 struct Analyzer
 {
 	function_list: Vec<(Identifier, Vec<Parameter>)>,
+	array_list: Vec<Identifier>,
 }
 
 impl Analyzer
@@ -121,6 +123,65 @@ impl Analyzer
 				)))
 		}
 	}
+
+	fn declare_array(
+		&mut self,
+		identifier: &Identifier,
+	) -> Result<(), anyhow::Error>
+	{
+		// Array names have been resolved during scoping.
+		self.array_list.push(identifier.clone());
+		Ok(())
+	}
+
+	fn use_array(
+		&self,
+		identifier: &Identifier,
+		argument_type: Option<ValueType>,
+	) -> Result<(), anyhow::Error>
+	{
+		if let Some(declaration_identifier) = self
+			.array_list
+			.iter()
+			.find(|x| x.resolution_id == identifier.resolution_id)
+		{
+			match argument_type
+			{
+				Some(ValueType::Int32) => Ok(()),
+				Some(other_type) => Err(anyhow!("got {:?}", other_type)
+					.context(format!("expected integer type"))
+					.context(format!(
+						"function was declared {}",
+						declaration_identifier.location.format()
+					))
+					.context(identifier.location.format())
+					.context(format!(
+						"type mismatch of index into array '{}'",
+						identifier.name,
+					))),
+				None => Err(anyhow!("failed to determine type")
+					.context(format!("expected integer type"))
+					.context(format!(
+						"function was declared {}",
+						declaration_identifier.location.format()
+					))
+					.context(identifier.location.format())
+					.context(format!(
+						"type mismatch of index into array '{}'",
+						identifier.name,
+					))),
+			}
+		}
+		else
+		{
+			Err(anyhow!("undefined reference")
+				.context(identifier.location.format())
+				.context(format!(
+					"reference to undefined array named '{}'",
+					identifier.name
+				)))
+		}
+	}
 }
 
 trait Analyzable
@@ -196,21 +257,40 @@ impl Analyzable for Statement
 		match self
 		{
 			Statement::Declaration {
-				name: _,
+				name,
 				value: Some(value),
-				value_type: _,
+				value_type,
 				location,
 			} =>
 			{
+				match value_type
+				{
+					Some(ValueType::Array { .. }) =>
+					{
+						analyzer.declare_array(name)?;
+					}
+					_ => (),
+				}
 				value.analyze(analyzer).with_context(|| location.format())?;
 				Ok(())
 			}
 			Statement::Declaration {
-				name: _,
+				name,
 				value: None,
-				value_type: _,
+				value_type,
 				location: _,
-			} => Ok(()),
+			} =>
+			{
+				match value_type
+				{
+					Some(ValueType::Array { .. }) =>
+					{
+						analyzer.declare_array(name)?;
+					}
+					_ => (),
+				}
+				Ok(())
+			}
 			Statement::Assignment {
 				name: _,
 				value,
@@ -300,7 +380,34 @@ impl Analyzable for Expression
 				element_type: _,
 			} => array.analyze(analyzer),
 			Expression::StringLiteral(_lit) => Ok(()),
-			Expression::Variable { .. } => Ok(()),
+			Expression::Variable { name, value_type } =>
+			{
+				match value_type
+				{
+					Some(ValueType::Array { .. }) =>
+					{
+						return Err(anyhow!("cannot move from array")
+							.context(name.location.format())
+							.context(format!(
+								"the variable '{}' cannot be moved from",
+								name.name
+							)));
+					}
+					_ => (),
+				}
+				Ok(())
+			}
+			Expression::ArrayAccess {
+				name,
+				argument,
+				element_type: _,
+			} =>
+			{
+				let argument_type = argument.value_type();
+				analyzer.use_array(name, argument_type)?;
+				argument.analyze(analyzer)?;
+				Ok(())
+			}
 			Expression::FunctionCall {
 				name,
 				arguments,

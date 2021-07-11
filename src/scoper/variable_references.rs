@@ -74,7 +74,10 @@ impl Analyzer
 			if let Some(previous_identifier) =
 				scope.iter().find(|x| x.name == identifier.name)
 			{
-				return Ok(previous_identifier.clone());
+				return Ok(Identifier {
+					resolution_id: previous_identifier.resolution_id,
+					..identifier.clone()
+				});
 			}
 		}
 
@@ -135,7 +138,7 @@ impl Analyzable for Declaration
 					name: name.clone(),
 					parameters,
 					body,
-					return_type: *return_type,
+					return_type: return_type.clone(),
 				};
 				Ok(function)
 			}
@@ -241,7 +244,7 @@ impl Analyzable for Statement
 				Ok(Statement::Declaration {
 					name,
 					value: Some(value),
-					value_type: *value_type,
+					value_type: value_type.clone(),
 					location: location.clone(),
 				})
 			}
@@ -256,7 +259,7 @@ impl Analyzable for Statement
 				Ok(Statement::Declaration {
 					name,
 					value: None,
-					value_type: *value_type,
+					value_type: value_type.clone(),
 					location: location.clone(),
 				})
 			}
@@ -356,9 +359,14 @@ impl Analyzable for Array
 		let elements = elements?;
 		analyzer.pop_scope();
 
+		// Arrays need a resolution id to help with typing its elements.
+		let resolution_id = analyzer.resolution_id;
+		analyzer.resolution_id += 1;
+
 		Ok(Array {
 			elements,
 			location: self.location.clone(),
+			resolution_id,
 		})
 	}
 }
@@ -403,7 +411,7 @@ impl Analyzable for Expression
 				let array = array.analyze(analyzer)?;
 				Ok(Expression::ArrayLiteral {
 					array,
-					element_type: *element_type,
+					element_type: element_type.clone(),
 				})
 			}
 			Expression::StringLiteral(_lit) => Ok(self.clone()),
@@ -412,7 +420,21 @@ impl Analyzable for Expression
 				let name = analyzer.use_variable(name)?;
 				Ok(Expression::Variable {
 					name,
-					value_type: *value_type,
+					value_type: value_type.clone(),
+				})
+			}
+			Expression::ArrayAccess {
+				name,
+				argument,
+				element_type,
+			} =>
+			{
+				let name = analyzer.use_variable(name)?;
+				let argument = argument.analyze(analyzer)?;
+				Ok(Expression::ArrayAccess {
+					name,
+					argument: Box::new(argument),
+					element_type: element_type.clone(),
 				})
 			}
 			Expression::FunctionCall {
@@ -427,7 +449,7 @@ impl Analyzable for Expression
 				Ok(Expression::FunctionCall {
 					name: name.clone(),
 					arguments,
-					return_type: *return_type,
+					return_type: return_type.clone(),
 				})
 			}
 		}

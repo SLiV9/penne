@@ -73,7 +73,10 @@ impl Analyzer
 			if let Some(previous_identifier) =
 				scope.iter().find(|x| x.name == identifier.name)
 			{
-				return Ok(previous_identifier.clone());
+				return Ok(Identifier {
+					resolution_id: previous_identifier.resolution_id,
+					..identifier.clone()
+				});
 			}
 		}
 
@@ -130,7 +133,7 @@ impl Analyzable for Declaration
 					name: name.clone(),
 					parameters: parameters.clone(),
 					body,
-					return_type: *return_type,
+					return_type: return_type.clone(),
 				};
 				Ok(function)
 			}

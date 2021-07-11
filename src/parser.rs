@@ -196,6 +196,15 @@ fn parse_type(
 	match token
 	{
 		Token::Type(value_type) => Ok(value_type),
+		Token::BracketLeft =>
+		{
+			consume(Token::BracketRight, tokens)
+				.context("expected right bracket")?;
+			let element_type = parse_type(tokens)?;
+			Ok(ValueType::Array {
+				element_type: Box::new(element_type),
+			})
+		}
 		token => Err(anyhow!("got {:?}", token))
 			.context(location.format())
 			.context("expected type keyword"),
@@ -248,37 +257,22 @@ fn parse_function_body(
 	Ok(body)
 }
 
-#[allow(dead_code)]
-fn parse_block(
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Block, anyhow::Error>
-{
-	consume(Token::BraceLeft, tokens).context("expected block")?;
-
-	parse_rest_of_block(tokens)
-}
-
 fn parse_rest_of_block(
+	mut block: Block,
 	tokens: &mut VecDeque<LexedToken>,
 ) -> Result<Block, anyhow::Error>
 {
-	let mut statements = Vec::new();
-
 	loop
 	{
 		if let Some(Token::BraceRight) = peek(tokens)
 		{
-			let (_, location) = extract(tokens).unwrap();
+			let _ = extract(tokens)?;
 
-			let block = Block {
-				statements,
-				location,
-			};
 			return Ok(block);
 		}
 
 		let statement = parse_statement(tokens)?;
-		statements.push(statement);
+		block.statements.push(statement);
 	}
 }
 
@@ -292,7 +286,11 @@ fn parse_statement(
 	{
 		Token::BraceLeft =>
 		{
-			let block = parse_rest_of_block(tokens)?;
+			let block = Block {
+				statements: Vec::new(),
+				location,
+			};
+			let block = parse_rest_of_block(block, tokens)?;
 			let statement = Statement::Block(block);
 			Ok(statement)
 		}
@@ -535,6 +533,18 @@ fn parse_primary_expression(
 					return_type: None,
 				})
 			}
+			else if let Some(Token::BracketLeft) = peek(tokens)
+			{
+				let _ = extract(tokens)?;
+				let argument = parse_expression(tokens)?;
+				consume(Token::BracketRight, tokens)
+					.context("expected right bracket")?;
+				Ok(Expression::ArrayAccess {
+					name: identifier,
+					argument: Box::new(argument),
+					element_type: None,
+				})
+			}
 			else
 			{
 				Ok(Expression::Variable {
@@ -545,7 +555,12 @@ fn parse_primary_expression(
 		}
 		Token::BracketLeft =>
 		{
-			let array = parse_rest_of_array(tokens)?;
+			let array = Array {
+				elements: Vec::new(),
+				location,
+				resolution_id: 0,
+			};
+			let array = parse_rest_of_array(array, tokens)?;
 			let expression = Expression::ArrayLiteral {
 				array,
 				element_type: None,
@@ -566,7 +581,7 @@ fn parse_arguments(
 
 	if let Some(Token::ParenRight) = peek(tokens)
 	{
-		let _ = extract(tokens);
+		let _ = extract(tokens)?;
 		return Ok(Vec::new());
 	}
 
@@ -579,7 +594,7 @@ fn parse_arguments(
 
 		if let Some(Token::ParenRight) = peek(tokens)
 		{
-			let _ = extract(tokens);
+			let _ = extract(tokens)?;
 			return Ok(arguments);
 		}
 
@@ -588,33 +603,32 @@ fn parse_arguments(
 	}
 }
 
-#[allow(dead_code)]
-fn parse_array(
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Array, anyhow::Error>
-{
-	consume(Token::BracketLeft, tokens).context("expected array")?;
-
-	parse_rest_of_array(tokens)
-}
-
 fn parse_rest_of_array(
+	mut array: Array,
 	tokens: &mut VecDeque<LexedToken>,
 ) -> Result<Array, anyhow::Error>
 {
-	let mut elements = Vec::new();
-
 	loop
 	{
 		if let Some(Token::BracketRight) = peek(tokens)
 		{
-			let (_, location) = extract(tokens).unwrap();
-
-			let array = Array { elements, location };
-			return Ok(array);
+			break;
 		}
 
 		let element = parse_expression(tokens)?;
-		elements.push(element);
+		array.elements.push(element);
+
+		if let Some(Token::Comma) = peek(tokens)
+		{
+			tokens.pop_front();
+		}
+		else
+		{
+			break;
+		}
 	}
+
+	consume(Token::BracketRight, tokens).context("expected right bracket")?;
+
+	return Ok(array);
 }

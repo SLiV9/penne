@@ -7,7 +7,8 @@ Features:
 Functionality:
 	☐	Fixed-length stack-based arrays
 	☐	String literals
-	  ☐	\xNN and \uNNNNN
+		☐	\xNN and \uNNNNN
+			☐	escape \xNN and \uNNNNN properly instead of \u{NNNNN} in rebuilder.rs
 	☐	print()
 	☐	fopen(), fclose()
 	☐	Floats

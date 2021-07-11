@@ -113,6 +113,19 @@ pub struct Array
 {
 	pub elements: Vec<Expression>,
 	pub location: Location,
+	pub resolution_id: u32,
+}
+
+impl Array
+{
+	pub fn get_identifier(&self) -> Identifier
+	{
+		Identifier {
+			name: "(array)".to_string(),
+			location: self.location.clone(),
+			resolution_id: self.resolution_id,
+		}
+	}
 }
 
 #[derive(Debug, Clone)]
@@ -136,6 +149,12 @@ pub enum Expression
 	{
 		name: Identifier,
 		value_type: Option<ValueType>,
+	},
+	ArrayAccess
+	{
+		name: Identifier,
+		argument: Box<Expression>,
+		element_type: Option<ValueType>,
 	},
 	FunctionCall
 	{
@@ -167,9 +186,13 @@ pub struct Identifier
 	pub resolution_id: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValueType
 {
 	Int32,
 	Bool,
+	Array
+	{
+		element_type: Box<ValueType>,
+	},
 }

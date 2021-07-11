@@ -126,6 +126,29 @@ mod tests
 	}
 
 	#[test]
+	fn fail_to_type_mismatched_array_elements() -> Result<(), anyhow::Error>
+	{
+		let analysis_result =
+			do_type("src/samples/mismatched_array_elements.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_type_mismatched_array_type() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = do_type("src/samples/mismatched_array_type.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
 	fn fail_to_scope_duplicate_label() -> Result<(), anyhow::Error>
 	{
 		let analysis_result = do_scope("src/samples/duplicate_label.pn")?;
@@ -273,6 +296,17 @@ mod tests
 	fn fail_to_analyze_too_many_arguments() -> Result<(), anyhow::Error>
 	{
 		let analysis_result = analyze("src/samples/too_many_arguments.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_analyze_assign_array_to_array() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/assign_array_to_array.pn")?;
 		match analysis_result
 		{
 			Ok(_) => Err(anyhow!("broken test")),
