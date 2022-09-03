@@ -14,6 +14,22 @@ use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 fn main() -> Result<(), anyhow::Error>
 {
+	let result = do_main();
+	if result.is_err()
+	{
+		let mut stdout = StandardStream::stdout(ColorChoice::Auto);
+		let colorspec_error = ColorSpec::new()
+			.set_fg(Some(Color::Red))
+			.set_bold(true)
+			.to_owned();
+		stdout.set_color(&colorspec_error)?;
+		writeln!(stdout)?;
+	}
+	result
+}
+
+fn do_main() -> Result<(), anyhow::Error>
+{
 	let mut stdout = StandardStream::stdout(ColorChoice::Auto);
 
 	let filenames: Vec<String> = if std::env::args().len() > 1
