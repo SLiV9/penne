@@ -9,8 +9,13 @@ use penne::rebuilder;
 use penne::scoper;
 use penne::typer;
 
+use std::io::Write;
+use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+
 fn main() -> Result<(), anyhow::Error>
 {
+	let mut stdout = StandardStream::stdout(ColorChoice::Auto);
+
 	let filenames: Vec<String> = if std::env::args().len() > 1
 	{
 		std::env::args().skip(1).collect()
@@ -20,59 +25,106 @@ fn main() -> Result<(), anyhow::Error>
 		vec!["src/samples/five.pn".to_string()]
 	};
 
+	let colorspec_header = ColorSpec::new().to_owned();
+	let colorspec_dump = ColorSpec::new().set_dimmed(true).to_owned();
+	let colorspec_error = ColorSpec::new()
+		.set_fg(Some(Color::Red))
+		.set_bold(true)
+		.to_owned();
+	let colorspec_warning = ColorSpec::new()
+		.set_fg(Some(Color::Yellow))
+		.set_bold(true)
+		.to_owned();
+	let colorspec_success =
+		ColorSpec::new().set_fg(Some(Color::Green)).to_owned();
+
 	for filename in filenames
 	{
-		println!();
+		writeln!(stdout)?;
 		let program = std::fs::read_to_string(&filename)?;
-		println!("Lexing {}...", filename);
+		stdout.set_color(&colorspec_header)?;
+		writeln!(stdout, "Lexing {}...", filename)?;
 		let tokens = lexer::lex(&program, &filename);
-		println!("{:?}", tokens);
-		println!();
-		println!("Parsing {}...", filename);
+		stdout.set_color(&colorspec_dump)?;
+		writeln!(stdout, "{:?}", tokens)?;
+		writeln!(stdout)?;
+		stdout.set_color(&colorspec_header)?;
+		writeln!(stdout, "Parsing {}...", filename)?;
 		let declarations = parser::parse(tokens)?;
-		println!("{:?}", declarations);
-		println!();
-		println!("Rebuilding {}...", filename);
+		stdout.set_color(&colorspec_dump)?;
+		writeln!(stdout, "{:?}", declarations)?;
+		writeln!(stdout)?;
+		stdout.set_color(&colorspec_header)?;
+		writeln!(stdout, "Rebuilding {}...", filename)?;
 		let indentation = rebuilder::Indentation {
 			value: "\u{00a6}   ",
 			amount: 1,
 		};
 		let code = rebuilder::rebuild(&declarations, &indentation)?;
-		println!("{}", code);
-		println!("Scoping {:?}...", filename);
+		stdout.set_color(&colorspec_dump)?;
+		writeln!(stdout, "{}", code)?;
+		stdout.set_color(&colorspec_header)?;
+		writeln!(stdout, "Scoping {:?}...", filename)?;
 		let declarations = scoper::analyze(declarations)?;
-		println!("{:?}", declarations);
-		println!();
-		println!("Typing {:?}...", filename);
+		stdout.set_color(&colorspec_dump)?;
+		writeln!(stdout, "{:?}", declarations)?;
+		writeln!(stdout)?;
+		stdout.set_color(&colorspec_header)?;
+		writeln!(stdout, "Typing {:?}...", filename)?;
 		let declarations = typer::analyze(declarations)?;
-		println!("{:?}", declarations);
-		println!();
-		println!("Rebuilding {}...", filename);
+		stdout.set_color(&colorspec_dump)?;
+		writeln!(stdout, "{:?}", declarations)?;
+		writeln!(stdout)?;
+		stdout.set_color(&colorspec_header)?;
+		writeln!(stdout, "Rebuilding {}...", filename)?;
 		let indentation = rebuilder::Indentation {
 			value: "\u{00a6}   ",
 			amount: 1,
 		};
 		let code = rebuilder::rebuild(&declarations, &indentation)?;
-		println!("{}", code);
-		println!();
-		println!("Analyzing {:?}...", filename);
+		stdout.set_color(&colorspec_dump)?;
+		writeln!(stdout, "{}", code)?;
+		writeln!(stdout)?;
+		stdout.set_color(&colorspec_header)?;
+		writeln!(stdout, "Analyzing {:?}...", filename)?;
 		analyzer::analyze(&declarations)?;
-		println!("Analysis complete.");
-		println!();
-		println!("Linting {:?}...", filename);
-		linter::lint(&declarations);
-		println!("Linting complete.");
-		println!();
-		println!("Generating IR for {}...", filename);
+		stdout.set_color(&colorspec_success)?;
+		writeln!(stdout, "Analysis complete.")?;
+		writeln!(stdout)?;
+		stdout.set_color(&colorspec_header)?;
+		writeln!(stdout, "Linting {:?}...", filename)?;
+		let lints = linter::lint(&declarations);
+		if !lints.is_empty()
+		{
+			stdout.set_color(&colorspec_warning)?;
+			for lint in lints
+			{
+				writeln!(stdout, "Warning: {:?}", lint)?;
+			}
+		}
+		else
+		{
+			stdout.set_color(&colorspec_success)?;
+			writeln!(stdout, "Linting complete.")?;
+		}
+		writeln!(stdout)?;
+		stdout.set_color(&colorspec_header)?;
+		write!(stdout, "Generating IR for {}...", filename)?;
+		stdout.set_color(&colorspec_error)?;
+		writeln!(stdout)?;
 		let ir = generator::generate(&declarations, &filename)?;
-		println!("{}", ir);
+		stdout.set_color(&colorspec_dump)?;
+		writeln!(stdout, "{}", ir)?;
 		let outputfilename = format!("bin/{}.ll", filename);
 		let dirname = std::path::Path::new(&outputfilename).parent().unwrap();
 		std::fs::create_dir_all(dirname)?;
-		println!("Writing to {}...", outputfilename);
+		stdout.set_color(&colorspec_header)?;
+		writeln!(stdout, "Writing to {}...", outputfilename)?;
 		std::fs::write(outputfilename, ir)?;
 	}
-	println!("Done.");
+
+	stdout.reset()?;
+	writeln!(stdout, "Done.")?;
 
 	Ok(())
 }

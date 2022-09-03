@@ -4,9 +4,10 @@ use crate::common::*;
 
 use anyhow::anyhow;
 
-pub fn lint(program: &Vec<Declaration>)
+pub fn lint(program: &Vec<Declaration>) -> Vec<anyhow::Error>
 {
 	let mut linter = Linter {
+		lints: Vec::new(),
 		is_naked_branch: false,
 		is_first_statement_of_branch: false,
 	};
@@ -14,10 +15,12 @@ pub fn lint(program: &Vec<Declaration>)
 	{
 		declaration.lint(&mut linter);
 	}
+	linter.lints
 }
 
 struct Linter
 {
+	lints: Vec<anyhow::Error>,
 	is_naked_branch: bool,
 	is_first_statement_of_branch: bool,
 }
@@ -88,17 +91,15 @@ impl Lintable for Statement
 			{
 				if linter.is_first_statement_of_branch
 				{
-					println!(
-						"Warning: {:?}",
-						anyhow!("loop statement")
-							.context(location.format())
-							.context(
-								"loop statement inside conditional code block \
+					let lint = anyhow!("loop statement")
+						.context(location.format())
+						.context(
+							"loop statement inside conditional code block \
 								causes infinite loop if condition is met; \
 								use conditional goto to break out of loop, \
-								or add label to surpress this warning."
-							)
-					);
+								or add label to surpress this warning.",
+						);
+					linter.lints.push(lint);
 				}
 			}
 			Statement::Goto { .. } => (),
