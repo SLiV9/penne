@@ -652,6 +652,11 @@ impl Generatable for Expression
 				let tmpname = CString::new("tmp")?;
 				let argument: LLVMValueRef = argument.generate(llvm)?;
 				let mut indices = Vec::new();
+				let const0 = unsafe {
+					let inttype = LLVMInt64TypeInContext(llvm.context);
+					LLVMConstInt(inttype, 0u64, 1)
+				};
+				indices.push(const0);
 				indices.push(argument);
 				let loc = match llvm.local_variables.get(&name.resolution_id)
 				{
@@ -666,7 +671,7 @@ impl Generatable for Expression
 							)))
 					}
 				};
-				let result = unsafe {
+				let address = unsafe {
 					LLVMBuildGEP(
 						llvm.builder,
 						loc,
@@ -674,6 +679,9 @@ impl Generatable for Expression
 						indices.len() as u32,
 						tmpname.as_ptr(),
 					)
+				};
+				let result = unsafe {
+					LLVMBuildLoad(llvm.builder, address, tmpname.as_ptr())
 				};
 				Ok(result)
 			}
