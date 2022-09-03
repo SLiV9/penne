@@ -73,7 +73,7 @@ contexts:
 
   var_declaration:
     - match: ':(?!:)'
-      scope: punctuation.separator.rust
+      scope: punctuation.separator.penne
       push:
         - match: '(?=,|;|=)'
           pop: true
@@ -108,7 +108,7 @@ contexts:
     - match: '\b{{identifier}}\b'
       scope: variable.parameter.penne
     - match: ':(?!:)'
-      scope: punctuation.separator.rust
+      scope: punctuation.separator.penne
       push:
         - match: '(?=,|\)|\]|\}|\|)'
           pop: true

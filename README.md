@@ -8,6 +8,7 @@ By applying modern sensibilities to the use of the `goto` statement instead of b
 Penne's general aesthetic is inspired by modern programming languages (in particular [Rust](https://www.rust-lang.org/)), with the notable exception of labels and the `goto` statement, which are (at least syntactically) taken from C, and the `loop` statement.
 
 _For demonstrative purposes, the following sample does not use multiplication, division or modulo operators._
+
 ```
 fn determine_collatz_number(x: i32) -> i32
 {
@@ -46,7 +47,9 @@ fn determine_collatz_number(x: i32) -> i32
 	steps
 }
 ```
+
 An equivalent implementation in C:
+
 ```c
 int determine_collatz_number(int x)
 {
@@ -79,6 +82,7 @@ int determine_collatz_number(int x)
 ## `goto` and `loop`
 
 In Penne, `goto` is a local forward-only jump. This is achieved by giving labels a reverse scope: similar to how variables cannot be referenced before they are declared, labels cannot be jumped to _after_ they are declared.
+
 ```
 fn foo() -> i32
 {
@@ -91,9 +95,11 @@ fn foo() -> i32
 	x
 }
 ```
+
 This function returns 1, not 11.
 
 The only way to jump back is with the `loop` block:
+
 ```
 fn foo() -> i32
 {
@@ -108,4 +114,5 @@ fn foo() -> i32
 	x
 }
 ```
+
 Here the line `x = x + 1` is executed forever and the end of the function is never reached.

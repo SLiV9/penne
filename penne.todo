@@ -1,17 +1,21 @@
 Features:
 	✔	Forward-only goto's @done (2020-10-18 14:46)
 	☐	If-statement-based pattern matching
-	☐	Static nullability analysis through if-statement pattern matching
 	☐	Tagged unions for error handling
 
 Functionality:
 	☐	Fixed-length stack-based arrays
+	☐	Pointers
+	☐	References
 	☐	String literals
-		☐	\xNN and \uNNNNN
-			☐	escape \xNN and \uNNNNN properly instead of \u{NNNNN} in rebuilder.rs
+		☐	\u{NN} through \u{NNNNN}
+	☐	Byte string literals
+		☐	\xNN
+	☐	FFI
 	☐	print()
 	☐	fopen(), fclose()
 	☐	Floats
+	☐	Other integer sizes
 	☐	Casting
 	☐	Strong enums
 	✔	Function calls @done (2021-01-16 18:03)
@@ -53,6 +57,11 @@ Usability:
 		☐	Switch to something more sensible than anyhow for context
 	☐	Add helpful note when trying to jump backwards
 		☐	Similarly, add note when referencing variable declared later
+	☐	HTTP style error numbers
+		"244 Mismatched Brace" as googlable error code with description underneath
 
 Performance:
 	✘	Detect immutable parameters (Parameter::is_mutable) @cancelled (2021-03-14 16:39)
+
+Theory:
+	☐	Prove Turing completeness
