@@ -149,6 +149,10 @@ pub enum Expression
 		reference: Reference,
 		value_type: Option<ValueType>,
 	},
+	LengthOfArray
+	{
+		reference: Reference,
+	},
 	FunctionCall
 	{
 		name: Identifier,

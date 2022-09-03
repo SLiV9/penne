@@ -366,6 +366,10 @@ impl Rebuildable for Expression
 				reference,
 				value_type: _,
 			} => reference.rebuild(indentation),
+			Expression::LengthOfArray { reference } => Ok(format!(
+				"|{}|",
+				reference.rebuild(&indentation.increased())?
+			)),
 			Expression::FunctionCall {
 				name,
 				arguments,

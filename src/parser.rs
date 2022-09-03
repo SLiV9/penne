@@ -404,26 +404,8 @@ fn parse_statement(
 				return Ok(statement);
 			}
 
-			let identifier = Identifier {
-				name: x,
-				location: location.clone(),
-				resolution_id: 0,
-			};
-			let reference = if let Some(Token::BracketLeft) = peek(tokens)
-			{
-				let _ = extract(tokens)?;
-				let argument = parse_expression(tokens)?;
-				consume(Token::BracketRight, tokens)
-					.context("expected right bracket")?;
-				Reference::ArrayElement {
-					name: identifier,
-					argument: Box::new(argument),
-				}
-			}
-			else
-			{
-				Reference::Identifier(identifier)
-			};
+			let reference =
+				parse_rest_of_reference(x, location.clone(), tokens)?;
 
 			consume(Token::Assignment, tokens)
 				.context("expected assignment")?;
@@ -513,7 +495,18 @@ fn parse_unary_expression(
 	tokens: &mut VecDeque<LexedToken>,
 ) -> Result<Expression, anyhow::Error>
 {
-	parse_primary_expression(tokens)
+	match peek(tokens)
+	{
+		Some(Token::Pipe) =>
+		{
+			tokens.pop_front();
+			let reference = parse_reference(tokens)?;
+			consume(Token::Pipe, tokens).context("expected pipe")?;
+			let expression = Expression::LengthOfArray { reference };
+			Ok(expression)
+		}
+		_ => parse_primary_expression(tokens),
+	}
 }
 
 fn parse_primary_expression(
@@ -550,13 +543,13 @@ fn parse_primary_expression(
 		}
 		Token::Identifier(name) =>
 		{
-			let identifier = Identifier {
-				name,
-				location,
-				resolution_id: 0,
-			};
 			if let Some(Token::ParenLeft) = peek(tokens)
 			{
+				let identifier = Identifier {
+					name,
+					location,
+					resolution_id: 0,
+				};
 				let arguments = parse_arguments(tokens)?;
 				Ok(Expression::FunctionCall {
 					name: identifier,
@@ -564,24 +557,12 @@ fn parse_primary_expression(
 					return_type: None,
 				})
 			}
-			else if let Some(Token::BracketLeft) = peek(tokens)
-			{
-				let _ = extract(tokens)?;
-				let argument = parse_expression(tokens)?;
-				consume(Token::BracketRight, tokens)
-					.context("expected right bracket")?;
-				Ok(Expression::Deref {
-					reference: Reference::ArrayElement {
-						name: identifier,
-						argument: Box::new(argument),
-					},
-					value_type: None,
-				})
-			}
 			else
 			{
+				let reference =
+					parse_rest_of_reference(name, location, tokens)?;
 				Ok(Expression::Deref {
-					reference: Reference::Identifier(identifier),
+					reference,
 					value_type: None,
 				})
 			}
@@ -664,4 +645,49 @@ fn parse_rest_of_array(
 	consume(Token::BracketRight, tokens).context("expected right bracket")?;
 
 	return Ok(array);
+}
+
+fn parse_reference(
+	tokens: &mut VecDeque<LexedToken>,
+) -> Result<Reference, anyhow::Error>
+{
+	let (token, location) = extract(tokens).context("expected identifier")?;
+	match token
+	{
+		Token::Identifier(name) =>
+		{
+			parse_rest_of_reference(name, location, tokens)
+		}
+		other => Err(anyhow!("got {:?}", other))
+			.context(location.format())
+			.context("expected identifier"),
+	}
+}
+
+fn parse_rest_of_reference(
+	name: String,
+	location: Location,
+	tokens: &mut VecDeque<LexedToken>,
+) -> Result<Reference, anyhow::Error>
+{
+	let identifier = Identifier {
+		name,
+		location,
+		resolution_id: 0,
+	};
+	if let Some(Token::BracketLeft) = peek(tokens)
+	{
+		let _ = extract(tokens)?;
+		let argument = parse_expression(tokens)?;
+		consume(Token::BracketRight, tokens)
+			.context("expected right bracket")?;
+		Ok(Reference::ArrayElement {
+			name: identifier,
+			argument: Box::new(argument),
+		})
+	}
+	else
+	{
+		Ok(Reference::Identifier(identifier))
+	}
 }

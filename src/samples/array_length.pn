@@ -1,0 +1,14 @@
+fn main()
+{
+	var x = [55, 66];
+	var total = 0;
+	var i = 0;
+	{
+		if i == |x|
+			goto return;
+		total = total + x[i];
+		i = i + 1;
+		loop;
+	}
+	return: total
+}

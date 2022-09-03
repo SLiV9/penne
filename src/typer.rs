@@ -448,6 +448,7 @@ impl Typed for Expression
 			},
 			Expression::StringLiteral(_literal) => None,
 			Expression::Deref { value_type, .. } => value_type.clone(),
+			Expression::LengthOfArray { .. } => Some(ValueType::Int32),
 			Expression::FunctionCall { return_type, .. } => return_type.clone(),
 		}
 	}
@@ -549,6 +550,11 @@ impl Analyzable for Expression
 					value_type,
 				};
 				Ok(expr)
+			}
+			Expression::LengthOfArray { reference } =>
+			{
+				// TODO make sure that reference is an array or a slice
+				unimplemented!()
 			}
 			Expression::FunctionCall {
 				name,

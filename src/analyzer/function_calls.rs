@@ -424,6 +424,11 @@ impl Analyzable for Expression
 				}
 				Ok(())
 			}
+			Expression::LengthOfArray { reference } =>
+			{
+				// TODO
+				unimplemented!()
+			}
 			Expression::FunctionCall {
 				name,
 				arguments,

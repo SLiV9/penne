@@ -427,6 +427,11 @@ impl Analyzable for Expression
 					value_type: value_type.clone(),
 				})
 			}
+			Expression::LengthOfArray { reference } =>
+			{
+				let reference = reference.analyze(analyzer)?;
+				Ok(Expression::LengthOfArray { reference })
+			}
 			Expression::FunctionCall {
 				name,
 				arguments,

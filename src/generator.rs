@@ -619,6 +619,11 @@ impl Generatable for Expression
 				};
 				Ok(result)
 			}
+			Expression::LengthOfArray { reference } =>
+			{
+				// TODO
+				unimplemented!()
+			}
 			Expression::FunctionCall {
 				name,
 				arguments,

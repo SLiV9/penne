@@ -284,7 +284,8 @@ impl Analyzable for Expression
 			Expression::Deref {
 				reference,
 				value_type: _,
-			} => match reference
+			}
+			| Expression::LengthOfArray { reference } => match reference
 			{
 				Reference::Identifier(name) =>
 				{
