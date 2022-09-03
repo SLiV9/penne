@@ -353,24 +353,12 @@ impl Generatable for Statement
 				.context(location.format())
 				.context(format!("failed to infer type for '{}'", name.name))),
 			Statement::Assignment {
-				name,
+				reference,
 				value,
-				location,
+				location: _,
 			} =>
 			{
-				let loc = match llvm.local_variables.get(&name.resolution_id)
-				{
-					Some(loc) => *loc,
-					None =>
-					{
-						return Err(anyhow!("undefined reference")
-							.context(location.format())
-							.context(format!(
-								"undefined reference to '{}'",
-								name.name
-							)))
-					}
-				};
+				let loc = reference.generate(llvm)?;
 				let value = value.generate(llvm)?;
 				unsafe {
 					LLVMBuildStore(llvm.builder, value, loc);
@@ -619,69 +607,15 @@ impl Generatable for Expression
 					"failed to infer array literal element type"
 				))),
 			Expression::StringLiteral(_literal) => unimplemented!(),
-			Expression::Variable {
-				name,
+			Expression::Deref {
+				reference,
 				value_type: _,
 			} =>
 			{
 				let tmpname = CString::new("tmp")?;
-				let loc = match llvm.local_variables.get(&name.resolution_id)
-				{
-					Some(loc) => *loc,
-					None =>
-					{
-						return Err(anyhow!("undefined reference")
-							.context(name.location.format())
-							.context(format!(
-								"undefined reference to '{}'",
-								name.name
-							)))
-					}
-				};
+				let loc = reference.generate(llvm)?;
 				let result = unsafe {
 					LLVMBuildLoad(llvm.builder, loc, tmpname.as_ptr())
-				};
-				Ok(result)
-			}
-			Expression::ArrayAccess {
-				name,
-				argument,
-				element_type: _,
-			} =>
-			{
-				let tmpname = CString::new("tmp")?;
-				let argument: LLVMValueRef = argument.generate(llvm)?;
-				let mut indices = Vec::new();
-				let const0 = unsafe {
-					let inttype = LLVMInt64TypeInContext(llvm.context);
-					LLVMConstInt(inttype, 0u64, 1)
-				};
-				indices.push(const0);
-				indices.push(argument);
-				let loc = match llvm.local_variables.get(&name.resolution_id)
-				{
-					Some(loc) => *loc,
-					None =>
-					{
-						return Err(anyhow!("undefined reference")
-							.context(name.location.format())
-							.context(format!(
-								"undefined reference to '{}'",
-								name.name
-							)))
-					}
-				};
-				let address = unsafe {
-					LLVMBuildGEP(
-						llvm.builder,
-						loc,
-						indices.as_mut_ptr(),
-						indices.len() as u32,
-						tmpname.as_ptr(),
-					)
-				};
-				let result = unsafe {
-					LLVMBuildLoad(llvm.builder, address, tmpname.as_ptr())
 				};
 				Ok(result)
 			}
@@ -785,5 +719,72 @@ impl Generatable for ValueType
 			ValueType::Slice { .. } => unimplemented!(),
 		};
 		Ok(typeref)
+	}
+}
+
+impl Generatable for Reference
+{
+	type Item = LLVMValueRef;
+
+	fn generate(
+		&self,
+		llvm: &mut Generator,
+	) -> Result<Self::Item, anyhow::Error>
+	{
+		match &self
+		{
+			Reference::Identifier(name) =>
+			{
+				let loc = match llvm.local_variables.get(&name.resolution_id)
+				{
+					Some(loc) => *loc,
+					None =>
+					{
+						return Err(anyhow!("undefined reference")
+							.context(name.location.format())
+							.context(format!(
+								"undefined reference to '{}'",
+								name.name
+							)))
+					}
+				};
+				Ok(loc)
+			}
+			Reference::ArrayElement { name, argument } =>
+			{
+				let tmpname = CString::new("tmp")?;
+				let argument: LLVMValueRef = argument.generate(llvm)?;
+				let mut indices = Vec::new();
+				let const0 = unsafe {
+					let inttype = LLVMInt64TypeInContext(llvm.context);
+					LLVMConstInt(inttype, 0u64, 1)
+				};
+				indices.push(const0);
+				indices.push(argument);
+				let loc = match llvm.local_variables.get(&name.resolution_id)
+				{
+					Some(loc) => *loc,
+					None =>
+					{
+						return Err(anyhow!("undefined reference")
+							.context(name.location.format())
+							.context(format!(
+								"undefined reference to '{}'",
+								name.name
+							)))
+					}
+				};
+				let address = unsafe {
+					LLVMBuildGEP(
+						llvm.builder,
+						loc,
+						indices.as_mut_ptr(),
+						indices.len() as u32,
+						tmpname.as_ptr(),
+					)
+				};
+				Ok(address)
+			}
+		}
 	}
 }

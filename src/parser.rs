@@ -404,17 +404,34 @@ fn parse_statement(
 				return Ok(statement);
 			}
 
+			let identifier = Identifier {
+				name: x,
+				location: location.clone(),
+				resolution_id: 0,
+			};
+			let reference = if let Some(Token::BracketLeft) = peek(tokens)
+			{
+				let _ = extract(tokens)?;
+				let argument = parse_expression(tokens)?;
+				consume(Token::BracketRight, tokens)
+					.context("expected right bracket")?;
+				Reference::ArrayElement {
+					name: identifier,
+					argument: Box::new(argument),
+				}
+			}
+			else
+			{
+				Reference::Identifier(identifier)
+			};
+
 			consume(Token::Assignment, tokens)
 				.context("expected assignment")?;
 			let expression = parse_expression(tokens)?;
 			consume(Token::Semicolon, tokens).context("expected semicolon")?;
 
 			let statement = Statement::Assignment {
-				name: Identifier {
-					name: x,
-					location: location.clone(),
-					resolution_id: 0,
-				},
+				reference,
 				value: expression,
 				location,
 			};
@@ -553,16 +570,18 @@ fn parse_primary_expression(
 				let argument = parse_expression(tokens)?;
 				consume(Token::BracketRight, tokens)
 					.context("expected right bracket")?;
-				Ok(Expression::ArrayAccess {
-					name: identifier,
-					argument: Box::new(argument),
-					element_type: None,
+				Ok(Expression::Deref {
+					reference: Reference::ArrayElement {
+						name: identifier,
+						argument: Box::new(argument),
+					},
+					value_type: None,
 				})
 			}
 			else
 			{
-				Ok(Expression::Variable {
-					name: identifier,
+				Ok(Expression::Deref {
+					reference: Reference::Identifier(identifier),
 					value_type: None,
 				})
 			}

@@ -294,11 +294,21 @@ impl Analyzable for Statement
 				Ok(())
 			}
 			Statement::Assignment {
-				name: _,
+				reference,
 				value,
 				location,
 			} =>
 			{
+				match reference
+				{
+					Reference::Identifier(..) => (),
+					Reference::ArrayElement { name: _, argument } =>
+					{
+						argument
+							.analyze(analyzer)
+							.with_context(|| location.format())?;
+					}
+				}
 				value.analyze(analyzer).with_context(|| location.format())?;
 				Ok(())
 			}
@@ -382,8 +392,22 @@ impl Analyzable for Expression
 				element_type: _,
 			} => array.analyze(analyzer),
 			Expression::StringLiteral(_lit) => Ok(()),
-			Expression::Variable { name, value_type } =>
+			Expression::Deref {
+				reference,
+				value_type,
+			} =>
 			{
+				let name = match reference
+				{
+					Reference::Identifier(name) => name,
+					Reference::ArrayElement { name, argument } =>
+					{
+						let argument_type = argument.value_type();
+						analyzer.use_array(name, argument_type)?;
+						argument.analyze(analyzer)?;
+						name
+					}
+				};
 				match value_type
 				{
 					Some(ValueType::Array { .. })
@@ -398,17 +422,6 @@ impl Analyzable for Expression
 					}
 					_ => (),
 				}
-				Ok(())
-			}
-			Expression::ArrayAccess {
-				name,
-				argument,
-				element_type: _,
-			} =>
-			{
-				let argument_type = argument.value_type();
-				analyzer.use_array(name, argument_type)?;
-				argument.analyze(analyzer)?;
 				Ok(())
 			}
 			Expression::FunctionCall {

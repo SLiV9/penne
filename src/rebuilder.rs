@@ -232,13 +232,13 @@ impl Rebuildable for Statement
 				location: _,
 			} => Ok(format!("{}var {};\n", indentation, identify(name))),
 			Statement::Assignment {
-				name,
+				reference,
 				value,
 				location: _,
 			} => Ok(format!(
 				"{}{} = {};\n",
 				indentation,
-				identify(name),
+				reference.rebuild(&indentation.increased())?,
 				value.rebuild(&indentation.increased())?
 			)),
 			Statement::Loop { location: _ } =>
@@ -362,25 +362,10 @@ impl Rebuildable for Expression
 			{
 				Ok(format!("\"{}\"", value.escape_default()))
 			}
-			Expression::Variable {
-				name: var,
+			Expression::Deref {
+				reference,
 				value_type: _,
-			} => Ok(identify(var)),
-			Expression::ArrayAccess {
-				name,
-				argument,
-				element_type: _,
-			} =>
-			{
-				let mut buffer = String::new();
-				write!(
-					&mut buffer,
-					"{}[{}]",
-					identify(name),
-					argument.rebuild(&indentation.increased())?
-				)?;
-				Ok(buffer)
-			}
+			} => reference.rebuild(indentation),
 			Expression::FunctionCall {
 				name,
 				arguments,
@@ -443,6 +428,25 @@ impl Rebuildable for ValueType
 			{
 				Ok(format!("[]{}", element_type.rebuild(indentation)?))
 			}
+		}
+	}
+}
+
+impl Rebuildable for Reference
+{
+	fn rebuild(
+		&self,
+		indentation: &Indentation,
+	) -> Result<String, anyhow::Error>
+	{
+		match self
+		{
+			Reference::Identifier(identifier) => Ok(identify(identifier)),
+			Reference::ArrayElement { name, argument } => Ok(format!(
+				"{}[{}]",
+				identify(name),
+				argument.rebuild(&indentation.increased())?
+			)),
 		}
 	}
 }

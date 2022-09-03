@@ -47,7 +47,7 @@ pub enum Statement
 	},
 	Assignment
 	{
-		name: Identifier,
+		reference: Reference,
 		value: Expression,
 		location: Location,
 	},
@@ -144,16 +144,10 @@ pub enum Expression
 		array: Array,
 		element_type: Option<ValueType>,
 	},
-	Variable
+	Deref
 	{
-		name: Identifier,
+		reference: Reference,
 		value_type: Option<ValueType>,
-	},
-	ArrayAccess
-	{
-		name: Identifier,
-		argument: Box<Expression>,
-		element_type: Option<ValueType>,
 	},
 	FunctionCall
 	{
@@ -175,6 +169,17 @@ pub enum PrimitiveLiteral
 {
 	Int32(i32),
 	Bool(bool),
+}
+
+#[derive(Debug, Clone)]
+pub enum Reference
+{
+	Identifier(Identifier),
+	ArrayElement
+	{
+		name: Identifier,
+		argument: Box<Expression>,
+	},
 }
 
 #[derive(Debug, Clone)]

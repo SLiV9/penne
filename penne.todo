@@ -4,7 +4,7 @@ Features:
 	☐	Tagged unions for error handling
 
 Functionality:
-	☐	Fixed-length stack-based arrays
+	✔	Fixed-length stack-based arrays @done (2022-09-03 21:22)
 		☐	Array length operator
 	☐	Multidimensional arrays
 	☐	Pointers with automatic dereference

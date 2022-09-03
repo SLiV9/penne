@@ -181,14 +181,25 @@ impl Analyzable for Statement
 				Ok(())
 			}
 			Statement::Assignment {
-				name,
+				reference,
 				value,
 				location,
 			} =>
 			{
 				value.analyze(analyzer).with_context(|| location.format())?;
-				analyzer.use_variable(name, true)?;
-				Ok(())
+				match reference
+				{
+					Reference::Identifier(name) =>
+					{
+						analyzer.use_variable(name, true)
+					}
+					Reference::ArrayElement { name, argument } =>
+					{
+						analyzer.use_variable(name, true)?;
+						argument.analyze(analyzer)?;
+						Ok(())
+					}
+				}
 			}
 			Statement::Loop { location: _ } => Ok(()),
 			Statement::Goto {
@@ -270,20 +281,22 @@ impl Analyzable for Expression
 				element_type: _,
 			} => array.analyze(analyzer),
 			Expression::StringLiteral(_lit) => Ok(()),
-			Expression::Variable {
-				name,
+			Expression::Deref {
+				reference,
 				value_type: _,
-			} => analyzer.use_variable(name, false),
-			Expression::ArrayAccess {
-				name,
-				argument,
-				element_type: _,
-			} =>
+			} => match reference
 			{
-				analyzer.use_variable(name, false)?;
-				argument.analyze(analyzer)?;
-				Ok(())
-			}
+				Reference::Identifier(name) =>
+				{
+					analyzer.use_variable(name, false)
+				}
+				Reference::ArrayElement { name, argument } =>
+				{
+					analyzer.use_variable(name, false)?;
+					argument.analyze(analyzer)?;
+					Ok(())
+				}
+			},
 			Expression::FunctionCall {
 				name: _,
 				arguments,

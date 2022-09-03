@@ -36,6 +36,7 @@ impl Typer
 			match old_value
 			{
 				Some((_, ot)) if ot == *vt => Ok(()),
+				Some((_, ot)) if are_compatible_slices(&ot, vt) => Ok(()),
 				Some((old_identifier, old_type)) => Err(anyhow!(
 					"first occurrence {}",
 					old_identifier.location.format()
@@ -298,16 +299,36 @@ impl Analyzable for Statement
 				Ok(stmt)
 			}
 			Statement::Assignment {
-				name,
+				reference,
 				value,
 				location,
 			} =>
 			{
 				let value = value.analyze(typer)?;
 				let value_type = value.value_type();
-				typer.put_symbol(name, value_type)?;
+				let reference = match reference
+				{
+					Reference::Identifier(name) =>
+					{
+						typer.put_symbol(name, value_type)?;
+						Reference::Identifier(name.clone())
+					}
+					Reference::ArrayElement { name, argument } =>
+					{
+						let argument = argument.analyze(typer)?;
+						let array_type =
+							value_type.map(|vt| ValueType::Slice {
+								element_type: Box::new(vt),
+							});
+						typer.put_symbol(name, array_type)?;
+						Reference::ArrayElement {
+							name: name.clone(),
+							argument: Box::new(argument),
+						}
+					}
+				};
 				let stmt = Statement::Assignment {
-					name: name.clone(),
+					reference,
 					value,
 					location: location.clone(),
 				};
@@ -426,11 +447,7 @@ impl Typed for Expression
 				None => None,
 			},
 			Expression::StringLiteral(_literal) => None,
-			Expression::Variable { value_type, .. } => value_type.clone(),
-			Expression::ArrayAccess { element_type, .. } =>
-			{
-				element_type.clone()
-			}
+			Expression::Deref { value_type, .. } => value_type.clone(),
 			Expression::FunctionCall { return_type, .. } => return_type.clone(),
 		}
 	}
@@ -486,49 +503,50 @@ impl Analyzable for Expression
 			{
 				Ok(Expression::StringLiteral(lit.clone()))
 			}
-			Expression::Variable {
-				name,
+			Expression::Deref {
+				reference: Reference::Identifier(name),
 				value_type: Some(value_type),
 			} =>
 			{
 				typer.put_symbol(name, Some(value_type.clone()))?;
-				let expr = Expression::Variable {
-					name: name.clone(),
+				let expr = Expression::Deref {
+					reference: Reference::Identifier(name.clone()),
 					value_type: Some(value_type.clone()),
 				};
 				Ok(expr)
 			}
-			Expression::Variable {
-				name,
+			Expression::Deref {
+				reference: Reference::Identifier(name),
 				value_type: None,
 			} =>
 			{
 				let value_type = typer.get_symbol(name);
-				let expr = Expression::Variable {
-					name: name.clone(),
+				let expr = Expression::Deref {
+					reference: Reference::Identifier(name.clone()),
 					value_type,
 				};
 				Ok(expr)
 			}
-			Expression::ArrayAccess {
-				name,
-				argument,
-				element_type,
+			Expression::Deref {
+				reference: Reference::ArrayElement { name, argument },
+				value_type,
 			} =>
 			{
-				if let Some(element_type) = element_type
+				if let Some(element_type) = value_type
 				{
 					let array_type = ValueType::Slice {
 						element_type: Box::new(element_type.clone()),
 					};
 					typer.put_symbol(name, Some(array_type))?;
 				}
-				let element_type = typer.get_element_type_of_array(name)?;
+				let value_type = typer.get_element_type_of_array(name)?;
 				let argument = argument.analyze(typer)?;
-				let expr = Expression::ArrayAccess {
-					name: name.clone(),
-					argument: Box::new(argument),
-					element_type,
+				let expr = Expression::Deref {
+					reference: Reference::ArrayElement {
+						name: name.clone(),
+						argument: Box::new(argument),
+					},
+					value_type,
 				};
 				Ok(expr)
 			}
@@ -551,5 +569,41 @@ impl Analyzable for Expression
 				Ok(expr)
 			}
 		}
+	}
+}
+
+fn are_compatible_slices(a: &ValueType, b: &ValueType) -> bool
+{
+	match (a, b)
+	{
+		(
+			ValueType::Slice { element_type: aa },
+			ValueType::Slice { element_type: bb },
+		) => aa == bb,
+		(
+			ValueType::Array {
+				element_type: aa,
+				length: _,
+			},
+			ValueType::Slice { element_type: bb },
+		) => aa == bb,
+		(
+			ValueType::Slice { element_type: aa },
+			ValueType::Array {
+				element_type: bb,
+				length: _,
+			},
+		) => aa == bb,
+		(
+			ValueType::Array {
+				element_type: ea,
+				length: la,
+			},
+			ValueType::Array {
+				element_type: eb,
+				length: lb,
+			},
+		) => la == lb && ea == eb,
+		_ => false,
 	}
 }

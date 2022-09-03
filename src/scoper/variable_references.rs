@@ -263,7 +263,7 @@ impl Analyzable for Statement
 				})
 			}
 			Statement::Assignment {
-				name,
+				reference,
 				value,
 				location,
 			} =>
@@ -271,9 +271,11 @@ impl Analyzable for Statement
 				let value = value
 					.analyze(analyzer)
 					.with_context(|| location.format())?;
-				let name = analyzer.use_variable(name)?;
+				let reference = reference
+					.analyze(analyzer)
+					.with_context(|| location.format())?;
 				Ok(Statement::Assignment {
-					name,
+					reference,
 					value,
 					location: location.clone(),
 				})
@@ -414,26 +416,15 @@ impl Analyzable for Expression
 				})
 			}
 			Expression::StringLiteral(_lit) => Ok(self.clone()),
-			Expression::Variable { name, value_type } =>
-			{
-				let name = analyzer.use_variable(name)?;
-				Ok(Expression::Variable {
-					name,
-					value_type: value_type.clone(),
-				})
-			}
-			Expression::ArrayAccess {
-				name,
-				argument,
-				element_type,
+			Expression::Deref {
+				reference,
+				value_type,
 			} =>
 			{
-				let name = analyzer.use_variable(name)?;
-				let argument = argument.analyze(analyzer)?;
-				Ok(Expression::ArrayAccess {
-					name,
-					argument: Box::new(argument),
-					element_type: element_type.clone(),
+				let reference = reference.analyze(analyzer)?;
+				Ok(Expression::Deref {
+					reference,
+					value_type: value_type.clone(),
 				})
 			}
 			Expression::FunctionCall {
@@ -449,6 +440,35 @@ impl Analyzable for Expression
 					name: name.clone(),
 					arguments,
 					return_type: return_type.clone(),
+				})
+			}
+		}
+	}
+}
+
+impl Analyzable for Reference
+{
+	type Item = Reference;
+
+	fn analyze(
+		&self,
+		analyzer: &mut Analyzer,
+	) -> Result<Self::Item, anyhow::Error>
+	{
+		match &self
+		{
+			Reference::Identifier(name) =>
+			{
+				let name = analyzer.use_variable(name)?;
+				Ok(Reference::Identifier(name))
+			}
+			Reference::ArrayElement { name, argument } =>
+			{
+				let argument = argument.analyze(analyzer)?;
+				let name = analyzer.use_variable(name)?;
+				Ok(Reference::ArrayElement {
+					name: name.clone(),
+					argument: Box::new(argument),
 				})
 			}
 		}
