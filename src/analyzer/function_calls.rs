@@ -265,7 +265,8 @@ impl Analyzable for Statement
 			{
 				match value_type
 				{
-					Some(ValueType::Array { .. }) =>
+					Some(ValueType::Array { .. })
+					| Some(ValueType::Slice { .. }) =>
 					{
 						analyzer.declare_array(name)?;
 					}
@@ -283,7 +284,8 @@ impl Analyzable for Statement
 			{
 				match value_type
 				{
-					Some(ValueType::Array { .. }) =>
+					Some(ValueType::Array { .. })
+					| Some(ValueType::Slice { .. }) =>
 					{
 						analyzer.declare_array(name)?;
 					}
@@ -384,7 +386,8 @@ impl Analyzable for Expression
 			{
 				match value_type
 				{
-					Some(ValueType::Array { .. }) =>
+					Some(ValueType::Array { .. })
+					| Some(ValueType::Slice { .. }) =>
 					{
 						return Err(anyhow!("cannot move from array")
 							.context(name.location.format())

@@ -431,7 +431,15 @@ impl Rebuildable for ValueType
 		{
 			ValueType::Int32 => Ok("i32".to_string()),
 			ValueType::Bool => Ok("bool".to_string()),
-			ValueType::Array { element_type } =>
+			ValueType::Array {
+				element_type,
+				length,
+			} => Ok(format!(
+				"[{}]{}",
+				length,
+				element_type.rebuild(indentation)?
+			)),
+			ValueType::Slice { element_type } =>
 			{
 				Ok(format!("[]{}", element_type.rebuild(indentation)?))
 			}

@@ -70,7 +70,11 @@ impl Typer
 	{
 		match self.symbols.get(&name.resolution_id)
 		{
-			Some((_, ValueType::Array { element_type })) =>
+			Some((_, ValueType::Array { element_type, .. })) =>
+			{
+				Ok(Some(ValueType::clone(element_type)))
+			}
+			Some((_, ValueType::Slice { element_type })) =>
 			{
 				Ok(Some(ValueType::clone(element_type)))
 			}
@@ -410,10 +414,14 @@ impl Typed for Expression
 		{
 			Expression::Binary { left, .. } => left.value_type(),
 			Expression::PrimitiveLiteral(literal) => literal.value_type(),
-			Expression::ArrayLiteral { element_type, .. } => match element_type
+			Expression::ArrayLiteral {
+				element_type,
+				array: Array { elements, .. },
+			} => match element_type
 			{
 				Some(element_type) => Some(ValueType::Array {
 					element_type: Box::new(element_type.clone()),
+					length: elements.len(),
 				}),
 				None => None,
 			},
@@ -510,7 +518,7 @@ impl Analyzable for Expression
 			{
 				if let Some(element_type) = element_type
 				{
-					let array_type = ValueType::Array {
+					let array_type = ValueType::Slice {
 						element_type: Box::new(element_type.clone()),
 					};
 					typer.put_symbol(name, Some(array_type))?;

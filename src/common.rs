@@ -193,5 +193,10 @@ pub enum ValueType
 	Array
 	{
 		element_type: Box<ValueType>,
+		length: usize,
+	},
+	Slice
+	{
+		element_type: Box<ValueType>,
 	},
 }

@@ -188,7 +188,7 @@ impl Generatable for Declaration
 					LLVMPositionBuilderAtEnd(llvm.builder, entry_block);
 				};
 
-				for (i, (parameter, vartype)) in
+				for (i, (parameter, _vartype)) in
 					parameters.iter().zip(param_types.iter()).enumerate()
 				{
 					let param = unsafe { LLVMGetParam(function, i as u32) };
@@ -595,8 +595,20 @@ impl Generatable for Expression
 			} =>
 			{
 				let element_type: LLVMTypeRef = element_type.generate(llvm)?;
-				// TODO initialize elements
-				unimplemented!()
+				let mut values = Vec::with_capacity(elements.len());
+				for element in elements
+				{
+					let value: LLVMValueRef = element.generate(llvm)?;
+					values.push(value);
+				}
+				let result = unsafe {
+					LLVMConstArray(
+						element_type,
+						values.as_mut_ptr(),
+						values.len() as u32,
+					)
+				};
+				Ok(result)
 			}
 			Expression::ArrayLiteral {
 				element_type: None,
@@ -637,9 +649,10 @@ impl Generatable for Expression
 				element_type: _,
 			} =>
 			{
+				let tmpname = CString::new("tmp")?;
 				let argument: LLVMValueRef = argument.generate(llvm)?;
-				// TODO transform argument into offset
-
+				let mut indices = Vec::new();
+				indices.push(argument);
 				let loc = match llvm.local_variables.get(&name.resolution_id)
 				{
 					Some(loc) => *loc,
@@ -653,7 +666,16 @@ impl Generatable for Expression
 							)))
 					}
 				};
-				unimplemented!()
+				let result = unsafe {
+					LLVMBuildGEP(
+						llvm.builder,
+						loc,
+						indices.as_mut_ptr(),
+						indices.len() as u32,
+						tmpname.as_ptr(),
+					)
+				};
+				Ok(result)
 			}
 			Expression::FunctionCall {
 				name,
@@ -744,14 +766,15 @@ impl Generatable for ValueType
 			unsafe { LLVMInt32TypeInContext(llvm.context) },
 			ValueType::Bool =>
 			unsafe { LLVMInt8TypeInContext(llvm.context) },
-			ValueType::Array { element_type } =>
+			ValueType::Array {
+				element_type,
+				length,
+			} =>
 			{
 				let element_type = element_type.generate(llvm)?;
-				// TODO determine length
-				let actual_length = 0;
-				let length = 100;
-				unsafe { LLVMArrayType(element_type, length) }
+				unsafe { LLVMArrayType(element_type, *length as u32) }
 			}
+			ValueType::Slice { .. } => unimplemented!(),
 		};
 		Ok(typeref)
 	}

@@ -62,6 +62,7 @@ Usability:
 		☐	Similarly, add note when referencing variable declared later
 	☐	HTTP style error numbers
 		"244 Mismatched Brace" as googlable error code with description underneath
+	☐	Color default terminal output differently from LLVM errors
 
 Theory:
 	☐	Prove Turing completeness

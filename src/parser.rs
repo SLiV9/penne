@@ -192,15 +192,33 @@ fn parse_type(
 	match token
 	{
 		Token::Type(value_type) => Ok(value_type),
-		Token::BracketLeft =>
+		Token::BracketLeft => match peek(tokens)
 		{
-			consume(Token::BracketRight, tokens)
-				.context("expected right bracket")?;
-			let element_type = parse_type(tokens)?;
-			Ok(ValueType::Array {
-				element_type: Box::new(element_type),
-			})
-		}
+			Some(Token::BracketRight) | None =>
+			{
+				consume(Token::BracketRight, tokens)
+					.context("expected right bracket")?;
+				let element_type = parse_type(tokens)?;
+				Ok(ValueType::Slice {
+					element_type: Box::new(element_type),
+				})
+			}
+			Some(Token::Int32(x)) if *x > 0 =>
+			{
+				let length = *x as usize;
+				tokens.pop_front();
+				consume(Token::BracketRight, tokens)
+					.context("expected right bracket")?;
+				let element_type = parse_type(tokens)?;
+				Ok(ValueType::Array {
+					element_type: Box::new(element_type),
+					length,
+				})
+			}
+			Some(token) => Err(anyhow!("got {:?}", token))
+				.context(location.format())
+				.context("expected array length or right bracket"),
+		},
 		token => Err(anyhow!("got {:?}", token))
 			.context(location.format())
 			.context("expected type keyword"),
