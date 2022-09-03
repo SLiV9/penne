@@ -5,8 +5,10 @@ Features:
 
 Functionality:
 	☐	Fixed-length stack-based arrays
-	☐	Pointers
-	☐	References
+		☐	Array length operator
+	☐	Multidimensional arrays
+	☐	Pointers with automatic dereference
+	☐	Pass array by const-reference (slice) by default
 	☐	String literals
 		☐	\u{NN} through \u{NNNNN}
 	☐	Byte string literals
@@ -24,7 +26,8 @@ Functionality:
 	☐	Structs
 	☐	Nested arrays
 	☐	Vec and String
-	☐	Explicit mutable parameters (Parameter::is_mutable)
+	✘	Explicit mutable parameters @cancelled (2022-09-03 16:04)
+	☐	Modules
 	☐	Compile-time string and byte-array inclusion from file
 
 Syntactic sugar:
@@ -59,9 +62,6 @@ Usability:
 		☐	Similarly, add note when referencing variable declared later
 	☐	HTTP style error numbers
 		"244 Mismatched Brace" as googlable error code with description underneath
-
-Performance:
-	✘	Detect immutable parameters (Parameter::is_mutable) @cancelled (2021-03-14 16:39)
 
 Theory:
 	☐	Prove Turing completeness

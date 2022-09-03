@@ -19,7 +19,6 @@ pub struct Parameter
 {
 	pub name: Identifier,
 	pub value_type: Option<ValueType>,
-	pub is_mutable: bool,
 }
 
 #[derive(Debug, Clone)]

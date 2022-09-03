@@ -192,22 +192,7 @@ impl Generatable for Declaration
 					parameters.iter().zip(param_types.iter()).enumerate()
 				{
 					let param = unsafe { LLVMGetParam(function, i as u32) };
-					let loc = if parameter.is_mutable
-					{
-						let cname = CString::new(&parameter.name.name as &str)?;
-						let vt: LLVMTypeRef = *vartype;
-						let loc = unsafe {
-							LLVMBuildAlloca(llvm.builder, vt, cname.as_ptr())
-						};
-						unsafe {
-							LLVMBuildStore(llvm.builder, param, loc);
-						}
-						loc
-					}
-					else
-					{
-						param
-					};
+					let loc = param;
 					llvm.local_variables
 						.insert(parameter.name.resolution_id, loc);
 				}

@@ -1,7 +1,6 @@
 /**/
 
 use crate::common::*;
-use crate::typer::Typed;
 
 use anyhow::anyhow;
 use anyhow::Context;
@@ -121,7 +120,7 @@ impl Analyzable for Parameter
 {
 	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
 	{
-		analyzer.declare_variable(&self.name, self.is_mutable)?;
+		analyzer.declare_variable(&self.name, false)?;
 		Ok(())
 	}
 }
