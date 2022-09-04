@@ -16,6 +16,7 @@ pub enum Token
 	BracketRight,
 	Pipe,
 	Ampersand,
+	DebugDollar,
 	Plus,
 	Minus,
 	Times,

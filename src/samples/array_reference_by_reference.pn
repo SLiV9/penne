@@ -1,0 +1,17 @@
+fn inner(x: []i32) -> i32
+{
+	return: |x|
+}
+
+fn outer(x: []i32) -> i32
+{
+	var y = inner(x);
+	return: y
+}
+
+fn main()
+{
+	var x = [55, 66];
+	var y = outer(x);
+	return: y
+}

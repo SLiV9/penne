@@ -11,6 +11,7 @@ pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 	let mut analyzer = Analyzer {
 		function_list: Vec::new(),
 		array_list: Vec::new(),
+		is_immediate_function_argument: false,
 	};
 	for declaration in program
 	{
@@ -23,6 +24,7 @@ struct Analyzer
 {
 	function_list: Vec<(Identifier, Vec<Parameter>)>,
 	array_list: Vec<Identifier>,
+	is_immediate_function_argument: bool,
 }
 
 impl Analyzer
@@ -193,6 +195,7 @@ impl Analyzable for Declaration
 {
 	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
 	{
+		analyzer.is_immediate_function_argument = false;
 		match self
 		{
 			Declaration::Function {
@@ -218,6 +221,7 @@ impl Analyzable for Parameter
 {
 	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
 	{
+		analyzer.is_immediate_function_argument = false;
 		match self.value_type
 		{
 			Some(ValueType::Array { .. }) =>
@@ -239,6 +243,7 @@ impl Analyzable for FunctionBody
 {
 	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
 	{
+		analyzer.is_immediate_function_argument = false;
 		for statement in &self.statements
 		{
 			statement.analyze(analyzer)?;
@@ -255,6 +260,7 @@ impl Analyzable for Block
 {
 	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
 	{
+		analyzer.is_immediate_function_argument = false;
 		for statement in &self.statements
 		{
 			statement.analyze(analyzer)?;
@@ -267,6 +273,7 @@ impl Analyzable for Statement
 {
 	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
 	{
+		analyzer.is_immediate_function_argument = false;
 		match self
 		{
 			Statement::Declaration {
@@ -376,6 +383,7 @@ impl Analyzable for Comparison
 {
 	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
 	{
+		analyzer.is_immediate_function_argument = false;
 		self.left
 			.analyze(analyzer)
 			.with_context(|| self.location.format())?;
@@ -390,6 +398,7 @@ impl Analyzable for Array
 {
 	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
 	{
+		analyzer.is_immediate_function_argument = false;
 		for element in &self.elements
 		{
 			element.analyze(analyzer)?;
@@ -411,6 +420,7 @@ impl Analyzable for Expression
 				location,
 			} =>
 			{
+				analyzer.is_immediate_function_argument = false;
 				left.analyze(analyzer).with_context(|| location.format())?;
 				right.analyze(analyzer).with_context(|| location.format())?;
 				Ok(())
@@ -419,13 +429,33 @@ impl Analyzable for Expression
 			Expression::ArrayLiteral {
 				array,
 				element_type: _,
-			} => array.analyze(analyzer),
+			} =>
+			{
+				analyzer.is_immediate_function_argument = false;
+				array.analyze(analyzer)
+			}
 			Expression::StringLiteral(_lit) => Ok(()),
 			Expression::Deref {
 				reference,
 				value_type,
 			} =>
 			{
+				if !analyzer.is_immediate_function_argument
+				{
+					match value_type
+					{
+						Some(ValueType::Array { .. })
+						| Some(ValueType::Slice { .. }) =>
+						{
+							let error = anyhow!("cannot move from array")
+								.context(reference.location().format())
+								.context("this variable cannot be moved from");
+							return Err(error);
+						}
+						_ => (),
+					}
+				}
+				analyzer.is_immediate_function_argument = false;
 				match reference
 				{
 					Reference::Identifier(_) => (),
@@ -436,24 +466,14 @@ impl Analyzable for Expression
 						argument.analyze(analyzer)?;
 					}
 				}
-				match value_type
-				{
-					Some(ValueType::Array { .. })
-					| Some(ValueType::Slice { .. }) =>
-					{
-						let error = anyhow!("cannot move from array")
-							.context(reference.location().format())
-							.context("this variable cannot be moved from");
-						Err(error)
-					}
-					_ => Ok(()),
-				}
+				Ok(())
 			}
 			Expression::LengthOfArray { reference } => match reference
 			{
 				Reference::Identifier(_) => Ok(()),
 				Reference::ArrayElement { name, argument } =>
 				{
+					analyzer.is_immediate_function_argument = false;
 					let argument_type = argument.value_type();
 					analyzer.use_array(name, argument_type)?;
 					argument.analyze(analyzer)?;
@@ -471,8 +491,10 @@ impl Analyzable for Expression
 				analyzer.use_function(name, argument_types)?;
 				for argument in arguments
 				{
+					analyzer.is_immediate_function_argument = true;
 					argument.analyze(analyzer)?;
 				}
+				analyzer.is_immediate_function_argument = false;
 				Ok(())
 			}
 		}

@@ -665,7 +665,22 @@ impl Generatable for Expression
 				let arguments: Result<Vec<LLVMValueRef>, anyhow::Error> =
 					arguments
 						.iter()
-						.map(|argument| argument.generate(llvm))
+						.map(|argument| match argument
+						{
+							Expression::Deref {
+								reference,
+								value_type:
+									Some(ValueType::Array {
+										element_type,
+										length,
+									}),
+							} => reference.generate_array_slice(
+								llvm,
+								element_type.clone(),
+								*length,
+							),
+							_ => argument.generate(llvm),
+						})
 						.collect();
 				let mut arguments: Vec<LLVMValueRef> = arguments?;
 
@@ -973,5 +988,60 @@ impl Reference
 		// TODO switch to const_usize or something like that
 		let result = llvm.const_i32(length as i32);
 		Ok(result)
+	}
+
+	fn generate_array_slice(
+		&self,
+		llvm: &mut Generator,
+		element_type: Box<ValueType>,
+		length: usize,
+	) -> Result<LLVMValueRef, anyhow::Error>
+	{
+		let tmpname = CString::new("")?;
+		let element_type = element_type.generate(llvm)?;
+		let storagetype = unsafe { LLVMArrayType(element_type, 0u32) };
+		let pointertype = unsafe { LLVMPointerType(storagetype, 0u32) };
+		// TODO switch to const_usize or something like that
+		let sizetype = unsafe { LLVMInt32TypeInContext(llvm.context) };
+		let mut member_types = [sizetype, pointertype];
+		let slice_type = unsafe {
+			LLVMStructTypeInContext(
+				llvm.context,
+				member_types.as_mut_ptr(),
+				member_types.len() as u32,
+				0,
+			)
+		};
+		let mut slice = unsafe { LLVMGetUndef(slice_type) };
+		// TODO switch to const_usize or something like that
+		let length_value = llvm.const_i32(length as i32);
+		slice = unsafe {
+			LLVMBuildInsertValue(
+				llvm.builder,
+				slice,
+				length_value,
+				0u32,
+				tmpname.as_ptr(),
+			)
+		};
+		let address = self.generate_storage_address(llvm)?;
+		let address_value = unsafe {
+			LLVMBuildPointerCast(
+				llvm.builder,
+				address,
+				pointertype,
+				tmpname.as_ptr(),
+			)
+		};
+		slice = unsafe {
+			LLVMBuildInsertValue(
+				llvm.builder,
+				slice,
+				address_value,
+				1u32,
+				tmpname.as_ptr(),
+			)
+		};
+		Ok(slice)
 	}
 }
