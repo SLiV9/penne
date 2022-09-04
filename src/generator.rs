@@ -34,6 +34,7 @@ struct Generator
 	context: *mut LLVMContext,
 	builder: *mut LLVMBuilder,
 	global_functions: std::collections::HashMap<String, LLVMValueRef>,
+	local_parameters: std::collections::HashMap<u32, LLVMValueRef>,
 	local_variables: std::collections::HashMap<u32, LLVMValueRef>,
 	local_labeled_blocks: std::collections::HashMap<u32, LLVMBasicBlockRef>,
 }
@@ -55,6 +56,7 @@ impl Generator
 				context,
 				builder,
 				global_functions: std::collections::HashMap::new(),
+				local_parameters: std::collections::HashMap::new(),
 				local_variables: std::collections::HashMap::new(),
 				local_labeled_blocks: std::collections::HashMap::new(),
 			}
@@ -93,6 +95,30 @@ impl Generator
 		};
 		let ircode = ircode.into_string()?;
 		Ok(ircode)
+	}
+
+	fn const_u8(&mut self, value: u8) -> LLVMValueRef
+	{
+		unsafe {
+			let bytetype = LLVMInt8TypeInContext(self.context);
+			LLVMConstInt(bytetype, value as u64, 0)
+		}
+	}
+
+	fn const_i32(&mut self, value: i32) -> LLVMValueRef
+	{
+		unsafe {
+			let inttype = LLVMInt32TypeInContext(self.context);
+			LLVMConstInt(inttype, value as u64, 1)
+		}
+	}
+
+	fn const_i64(&mut self, value: i32) -> LLVMValueRef
+	{
+		unsafe {
+			let inttype = LLVMInt64TypeInContext(self.context);
+			LLVMConstInt(inttype, value as u64, 1)
+		}
 	}
 }
 
@@ -193,11 +219,12 @@ impl Generatable for Declaration
 				{
 					let param = unsafe { LLVMGetParam(function, i as u32) };
 					let loc = param;
-					llvm.local_variables
+					llvm.local_parameters
 						.insert(parameter.name.resolution_id, loc);
 				}
 
 				body.generate(llvm)?;
+				llvm.local_parameters.clear();
 				llvm.local_variables.clear();
 				llvm.local_labeled_blocks.clear();
 
@@ -358,10 +385,10 @@ impl Generatable for Statement
 				location: _,
 			} =>
 			{
-				let loc = reference.generate(llvm)?;
+				let address = reference.generate_storage_address(llvm)?;
 				let value = value.generate(llvm)?;
 				unsafe {
-					LLVMBuildStore(llvm.builder, value, loc);
+					LLVMBuildStore(llvm.builder, value, address);
 				}
 				Ok(())
 			}
@@ -610,25 +637,10 @@ impl Generatable for Expression
 			Expression::Deref {
 				reference,
 				value_type: _,
-			} =>
-			{
-				let tmpname = CString::new("")?;
-				let loc = reference.generate(llvm)?;
-				let result = unsafe {
-					LLVMBuildLoad(llvm.builder, loc, tmpname.as_ptr())
-				};
-				Ok(result)
-			}
+			} => reference.generate_deref(llvm),
 			Expression::LengthOfArray { reference } =>
 			{
-				let loc = reference.generate(llvm)?;
-				let array_type = unsafe { LLVMGetAllocatedType(loc) };
-				let length: u32 = unsafe { LLVMGetArrayLength(array_type) };
-				let result = unsafe {
-					let inttype = LLVMInt32TypeInContext(llvm.context);
-					LLVMConstInt(inttype, length as u64, 1)
-				};
-				Ok(result)
+				reference.generate_array_len(llvm)
 			}
 			Expression::FunctionCall {
 				name,
@@ -684,22 +696,8 @@ impl Generatable for PrimitiveLiteral
 	{
 		match self
 		{
-			PrimitiveLiteral::Int32(value) =>
-			{
-				let result = unsafe {
-					let inttype = LLVMInt32TypeInContext(llvm.context);
-					LLVMConstInt(inttype, *value as u64, 1)
-				};
-				Ok(result)
-			}
-			PrimitiveLiteral::Bool(value) =>
-			{
-				let result = unsafe {
-					let bytetype = LLVMInt8TypeInContext(llvm.context);
-					LLVMConstInt(bytetype, *value as u64, 0)
-				};
-				Ok(result)
-			}
+			PrimitiveLiteral::Int32(value) => Ok(llvm.const_i32(*value)),
+			PrimitiveLiteral::Bool(value) => Ok(llvm.const_u8(*value as u8)),
 		}
 	}
 }
@@ -727,20 +725,34 @@ impl Generatable for ValueType
 				let element_type = element_type.generate(llvm)?;
 				unsafe { LLVMArrayType(element_type, *length as u32) }
 			}
-			ValueType::Slice { .. } => unimplemented!(),
+			ValueType::Slice { element_type } =>
+			{
+				let element_type = element_type.generate(llvm)?;
+				let storagetype = unsafe { LLVMArrayType(element_type, 0u32) };
+				let pointertype = unsafe { LLVMPointerType(storagetype, 0u32) };
+				// TODO switch to const_usize or something like that
+				let sizetype = unsafe { LLVMInt32TypeInContext(llvm.context) };
+				let mut member_types = [sizetype, pointertype];
+				unsafe {
+					LLVMStructTypeInContext(
+						llvm.context,
+						member_types.as_mut_ptr(),
+						member_types.len() as u32,
+						0,
+					)
+				}
+			}
 		};
 		Ok(typeref)
 	}
 }
 
-impl Generatable for Reference
+impl Reference
 {
-	type Item = LLVMValueRef;
-
-	fn generate(
+	fn generate_storage_address(
 		&self,
 		llvm: &mut Generator,
-	) -> Result<Self::Item, anyhow::Error>
+	) -> Result<LLVMValueRef, anyhow::Error>
 	{
 		match &self
 		{
@@ -764,14 +776,8 @@ impl Generatable for Reference
 			Reference::ArrayElement { name, argument } =>
 			{
 				let tmpname = CString::new("")?;
-				let argument: LLVMValueRef = argument.generate(llvm)?;
 				let mut indices = Vec::new();
-				let const0 = unsafe {
-					let inttype = LLVMInt64TypeInContext(llvm.context);
-					LLVMConstInt(inttype, 0u64, 1)
-				};
-				indices.push(const0);
-				indices.push(argument);
+				indices.push(llvm.const_i64(0));
 				let loc = match llvm.local_variables.get(&name.resolution_id)
 				{
 					Some(loc) => *loc,
@@ -785,6 +791,8 @@ impl Generatable for Reference
 							)))
 					}
 				};
+				let argument: LLVMValueRef = argument.generate(llvm)?;
+				indices.push(argument);
 				let address = unsafe {
 					LLVMBuildGEP(
 						llvm.builder,
@@ -797,5 +805,173 @@ impl Generatable for Reference
 				Ok(address)
 			}
 		}
+	}
+
+	fn generate_deref(
+		&self,
+		llvm: &mut Generator,
+	) -> Result<LLVMValueRef, anyhow::Error>
+	{
+		match &self
+		{
+			Reference::Identifier(name) =>
+			{
+				if let Some(value) =
+					llvm.local_parameters.get(&name.resolution_id)
+				{
+					return Ok(*value);
+				}
+				else if let Some(loc) =
+					llvm.local_variables.get(&name.resolution_id)
+				{
+					let loc = *loc;
+					let tmpname = CString::new("")?;
+					let result = unsafe {
+						LLVMBuildLoad(llvm.builder, loc, tmpname.as_ptr())
+					};
+					Ok(result)
+				}
+				else
+				{
+					Err(anyhow!("undefined reference")
+						.context(name.location.format())
+						.context(format!(
+							"undefined reference to '{}'",
+							name.name
+						)))
+				}
+			}
+			Reference::ArrayElement { name, argument } =>
+			{
+				let tmpname = CString::new("")?;
+				let loc = if let Some(value) =
+					llvm.local_parameters.get(&name.resolution_id)
+				{
+					let loc = *value;
+					let array_loc = unsafe {
+						LLVMBuildExtractValue(
+							llvm.builder,
+							loc,
+							1u32,
+							tmpname.as_ptr(),
+						)
+					};
+					array_loc
+				}
+				else if let Some(loc) =
+					llvm.local_variables.get(&name.resolution_id)
+				{
+					*loc
+				}
+				else
+				{
+					return Err(anyhow!("undefined reference")
+						.context(name.location.format())
+						.context(format!(
+							"undefined reference to '{}'",
+							name.name
+						)));
+				};
+				let mut indices = Vec::new();
+				indices.push(llvm.const_i64(0));
+				let argument: LLVMValueRef = argument.generate(llvm)?;
+				indices.push(argument);
+				let address = unsafe {
+					LLVMBuildGEP(
+						llvm.builder,
+						loc,
+						indices.as_mut_ptr(),
+						indices.len() as u32,
+						tmpname.as_ptr(),
+					)
+				};
+				let tmpname = CString::new("")?;
+				let result = unsafe {
+					LLVMBuildLoad(llvm.builder, address, tmpname.as_ptr())
+				};
+				Ok(result)
+			}
+		}
+	}
+
+	fn generate_array_len(
+		&self,
+		llvm: &mut Generator,
+	) -> Result<LLVMValueRef, anyhow::Error>
+	{
+		let loc = match &self
+		{
+			Reference::Identifier(name) =>
+			{
+				if let Some(value) =
+					llvm.local_parameters.get(&name.resolution_id)
+				{
+					let loc = *value;
+					let tmpname = CString::new("")?;
+					let result = unsafe {
+						LLVMBuildExtractValue(
+							llvm.builder,
+							loc,
+							0u32,
+							tmpname.as_ptr(),
+						)
+					};
+					return Ok(result);
+				}
+				else if let Some(loc) =
+					llvm.local_variables.get(&name.resolution_id)
+				{
+					*loc
+				}
+				else
+				{
+					return Err(anyhow!("undefined reference")
+						.context(name.location.format())
+						.context(format!(
+							"undefined reference to '{}'",
+							name.name
+						)));
+				}
+			}
+			Reference::ArrayElement { name, argument: _ } =>
+			{
+				if let Some(value) =
+					llvm.local_parameters.get(&name.resolution_id)
+				{
+					let loc = *value;
+					let tmpname = CString::new("")?;
+					let array_loc = unsafe {
+						LLVMBuildExtractValue(
+							llvm.builder,
+							loc,
+							1u32,
+							tmpname.as_ptr(),
+						)
+					};
+					array_loc
+				}
+				else if let Some(loc) =
+					llvm.local_variables.get(&name.resolution_id)
+				{
+					*loc
+				}
+				else
+				{
+					return Err(anyhow!("undefined reference")
+						.context(name.location.format())
+						.context(format!(
+							"undefined reference to '{}'",
+							name.name
+						)));
+				}
+			}
+		};
+
+		let array_type = unsafe { LLVMGetAllocatedType(loc) };
+
+		let length: u32 = unsafe { LLVMGetArrayLength(array_type) };
+		// TODO switch to const_usize or something like that
+		let result = llvm.const_i32(length as i32);
+		Ok(result)
 	}
 }

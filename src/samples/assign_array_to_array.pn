@@ -2,8 +2,11 @@ fn main()
 {
 	var x = [
 		0,
-		1,
-		2,
+		50,
+		150,
 	];
 	var z = x;
+	z[2] = 99;
+	var result = x[1] + z[2];
+	return: result
 }

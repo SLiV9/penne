@@ -93,7 +93,7 @@ impl Analyzer
 			}
 			else if let Some((parameter, argument)) =
 				parameters.iter().zip(arguments.iter()).find(|(p, a)| {
-					p.value_type.is_some() && a.is_some() && p.value_type != **a
+					!does_argument_match_parameter(*a, &p.value_type)
 				})
 			{
 				Err(anyhow!("got {:?}", argument)
@@ -216,9 +216,22 @@ impl Analyzable for Declaration
 
 impl Analyzable for Parameter
 {
-	fn analyze(&self, _analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
+	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
 	{
-		Ok(())
+		match self.value_type
+		{
+			Some(ValueType::Array { .. }) =>
+			{
+				Err(anyhow!("non-slice array parameter")
+					.context(self.name.location.format())
+					.context(format!(
+						"parameter '{}' is not a slice",
+						self.name.name
+					)))
+			}
+			Some(ValueType::Slice { .. }) => analyzer.declare_array(&self.name),
+			_ => Ok(()),
+		}
 	}
 }
 
@@ -265,10 +278,18 @@ impl Analyzable for Statement
 			{
 				match value_type
 				{
-					Some(ValueType::Array { .. })
-					| Some(ValueType::Slice { .. }) =>
+					Some(ValueType::Array { .. }) =>
 					{
 						analyzer.declare_array(name)?;
+					}
+					Some(ValueType::Slice { .. }) =>
+					{
+						return Err(anyhow!("slice variable")
+							.context(location.format())
+							.context(format!(
+								"variable '{}' may not be a slice",
+								name.name
+							)));
 					}
 					_ => (),
 				}
@@ -279,15 +300,23 @@ impl Analyzable for Statement
 				name,
 				value: None,
 				value_type,
-				location: _,
+				location,
 			} =>
 			{
 				match value_type
 				{
-					Some(ValueType::Array { .. })
-					| Some(ValueType::Slice { .. }) =>
+					Some(ValueType::Array { .. }) =>
 					{
 						analyzer.declare_array(name)?;
+					}
+					Some(ValueType::Slice { .. }) =>
+					{
+						return Err(anyhow!("slice variable")
+							.context(location.format())
+							.context(format!(
+								"variable '{}' may not be a slice",
+								name.name
+							)));
 					}
 					_ => (),
 				}
@@ -447,5 +476,24 @@ impl Analyzable for Expression
 				Ok(())
 			}
 		}
+	}
+}
+
+fn does_argument_match_parameter(
+	argument: &Option<ValueType>,
+	parameter: &Option<ValueType>,
+) -> bool
+{
+	match (argument, parameter)
+	{
+		(
+			Some(ValueType::Array {
+				element_type: x,
+				length: _,
+			}),
+			Some(ValueType::Slice { element_type: y }),
+		) => x == y,
+		(Some(a), Some(p)) => a == p,
+		(_, _) => true,
 	}
 }

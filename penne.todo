@@ -9,6 +9,7 @@ Functionality:
 	☐	Multidimensional arrays
 	☐	Pointers with automatic dereference
 	☐	Pass array by const-reference (slice) by default
+		☐	A [3]i32 parameter is typechecked as [3]i32 but implemented as []i32
 	☐	String literals
 		☐	\u{NN} through \u{NNNNN}
 	☐	Byte string literals
