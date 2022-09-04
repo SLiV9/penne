@@ -94,6 +94,24 @@ impl Typer
 			None => Ok(None),
 		}
 	}
+
+	fn get_type_of_reference(
+		&self,
+		reference: &Reference,
+	) -> Result<Option<ValueType>, anyhow::Error>
+	{
+		match reference
+		{
+			Reference::Identifier(identifier) =>
+			{
+				Ok(self.get_symbol(identifier))
+			}
+			Reference::ArrayElement { name, .. } =>
+			{
+				self.get_element_type_of_array(name)
+			}
+		}
+	}
 }
 
 pub trait Typed
@@ -553,8 +571,36 @@ impl Analyzable for Expression
 			}
 			Expression::LengthOfArray { reference } =>
 			{
-				// TODO make sure that reference is an array or a slice
-				unimplemented!()
+				let array_type = typer.get_type_of_reference(reference)?;
+				match array_type
+				{
+					Some(ValueType::Array { .. }) =>
+					{
+						Ok(Expression::LengthOfArray {
+							reference: reference.clone(),
+						})
+					}
+					Some(ValueType::Slice { .. }) =>
+					{
+						Ok(Expression::LengthOfArray {
+							reference: reference.clone(),
+						})
+					}
+					Some(_) =>
+					{
+						let error = anyhow!("can only take length of array")
+							.context(reference.location().format())
+							.context("this variable does not have a length");
+						Err(error)
+					}
+					None =>
+					{
+						let error = anyhow!("failed to infer type")
+							.context(reference.location().format())
+							.context("this variable does not have a length");
+						Err(error)
+					}
+				}
 			}
 			Expression::FunctionCall {
 				name,

@@ -186,6 +186,18 @@ pub enum Reference
 	},
 }
 
+impl Reference
+{
+	pub fn location(&self) -> &Location
+	{
+		match self
+		{
+			Reference::Identifier(name) => &name.location,
+			Reference::ArrayElement { name, .. } => &name.location,
+		}
+	}
+}
+
 #[derive(Debug, Clone)]
 pub struct Identifier
 {

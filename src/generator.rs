@@ -530,7 +530,7 @@ impl Generatable for Comparison
 	{
 		let left = self.left.generate(llvm)?;
 		let right = self.right.generate(llvm)?;
-		let name = CString::new("tmp")?;
+		let name = CString::new("")?;
 		let pred = match self.op
 		{
 			ComparisonOp::Equals => llvm_sys::LLVMIntPredicate::LLVMIntEQ,
@@ -562,7 +562,7 @@ impl Generatable for Expression
 			{
 				let left = left.generate(llvm)?;
 				let right = right.generate(llvm)?;
-				let name = CString::new("tmp")?;
+				let name = CString::new("")?;
 				let result = match op
 				{
 					BinaryOp::Add =>
@@ -612,7 +612,7 @@ impl Generatable for Expression
 				value_type: _,
 			} =>
 			{
-				let tmpname = CString::new("tmp")?;
+				let tmpname = CString::new("")?;
 				let loc = reference.generate(llvm)?;
 				let result = unsafe {
 					LLVMBuildLoad(llvm.builder, loc, tmpname.as_ptr())
@@ -621,8 +621,14 @@ impl Generatable for Expression
 			}
 			Expression::LengthOfArray { reference } =>
 			{
-				// TODO
-				unimplemented!()
+				let loc = reference.generate(llvm)?;
+				let array_type = unsafe { LLVMGetAllocatedType(loc) };
+				let length: u32 = unsafe { LLVMGetArrayLength(array_type) };
+				let result = unsafe {
+					let inttype = LLVMInt32TypeInContext(llvm.context);
+					LLVMConstInt(inttype, length as u64, 1)
+				};
+				Ok(result)
 			}
 			Expression::FunctionCall {
 				name,
@@ -757,7 +763,7 @@ impl Generatable for Reference
 			}
 			Reference::ArrayElement { name, argument } =>
 			{
-				let tmpname = CString::new("tmp")?;
+				let tmpname = CString::new("")?;
 				let argument: LLVMValueRef = argument.generate(llvm)?;
 				let mut indices = Vec::new();
 				let const0 = unsafe {

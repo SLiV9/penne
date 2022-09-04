@@ -397,38 +397,40 @@ impl Analyzable for Expression
 				value_type,
 			} =>
 			{
-				let name = match reference
+				match reference
 				{
-					Reference::Identifier(name) => name,
+					Reference::Identifier(_) => (),
 					Reference::ArrayElement { name, argument } =>
 					{
 						let argument_type = argument.value_type();
 						analyzer.use_array(name, argument_type)?;
 						argument.analyze(analyzer)?;
-						name
 					}
-				};
+				}
 				match value_type
 				{
 					Some(ValueType::Array { .. })
 					| Some(ValueType::Slice { .. }) =>
 					{
-						return Err(anyhow!("cannot move from array")
-							.context(name.location.format())
-							.context(format!(
-								"the variable '{}' cannot be moved from",
-								name.name
-							)));
+						let error = anyhow!("cannot move from array")
+							.context(reference.location().format())
+							.context("this variable cannot be moved from");
+						Err(error)
 					}
-					_ => (),
+					_ => Ok(()),
 				}
-				Ok(())
 			}
-			Expression::LengthOfArray { reference } =>
+			Expression::LengthOfArray { reference } => match reference
 			{
-				// TODO
-				unimplemented!()
-			}
+				Reference::Identifier(_) => Ok(()),
+				Reference::ArrayElement { name, argument } =>
+				{
+					let argument_type = argument.value_type();
+					analyzer.use_array(name, argument_type)?;
+					argument.analyze(analyzer)?;
+					Ok(())
+				}
+			},
 			Expression::FunctionCall {
 				name,
 				arguments,
