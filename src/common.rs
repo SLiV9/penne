@@ -2,6 +2,7 @@
 
 pub use crate::lexer::Location;
 
+#[must_use]
 #[derive(Debug, Clone)]
 pub enum Declaration
 {
@@ -14,6 +15,7 @@ pub enum Declaration
 	},
 }
 
+#[must_use]
 #[derive(Debug, Clone)]
 pub struct Parameter
 {
@@ -21,6 +23,7 @@ pub struct Parameter
 	pub value_type: Option<ValueType>,
 }
 
+#[must_use]
 #[derive(Debug, Clone)]
 pub struct FunctionBody
 {
@@ -28,6 +31,7 @@ pub struct FunctionBody
 	pub return_value: Option<Expression>,
 }
 
+#[must_use]
 #[derive(Debug, Clone)]
 pub struct Block
 {
@@ -35,6 +39,7 @@ pub struct Block
 	pub location: Location,
 }
 
+#[must_use]
 #[derive(Debug, Clone)]
 pub enum Statement
 {
@@ -92,6 +97,7 @@ impl Statement
 	}
 }
 
+#[must_use]
 #[derive(Debug, Clone)]
 pub struct Comparison
 {
@@ -101,12 +107,14 @@ pub struct Comparison
 	pub location: Location,
 }
 
+#[must_use]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ComparisonOp
 {
 	Equals,
 }
 
+#[must_use]
 #[derive(Debug, Clone)]
 pub struct Array
 {
@@ -127,6 +135,7 @@ impl Array
 	}
 }
 
+#[must_use]
 #[derive(Debug, Clone)]
 pub enum Expression
 {
@@ -161,6 +170,7 @@ pub enum Expression
 	},
 }
 
+#[must_use]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinaryOp
 {
@@ -168,6 +178,7 @@ pub enum BinaryOp
 	Subtract,
 }
 
+#[must_use]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PrimitiveLiteral
 {
@@ -175,6 +186,7 @@ pub enum PrimitiveLiteral
 	Bool(bool),
 }
 
+#[must_use]
 #[derive(Debug, Clone)]
 pub enum Reference
 {
@@ -198,6 +210,7 @@ impl Reference
 	}
 }
 
+#[must_use]
 #[derive(Debug, Clone)]
 pub struct Identifier
 {
@@ -206,6 +219,7 @@ pub struct Identifier
 	pub resolution_id: u32,
 }
 
+#[must_use]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValueType
 {

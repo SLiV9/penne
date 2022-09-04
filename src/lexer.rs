@@ -95,6 +95,7 @@ pub struct LexedToken
 	pub location: Location,
 }
 
+#[must_use]
 pub fn lex(source: &str, source_filename: &str) -> Vec<LexedToken>
 {
 	let mut tokens = Vec::new();

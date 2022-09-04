@@ -109,6 +109,7 @@ trait Analyzable
 		analyzer: &mut Analyzer,
 	) -> Result<Self::Item, anyhow::Error>;
 }
+
 impl Analyzable for Declaration
 {
 	type Item = Declaration;
@@ -155,9 +156,9 @@ impl Analyzable for Parameter
 		analyzer: &mut Analyzer,
 	) -> Result<Self::Item, anyhow::Error>
 	{
-		analyzer.declare_variable(&self.name)?;
+		let name = analyzer.declare_variable(&self.name)?;
 		Ok(Parameter {
-			name: self.name.clone(),
+			name,
 			value_type: self.value_type.clone(),
 		})
 	}

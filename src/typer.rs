@@ -43,7 +43,7 @@ impl Typer
 				)
 				.context(identifier.location.format())
 				.context(format!(
-					"conflicting types for '{}', {:?} and {:?}",
+					"conflicting types for '{}', first {:?} and now {:?}",
 					identifier.name, old_type, vt
 				))),
 				None => Ok(()),
@@ -166,14 +166,15 @@ impl Analyzable for Declaration
 			{
 				typer.put_symbol(name, return_type.clone())?;
 
-				// Pre-analyze the function body because it might contain
-				// untyped declarations, e.g. "var x;", whose types won't be
-				// determined in the first pass.
-				body.analyze(typer)?;
-
 				let parameters: Result<Vec<Parameter>, anyhow::Error> =
 					parameters.iter().map(|x| x.analyze(typer)).collect();
 				let parameters = parameters?;
+
+				// Pre-analyze the function body because it might contain
+				// untyped declarations, e.g. "var x;", whose types won't be
+				// determined in the first pass.
+				let _unused: FunctionBody = body.analyze(typer)?;
+
 				let body = body.analyze(typer)?;
 				let return_type = body.value_type();
 				typer.put_symbol(name, return_type.clone())?;
