@@ -150,6 +150,13 @@ fn declare(
 			parameters,
 			body: _,
 			return_type,
+			flags,
+		}
+		| Declaration::FunctionHead {
+			name,
+			parameters,
+			return_type,
+			flags,
 		} =>
 		{
 			let return_type = match return_type
@@ -227,10 +234,9 @@ impl Generatable for Declaration
 				parameters,
 				body,
 				return_type: _,
+				flags: _,
 			} =>
 			{
-				let entry_block_name = CString::new("entry")?;
-
 				let function = match llvm.global_functions.get(&name.name)
 				{
 					Some(function) => *function,
@@ -245,6 +251,7 @@ impl Generatable for Declaration
 					}
 				};
 
+				let entry_block_name = CString::new("entry")?;
 				unsafe {
 					let entry_block = LLVMAppendBasicBlockInContext(
 						llvm.context,
@@ -271,6 +278,12 @@ impl Generatable for Declaration
 
 				Ok(())
 			}
+			Declaration::FunctionHead {
+				name: _,
+				parameters: _,
+				return_type: _,
+				flags: _,
+			} => Ok(()),
 		}
 	}
 }

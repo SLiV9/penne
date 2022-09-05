@@ -1,0 +1,11 @@
+
+fn foo()
+{
+	end:
+}
+
+fn main() -> i32
+{
+	var x = foo();
+	return: x
+}

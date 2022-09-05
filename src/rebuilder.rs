@@ -69,10 +69,20 @@ impl Rebuildable for Declaration
 				parameters,
 				body,
 				return_type,
+				flags,
 			} =>
 			{
 				let mut buffer = String::new();
-				write!(&mut buffer, "{}fn {}(", indentation, identify(name))?;
+				write!(&mut buffer, "{}", indentation)?;
+				if flags.contains(DeclarationFlag::Public)
+				{
+					write!(&mut buffer, "pub ")?;
+				}
+				if flags.contains(DeclarationFlag::External)
+				{
+					write!(&mut buffer, "extern ")?;
+				}
+				write!(&mut buffer, "fn {}(", identify(name))?;
 				match parameters.split_first()
 				{
 					Some((first, others)) =>
@@ -103,6 +113,51 @@ impl Rebuildable for Declaration
 					)?;
 				}
 				write!(&mut buffer, "\n{}", body.rebuild(indentation)?)?;
+				Ok(buffer)
+			}
+			Declaration::FunctionHead {
+				name,
+				parameters,
+				return_type,
+				flags,
+			} =>
+			{
+				let mut buffer = String::new();
+				write!(&mut buffer, "{}", indentation)?;
+				if flags.contains(DeclarationFlag::External)
+				{
+					write!(&mut buffer, "extern ")?;
+				}
+				write!(&mut buffer, "fn {}(", identify(name))?;
+				match parameters.split_first()
+				{
+					Some((first, others)) =>
+					{
+						write!(
+							&mut buffer,
+							"{}",
+							first.rebuild(&indentation.increased())?
+						)?;
+						for parameter in others
+						{
+							write!(
+								&mut buffer,
+								", {}",
+								parameter.rebuild(&indentation.increased())?
+							)?;
+						}
+					}
+					None => (),
+				}
+				write!(&mut buffer, ")")?;
+				if let Some(value_type) = return_type
+				{
+					write!(
+						&mut buffer,
+						" -> {}",
+						value_type.rebuild(&indentation.increased())?
+					)?;
+				}
 				Ok(buffer)
 			}
 		}

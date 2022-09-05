@@ -1,0 +1,13 @@
+extern fn square(x: u32) -> u32;
+
+fn main() -> i32
+{
+	var errorcode = 0;
+	var x = 8;
+	var y = square(x);
+	if y == 64
+		goto return;
+	else
+		errorcode = 255;
+	return: errorcode
+}

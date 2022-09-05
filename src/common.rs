@@ -1,5 +1,7 @@
 /**/
 
+use enumset::{EnumSet, EnumSetType};
+
 pub use crate::lexer::Location;
 
 #[must_use]
@@ -12,7 +14,23 @@ pub enum Declaration
 		parameters: Vec<Parameter>,
 		body: FunctionBody,
 		return_type: Option<ValueType>,
+		flags: EnumSet<DeclarationFlag>,
 	},
+	FunctionHead
+	{
+		name: Identifier,
+		parameters: Vec<Parameter>,
+		return_type: Option<ValueType>,
+		flags: EnumSet<DeclarationFlag>,
+	},
+}
+
+#[must_use]
+#[derive(EnumSetType, Debug)]
+pub enum DeclarationFlag
+{
+	Public,
+	External,
 }
 
 #[must_use]

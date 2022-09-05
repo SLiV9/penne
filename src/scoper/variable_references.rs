@@ -126,6 +126,7 @@ impl Analyzable for Declaration
 				parameters,
 				body,
 				return_type,
+				flags,
 			} =>
 			{
 				analyzer.push_scope();
@@ -140,9 +141,11 @@ impl Analyzable for Declaration
 					parameters,
 					body,
 					return_type: return_type.clone(),
+					flags: *flags,
 				};
 				Ok(function)
 			}
+			Declaration::FunctionHead { .. } => Ok(self.clone()),
 		}
 	}
 }

@@ -41,7 +41,14 @@ impl Analyzable for Declaration
 				parameters: _,
 				body,
 				return_type: _,
+				flags: _,
 			} => body.analyze(analyzer),
+			Declaration::FunctionHead {
+				name: _,
+				parameters: _,
+				return_type: _,
+				flags: _,
+			} => Ok(()),
 		}
 	}
 }

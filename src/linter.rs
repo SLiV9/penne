@@ -41,7 +41,14 @@ impl Lintable for Declaration
 				parameters: _,
 				body,
 				return_type: _,
+				flags: _,
 			} => body.lint(linter),
+			Declaration::FunctionHead {
+				name: _,
+				parameters: _,
+				return_type: _,
+				flags: _,
+			} => (),
 		}
 	}
 }

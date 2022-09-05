@@ -17,6 +17,9 @@ contexts:
       scope: punctuation.definition.comment.penne
       push: line_comment
 
+    - match: '\b(pub|extern)\b'
+      scope: storage.modifier.penne
+
     - match: '\b(fn)\s+(?={{identifier}})\b'
       captures:
         1: storage.type.function.penne
@@ -116,6 +119,9 @@ contexts:
 
   fn_return:
     - meta_scope: meta.function.penne
+    - match: ';'
+      scope: punctuation.terminator.penne
+      pop: true
     - match: '(?=\{)'
       set: fn_body
     - include: return_type

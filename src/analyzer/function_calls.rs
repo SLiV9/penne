@@ -202,6 +202,13 @@ fn declare(
 			parameters,
 			body: _,
 			return_type: _,
+			flags: _,
+		} => analyzer.declare_function(name, parameters),
+		Declaration::FunctionHead {
+			name,
+			parameters,
+			return_type: _,
+			flags: _,
 		} => analyzer.declare_function(name, parameters),
 	}
 }
@@ -223,6 +230,7 @@ impl Analyzable for Declaration
 				parameters,
 				body,
 				return_type: _,
+				flags: _,
 			} =>
 			{
 				for parameter in parameters
@@ -230,6 +238,19 @@ impl Analyzable for Declaration
 					parameter.analyze(analyzer)?;
 				}
 				body.analyze(analyzer)?;
+				Ok(())
+			}
+			Declaration::FunctionHead {
+				name: _,
+				parameters,
+				return_type: _,
+				flags: _,
+			} =>
+			{
+				for parameter in parameters
+				{
+					parameter.analyze(analyzer)?;
+				}
 				Ok(())
 			}
 		}

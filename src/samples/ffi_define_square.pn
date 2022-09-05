@@ -1,0 +1,13 @@
+pub extern fn square(x: u32) -> u32
+{
+	var y = 0;
+	var i = 0;
+	{
+		if i == x
+			goto return;
+		y = y + x;
+		i = i + 1;
+		loop;
+	}
+	return: y
+}

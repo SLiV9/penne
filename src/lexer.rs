@@ -37,6 +37,8 @@ pub enum Token
 	Goto,
 	Loop,
 	Else,
+	Pub,
+	Extern,
 
 	// Literals.
 	Identifier(String),
@@ -220,6 +222,8 @@ fn lex_line(
 					"u128" => Token::Type(ValueType::Uint128),
 					"usize" => Token::Type(ValueType::Usize),
 					"bool" => Token::Type(ValueType::Bool),
+					"pub" => Token::Pub,
+					"extern" => Token::Extern,
 					_ => Token::Identifier(identifier),
 				};
 				Ok(token)

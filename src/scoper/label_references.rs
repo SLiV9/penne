@@ -125,6 +125,7 @@ impl Analyzable for Declaration
 				parameters,
 				body,
 				return_type,
+				flags,
 			} =>
 			{
 				let body = body.analyze(analyzer)?;
@@ -134,9 +135,11 @@ impl Analyzable for Declaration
 					parameters: parameters.clone(),
 					body,
 					return_type: return_type.clone(),
+					flags: *flags,
 				};
 				Ok(function)
 			}
+			Declaration::FunctionHead { .. } => Ok(self.clone()),
 		}
 	}
 }

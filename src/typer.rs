@@ -209,6 +209,10 @@ impl Typed for Declaration
 		match self
 		{
 			Declaration::Function { return_type, .. } => return_type.clone(),
+			Declaration::FunctionHead { return_type, .. } =>
+			{
+				return_type.clone()
+			}
 		}
 	}
 }
@@ -226,6 +230,7 @@ impl Analyzable for Declaration
 				parameters,
 				body,
 				return_type,
+				flags,
 			} =>
 			{
 				typer.put_symbol(name, return_type.clone())?;
@@ -273,6 +278,31 @@ impl Analyzable for Declaration
 					parameters,
 					body,
 					return_type,
+					flags: *flags,
+				};
+				Ok(function)
+			}
+			Declaration::FunctionHead {
+				name,
+				parameters,
+				return_type,
+				flags,
+			} =>
+			{
+				typer.put_symbol(name, return_type.clone())?;
+
+				let parameters: Result<Vec<Parameter>, anyhow::Error> =
+					parameters.iter().map(|x| x.analyze(typer)).collect();
+				let parameters = parameters?;
+
+				typer.declare_function_parameters(name, &parameters);
+
+				typer.put_symbol(name, return_type.clone())?;
+				let function = Declaration::FunctionHead {
+					name: name.clone(),
+					parameters,
+					return_type: return_type.clone(),
+					flags: *flags,
 				};
 				Ok(function)
 			}
@@ -515,7 +545,9 @@ impl Analyzable for Comparison
 
 	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
 	{
-		let contextual_type = typer.contextual_type.clone();
+		let contextual_type = typer.contextual_type.take();
+		typer.contextual_type =
+			self.right.value_type().or(contextual_type.clone());
 		let left = self.left.analyze(typer)?;
 		typer.contextual_type = left.value_type().or(contextual_type);
 		let right = self.right.analyze(typer)?;
@@ -603,7 +635,9 @@ impl Analyzable for Expression
 				location,
 			} =>
 			{
-				let contextual_type = typer.contextual_type.clone();
+				let contextual_type = typer.contextual_type.take();
+				typer.contextual_type =
+					right.value_type().or(contextual_type.clone());
 				let left = left.analyze(typer)?;
 				typer.contextual_type = left.value_type().or(contextual_type);
 				let right = right.analyze(typer)?;

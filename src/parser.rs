@@ -7,6 +7,7 @@ use std::collections::VecDeque;
 
 use anyhow::anyhow;
 use anyhow::Context;
+use enumset::EnumSet;
 
 pub fn parse(tokens: Vec<LexedToken>)
 	-> Result<Vec<Declaration>, anyhow::Error>
@@ -110,6 +111,18 @@ fn parse_declaration(
 	tokens: &mut VecDeque<LexedToken>,
 ) -> Result<Declaration, anyhow::Error>
 {
+	let mut flags = EnumSet::new();
+	if let Some(Token::Pub) = peek(tokens)
+	{
+		tokens.pop_front();
+		flags.insert(DeclarationFlag::Public);
+	}
+	if let Some(Token::Extern) = peek(tokens)
+	{
+		tokens.pop_front();
+		flags.insert(DeclarationFlag::External);
+	}
+
 	consume(Token::Fn, tokens).context("expected top-level declaration")?;
 
 	let name = extract_identifier(tokens).context("expected function name")?;
@@ -151,16 +164,31 @@ fn parse_declaration(
 		None
 	};
 
-	let body = parse_function_body(tokens)?;
+	if flags.contains(DeclarationFlag::External)
+		&& !flags.contains(DeclarationFlag::Public)
+		&& peek(tokens) == Some(&Token::Semicolon)
+	{
+		tokens.pop_front();
 
-	let function = Declaration::Function {
-		name,
-		parameters,
-		body,
-		return_type,
-	};
-
-	Ok(function)
+		Ok(Declaration::FunctionHead {
+			name,
+			parameters,
+			return_type,
+			flags,
+		})
+	}
+	else
+	{
+		let body = parse_function_body(tokens)?;
+		let function = Declaration::Function {
+			name,
+			parameters,
+			body,
+			return_type,
+			flags,
+		};
+		Ok(function)
+	}
 }
 
 fn parse_parameter(
