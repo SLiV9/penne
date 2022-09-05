@@ -10,6 +10,8 @@ pub fn analyze(
 {
 	let mut typer = Typer {
 		symbols: std::collections::HashMap::new(),
+		functions: std::collections::HashMap::new(),
+		contextual_type: None,
 	};
 	program.iter().map(|x| x.analyze(&mut typer)).collect()
 }
@@ -17,6 +19,8 @@ pub fn analyze(
 struct Typer
 {
 	symbols: std::collections::HashMap<u32, (Identifier, ValueType)>,
+	functions: std::collections::HashMap<u32, Vec<Option<ValueType>>>,
+	contextual_type: Option<ValueType>,
 }
 
 impl Typer
@@ -112,6 +116,43 @@ impl Typer
 			}
 		}
 	}
+
+	fn declare_function_parameters(
+		&mut self,
+		identifier: &Identifier,
+		parameters: &[Parameter],
+	)
+	{
+		let parameter_types: Vec<Option<ValueType>> =
+			parameters.iter().map(|p| p.value_type.clone()).collect();
+		self.functions
+			.insert(identifier.resolution_id, parameter_types);
+	}
+
+	fn analyze_function_arguments(
+		&mut self,
+		identifier: &Identifier,
+		arguments: &[Expression],
+	) -> Result<Vec<Expression>, anyhow::Error>
+	{
+		let parameter_types: Vec<Option<ValueType>> =
+			match self.functions.get(&identifier.resolution_id)
+			{
+				Some(parameter_types) => parameter_types.clone(),
+				None => Vec::new(),
+			};
+		let parameter_hints =
+			parameter_types.into_iter().chain(std::iter::repeat(None));
+		let arguments: Result<Vec<Expression>, anyhow::Error> = arguments
+			.iter()
+			.zip(parameter_hints)
+			.map(|(a, p)| {
+				self.contextual_type = p.clone();
+				a.analyze(self)
+			})
+			.collect();
+		arguments
+	}
 }
 
 pub trait Typed
@@ -119,14 +160,37 @@ pub trait Typed
 	fn value_type(&self) -> Option<ValueType>;
 }
 
+pub trait StaticallyTyped
+{
+	fn static_value_type(&self) -> ValueType;
+}
+
 impl Typed for PrimitiveLiteral
 {
 	fn value_type(&self) -> Option<ValueType>
 	{
+		Some(self.static_value_type())
+	}
+}
+
+impl StaticallyTyped for PrimitiveLiteral
+{
+	fn static_value_type(&self) -> ValueType
+	{
 		match self
 		{
-			PrimitiveLiteral::Int32(_) => Some(ValueType::Int32),
-			PrimitiveLiteral::Bool(_) => Some(ValueType::Bool),
+			PrimitiveLiteral::Int8(_) => ValueType::Int8,
+			PrimitiveLiteral::Int16(_) => ValueType::Int16,
+			PrimitiveLiteral::Int32(_) => ValueType::Int32,
+			PrimitiveLiteral::Int64(_) => ValueType::Int64,
+			PrimitiveLiteral::Int128(_) => ValueType::Int128,
+			PrimitiveLiteral::Uint8(_) => ValueType::Uint8,
+			PrimitiveLiteral::Uint16(_) => ValueType::Uint16,
+			PrimitiveLiteral::Uint32(_) => ValueType::Uint32,
+			PrimitiveLiteral::Uint64(_) => ValueType::Uint64,
+			PrimitiveLiteral::Uint128(_) => ValueType::Uint128,
+			PrimitiveLiteral::Usize(_) => ValueType::Usize,
+			PrimitiveLiteral::Bool(_) => ValueType::Bool,
 		}
 	}
 }
@@ -170,13 +234,39 @@ impl Analyzable for Declaration
 					parameters.iter().map(|x| x.analyze(typer)).collect();
 				let parameters = parameters?;
 
+				typer.declare_function_parameters(name, &parameters);
+
 				// Pre-analyze the function body because it might contain
 				// untyped declarations, e.g. "var x;", whose types won't be
 				// determined in the first pass.
-				let _unused: FunctionBody = body.analyze(typer)?;
+				typer.contextual_type = return_type.clone();
+				let prebody: FunctionBody = body.analyze(typer)?;
+				// Pre-analyze the statements in reverse, because there might
+				// be chains of untyped declarations, e.g.
+				//   var x = 1;
+				//   var y = x;
+				// whose types won't be determined in the forward pass.
+				typer.contextual_type = return_type.clone();
+				for statement in prebody.statements.iter().rev()
+				{
+					let _unused: Statement = statement.analyze(typer)?;
+				}
+				let _unused = prebody;
 
+				typer.contextual_type = return_type.clone();
 				let body = body.analyze(typer)?;
 				let return_type = body.value_type();
+
+				if body.return_value.is_some() && return_type.is_none()
+				{
+					return Err(anyhow!("failed to infer type")
+						.context(name.location.format())
+						.context(format!(
+							"failed to infer return type for '{}'",
+							name.name
+						)));
+				}
+
 				typer.put_symbol(name, return_type.clone())?;
 				let function = Declaration::Function {
 					name: name.clone(),
@@ -223,6 +313,7 @@ impl Analyzable for FunctionBody
 
 	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
 	{
+		let contextual_return_type = typer.contextual_type.take();
 		let statements: Result<Vec<Statement>, anyhow::Error> =
 			self.statements.iter().map(|x| x.analyze(typer)).collect();
 		let statements = statements?;
@@ -230,7 +321,9 @@ impl Analyzable for FunctionBody
 		{
 			Some(value) =>
 			{
+				typer.contextual_type = contextual_return_type;
 				let value = value.analyze(typer)?;
+				typer.contextual_type = None;
 				Some(value)
 			}
 			None => None,
@@ -248,6 +341,7 @@ impl Analyzable for Block
 
 	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
 	{
+		typer.contextual_type = None;
 		let statements: Result<Vec<Statement>, anyhow::Error> =
 			self.statements.iter().map(|x| x.analyze(typer)).collect();
 		let statements = statements?;
@@ -264,6 +358,7 @@ impl Analyzable for Statement
 
 	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
 	{
+		typer.contextual_type = None;
 		match self
 		{
 			Statement::Declaration {
@@ -274,7 +369,9 @@ impl Analyzable for Statement
 			} =>
 			{
 				typer.put_symbol(name, value_type.clone())?;
+				typer.contextual_type = typer.get_symbol(name);
 				let value = value.analyze(typer)?;
+				typer.contextual_type = None;
 				let value_type = value.value_type();
 				typer.put_symbol(name, value_type.clone())?;
 				let stmt = Statement::Declaration {
@@ -323,7 +420,16 @@ impl Analyzable for Statement
 				location,
 			} =>
 			{
+				typer.contextual_type = match reference
+				{
+					Reference::Identifier(name) => typer.get_symbol(name),
+					Reference::ArrayElement { name, argument: _ } =>
+					{
+						typer.get_element_type_of_array(name)?
+					}
+				};
 				let value = value.analyze(typer)?;
+				typer.contextual_type = None;
 				let value_type = value.value_type();
 				let reference = match reference
 				{
@@ -334,6 +440,7 @@ impl Analyzable for Statement
 					}
 					Reference::ArrayElement { name, argument } =>
 					{
+						typer.contextual_type = Some(ValueType::Usize);
 						let argument = argument.analyze(typer)?;
 						let array_type =
 							value_type.map(|vt| ValueType::Slice {
@@ -408,7 +515,9 @@ impl Analyzable for Comparison
 
 	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
 	{
+		let contextual_type = typer.contextual_type.clone();
 		let left = self.left.analyze(typer)?;
+		typer.contextual_type = left.value_type().or(contextual_type);
 		let right = self.right.analyze(typer)?;
 		let expr = Comparison {
 			op: self.op,
@@ -426,17 +535,19 @@ impl Analyzable for Array
 
 	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
 	{
-		let elements: Result<Vec<Expression>, anyhow::Error> =
-			self.elements.iter().map(|x| x.analyze(typer)).collect();
+		let name = self.get_identifier();
+		let elements: Result<Vec<Expression>, anyhow::Error> = self
+			.elements
+			.iter()
+			.map(|element| {
+				let element = element.analyze(typer)?;
+				let element_type = element.value_type();
+				typer.contextual_type = element_type.clone();
+				typer.put_symbol(&name, element_type)?;
+				Ok(element)
+			})
+			.collect();
 		let elements = elements?;
-
-		{
-			let name = self.get_identifier();
-			for element in &elements
-			{
-				typer.put_symbol(&name, element.value_type())?;
-			}
-		}
 
 		Ok(Array {
 			elements,
@@ -454,6 +565,10 @@ impl Typed for Expression
 		{
 			Expression::Binary { left, .. } => left.value_type(),
 			Expression::PrimitiveLiteral(literal) => literal.value_type(),
+			Expression::NakedIntegerLiteral { value_type, .. } =>
+			{
+				value_type.clone()
+			}
 			Expression::ArrayLiteral {
 				element_type,
 				array: Array { elements, .. },
@@ -467,7 +582,7 @@ impl Typed for Expression
 			},
 			Expression::StringLiteral(_literal) => None,
 			Expression::Deref { value_type, .. } => value_type.clone(),
-			Expression::LengthOfArray { .. } => Some(ValueType::Int32),
+			Expression::LengthOfArray { .. } => Some(ValueType::Usize),
 			Expression::FunctionCall { return_type, .. } => return_type.clone(),
 		}
 	}
@@ -488,7 +603,9 @@ impl Analyzable for Expression
 				location,
 			} =>
 			{
+				let contextual_type = typer.contextual_type.clone();
 				let left = left.analyze(typer)?;
+				typer.contextual_type = left.value_type().or(contextual_type);
 				let right = right.analyze(typer)?;
 				let expr = Expression::Binary {
 					op: *op,
@@ -502,6 +619,50 @@ impl Analyzable for Expression
 			{
 				Ok(Expression::PrimitiveLiteral(lit.clone()))
 			}
+			Expression::NakedIntegerLiteral {
+				value,
+				value_type,
+				location,
+			} =>
+			{
+				let value_type = match value_type
+				{
+					Some(vt) => Some(vt.clone()),
+					None =>
+					{
+						let contextual_type = typer.contextual_type.take();
+						match contextual_type
+						{
+							Some(ValueType::Int8) => contextual_type,
+							Some(ValueType::Int16) => contextual_type,
+							Some(ValueType::Int32) => contextual_type,
+							Some(ValueType::Int64) => contextual_type,
+							Some(ValueType::Int128) => contextual_type,
+							Some(ValueType::Uint8) => contextual_type,
+							Some(ValueType::Uint16) => contextual_type,
+							Some(ValueType::Uint32) => contextual_type,
+							Some(ValueType::Uint64) => contextual_type,
+							Some(ValueType::Uint128) => contextual_type,
+							Some(ValueType::Usize) => contextual_type,
+							Some(ValueType::Bool) => Some(ValueType::Int32),
+							Some(ValueType::Array { .. }) =>
+							{
+								Some(ValueType::Int32)
+							}
+							Some(ValueType::Slice { .. }) =>
+							{
+								Some(ValueType::Int32)
+							}
+							None => None,
+						}
+					}
+				};
+				Ok(Expression::NakedIntegerLiteral {
+					value: *value,
+					value_type,
+					location: location.clone(),
+				})
+			}
 			Expression::ArrayLiteral {
 				array,
 				element_type,
@@ -511,7 +672,24 @@ impl Analyzable for Expression
 				if element_type.is_some()
 				{
 					typer.put_symbol(&name, element_type.clone())?;
+					typer.contextual_type = element_type.clone();
 				}
+				else
+				{
+					let array_type = typer.contextual_type.take();
+					typer.contextual_type = match array_type
+					{
+						Some(ValueType::Array { element_type, .. }) =>
+						{
+							Some(*element_type)
+						}
+						Some(ValueType::Slice { element_type }) =>
+						{
+							Some(*element_type)
+						}
+						_ => None,
+					}
+				};
 				let array = array.analyze(typer)?;
 				let element_type = typer.get_symbol(&name);
 				Ok(Expression::ArrayLiteral {
@@ -540,7 +718,19 @@ impl Analyzable for Expression
 				value_type: None,
 			} =>
 			{
-				let value_type = typer.get_symbol(name);
+				let value_type = match typer.get_symbol(name)
+				{
+					Some(vt) => Some(vt),
+					None =>
+					{
+						let value_type = typer.contextual_type.take();
+						if value_type.is_some()
+						{
+							typer.put_symbol(name, value_type.clone())?;
+						}
+						value_type
+					}
+				};
 				let expr = Expression::Deref {
 					reference: Reference::Identifier(name.clone()),
 					value_type,
@@ -559,7 +749,16 @@ impl Analyzable for Expression
 					};
 					typer.put_symbol(name, Some(array_type))?;
 				}
+				else if let Some(contextual_type) =
+					typer.contextual_type.take()
+				{
+					let array_type = ValueType::Slice {
+						element_type: Box::new(contextual_type),
+					};
+					typer.put_symbol(name, Some(array_type))?;
+				}
 				let value_type = typer.get_element_type_of_array(name)?;
+				typer.contextual_type = Some(ValueType::Usize);
 				let argument = argument.analyze(typer)?;
 				let expr = Expression::Deref {
 					reference: Reference::ArrayElement {
@@ -594,13 +793,9 @@ impl Analyzable for Expression
 							.context("this variable does not have a length");
 						Err(error)
 					}
-					None =>
-					{
-						let error = anyhow!("failed to infer type")
-							.context(reference.location().format())
-							.context("this variable does not have a length");
-						Err(error)
-					}
+					None => Ok(Expression::LengthOfArray {
+						reference: reference.clone(),
+					}),
 				}
 			}
 			Expression::FunctionCall {
@@ -611,9 +806,8 @@ impl Analyzable for Expression
 			{
 				typer.put_symbol(name, return_type.clone())?;
 				let return_type = typer.get_symbol(name);
-				let arguments: Result<Vec<Expression>, anyhow::Error> =
-					arguments.iter().map(|a| a.analyze(typer)).collect();
-				let arguments = arguments?;
+				let arguments =
+					typer.analyze_function_arguments(name, arguments)?;
 				let expr = Expression::FunctionCall {
 					name: name.clone(),
 					arguments,

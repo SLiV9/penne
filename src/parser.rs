@@ -203,9 +203,21 @@ fn parse_type(
 					element_type: Box::new(element_type),
 				})
 			}
-			Some(Token::Int32(x)) if *x > 0 =>
+			Some(Token::NakedInteger(x)) if *x > 0 =>
 			{
 				let length = *x as usize;
+				tokens.pop_front();
+				consume(Token::BracketRight, tokens)
+					.context("expected right bracket")?;
+				let element_type = parse_type(tokens)?;
+				Ok(ValueType::Array {
+					element_type: Box::new(element_type),
+					length,
+				})
+			}
+			Some(Token::Usize(x)) if *x > 0 =>
+			{
+				let length = *x;
 				tokens.pop_front();
 				consume(Token::BracketRight, tokens)
 					.context("expected right bracket")?;
@@ -517,9 +529,49 @@ fn parse_primary_expression(
 		extract(tokens).context("expected literal or identifier")?;
 	match token
 	{
+		Token::NakedInteger(value) => Ok(Expression::NakedIntegerLiteral {
+			value,
+			value_type: None,
+			location,
+		}),
+		Token::Int8(value) =>
+		{
+			Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Int8(value)))
+		}
+		Token::Int16(value) =>
+		{
+			Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Int16(value)))
+		}
 		Token::Int32(value) =>
 		{
 			Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Int32(value)))
+		}
+		Token::Int64(value) =>
+		{
+			Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Int64(value)))
+		}
+		Token::Int128(value) => Ok(Expression::PrimitiveLiteral(
+			PrimitiveLiteral::Int128(value),
+		)),
+		Token::Uint8(value) =>
+		{
+			Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Uint8(value)))
+		}
+		Token::Uint16(value) => Ok(Expression::PrimitiveLiteral(
+			PrimitiveLiteral::Uint16(value),
+		)),
+		Token::Uint32(value) => Ok(Expression::PrimitiveLiteral(
+			PrimitiveLiteral::Uint32(value),
+		)),
+		Token::Uint64(value) => Ok(Expression::PrimitiveLiteral(
+			PrimitiveLiteral::Uint64(value),
+		)),
+		Token::Uint128(value) => Ok(Expression::PrimitiveLiteral(
+			PrimitiveLiteral::Uint128(value),
+		)),
+		Token::Usize(value) =>
+		{
+			Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Usize(value)))
 		}
 		Token::Bool(value) =>
 		{

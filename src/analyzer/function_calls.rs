@@ -67,7 +67,7 @@ impl Analyzer
 			.iter()
 			.find(|(x, _)| x.name == identifier.name)
 		{
-			if parameters.len() < arguments.len()
+			if arguments.len() < parameters.len()
 			{
 				Err(anyhow!("too few arguments")
 					.context(format!(
@@ -80,7 +80,7 @@ impl Analyzer
 						identifier.name
 					)))
 			}
-			else if parameters.len() > arguments.len()
+			else if arguments.len() > parameters.len()
 			{
 				Err(anyhow!("too many arguments")
 					.context(format!(
@@ -149,11 +149,11 @@ impl Analyzer
 		{
 			match argument_type
 			{
-				Some(ValueType::Int32) => Ok(()),
+				Some(ValueType::Usize) => Ok(()),
 				Some(other_type) => Err(anyhow!("got {:?}", other_type)
-					.context(format!("expected integer type"))
+					.context(format!("expected usize"))
 					.context(format!(
-						"function was declared {}",
+						"array was declared {}",
 						declaration_identifier.location.format()
 					))
 					.context(identifier.location.format())
@@ -162,9 +162,9 @@ impl Analyzer
 						identifier.name,
 					))),
 				None => Err(anyhow!("failed to determine type")
-					.context(format!("expected integer type"))
+					.context(format!("expected usize"))
 					.context(format!(
-						"function was declared {}",
+						"array was declared {}",
 						declaration_identifier.location.format()
 					))
 					.context(identifier.location.format())
@@ -426,6 +426,7 @@ impl Analyzable for Expression
 				Ok(())
 			}
 			Expression::PrimitiveLiteral(_lit) => Ok(()),
+			Expression::NakedIntegerLiteral { .. } => Ok(()),
 			Expression::ArrayLiteral {
 				array,
 				element_type: _,

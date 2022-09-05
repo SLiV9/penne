@@ -1,6 +1,6 @@
-fn main()
+fn main() -> i32
 {
-	var x = 27;
+	var x: i32 = 27;
 
 	var steps = 0;
 	{

@@ -276,6 +276,7 @@ impl Analyzable for Expression
 				Ok(())
 			}
 			Expression::PrimitiveLiteral(_lit) => Ok(()),
+			Expression::NakedIntegerLiteral { .. } => Ok(()),
 			Expression::ArrayLiteral {
 				array,
 				element_type: _,

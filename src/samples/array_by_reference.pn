@@ -14,7 +14,7 @@ fn sum(x: []i32) -> i32
 
 fn main()
 {
-	var x = [55, 66];
+	var x: []i32 = [55, 66];
 	var y = sum(x);
 	return: y
 }

@@ -1,9 +1,10 @@
-fn inner(x: []i32) -> i32
+fn inner(x: []i32) -> usize
 {
-	return: |x|
+	var y = |x|;
+	return: y
 }
 
-fn outer(x: []i32) -> i32
+fn outer(x: []i32) -> usize
 {
 	var y = inner(x);
 	return: y
@@ -11,7 +12,7 @@ fn outer(x: []i32) -> i32
 
 fn main()
 {
-	var x = [55, 66];
+	var x: []i32 = [55, 66];
 	var y = outer(x);
 	return: y
 }

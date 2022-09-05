@@ -120,6 +120,14 @@ impl Generator
 			LLVMConstInt(inttype, value as u64, 1)
 		}
 	}
+
+	fn const_usize(&mut self, value: usize) -> LLVMValueRef
+	{
+		unsafe {
+			let inttype = LLVMInt64TypeInContext(self.context);
+			LLVMConstInt(inttype, value as u64, 0)
+		}
+	}
 }
 
 impl Drop for Generator
@@ -604,6 +612,34 @@ impl Generatable for Expression
 				Ok(result)
 			}
 			Expression::PrimitiveLiteral(literal) => literal.generate(llvm),
+			Expression::NakedIntegerLiteral {
+				value,
+				value_type: Some(value_type),
+				location: _,
+			} =>
+			{
+				// Naked integers are allowed to be 64-bits,
+				// thus between i64::MIN and u64::MAX.
+				let value: i128 = *value;
+				let signed = value < 0;
+				let value_bits: u64 = if signed
+				{
+					(value as i64) as u64
+				}
+				else
+				{
+					value as u64
+				};
+				let inttype = value_type.generate(llvm)?;
+				unsafe { Ok(LLVMConstInt(inttype, value_bits, signed as i32)) }
+			}
+			Expression::NakedIntegerLiteral {
+				value: _,
+				value_type: None,
+				location,
+			} => Err(anyhow!("failed to infer type")
+				.context(location.format())
+				.context(format!("failed to infer integer literal type"))),
 			Expression::ArrayLiteral {
 				array: Array { elements, .. },
 				element_type: Some(element_type),
@@ -711,7 +747,73 @@ impl Generatable for PrimitiveLiteral
 	{
 		match self
 		{
-			PrimitiveLiteral::Int32(value) => Ok(llvm.const_i32(*value)),
+			PrimitiveLiteral::Int8(value) =>
+			unsafe {
+				let inttype = LLVMInt8TypeInContext(llvm.context);
+				Ok(LLVMConstInt(inttype, *value as u64, 1))
+			},
+			PrimitiveLiteral::Int16(value) =>
+			unsafe {
+				let inttype = LLVMInt16TypeInContext(llvm.context);
+				Ok(LLVMConstInt(inttype, *value as u64, 1))
+			},
+			PrimitiveLiteral::Int32(value) =>
+			unsafe {
+				let inttype = LLVMInt32TypeInContext(llvm.context);
+				Ok(LLVMConstInt(inttype, *value as u64, 1))
+			},
+			PrimitiveLiteral::Int64(value) =>
+			unsafe {
+				let inttype = LLVMInt64TypeInContext(llvm.context);
+				Ok(LLVMConstInt(inttype, *value as u64, 1))
+			},
+			PrimitiveLiteral::Int128(value) =>
+			unsafe {
+				let inttype = LLVMInt128TypeInContext(llvm.context);
+				let value: i128 = *value;
+				let value_bits: u128 = value as u128;
+				let words = [
+					((value_bits >> 64) & 0xFFFFFFFF) as u64,
+					(value_bits & 0xFFFFFFFF) as u64,
+				];
+				Ok(LLVMConstIntOfArbitraryPrecision(inttype, 2, words.as_ptr()))
+			},
+			PrimitiveLiteral::Uint8(value) =>
+			unsafe {
+				let inttype = LLVMInt8TypeInContext(llvm.context);
+				Ok(LLVMConstInt(inttype, *value as u64, 0))
+			},
+			PrimitiveLiteral::Uint16(value) =>
+			unsafe {
+				let inttype = LLVMInt16TypeInContext(llvm.context);
+				Ok(LLVMConstInt(inttype, *value as u64, 0))
+			},
+			PrimitiveLiteral::Uint32(value) =>
+			unsafe {
+				let inttype = LLVMInt32TypeInContext(llvm.context);
+				Ok(LLVMConstInt(inttype, *value as u64, 0))
+			},
+			PrimitiveLiteral::Uint64(value) =>
+			unsafe {
+				let inttype = LLVMInt64TypeInContext(llvm.context);
+				Ok(LLVMConstInt(inttype, *value as u64, 0))
+			},
+			PrimitiveLiteral::Uint128(value) =>
+			unsafe {
+				let inttype = LLVMInt128TypeInContext(llvm.context);
+				let value: u128 = *value;
+				let value_bits: u128 = value as u128;
+				let words = [
+					((value_bits >> 64) & 0xFFFFFFFF) as u64,
+					(value_bits & 0xFFFFFFFF) as u64,
+				];
+				Ok(LLVMConstIntOfArbitraryPrecision(inttype, 2, words.as_ptr()))
+			},
+			PrimitiveLiteral::Usize(value) =>
+			unsafe {
+				let inttype = LLVMInt64TypeInContext(llvm.context);
+				Ok(LLVMConstInt(inttype, *value as u64, 0))
+			},
 			PrimitiveLiteral::Bool(value) => Ok(llvm.const_u8(*value as u8)),
 		}
 	}
@@ -728,8 +830,38 @@ impl Generatable for ValueType
 	{
 		let typeref = match self
 		{
+			ValueType::Int8 =>
+			unsafe { LLVMInt8TypeInContext(llvm.context) },
+			ValueType::Int16 =>
+			unsafe { LLVMInt16TypeInContext(llvm.context) },
 			ValueType::Int32 =>
 			unsafe { LLVMInt32TypeInContext(llvm.context) },
+			ValueType::Int64 =>
+			unsafe { LLVMInt64TypeInContext(llvm.context) },
+			ValueType::Int128 =>
+			unsafe {
+				LLVMInt128TypeInContext(llvm.context)
+			},
+			ValueType::Uint8 =>
+			unsafe { LLVMInt8TypeInContext(llvm.context) },
+			ValueType::Uint16 =>
+			unsafe {
+				LLVMInt16TypeInContext(llvm.context)
+			},
+			ValueType::Uint32 =>
+			unsafe {
+				LLVMInt32TypeInContext(llvm.context)
+			},
+			ValueType::Uint64 =>
+			unsafe {
+				LLVMInt64TypeInContext(llvm.context)
+			},
+			ValueType::Uint128 =>
+			unsafe {
+				LLVMInt128TypeInContext(llvm.context)
+			},
+			ValueType::Usize =>
+			unsafe { LLVMInt64TypeInContext(llvm.context) },
 			ValueType::Bool =>
 			unsafe { LLVMInt8TypeInContext(llvm.context) },
 			ValueType::Array {
@@ -745,8 +877,7 @@ impl Generatable for ValueType
 				let element_type = element_type.generate(llvm)?;
 				let storagetype = unsafe { LLVMArrayType(element_type, 0u32) };
 				let pointertype = unsafe { LLVMPointerType(storagetype, 0u32) };
-				// TODO switch to const_usize or something like that
-				let sizetype = unsafe { LLVMInt32TypeInContext(llvm.context) };
+				let sizetype = ValueType::Usize.generate(llvm)?;
 				let mut member_types = [sizetype, pointertype];
 				unsafe {
 					LLVMStructTypeInContext(
@@ -985,8 +1116,7 @@ impl Reference
 		let array_type = unsafe { LLVMGetAllocatedType(loc) };
 
 		let length: u32 = unsafe { LLVMGetArrayLength(array_type) };
-		// TODO switch to const_usize or something like that
-		let result = llvm.const_i32(length as i32);
+		let result = llvm.const_usize(length as usize);
 		Ok(result)
 	}
 
@@ -1001,8 +1131,7 @@ impl Reference
 		let element_type = element_type.generate(llvm)?;
 		let storagetype = unsafe { LLVMArrayType(element_type, 0u32) };
 		let pointertype = unsafe { LLVMPointerType(storagetype, 0u32) };
-		// TODO switch to const_usize or something like that
-		let sizetype = unsafe { LLVMInt32TypeInContext(llvm.context) };
+		let sizetype = ValueType::Usize.generate(llvm)?;
 		let mut member_types = [sizetype, pointertype];
 		let slice_type = unsafe {
 			LLVMStructTypeInContext(
@@ -1013,8 +1142,7 @@ impl Reference
 			)
 		};
 		let mut slice = unsafe { LLVMGetUndef(slice_type) };
-		// TODO switch to const_usize or something like that
-		let length_value = llvm.const_i32(length as i32);
+		let length_value = llvm.const_usize(length);
 		slice = unsafe {
 			LLVMBuildInsertValue(
 				llvm.builder,

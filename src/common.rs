@@ -147,6 +147,12 @@ pub enum Expression
 		location: Location,
 	},
 	PrimitiveLiteral(PrimitiveLiteral),
+	NakedIntegerLiteral
+	{
+		value: i128,
+		value_type: Option<ValueType>,
+		location: Location,
+	},
 	StringLiteral(String),
 	ArrayLiteral
 	{
@@ -182,7 +188,17 @@ pub enum BinaryOp
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PrimitiveLiteral
 {
+	Int8(i8),
+	Int16(i16),
 	Int32(i32),
+	Int64(i64),
+	Int128(i128),
+	Uint8(u8),
+	Uint16(u16),
+	Uint32(u32),
+	Uint64(u64),
+	Uint128(u128),
+	Usize(usize),
 	Bool(bool),
 }
 
@@ -223,7 +239,17 @@ pub struct Identifier
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValueType
 {
+	Int8,
+	Int16,
 	Int32,
+	Int64,
+	Int128,
+	Uint8,
+	Uint16,
+	Uint32,
+	Uint64,
+	Uint128,
+	Usize,
 	Bool,
 	Array
 	{

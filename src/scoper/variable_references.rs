@@ -405,6 +405,7 @@ impl Analyzable for Expression
 				})
 			}
 			Expression::PrimitiveLiteral(_lit) => Ok(self.clone()),
+			Expression::NakedIntegerLiteral { .. } => Ok(self.clone()),
 			Expression::ArrayLiteral {
 				array,
 				element_type,

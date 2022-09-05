@@ -1,5 +1,5 @@
 
-fn foo()
+fn foo() -> i32
 {
 	{
 		baz:
@@ -8,7 +8,7 @@ fn foo()
 	33
 }
 
-fn bar()
+fn bar() -> i32
 {
 	var x = 1;
 	var y = x;
@@ -16,7 +16,7 @@ fn bar()
 	y
 }
 
-fn main()
+fn main() -> i32
 {
 	var x = foo();
 	var y;

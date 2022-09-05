@@ -40,7 +40,18 @@ pub enum Token
 
 	// Literals.
 	Identifier(String),
+	NakedInteger(i128),
+	Int8(i8),
+	Int16(i16),
 	Int32(i32),
+	Int64(i64),
+	Int128(i128),
+	Uint8(u8),
+	Uint16(u16),
+	Uint32(u32),
+	Uint64(u64),
+	Uint128(u128),
+	Usize(usize),
 	Bool(bool),
 	StringLiteral(String),
 
@@ -58,6 +69,13 @@ pub enum Error
 	},
 	#[error("invalid integer literal")]
 	InvalidIntegerLiteral(#[from] std::num::ParseIntError),
+	#[error("large integer literal without type suffix")]
+	InvalidNakedIntegerLiteral,
+	#[error("invalid integer type suffix '\\{sequence:?}'")]
+	InvalidIntegerTypeSuffix
+	{
+		sequence: String
+	},
 	#[error("invalid escape sequence '\\{sequence:?}'")]
 	InvalidEscapeSequence
 	{
@@ -190,7 +208,17 @@ fn lex_line(
 					"else" => Token::Else,
 					"true" => Token::Bool(true),
 					"false" => Token::Bool(false),
+					"i8" => Token::Type(ValueType::Int8),
+					"i16" => Token::Type(ValueType::Int16),
 					"i32" => Token::Type(ValueType::Int32),
+					"i64" => Token::Type(ValueType::Int64),
+					"i128" => Token::Type(ValueType::Int128),
+					"u8" => Token::Type(ValueType::Uint8),
+					"u16" => Token::Type(ValueType::Uint16),
+					"u32" => Token::Type(ValueType::Uint32),
+					"u64" => Token::Type(ValueType::Uint64),
+					"u128" => Token::Type(ValueType::Uint128),
+					"usize" => Token::Type(ValueType::Usize),
 					"bool" => Token::Type(ValueType::Bool),
 					_ => Token::Identifier(identifier),
 				};
@@ -211,10 +239,85 @@ fn lex_line(
 						break;
 					}
 				}
-				match literal.parse()
+				let mut identifier = String::new();
+				while let Some(&(_, y)) = iter.peek()
 				{
-					Ok(value) => Ok(Token::Int32(value)),
-					Err(error) => Err(error.into()),
+					if is_identifier_continuation(y)
+					{
+						identifier.push(y);
+						iter.next();
+					}
+					else
+					{
+						break;
+					}
+				}
+				if identifier.is_empty()
+				{
+					match literal.parse()
+					{
+						Ok(value)
+							if value >= i64::MIN as i128
+								&& value <= u64::MAX as i128 =>
+						{
+							Ok(Token::NakedInteger(value))
+						}
+						Ok(_) => Err(Error::InvalidNakedIntegerLiteral),
+						Err(error) => Err(error.into()),
+					}
+				}
+				else
+				{
+					match identifier.as_str()
+					{
+						"i8" => literal
+							.parse()
+							.map(|value| Token::Int8(value))
+							.map_err(|e| e.into()),
+						"i16" => literal
+							.parse()
+							.map(|value| Token::Int16(value))
+							.map_err(|e| e.into()),
+						"i32" => literal
+							.parse()
+							.map(|value| Token::Int32(value))
+							.map_err(|e| e.into()),
+						"i64" => literal
+							.parse()
+							.map(|value| Token::Int64(value))
+							.map_err(|e| e.into()),
+						"i128" => literal
+							.parse()
+							.map(|value| Token::Int128(value))
+							.map_err(|e| e.into()),
+						"u8" => literal
+							.parse()
+							.map(|value| Token::Uint8(value))
+							.map_err(|e| e.into()),
+						"u16" => literal
+							.parse()
+							.map(|value| Token::Uint16(value))
+							.map_err(|e| e.into()),
+						"u32" => literal
+							.parse()
+							.map(|value| Token::Uint32(value))
+							.map_err(|e| e.into()),
+						"u64" => literal
+							.parse()
+							.map(|value| Token::Uint64(value))
+							.map_err(|e| e.into()),
+						"u128" => literal
+							.parse()
+							.map(|value| Token::Uint128(value))
+							.map_err(|e| e.into()),
+						"usize" => literal
+							.parse()
+							.map(|value| Token::Usize(value))
+							.map_err(|e| e.into()),
+						_ => Err(Error::InvalidIntegerTypeSuffix {
+							sequence: identifier,
+						}),
+					}
 				}
 			}
 			'"' =>

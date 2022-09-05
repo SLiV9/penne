@@ -354,6 +354,11 @@ impl Rebuildable for Expression
 			{
 				literal.rebuild(indentation)
 			}
+			Expression::NakedIntegerLiteral {
+				value,
+				value_type: _,
+				location: _,
+			} => Ok(format!("{}", value)),
 			Expression::ArrayLiteral {
 				array,
 				element_type: _,
@@ -402,7 +407,17 @@ impl Rebuildable for PrimitiveLiteral
 	{
 		match self
 		{
-			PrimitiveLiteral::Int32(value) => Ok(format!("{}", value)),
+			PrimitiveLiteral::Int8(value) => Ok(format!("{}i8", value)),
+			PrimitiveLiteral::Int16(value) => Ok(format!("{}i16", value)),
+			PrimitiveLiteral::Int32(value) => Ok(format!("{}i32", value)),
+			PrimitiveLiteral::Int64(value) => Ok(format!("{}i64", value)),
+			PrimitiveLiteral::Int128(value) => Ok(format!("{}i128", value)),
+			PrimitiveLiteral::Uint8(value) => Ok(format!("{}u8", value)),
+			PrimitiveLiteral::Uint16(value) => Ok(format!("{}u16", value)),
+			PrimitiveLiteral::Uint32(value) => Ok(format!("{}u32", value)),
+			PrimitiveLiteral::Uint64(value) => Ok(format!("{}u64", value)),
+			PrimitiveLiteral::Uint128(value) => Ok(format!("{}u128", value)),
+			PrimitiveLiteral::Usize(value) => Ok(format!("{}usize", value)),
 			PrimitiveLiteral::Bool(true) => Ok("true".to_string()),
 			PrimitiveLiteral::Bool(false) => Ok("false".to_string()),
 		}
@@ -418,7 +433,17 @@ impl Rebuildable for ValueType
 	{
 		match self
 		{
+			ValueType::Int8 => Ok("i8".to_string()),
+			ValueType::Int16 => Ok("i16".to_string()),
 			ValueType::Int32 => Ok("i32".to_string()),
+			ValueType::Int64 => Ok("i64".to_string()),
+			ValueType::Int128 => Ok("i128".to_string()),
+			ValueType::Uint8 => Ok("u8".to_string()),
+			ValueType::Uint16 => Ok("u16".to_string()),
+			ValueType::Uint32 => Ok("u32".to_string()),
+			ValueType::Uint64 => Ok("u64".to_string()),
+			ValueType::Uint128 => Ok("u128".to_string()),
+			ValueType::Usize => Ok("usize".to_string()),
 			ValueType::Bool => Ok("bool".to_string()),
 			ValueType::Array {
 				element_type,
