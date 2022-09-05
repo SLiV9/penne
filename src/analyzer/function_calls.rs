@@ -15,6 +15,10 @@ pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 	};
 	for declaration in program
 	{
+		declare(declaration, &mut analyzer)?;
+	}
+	for declaration in program
+	{
 		declaration.analyze(&mut analyzer)?;
 	}
 	Ok(())
@@ -186,6 +190,22 @@ impl Analyzer
 	}
 }
 
+fn declare(
+	declaration: &Declaration,
+	analyzer: &mut Analyzer,
+) -> Result<(), anyhow::Error>
+{
+	match declaration
+	{
+		Declaration::Function {
+			name,
+			parameters,
+			body: _,
+			return_type: _,
+		} => analyzer.declare_function(name, parameters),
+	}
+}
+
 trait Analyzable
 {
 	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>;
@@ -199,13 +219,12 @@ impl Analyzable for Declaration
 		match self
 		{
 			Declaration::Function {
-				name,
+				name: _,
 				parameters,
 				body,
 				return_type: _,
 			} =>
 			{
-				analyzer.declare_function(name, parameters)?;
 				for parameter in parameters
 				{
 					parameter.analyze(analyzer)?;

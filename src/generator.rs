@@ -20,6 +20,10 @@ pub fn generate(
 
 	for declaration in program
 	{
+		declare(declaration, &mut generator)?;
+	}
+	for declaration in program
+	{
 		declaration.generate(&mut generator)?;
 	}
 
@@ -105,14 +109,6 @@ impl Generator
 		}
 	}
 
-	fn const_i32(&mut self, value: i32) -> LLVMValueRef
-	{
-		unsafe {
-			let inttype = LLVMInt32TypeInContext(self.context);
-			LLVMConstInt(inttype, value as u64, 1)
-		}
-	}
-
 	fn const_i64(&mut self, value: i32) -> LLVMValueRef
 	{
 		unsafe {
@@ -142,6 +138,69 @@ impl Drop for Generator
 	}
 }
 
+fn declare(
+	declaration: &Declaration,
+	llvm: &mut Generator,
+) -> Result<(), anyhow::Error>
+{
+	match declaration
+	{
+		Declaration::Function {
+			name,
+			parameters,
+			body: _,
+			return_type,
+		} =>
+		{
+			let return_type = match return_type
+			{
+				Some(return_type) => return_type.generate(llvm)?,
+
+				None =>
+				unsafe { LLVMVoidTypeInContext(llvm.context) },
+			};
+
+			let function_name = CString::new(name.name.as_bytes())?;
+
+			let param_types: Result<Vec<LLVMTypeRef>, anyhow::Error> =
+				parameters
+					.iter()
+					.map(|parameter| match &parameter.value_type
+					{
+						Some(vt) => vt.generate(llvm),
+						None => Err(anyhow!("failed to infer type")
+							.context(parameter.name.location.format())
+							.context(format!(
+								"failed to infer type for '{}'",
+								parameter.name.name
+							))),
+					})
+					.collect();
+			let mut param_types: Vec<LLVMTypeRef> = param_types?;
+
+			let function: LLVMValueRef = unsafe {
+				let function_type = LLVMFunctionType(
+					return_type,
+					param_types.as_mut_ptr(),
+					param_types.len() as u32,
+					0,
+				);
+				let function = LLVMAddFunction(
+					llvm.module,
+					function_name.as_ptr(),
+					function_type,
+				);
+				function
+			};
+
+			llvm.global_functions
+				.insert(name.name.to_string(), function);
+
+			Ok(())
+		}
+	}
+}
+
 trait Generatable
 {
 	type Item;
@@ -167,51 +226,24 @@ impl Generatable for Declaration
 				name,
 				parameters,
 				body,
-				return_type,
+				return_type: _,
 			} =>
 			{
-				let return_type = match return_type
-				{
-					Some(return_type) => return_type.generate(llvm)?,
-
-					None =>
-					unsafe { LLVMVoidTypeInContext(llvm.context) },
-				};
-
-				let function_name = CString::new(name.name.as_bytes())?;
-
-				let param_types: Result<Vec<LLVMTypeRef>, anyhow::Error> =
-					parameters
-						.iter()
-						.map(|parameter| match &parameter.value_type
-						{
-							Some(vt) => vt.generate(llvm),
-							None => Err(anyhow!("failed to infer type")
-								.context(parameter.name.location.format())
-								.context(format!(
-									"failed to infer type for '{}'",
-									parameter.name.name
-								))),
-						})
-						.collect();
-				let mut param_types: Vec<LLVMTypeRef> = param_types?;
-
-				let function: LLVMValueRef = unsafe {
-					let function_type = LLVMFunctionType(
-						return_type,
-						param_types.as_mut_ptr(),
-						param_types.len() as u32,
-						0,
-					);
-					let function = LLVMAddFunction(
-						llvm.module,
-						function_name.as_ptr(),
-						function_type,
-					);
-					function
-				};
-
 				let entry_block_name = CString::new("entry")?;
+
+				let function = match llvm.global_functions.get(&name.name)
+				{
+					Some(function) => *function,
+					None =>
+					{
+						return Err(anyhow!("failed to find signature")
+							.context(name.location.format())
+							.context(format!(
+								"failed to generate signature of function '{}'",
+								name.name
+							)))
+					}
+				};
 
 				unsafe {
 					let entry_block = LLVMAppendBasicBlockInContext(
@@ -222,8 +254,7 @@ impl Generatable for Declaration
 					LLVMPositionBuilderAtEnd(llvm.builder, entry_block);
 				};
 
-				for (i, (parameter, _vartype)) in
-					parameters.iter().zip(param_types.iter()).enumerate()
+				for (i, parameter) in parameters.iter().enumerate()
 				{
 					let param = unsafe { LLVMGetParam(function, i as u32) };
 					let loc = param;
@@ -237,9 +268,6 @@ impl Generatable for Declaration
 				llvm.local_labeled_blocks.clear();
 
 				llvm.verify_function(function);
-
-				llvm.global_functions
-					.insert(name.name.to_string(), function);
 
 				Ok(())
 			}

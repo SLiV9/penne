@@ -1,0 +1,10 @@
+fn main() -> i32
+{
+	var x = foo();
+	return: x
+}
+
+fn foo() -> i32
+{
+	return: 200
+}
