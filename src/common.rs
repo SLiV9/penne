@@ -47,6 +47,7 @@ pub struct FunctionBody
 {
 	pub statements: Vec<Statement>,
 	pub return_value: Option<Expression>,
+	pub return_value_identifier: Identifier,
 }
 
 #[must_use]
@@ -251,6 +252,17 @@ pub struct Identifier
 	pub name: String,
 	pub location: Location,
 	pub resolution_id: u32,
+}
+
+impl Identifier
+{
+	pub fn return_value(self) -> Self
+	{
+		Identifier {
+			name: format!("(return value of '{}')", self.name),
+			..self
+		}
+	}
 }
 
 #[must_use]

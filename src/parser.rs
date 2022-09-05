@@ -40,6 +40,20 @@ fn peek(tokens: &mut VecDeque<LexedToken>) -> Option<&Token>
 	}
 }
 
+fn peek_location(
+	tokens: &mut VecDeque<LexedToken>,
+) -> Result<Location, anyhow::Error>
+{
+	match tokens.front()
+	{
+		Some(LexedToken {
+			result: _,
+			location,
+		}) => Ok(location.clone()),
+		None => Err(anyhow!("unexpected end of file")),
+	}
+}
+
 fn consume(
 	expected_token: Token,
 	tokens: &mut VecDeque<LexedToken>,
@@ -179,7 +193,7 @@ fn parse_declaration(
 	}
 	else
 	{
-		let body = parse_function_body(tokens)?;
+		let body = parse_function_body(&name.name, tokens)?;
 		let function = Declaration::Function {
 			name,
 			parameters,
@@ -266,6 +280,7 @@ fn parse_type(
 }
 
 fn parse_function_body(
+	function_name: &str,
 	tokens: &mut VecDeque<LexedToken>,
 ) -> Result<FunctionBody, anyhow::Error>
 {
@@ -277,11 +292,16 @@ fn parse_function_body(
 	{
 		if let Some(Token::BraceRight) = peek(tokens)
 		{
-			tokens.pop_front();
+			let (_token, location) = extract(tokens)?;
 
 			let body = FunctionBody {
 				statements,
 				return_value: None,
+				return_value_identifier: Identifier {
+					name: function_name.to_string(),
+					location,
+					resolution_id: 0,
+				},
 			};
 			return Ok(body);
 		}
@@ -300,6 +320,9 @@ fn parse_function_body(
 		}
 	}
 
+	let location = peek_location(tokens)
+		.ok()
+		.context("expected closing brace")?;
 	let return_value = parse_expression(tokens)?;
 
 	consume(Token::BraceRight, tokens).context("expected closing brace")?;
@@ -307,6 +330,11 @@ fn parse_function_body(
 	let body = FunctionBody {
 		statements,
 		return_value: Some(return_value),
+		return_value_identifier: Identifier {
+			name: function_name.to_string(),
+			location,
+			resolution_id: 0,
+		},
 	};
 	Ok(body)
 }

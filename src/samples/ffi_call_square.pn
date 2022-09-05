@@ -8,6 +8,8 @@ fn main() -> i32
 	if y == 64
 		goto return;
 	else
+	{
 		errorcode = 255;
+	}
 	return: errorcode
 }

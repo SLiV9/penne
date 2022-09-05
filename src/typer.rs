@@ -13,6 +13,10 @@ pub fn analyze(
 		functions: std::collections::HashMap::new(),
 		contextual_type: None,
 	};
+	for declaration in &program
+	{
+		declare(declaration, &mut typer)?;
+	}
 	program.iter().map(|x| x.analyze(&mut typer)).collect()
 }
 
@@ -195,6 +199,40 @@ impl StaticallyTyped for PrimitiveLiteral
 	}
 }
 
+fn declare(
+	declaration: &Declaration,
+	typer: &mut Typer,
+) -> Result<(), anyhow::Error>
+{
+	match declaration
+	{
+		Declaration::Function {
+			name,
+			parameters,
+			body: _,
+			return_type,
+			flags: _,
+		}
+		| Declaration::FunctionHead {
+			name,
+			parameters,
+			return_type,
+			flags: _,
+		} =>
+		{
+			let rt_identifier = name.clone().return_value();
+			typer.put_symbol(&rt_identifier, return_type.clone())?;
+
+			let parameters: Result<Vec<Parameter>, anyhow::Error> =
+				parameters.iter().map(|x| x.analyze(typer)).collect();
+			let parameters = parameters?;
+
+			typer.declare_function_parameters(name, &parameters);
+			Ok(())
+		}
+	}
+}
+
 trait Analyzable
 {
 	type Item;
@@ -233,13 +271,9 @@ impl Analyzable for Declaration
 				flags,
 			} =>
 			{
-				typer.put_symbol(name, return_type.clone())?;
-
 				let parameters: Result<Vec<Parameter>, anyhow::Error> =
 					parameters.iter().map(|x| x.analyze(typer)).collect();
 				let parameters = parameters?;
-
-				typer.declare_function_parameters(name, &parameters);
 
 				// Pre-analyze the function body because it might contain
 				// untyped declarations, e.g. "var x;", whose types won't be
@@ -272,7 +306,10 @@ impl Analyzable for Declaration
 						)));
 				}
 
-				typer.put_symbol(name, return_type.clone())?;
+				let rt_identifier =
+					body.return_value_identifier.clone().return_value();
+				typer.put_symbol(&rt_identifier, return_type.clone())?;
+
 				let function = Declaration::Function {
 					name: name.clone(),
 					parameters,
@@ -289,15 +326,10 @@ impl Analyzable for Declaration
 				flags,
 			} =>
 			{
-				typer.put_symbol(name, return_type.clone())?;
-
 				let parameters: Result<Vec<Parameter>, anyhow::Error> =
 					parameters.iter().map(|x| x.analyze(typer)).collect();
 				let parameters = parameters?;
 
-				typer.declare_function_parameters(name, &parameters);
-
-				typer.put_symbol(name, return_type.clone())?;
 				let function = Declaration::FunctionHead {
 					name: name.clone(),
 					parameters,
@@ -361,6 +393,7 @@ impl Analyzable for FunctionBody
 		Ok(FunctionBody {
 			statements,
 			return_value,
+			return_value_identifier: self.return_value_identifier.clone(),
 		})
 	}
 }
@@ -838,8 +871,9 @@ impl Analyzable for Expression
 				return_type,
 			} =>
 			{
-				typer.put_symbol(name, return_type.clone())?;
-				let return_type = typer.get_symbol(name);
+				let rt_identifier = name.clone().return_value();
+				typer.put_symbol(&rt_identifier, return_type.clone())?;
+				let return_type = typer.get_symbol(&rt_identifier);
 				let arguments =
 					typer.analyze_function_arguments(name, arguments)?;
 				let expr = Expression::FunctionCall {

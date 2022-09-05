@@ -11,14 +11,20 @@ pub fn analyze(
 {
 	let mut analyzer = Analyzer {
 		variable_stack: Vec::new(),
+		function_list: Vec::new(),
 		resolution_id: 1,
 	};
+	for declaration in &program
+	{
+		let _unused: Identifier = declare(declaration, &mut analyzer)?;
+	}
 	program.iter().map(|x| x.analyze(&mut analyzer)).collect()
 }
 
 struct Analyzer
 {
 	variable_stack: Vec<Vec<Identifier>>,
+	function_list: Vec<Identifier>,
 	resolution_id: u32,
 }
 
@@ -89,6 +95,71 @@ impl Analyzer
 			)))
 	}
 
+	fn declare_function(
+		&mut self,
+		identifier: &Identifier,
+	) -> Result<Identifier, anyhow::Error>
+	{
+		if let Some(previous_identifier) = self
+			.function_list
+			.iter()
+			.find(|x| x.name == identifier.name)
+		{
+			return Err(anyhow!(
+				"previous declaration {}",
+				previous_identifier.location.format()
+			)
+			.context(identifier.location.format())
+			.context(format!(
+				"a function named '{}' is already defined",
+				identifier.name
+			)));
+		}
+
+		let identifier = Identifier {
+			name: identifier.name.clone(),
+			location: identifier.location.clone(),
+			resolution_id: self.resolution_id,
+		};
+		self.resolution_id += 1;
+
+		self.function_list.push(identifier.clone());
+		Ok(identifier)
+	}
+
+	fn use_function(
+		&self,
+		identifier: &Identifier,
+	) -> Result<Identifier, anyhow::Error>
+	{
+		if let Some(declaration_identifier) = self
+			.function_list
+			.iter()
+			.find(|x| x.name == identifier.name)
+		{
+			Ok(Identifier {
+				resolution_id: declaration_identifier.resolution_id,
+				..identifier.clone()
+			})
+		}
+		else
+		{
+			Err(anyhow!("undefined reference")
+				.context(identifier.location.format())
+				.context(format!(
+					"reference to undefined function named '{}'",
+					identifier.name
+				)))
+		}
+	}
+
+	fn create_anonymous_resolution_id(&mut self) -> u32
+	{
+		let id = self.resolution_id;
+		self.resolution_id += 1;
+		id
+	}
+
 	fn push_scope(&mut self)
 	{
 		self.variable_stack.push(Vec::new());
@@ -97,6 +168,29 @@ impl Analyzer
 	fn pop_scope(&mut self)
 	{
 		self.variable_stack.pop();
+	}
+}
+
+fn declare(
+	declaration: &Declaration,
+	analyzer: &mut Analyzer,
+) -> Result<Identifier, anyhow::Error>
+{
+	match declaration
+	{
+		Declaration::Function {
+			name,
+			parameters: _,
+			body: _,
+			return_type: _,
+			flags: _,
+		} => analyzer.declare_function(name),
+		Declaration::FunctionHead {
+			name,
+			parameters: _,
+			return_type: _,
+			flags: _,
+		} => analyzer.declare_function(name),
 	}
 }
 
@@ -129,6 +223,8 @@ impl Analyzable for Declaration
 				flags,
 			} =>
 			{
+				let name = analyzer.use_function(name)?;
+
 				analyzer.push_scope();
 				let parameters: Result<Vec<Parameter>, anyhow::Error> =
 					parameters.iter().map(|x| x.analyze(analyzer)).collect();
@@ -137,7 +233,7 @@ impl Analyzable for Declaration
 				analyzer.pop_scope();
 
 				let function = Declaration::Function {
-					name: name.clone(),
+					name,
 					parameters,
 					body,
 					return_type: return_type.clone(),
@@ -145,7 +241,29 @@ impl Analyzable for Declaration
 				};
 				Ok(function)
 			}
-			Declaration::FunctionHead { .. } => Ok(self.clone()),
+			Declaration::FunctionHead {
+				name,
+				parameters,
+				return_type,
+				flags,
+			} =>
+			{
+				let name = analyzer.use_function(name)?;
+
+				analyzer.push_scope();
+				let parameters: Result<Vec<Parameter>, anyhow::Error> =
+					parameters.iter().map(|x| x.analyze(analyzer)).collect();
+				let parameters = parameters?;
+				analyzer.pop_scope();
+
+				let function = Declaration::FunctionHead {
+					name,
+					parameters,
+					return_type: return_type.clone(),
+					flags: *flags,
+				};
+				Ok(function)
+			}
 		}
 	}
 }
@@ -190,9 +308,13 @@ impl Analyzable for FunctionBody
 			.transpose()?;
 		analyzer.pop_scope();
 
+		let return_value_identifier =
+			analyzer.use_function(&self.return_value_identifier)?;
+
 		Ok(FunctionBody {
 			statements,
 			return_value,
+			return_value_identifier,
 		})
 	}
 }
@@ -365,8 +487,7 @@ impl Analyzable for Array
 		analyzer.pop_scope();
 
 		// Arrays need a resolution id to help with typing its elements.
-		let resolution_id = analyzer.resolution_id;
-		analyzer.resolution_id += 1;
+		let resolution_id = analyzer.create_anonymous_resolution_id();
 
 		Ok(Array {
 			elements,
@@ -443,11 +564,12 @@ impl Analyzable for Expression
 				return_type,
 			} =>
 			{
+				let name = analyzer.use_function(name)?;
 				let arguments: Result<Vec<Expression>, anyhow::Error> =
 					arguments.iter().map(|a| a.analyze(analyzer)).collect();
 				let arguments = arguments?;
 				Ok(Expression::FunctionCall {
-					name: name.clone(),
+					name,
 					arguments,
 					return_type: return_type.clone(),
 				})

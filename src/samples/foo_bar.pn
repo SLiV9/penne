@@ -8,7 +8,7 @@ fn foo() -> i32
 	33
 }
 
-fn bar() -> i32
+fn bar() -> i16
 {
 	var x = 1;
 	var y = x;

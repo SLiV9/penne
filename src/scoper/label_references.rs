@@ -167,6 +167,7 @@ impl Analyzable for FunctionBody
 		Ok(FunctionBody {
 			statements,
 			return_value: self.return_value.clone(),
+			return_value_identifier: self.return_value_identifier.clone(),
 		})
 	}
 }
