@@ -15,19 +15,18 @@ pub const SCREEN_SIZE: u32 = 160;
 // │                                                                           │
 // └───────────────────────────────────────────────────────────────────────────┘
 
-// TODO pointers
-//pub const PALETTE: *mut [u32; 4] = 0x04 as *mut [u32; 4];
-//pub const DRAW_COLORS: *mut u16 = 0x14 as *mut u16;
-//pub const GAMEPAD1: *const u8 = 0x16 as *const u8;
-//pub const GAMEPAD2: *const u8 = 0x17 as *const u8;
-//pub const GAMEPAD3: *const u8 = 0x18 as *const u8;
-//pub const GAMEPAD4: *const u8 = 0x19 as *const u8;
-//pub const MOUSE_X: *const i16 = 0x1a as *const i16;
-//pub const MOUSE_Y: *const i16 = 0x1c as *const i16;
-//pub const MOUSE_BUTTONS: *const u8 = 0x1e as *const u8;
-//pub const SYSTEM_FLAGS: *mut u8 = 0x1f as *mut u8;
-//pub const NETPLAY: *const u8 = 0x20 as *const u8;
-//pub const FRAMEBUFFER: *mut [u8; 6400] = 0xa0 as *mut [u8; 6400];
+pub const PALETTE: &[4]u32 = 0x04;
+pub const DRAW_COLORS: &u16 = 0x14;
+pub const GAMEPAD1: (u8) = 0x16;
+pub const GAMEPAD2: (u8) = 0x17;
+pub const GAMEPAD3: (u8) = 0x18;
+pub const GAMEPAD4: (u8) = 0x19;
+pub const MOUSE_X: (i16) = 0x1a;
+pub const MOUSE_Y: (i16) = 0x1c;
+pub const MOUSE_BUTTONS: (u8) = 0x1e;
+pub const SYSTEM_FLAGS: &u8 = 0x1f;
+pub const NETPLAY: (u8) = 0x20;
+pub const FRAMEBUFFER: &[6400]u8 = 0xa0;
 
 pub const BUTTON_1: u8 = 1;
 pub const BUTTON_2: u8 = 2;
@@ -116,12 +115,10 @@ pub const TONE_PAN_RIGHT: u32 = 32;
 // └───────────────────────────────────────────────────────────────────────────┘
 
 /// Reads up to `size` bytes from persistent storage into the pointer `dest`.
-// TODO pointers
-//pub extern fn diskr(dest: *mut u8, size: u32) -> u32;
+pub extern fn diskr(dest: &[]u8, size: u32) -> u32;
 
 /// Writes up to `size` bytes from the pointer `src` into persistent storage.
-// TODO pointers
-//pub extern fn diskw(src: *const u8, size: u32) -> u32;
+pub extern fn diskw(src: []u8, size: u32) -> u32;
 
 // ┌───────────────────────────────────────────────────────────────────────────┐
 // │                                                                           │

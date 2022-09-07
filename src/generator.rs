@@ -711,8 +711,22 @@ impl Generatable for Expression
 			} =>
 			{
 				let value_bits: u64 = *value;
-				let inttype = value_type.generate(llvm)?;
-				unsafe { Ok(LLVMConstInt(inttype, value_bits, 0)) }
+				match value_type
+				{
+					ValueType::Pointer { element_type: _ }
+					| ValueType::View { element_type: _ } =>
+					{
+						let pointertype = value_type.generate(llvm)?;
+						let address = value_bits as usize;
+						let value = llvm.const_usize(address);
+						unsafe { Ok(LLVMConstIntToPtr(value, pointertype)) }
+					}
+					_ =>
+					{
+						let inttype = value_type.generate(llvm)?;
+						unsafe { Ok(LLVMConstInt(inttype, value_bits, 0)) }
+					}
+				}
 			}
 			Expression::BitIntegerLiteral {
 				value: _,
@@ -969,6 +983,12 @@ impl Generatable for ValueType
 						0,
 					)
 				}
+			}
+			ValueType::Pointer { element_type }
+			| ValueType::View { element_type } =>
+			{
+				let element_type = element_type.generate(llvm)?;
+				unsafe { LLVMPointerType(element_type, 0u32) }
 			}
 		};
 		Ok(typeref)

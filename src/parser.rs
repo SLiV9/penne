@@ -269,6 +269,22 @@ fn parse_type(
 	match token
 	{
 		Token::Type(value_type) => Ok(value_type),
+		Token::Ampersand =>
+		{
+			let element_type = parse_type(tokens)?;
+			Ok(ValueType::Pointer {
+				element_type: Box::new(element_type),
+			})
+		}
+		Token::ParenLeft =>
+		{
+			let element_type = parse_type(tokens)?;
+			consume(Token::ParenRight, tokens)
+				.context("expected right parenthesis")?;
+			Ok(ValueType::View {
+				element_type: Box::new(element_type),
+			})
+		}
 		Token::BracketLeft => match peek(tokens)
 		{
 			Some(Token::BracketRight) | None =>

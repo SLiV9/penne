@@ -303,4 +303,12 @@ pub enum ValueType
 	{
 		element_type: Box<ValueType>,
 	},
+	Pointer
+	{
+		element_type: Box<ValueType>,
+	},
+	View
+	{
+		element_type: Box<ValueType>,
+	},
 }

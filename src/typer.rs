@@ -755,6 +755,14 @@ impl Analyzable for Expression
 							{
 								Some(ValueType::Int32)
 							}
+							Some(ValueType::Pointer { .. }) =>
+							{
+								Some(ValueType::Int32)
+							}
+							Some(ValueType::View { .. }) =>
+							{
+								Some(ValueType::Int32)
+							}
 							None => None,
 						}
 					}
@@ -771,7 +779,6 @@ impl Analyzable for Expression
 				location,
 			} =>
 			{
-				// TODO if contextual_type is a pointer, make it a pointer
 				let value_type = match value_type
 				{
 					Some(vt) => Some(vt.clone()),
@@ -800,6 +807,8 @@ impl Analyzable for Expression
 							{
 								Some(ValueType::Int32)
 							}
+							Some(ValueType::Pointer { .. }) => contextual_type,
+							Some(ValueType::View { .. }) => contextual_type,
 							None => None,
 						}
 					}

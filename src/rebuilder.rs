@@ -543,6 +543,14 @@ impl Rebuildable for ValueType
 			{
 				Ok(format!("[]{}", element_type.rebuild(indentation)?))
 			}
+			ValueType::Pointer { element_type } =>
+			{
+				Ok(format!("&{}", element_type.rebuild(indentation)?))
+			}
+			ValueType::View { element_type } =>
+			{
+				Ok(format!("({})", element_type.rebuild(indentation)?))
+			}
 		}
 	}
 }
