@@ -137,8 +137,44 @@ fn parse_declaration(
 		flags.insert(DeclarationFlag::External);
 	}
 
-	consume(Token::Fn, tokens).context("expected top-level declaration")?;
+	let (token, location) =
+		extract(tokens).context("expected top-level declaration")?;
+	match token
+	{
+		Token::Const =>
+		{
+			let name =
+				extract_identifier(tokens).context("expected constant name")?;
 
+			consume(Token::Colon, tokens).context("expected colon")?;
+			let value_type = parse_type(tokens)?;
+
+			consume(Token::Assignment, tokens)
+				.context("expected assignment")?;
+			let expression = parse_expression(tokens)?;
+
+			consume(Token::Semicolon, tokens).context("expected semicolon")?;
+
+			let declaration = Declaration::Constant {
+				name,
+				value: expression,
+				value_type,
+				flags,
+			};
+			Ok(declaration)
+		}
+		Token::Fn => parse_function_declaration(flags, tokens),
+		token => Err(anyhow!("got {:?}", token))
+			.context(location.format())
+			.context("expected top-level declaration"),
+	}
+}
+
+fn parse_function_declaration(
+	flags: EnumSet<DeclarationFlag>,
+	tokens: &mut VecDeque<LexedToken>,
+) -> Result<Declaration, anyhow::Error>
+{
 	let name = extract_identifier(tokens).context("expected function name")?;
 
 	consume(Token::ParenLeft, tokens).context("expected left parenthesis")?;

@@ -11,6 +11,7 @@ pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 	let mut analyzer = Analyzer {
 		function_list: Vec::new(),
 		array_list: Vec::new(),
+		is_const_evaluated: false,
 		is_immediate_function_argument: false,
 	};
 	for declaration in program
@@ -28,6 +29,7 @@ struct Analyzer
 {
 	function_list: Vec<(Identifier, Vec<Parameter>)>,
 	array_list: Vec<Identifier>,
+	is_const_evaluated: bool,
 	is_immediate_function_argument: bool,
 }
 
@@ -42,7 +44,7 @@ impl Analyzer
 		if let Some((previous_identifier, _)) = self
 			.function_list
 			.iter()
-			.find(|(x, _)| x.name == identifier.name)
+			.find(|(x, _)| x.resolution_id == identifier.resolution_id)
 		{
 			return Err(anyhow!(
 				"previous declaration {}",
@@ -69,7 +71,7 @@ impl Analyzer
 		if let Some((declaration_identifier, parameters)) = self
 			.function_list
 			.iter()
-			.find(|(x, _)| x.name == identifier.name)
+			.find(|(x, _)| x.resolution_id == identifier.resolution_id)
 		{
 			if arguments.len() < parameters.len()
 			{
@@ -197,6 +199,7 @@ fn declare(
 {
 	match declaration
 	{
+		Declaration::Constant { .. } => Ok(()),
 		Declaration::Function {
 			name,
 			parameters,
@@ -225,6 +228,20 @@ impl Analyzable for Declaration
 		analyzer.is_immediate_function_argument = false;
 		match self
 		{
+			Declaration::Constant {
+				name,
+				value,
+				value_type: _,
+				flags: _,
+			} =>
+			{
+				analyzer.is_const_evaluated = true;
+				value
+					.analyze(analyzer)
+					.with_context(|| name.location.format())?;
+				analyzer.is_const_evaluated = false;
+				Ok(())
+			}
 			Declaration::Function {
 				name: _,
 				parameters,
@@ -527,6 +544,14 @@ impl Analyzable for Expression
 				return_type: _,
 			} =>
 			{
+				if analyzer.is_const_evaluated
+				{
+					let error = anyhow!("const evaluation")
+						.context(name.location.format())
+						.context("cannot call functions in const context");
+					return Err(error);
+				}
+
 				let argument_types =
 					arguments.iter().map(|x| x.value_type()).collect();
 				analyzer.use_function(name, argument_types)?;
@@ -536,6 +561,7 @@ impl Analyzable for Expression
 					argument.analyze(analyzer)?;
 				}
 				analyzer.is_immediate_function_argument = false;
+
 				Ok(())
 			}
 		}

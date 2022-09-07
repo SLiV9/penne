@@ -36,6 +36,12 @@ impl Analyzable for Declaration
 	{
 		match self
 		{
+			Declaration::Constant {
+				name: _,
+				value: _,
+				value_type: _,
+				flags: _,
+			} => Ok(()),
 			Declaration::Function {
 				name: _,
 				parameters: _,

@@ -120,6 +120,7 @@ impl Analyzable for Declaration
 	{
 		match self
 		{
+			Declaration::Constant { .. } => Ok(self.clone()),
 			Declaration::Function {
 				name,
 				parameters,

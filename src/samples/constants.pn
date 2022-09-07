@@ -1,0 +1,9 @@
+
+const X: i32 = 100;
+const Y: i32 = X;
+
+fn main()
+{
+	var result = X + Y;
+	return: result
+}

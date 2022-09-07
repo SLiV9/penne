@@ -206,6 +206,16 @@ fn declare(
 {
 	match declaration
 	{
+		Declaration::Constant {
+			name,
+			value: _,
+			value_type,
+			flags: _,
+		} =>
+		{
+			typer.put_symbol(name, Some(value_type.clone()))?;
+			Ok(())
+		}
 		Declaration::Function {
 			name,
 			parameters,
@@ -246,6 +256,10 @@ impl Typed for Declaration
 	{
 		match self
 		{
+			Declaration::Constant { value_type, .. } =>
+			{
+				Some(value_type.clone())
+			}
 			Declaration::Function { return_type, .. } => return_type.clone(),
 			Declaration::FunctionHead { return_type, .. } =>
 			{
@@ -263,6 +277,23 @@ impl Analyzable for Declaration
 	{
 		match self
 		{
+			Declaration::Constant {
+				name,
+				value,
+				value_type,
+				flags,
+			} =>
+			{
+				typer.contextual_type = Some(value_type.clone());
+				let value = value.analyze(typer)?;
+				let declaration = Declaration::Constant {
+					name: name.clone(),
+					value,
+					value_type: value_type.clone(),
+					flags: *flags,
+				};
+				Ok(declaration)
+			}
 			Declaration::Function {
 				name,
 				parameters,

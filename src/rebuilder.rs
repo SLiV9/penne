@@ -64,6 +64,32 @@ impl Rebuildable for Declaration
 	{
 		match self
 		{
+			Declaration::Constant {
+				name,
+				value,
+				value_type,
+				flags,
+			} =>
+			{
+				let mut buffer = String::new();
+				write!(&mut buffer, "{}", indentation)?;
+				if flags.contains(DeclarationFlag::Public)
+				{
+					write!(&mut buffer, "pub ")?;
+				}
+				if flags.contains(DeclarationFlag::External)
+				{
+					write!(&mut buffer, "extern ")?;
+				}
+				write!(
+					&mut buffer,
+					"const {}: {} = {};",
+					identify(name),
+					value_type.rebuild(&indentation.increased())?,
+					value.rebuild(&indentation.increased())?
+				)?;
+				Ok(buffer)
+			}
 			Declaration::Function {
 				name,
 				parameters,

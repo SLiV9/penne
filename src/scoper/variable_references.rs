@@ -178,6 +178,17 @@ fn declare(
 {
 	match declaration
 	{
+		Declaration::Constant {
+			name,
+			value: _,
+			value_type: _,
+			flags: _,
+		} =>
+		{
+			// Constants have to be declared from top to bottom, just to avoid
+			// having to deal with cyclical definitions.
+			Ok(name.clone())
+		}
 		Declaration::Function {
 			name,
 			parameters: _,
@@ -215,6 +226,25 @@ impl Analyzable for Declaration
 	{
 		match self
 		{
+			Declaration::Constant {
+				name,
+				value,
+				value_type,
+				flags,
+			} =>
+			{
+				let value = value.analyze(analyzer)?;
+				// Declare the variable after analyzing its definition, just
+				// to disallow reflexive definitions.
+				let name = analyzer.declare_variable(name)?;
+				let declaration = Declaration::Constant {
+					name,
+					value,
+					value_type: value_type.clone(),
+					flags: *flags,
+				};
+				Ok(declaration)
+			}
 			Declaration::Function {
 				name,
 				parameters,

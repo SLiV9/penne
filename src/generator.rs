@@ -37,7 +37,8 @@ struct Generator
 	module: *mut LLVMModule,
 	context: *mut LLVMContext,
 	builder: *mut LLVMBuilder,
-	global_functions: std::collections::HashMap<String, LLVMValueRef>,
+	global_variables: std::collections::HashMap<u32, LLVMValueRef>,
+	global_functions: std::collections::HashMap<u32, LLVMValueRef>,
 	local_parameters: std::collections::HashMap<u32, LLVMValueRef>,
 	local_variables: std::collections::HashMap<u32, LLVMValueRef>,
 	local_labeled_blocks: std::collections::HashMap<u32, LLVMBasicBlockRef>,
@@ -59,6 +60,7 @@ impl Generator
 				module,
 				context,
 				builder,
+				global_variables: std::collections::HashMap::new(),
 				global_functions: std::collections::HashMap::new(),
 				local_parameters: std::collections::HashMap::new(),
 				local_variables: std::collections::HashMap::new(),
@@ -145,6 +147,7 @@ fn declare(
 {
 	match declaration
 	{
+		Declaration::Constant { .. } => Ok(()),
 		Declaration::Function {
 			name,
 			parameters,
@@ -200,8 +203,7 @@ fn declare(
 				function
 			};
 
-			llvm.global_functions
-				.insert(name.name.to_string(), function);
+			llvm.global_functions.insert(name.resolution_id, function);
 
 			Ok(())
 		}
@@ -229,6 +231,26 @@ impl Generatable for Declaration
 	{
 		match self
 		{
+			Declaration::Constant {
+				name,
+				value,
+				value_type,
+				flags,
+			} =>
+			{
+				let cname = CString::new(&name.name as &str)?;
+				let vartype = value_type.generate(llvm)?;
+				let global = unsafe {
+					LLVMAddGlobal(llvm.module, vartype, cname.as_ptr())
+				};
+				llvm.global_variables.insert(name.resolution_id, global);
+				let constant = value.generate(llvm)?;
+				unsafe {
+					LLVMSetInitializer(global, constant);
+					LLVMSetGlobalConstant(global, 1);
+				}
+				Ok(())
+			}
 			Declaration::Function {
 				name,
 				parameters,
@@ -237,7 +259,8 @@ impl Generatable for Declaration
 				flags: _,
 			} =>
 			{
-				let function = match llvm.global_functions.get(&name.name)
+				let function = llvm.global_functions.get(&name.resolution_id);
+				let function = match function
 				{
 					Some(function) => *function,
 					None =>
@@ -725,7 +748,8 @@ impl Generatable for Expression
 				return_type: _,
 			} =>
 			{
-				let function = match llvm.global_functions.get(&name.name)
+				let function = llvm.global_functions.get(&name.resolution_id);
+				let function = match function
 				{
 					Some(function) => *function,
 					None =>
@@ -945,18 +969,24 @@ impl Reference
 		{
 			Reference::Identifier(name) =>
 			{
-				let loc = match llvm.local_variables.get(&name.resolution_id)
+				let loc = if let Some(loc) =
+					llvm.local_variables.get(&name.resolution_id)
 				{
-					Some(loc) => *loc,
-					None =>
-					{
-						return Err(anyhow!("undefined reference")
-							.context(name.location.format())
-							.context(format!(
-								"undefined reference to '{}'",
-								name.name
-							)))
-					}
+					*loc
+				}
+				else if let Some(loc) =
+					llvm.global_variables.get(&name.resolution_id)
+				{
+					*loc
+				}
+				else
+				{
+					return Err(anyhow!("undefined reference")
+						.context(name.location.format())
+						.context(format!(
+							"undefined reference to '{}'",
+							name.name
+						)));
 				};
 				Ok(loc)
 			}
@@ -965,18 +995,24 @@ impl Reference
 				let tmpname = CString::new("")?;
 				let mut indices = Vec::new();
 				indices.push(llvm.const_i64(0));
-				let loc = match llvm.local_variables.get(&name.resolution_id)
+				let loc = if let Some(loc) =
+					llvm.local_variables.get(&name.resolution_id)
 				{
-					Some(loc) => *loc,
-					None =>
-					{
-						return Err(anyhow!("undefined reference")
-							.context(name.location.format())
-							.context(format!(
-								"undefined reference to '{}'",
-								name.name
-							)))
-					}
+					*loc
+				}
+				else if let Some(loc) =
+					llvm.global_variables.get(&name.resolution_id)
+				{
+					*loc
+				}
+				else
+				{
+					return Err(anyhow!("undefined reference")
+						.context(name.location.format())
+						.context(format!(
+							"undefined reference to '{}'",
+							name.name
+						)));
 				};
 				let argument: LLVMValueRef = argument.generate(llvm)?;
 				indices.push(argument);
@@ -1018,6 +1054,16 @@ impl Reference
 					};
 					Ok(result)
 				}
+				else if let Some(loc) =
+					llvm.global_variables.get(&name.resolution_id)
+				{
+					let loc = *loc;
+					let tmpname = CString::new("")?;
+					let result = unsafe {
+						LLVMBuildLoad(llvm.builder, loc, tmpname.as_ptr())
+					};
+					Ok(result)
+				}
 				else
 				{
 					Err(anyhow!("undefined reference")
@@ -1047,6 +1093,11 @@ impl Reference
 				}
 				else if let Some(loc) =
 					llvm.local_variables.get(&name.resolution_id)
+				{
+					*loc
+				}
+				else if let Some(loc) =
+					llvm.global_variables.get(&name.resolution_id)
 				{
 					*loc
 				}
@@ -1110,6 +1161,11 @@ impl Reference
 				{
 					*loc
 				}
+				else if let Some(loc) =
+					llvm.global_variables.get(&name.resolution_id)
+				{
+					*loc
+				}
 				else
 				{
 					return Err(anyhow!("undefined reference")
@@ -1139,6 +1195,11 @@ impl Reference
 				}
 				else if let Some(loc) =
 					llvm.local_variables.get(&name.resolution_id)
+				{
+					*loc
+				}
+				else if let Some(loc) =
+					llvm.global_variables.get(&name.resolution_id)
 				{
 					*loc
 				}

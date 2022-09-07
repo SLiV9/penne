@@ -1,0 +1,13 @@
+
+const X: i32 = foo();
+
+fn main()
+{
+	var result = X;
+	return: X
+}
+
+fn foo() -> i32
+{
+	return: 100
+}

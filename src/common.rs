@@ -8,6 +8,13 @@ pub use crate::lexer::Location;
 #[derive(Debug, Clone)]
 pub enum Declaration
 {
+	Constant
+	{
+		name: Identifier,
+		value: Expression,
+		value_type: ValueType,
+		flags: EnumSet<DeclarationFlag>,
+	},
 	Function
 	{
 		name: Identifier,

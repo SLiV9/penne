@@ -20,15 +20,17 @@ contexts:
     - match: '\b(pub|extern)\b'
       scope: storage.modifier.penne
 
+    - match: '\b(const)\b'
+      scope: keyword.other.penne
+      push: const_declaration
+
     - match: '\b(fn)\s+(?={{identifier}})\b'
       captures:
         1: storage.type.function.penne
       push: fn_definition
 
   statements:
-    - match: '"'
-      scope: punctuation.definition.string.begin.penne
-      push: double_quoted_string
+    - include: expressions
 
     - match: '//'
       scope: punctuation.definition.comment.penne
@@ -44,17 +46,22 @@ contexts:
       scope: keyword.other.penne
       push: var_declaration
 
-    - match: '\b(-)?[0-9.]+\b'
-      scope: constant.numeric.penne
-
-    - match: '\b(true|false)\b'
-      scope: constant.language.penne
-
     - match: '(?=\{)'
       push: block
 
     - match: '\b({{identifier}}):'
       scope: entity.name.label.penne
+
+  expressions:
+    - match: '"'
+      scope: punctuation.definition.string.begin.penne
+      push: double_quoted_string
+
+    - match: '\b(-)?[0-9.]+\b'
+      scope: constant.numeric.penne
+
+    - match: '\b(true|false)\b'
+      scope: constant.language.penne
 
   double_quoted_string:
     - meta_scope: string.quoted.double.penne
@@ -82,7 +89,17 @@ contexts:
           pop: true
         - include: type
     - match: '(?=;|=)'
+      set: var_initialization
+
+  var_initialization:
+    - include: expressions
+    - match: '(?=;)'
       pop: true
+
+  const_declaration:
+    - match: '{{identifier}}'
+      scope: variable.other.constant.penne
+      set: var_declaration
 
   fn_definition:
     - meta_scope: meta.function.penne

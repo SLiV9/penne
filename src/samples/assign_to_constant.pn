@@ -1,0 +1,8 @@
+
+const X: i32 = 100;
+
+fn main()
+{
+	X = 30;
+	end:
+}

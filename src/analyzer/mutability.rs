@@ -98,6 +98,17 @@ impl Analyzable for Declaration
 	{
 		match self
 		{
+			Declaration::Constant {
+				name,
+				value,
+				value_type: _,
+				flags: _,
+			} =>
+			{
+				analyzer.declare_variable(name, false)?;
+				value.analyze(analyzer)?;
+				Ok(())
+			}
 			Declaration::Function {
 				name: _,
 				parameters,

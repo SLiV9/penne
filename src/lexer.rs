@@ -33,6 +33,7 @@ pub enum Token
 	// Keywords.
 	Fn,
 	Var,
+	Const,
 	If,
 	Goto,
 	Loop,
@@ -204,6 +205,7 @@ fn lex_line(
 				{
 					"fn" => Token::Fn,
 					"var" => Token::Var,
+					"const" => Token::Const,
 					"if" => Token::If,
 					"goto" => Token::Goto,
 					"loop" => Token::Loop,
