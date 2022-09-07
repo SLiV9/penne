@@ -216,6 +216,17 @@ mod tests
 	}
 
 	#[test]
+	fn fail_to_analyze_loop_in_naked_branch() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/loop_in_naked_branch.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
 	fn fail_to_analyze_loop_nonfinal() -> Result<(), anyhow::Error>
 	{
 		let analysis_result = analyze("src/samples/loop_nonfinal.pn")?;
@@ -249,9 +260,9 @@ mod tests
 	}
 
 	#[test]
-	fn fail_to_analyze_missing_function() -> Result<(), anyhow::Error>
+	fn fail_to_scope_missing_function() -> Result<(), anyhow::Error>
 	{
-		let analysis_result = analyze("src/samples/missing_function.pn")?;
+		let analysis_result = do_scope("src/samples/missing_function.pn")?;
 		match analysis_result
 		{
 			Ok(_) => Err(anyhow!("broken test")),
@@ -307,6 +318,40 @@ mod tests
 	fn fail_to_analyze_assign_array_to_array() -> Result<(), anyhow::Error>
 	{
 		let analysis_result = analyze("src/samples/assign_array_to_array.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_analyze_skip_declaration() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/skip_declaration.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_analyze_conditional_declaration() -> Result<(), anyhow::Error>
+	{
+		let analysis_result =
+			analyze("src/samples/conditional_declaration.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_analyze_var_in_naked_branch() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/var_in_naked_branch.pn")?;
 		match analysis_result
 		{
 			Ok(_) => Err(anyhow!("broken test")),

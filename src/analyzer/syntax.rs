@@ -3,10 +3,12 @@
 use crate::common::*;
 
 use anyhow::anyhow;
+use anyhow::Context;
 
 pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 {
 	let mut analyzer = Analyzer {
+		unresolved_gotos: std::collections::HashMap::new(),
 		is_naked_then_branch: false,
 		is_naked_else_branch: false,
 		is_final_statement_in_block: false,
@@ -20,9 +22,26 @@ pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 
 struct Analyzer
 {
+	unresolved_gotos: std::collections::HashMap<u32, Identifier>,
 	is_naked_then_branch: bool,
 	is_naked_else_branch: bool,
 	is_final_statement_in_block: bool,
+}
+
+impl Analyzer
+{
+	fn add_goto(&mut self, label: &Identifier, location_for_context: &Location)
+	{
+		let context = Identifier {
+			location: location_for_context.clone(),
+			..label.clone()
+		};
+		self.unresolved_gotos.insert(label.resolution_id, context);
+	}
+	fn resolve_goto(&mut self, label: &Identifier)
+	{
+		self.unresolved_gotos.remove(&label.resolution_id);
+	}
 }
 
 trait Analyzable
@@ -118,7 +137,25 @@ impl Analyzable for Statement
 
 		match self
 		{
-			Statement::Declaration { .. } => Ok(()),
+			Statement::Declaration { name, .. } =>
+			{
+				if let Some((_id, goto)) =
+					analyzer.unresolved_gotos.iter().next()
+				{
+					Err(anyhow!("unresolved goto")
+						.context(goto.location.format())
+						.context(format!(
+							"jump to label '{}' may skip this declaration",
+							goto.name
+						))
+						.context(name.location.format())
+						.context("variable declaration may be skipped by goto"))
+				}
+				else
+				{
+					Ok(())
+				}
+			}
 			Statement::Assignment { .. } => Ok(()),
 			Statement::Loop { location } =>
 			{
@@ -136,8 +173,16 @@ impl Analyzable for Statement
 						))
 				}
 			}
-			Statement::Goto { .. } => Ok(()),
-			Statement::Label { .. } => Ok(()),
+			Statement::Goto { label, location } =>
+			{
+				analyzer.add_goto(label, location);
+				Ok(())
+			}
+			Statement::Label { label, location: _ } =>
+			{
+				analyzer.resolve_goto(label);
+				Ok(())
+			}
 			Statement::If {
 				condition: _,
 				then_branch,

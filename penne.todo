@@ -62,6 +62,7 @@ Linting errors:
 	☐	Unreachable code
 	✔	Loop as only statement in an if-branch @done (2021-01-09 12:45)
 	☐	Functions with side effects in if-statement conditions
+	☐	Var declaration with undefined value in some/all branches
 
 Usability:
 	☐	Error recovery
@@ -72,9 +73,12 @@ Usability:
 		✔	Better type inference errors for return values @done (2022-09-05 18:39)
 	☐	Add helpful note when trying to jump backwards
 		☐	Similarly, add note when referencing variable declared later
+		☐	Add note when referencing variable from an inner scope
 	☐	HTTP style error numbers
 		"244 Mismatched Brace" as googlable error code with description underneath
-	☐	Color default terminal output differently from LLVM errors
+	☐ Match expected error codes in tests
+	✔	Color default terminal output differently from LLVM errors @done (2022-09-07 15:22)
+	☐	Allow goto to skip var declaration if short-lived (skip_shortlived_var.pn)
 
 Theory:
 	☐	Prove Turing completeness

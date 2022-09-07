@@ -1,0 +1,17 @@
+fn main() -> i32
+{
+	var result = foo(404);
+	return: result
+}
+
+fn foo(x: i32) -> i32
+{
+	if x == 400
+		goto return;
+	if x == 404
+		goto return;
+	if x == 421
+		goto return;
+	var result = 500;
+	return: result
+}

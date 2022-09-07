@@ -1,0 +1,8 @@
+fn main() -> i32
+{
+	var result = 200;
+	goto return;
+	var x = 400;
+	result = x;
+	return: result
+}

@@ -1,0 +1,10 @@
+fn main() -> i32
+{
+	if  10 == 10
+	{
+		var x = 13;
+	}
+
+	return:
+	x
+}
