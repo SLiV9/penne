@@ -704,6 +704,23 @@ impl Generatable for Expression
 			} => Err(anyhow!("failed to infer type")
 				.context(location.format())
 				.context(format!("failed to infer integer literal type"))),
+			Expression::BitIntegerLiteral {
+				value,
+				value_type: Some(value_type),
+				location: _,
+			} =>
+			{
+				let value_bits: u64 = *value;
+				let inttype = value_type.generate(llvm)?;
+				unsafe { Ok(LLVMConstInt(inttype, value_bits, 0)) }
+			}
+			Expression::BitIntegerLiteral {
+				value: _,
+				value_type: None,
+				location,
+			} => Err(anyhow!("failed to infer type")
+				.context(location.format())
+				.context(format!("failed to infer integer literal type"))),
 			Expression::ArrayLiteral {
 				array: Array { elements, .. },
 				element_type: Some(element_type),

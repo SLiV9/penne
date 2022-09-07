@@ -625,6 +625,11 @@ fn parse_primary_expression(
 			value_type: None,
 			location,
 		}),
+		Token::BitInteger(value) => Ok(Expression::BitIntegerLiteral {
+			value,
+			value_type: None,
+			location,
+		}),
 		Token::Int8(value) =>
 		{
 			Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Int8(value)))

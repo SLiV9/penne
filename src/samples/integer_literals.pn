@@ -1,0 +1,8 @@
+fn main()
+{
+	var a = 1u32;
+	var b = 0u32;
+	var c: u32 = 0;
+	var d: u64 = 0xFF;
+	var e: u8 = 0b1001;
+}

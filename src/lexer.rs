@@ -44,6 +44,7 @@ pub enum Token
 	// Literals.
 	Identifier(String),
 	NakedInteger(i128),
+	BitInteger(u64),
 	Int8(i8),
 	Int16(i16),
 	Int32(i32),
@@ -230,7 +231,84 @@ fn lex_line(
 				};
 				Ok(token)
 			}
-			'0'..='9' =>
+			'0' => match iter.peek()
+			{
+				Some((_i, 'x')) =>
+				{
+					iter.next();
+					let mut literal = x.to_string();
+					while let Some(&(_, y)) = iter.peek()
+					{
+						if y.is_digit(16)
+						{
+							literal.push(y);
+							iter.next();
+						}
+						else
+						{
+							break;
+						}
+					}
+					u64::from_str_radix(&literal, 16)
+						.map(|value| Token::BitInteger(value))
+						.map_err(|e| e.into())
+				}
+				Some((_i, 'b')) =>
+				{
+					iter.next();
+					let mut literal = x.to_string();
+					while let Some(&(_, y)) = iter.peek()
+					{
+						if y.is_digit(2)
+						{
+							literal.push(y);
+							iter.next();
+						}
+						else
+						{
+							break;
+						}
+					}
+					u64::from_str_radix(&literal, 2)
+						.map(|value| Token::BitInteger(value))
+						.map_err(|e| e.into())
+				}
+				_ =>
+				{
+					let mut suffix = String::new();
+					while let Some(&(_, y)) = iter.peek()
+					{
+						if is_identifier_continuation(y)
+						{
+							suffix.push(y);
+							iter.next();
+						}
+						else
+						{
+							break;
+						}
+					}
+					match suffix.as_str()
+					{
+						"" => Ok(Token::NakedInteger(0)),
+						"i8" => Ok(Token::Int8(0)),
+						"i16" => Ok(Token::Int16(0)),
+						"i32" => Ok(Token::Int32(0)),
+						"i64" => Ok(Token::Int64(0)),
+						"i128" => Ok(Token::Int128(0)),
+						"u8" => Ok(Token::Uint8(0)),
+						"u16" => Ok(Token::Uint16(0)),
+						"u32" => Ok(Token::Uint32(0)),
+						"u64" => Ok(Token::Uint64(0)),
+						"u128" => Ok(Token::Uint128(0)),
+						"usize" => Ok(Token::Usize(0)),
+						_ => Err(Error::InvalidIntegerTypeSuffix {
+							sequence: suffix,
+						}),
+					}
+				}
+			},
+			'1'..='9' =>
 			{
 				let mut literal = x.to_string();
 				while let Some(&(_, y)) = iter.peek()
@@ -245,12 +323,12 @@ fn lex_line(
 						break;
 					}
 				}
-				let mut identifier = String::new();
+				let mut suffix = String::new();
 				while let Some(&(_, y)) = iter.peek()
 				{
 					if is_identifier_continuation(y)
 					{
-						identifier.push(y);
+						suffix.push(y);
 						iter.next();
 					}
 					else
@@ -258,7 +336,7 @@ fn lex_line(
 						break;
 					}
 				}
-				if identifier.is_empty()
+				if suffix.is_empty()
 				{
 					match literal.parse()
 					{
@@ -274,7 +352,7 @@ fn lex_line(
 				}
 				else
 				{
-					match identifier.as_str()
+					match suffix.as_str()
 					{
 						"i8" => literal
 							.parse()
@@ -321,7 +399,7 @@ fn lex_line(
 							.map(|value| Token::Usize(value))
 							.map_err(|e| e.into()),
 						_ => Err(Error::InvalidIntegerTypeSuffix {
-							sequence: identifier,
+							sequence: suffix,
 						}),
 					}
 				}

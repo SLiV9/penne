@@ -440,6 +440,11 @@ impl Rebuildable for Expression
 				value_type: _,
 				location: _,
 			} => Ok(format!("{}", value)),
+			Expression::BitIntegerLiteral {
+				value,
+				value_type: _,
+				location: _,
+			} => Ok(format!("{:#x}", value)),
 			Expression::ArrayLiteral {
 				array,
 				element_type: _,

@@ -179,6 +179,12 @@ pub enum Expression
 		value_type: Option<ValueType>,
 		location: Location,
 	},
+	BitIntegerLiteral
+	{
+		value: u64,
+		value_type: Option<ValueType>,
+		location: Location,
+	},
 	StringLiteral(String),
 	ArrayLiteral
 	{

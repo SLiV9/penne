@@ -484,6 +484,7 @@ impl Analyzable for Expression
 			}
 			Expression::PrimitiveLiteral(_lit) => Ok(()),
 			Expression::NakedIntegerLiteral { .. } => Ok(()),
+			Expression::BitIntegerLiteral { .. } => Ok(()),
 			Expression::ArrayLiteral {
 				array,
 				element_type: _,

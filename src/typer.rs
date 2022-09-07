@@ -665,6 +665,10 @@ impl Typed for Expression
 			{
 				value_type.clone()
 			}
+			Expression::BitIntegerLiteral { value_type, .. } =>
+			{
+				value_type.clone()
+			}
 			Expression::ArrayLiteral {
 				element_type,
 				array: Array { elements, .. },
@@ -756,6 +760,51 @@ impl Analyzable for Expression
 					}
 				};
 				Ok(Expression::NakedIntegerLiteral {
+					value: *value,
+					value_type,
+					location: location.clone(),
+				})
+			}
+			Expression::BitIntegerLiteral {
+				value,
+				value_type,
+				location,
+			} =>
+			{
+				// TODO if contextual_type is a pointer, make it a pointer
+				let value_type = match value_type
+				{
+					Some(vt) => Some(vt.clone()),
+					None =>
+					{
+						let contextual_type = typer.contextual_type.take();
+						match contextual_type
+						{
+							Some(ValueType::Int8) => Some(ValueType::Uint64),
+							Some(ValueType::Int16) => Some(ValueType::Uint64),
+							Some(ValueType::Int32) => Some(ValueType::Uint64),
+							Some(ValueType::Int64) => Some(ValueType::Uint64),
+							Some(ValueType::Int128) => Some(ValueType::Uint64),
+							Some(ValueType::Uint8) => contextual_type,
+							Some(ValueType::Uint16) => contextual_type,
+							Some(ValueType::Uint32) => contextual_type,
+							Some(ValueType::Uint64) => contextual_type,
+							Some(ValueType::Uint128) => Some(ValueType::Uint64),
+							Some(ValueType::Usize) => contextual_type,
+							Some(ValueType::Bool) => Some(ValueType::Int32),
+							Some(ValueType::Array { .. }) =>
+							{
+								Some(ValueType::Int32)
+							}
+							Some(ValueType::Slice { .. }) =>
+							{
+								Some(ValueType::Int32)
+							}
+							None => None,
+						}
+					}
+				};
+				Ok(Expression::BitIntegerLiteral {
 					value: *value,
 					value_type,
 					location: location.clone(),
