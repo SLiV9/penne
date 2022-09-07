@@ -194,7 +194,8 @@ pub enum Expression
 	Deref
 	{
 		reference: Reference,
-		value_type: Option<ValueType>,
+		ref_type: Option<ValueType>,
+		deref_type: Option<ValueType>,
 	},
 	LengthOfArray
 	{
@@ -309,10 +310,87 @@ pub enum ValueType
 	},
 	Pointer
 	{
-		element_type: Box<ValueType>,
+		deref_type: Box<ValueType>,
 	},
 	View
 	{
-		element_type: Box<ValueType>,
+		deref_type: Box<ValueType>,
 	},
+}
+
+impl ValueType
+{
+	pub fn can_autoderef_into(&self, other: &ValueType) -> bool
+	{
+		match self
+		{
+			ValueType::Array {
+				element_type: a,
+				length: _,
+			} => match other
+			{
+				ValueType::Slice { element_type: b } => a == b,
+				ValueType::ExtArray { element_type: b } => a == b,
+				ValueType::View { deref_type } =>
+				{
+					self.can_autoderef_into(deref_type)
+				}
+				_ => false,
+			},
+			ValueType::Slice { element_type: a } => match other
+			{
+				ValueType::ExtArray { element_type: b } => a == b,
+				ValueType::View { deref_type } =>
+				{
+					self.can_autoderef_into(deref_type)
+				}
+				_ => false,
+			},
+			ValueType::View { deref_type } =>
+			{
+				deref_type.can_autoderef_into(other)
+			}
+			_ => match other
+			{
+				ValueType::View { deref_type } =>
+				{
+					self.can_autoderef_into(deref_type)
+				}
+				_ => false,
+			},
+		}
+	}
+
+	pub fn get_element_type(&self) -> Option<ValueType>
+	{
+		match self
+		{
+			ValueType::Array {
+				element_type,
+				length: _,
+			} => Some(element_type.as_ref().clone()),
+			ValueType::Slice { element_type } =>
+			{
+				Some(element_type.as_ref().clone())
+			}
+			ValueType::ExtArray { element_type } =>
+			{
+				Some(element_type.as_ref().clone())
+			}
+			ValueType::Pointer { .. } => None,
+			ValueType::View { .. } => None,
+			ValueType::Int8 => None,
+			ValueType::Int16 => None,
+			ValueType::Int32 => None,
+			ValueType::Int64 => None,
+			ValueType::Int128 => None,
+			ValueType::Uint8 => None,
+			ValueType::Uint16 => None,
+			ValueType::Uint32 => None,
+			ValueType::Uint64 => None,
+			ValueType::Uint128 => None,
+			ValueType::Usize => None,
+			ValueType::Bool => None,
+		}
+	}
 }

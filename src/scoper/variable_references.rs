@@ -575,13 +575,15 @@ impl Analyzable for Expression
 			Expression::StringLiteral(_lit) => Ok(self.clone()),
 			Expression::Deref {
 				reference,
-				value_type,
+				ref_type,
+				deref_type,
 			} =>
 			{
 				let reference = reference.analyze(analyzer)?;
 				Ok(Expression::Deref {
 					reference,
-					value_type: value_type.clone(),
+					ref_type: ref_type.clone(),
+					deref_type: deref_type.clone(),
 				})
 			}
 			Expression::LengthOfArray { reference } =>

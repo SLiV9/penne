@@ -310,7 +310,8 @@ impl Analyzable for Expression
 			Expression::StringLiteral(_lit) => Ok(()),
 			Expression::Deref {
 				reference,
-				value_type: _,
+				ref_type: _,
+				deref_type: _,
 			}
 			| Expression::LengthOfArray { reference } => match reference
 			{

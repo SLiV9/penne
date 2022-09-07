@@ -274,18 +274,18 @@ fn parse_type(
 		Token::Type(value_type) => Ok(value_type),
 		Token::Ampersand =>
 		{
-			let element_type = parse_type(tokens)?;
+			let deref_type = parse_type(tokens)?;
 			Ok(ValueType::Pointer {
-				element_type: Box::new(element_type),
+				deref_type: Box::new(deref_type),
 			})
 		}
 		Token::ParenLeft =>
 		{
-			let element_type = parse_type(tokens)?;
+			let deref_type = parse_type(tokens)?;
 			consume(Token::ParenRight, tokens)
 				.context("expected right parenthesis")?;
 			Ok(ValueType::View {
-				element_type: Box::new(element_type),
+				deref_type: Box::new(deref_type),
 			})
 		}
 		Token::BracketLeft => match peek(tokens)
@@ -730,7 +730,8 @@ fn parse_primary_expression(
 					parse_rest_of_reference(name, location, tokens)?;
 				Ok(Expression::Deref {
 					reference,
-					value_type: None,
+					ref_type: None,
+					deref_type: None,
 				})
 			}
 		}
@@ -876,7 +877,7 @@ fn fix_type_for_flags(
 			{
 				let element_type = externalize_type(*element_type)?;
 				Ok(ValueType::View {
-					element_type: Box::new(ValueType::ExtArray {
+					deref_type: Box::new(ValueType::ExtArray {
 						element_type: Box::new(element_type),
 					}),
 				})
@@ -906,18 +907,18 @@ fn externalize_type(value_type: ValueType) -> Result<ValueType, anyhow::Error>
 				element_type: Box::new(element_type),
 			})
 		}
-		ValueType::Pointer { element_type } =>
+		ValueType::Pointer { deref_type } =>
 		{
-			let element_type = externalize_type(*element_type)?;
+			let deref_type = externalize_type(*deref_type)?;
 			Ok(ValueType::Pointer {
-				element_type: Box::new(element_type),
+				deref_type: Box::new(deref_type),
 			})
 		}
-		ValueType::View { element_type } =>
+		ValueType::View { deref_type } =>
 		{
-			let element_type = externalize_type(*element_type)?;
+			let deref_type = externalize_type(*deref_type)?;
 			Ok(ValueType::View {
-				element_type: Box::new(element_type),
+				deref_type: Box::new(deref_type),
 			})
 		}
 		ValueType::Int8 => Ok(value_type),

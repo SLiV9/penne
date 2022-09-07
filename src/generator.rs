@@ -153,13 +153,13 @@ fn declare(
 			parameters,
 			body: _,
 			return_type,
-			flags,
+			flags: _,
 		}
 		| Declaration::FunctionHead {
 			name,
 			parameters,
 			return_type,
-			flags,
+			flags: _,
 		} =>
 		{
 			let return_type = match return_type
@@ -235,7 +235,7 @@ impl Generatable for Declaration
 				name,
 				value,
 				value_type,
-				flags,
+				flags: _,
 			} =>
 			{
 				let cname = CString::new(&name.name as &str)?;
@@ -713,8 +713,8 @@ impl Generatable for Expression
 				let value_bits: u64 = *value;
 				match value_type
 				{
-					ValueType::Pointer { element_type: _ }
-					| ValueType::View { element_type: _ } =>
+					ValueType::Pointer { deref_type: _ }
+					| ValueType::View { deref_type: _ } =>
 					{
 						let pointertype = value_type.generate(llvm)?;
 						let address = value_bits as usize;
@@ -767,7 +767,8 @@ impl Generatable for Expression
 			Expression::StringLiteral(_literal) => unimplemented!(),
 			Expression::Deref {
 				reference,
-				value_type: _,
+				ref_type,
+				deref_type,
 			} => reference.generate_deref(llvm),
 			Expression::LengthOfArray { reference } =>
 			{
@@ -797,22 +798,7 @@ impl Generatable for Expression
 				let arguments: Result<Vec<LLVMValueRef>, anyhow::Error> =
 					arguments
 						.iter()
-						.map(|argument| match argument
-						{
-							Expression::Deref {
-								reference,
-								value_type:
-									Some(ValueType::Array {
-										element_type,
-										length,
-									}),
-							} => reference.generate_array_slice(
-								llvm,
-								element_type.clone(),
-								*length,
-							),
-							_ => argument.generate(llvm),
-						})
+						.map(|argument| argument.generate(llvm))
 						.collect();
 				let mut arguments: Vec<LLVMValueRef> = arguments?;
 
@@ -989,11 +975,11 @@ impl Generatable for ValueType
 				let element_type = element_type.generate(llvm)?;
 				element_type
 			}
-			ValueType::Pointer { element_type }
-			| ValueType::View { element_type } =>
+			ValueType::Pointer { deref_type }
+			| ValueType::View { deref_type } =>
 			{
-				let element_type = element_type.generate(llvm)?;
-				unsafe { LLVMPointerType(element_type, 0u32) }
+				let deref_type = deref_type.generate(llvm)?;
+				unsafe { LLVMPointerType(deref_type, 0u32) }
 			}
 		};
 		Ok(typeref)

@@ -455,7 +455,8 @@ impl Rebuildable for Expression
 			}
 			Expression::Deref {
 				reference,
-				value_type: _,
+				ref_type: _,
+				deref_type: _,
 			} => reference.rebuild(indentation),
 			Expression::LengthOfArray { reference } => Ok(format!(
 				"|{}|",
@@ -559,13 +560,13 @@ impl Rebuildable for ValueType
 			{
 				Ok(format!("[]{}", element_type.rebuild(indentation)?))
 			}
-			ValueType::Pointer { element_type } =>
+			ValueType::Pointer { deref_type } =>
 			{
-				Ok(format!("&{}", element_type.rebuild(indentation)?))
+				Ok(format!("&{}", deref_type.rebuild(indentation)?))
 			}
-			ValueType::View { element_type } =>
+			ValueType::View { deref_type } =>
 			{
-				Ok(format!("({})", element_type.rebuild(indentation)?))
+				Ok(format!("({})", deref_type.rebuild(indentation)?))
 			}
 		}
 	}

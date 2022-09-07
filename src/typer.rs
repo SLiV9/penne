@@ -37,14 +37,17 @@ impl Typer
 	{
 		if let Some(vt) = &value_type
 		{
-			let old_value = self.symbols.insert(
-				identifier.resolution_id,
-				(identifier.clone(), vt.clone()),
-			);
-			match old_value
+			match self.symbols.get_mut(&identifier.resolution_id)
 			{
-				Some((_, ot)) if ot == *vt => Ok(()),
-				Some((_, ot)) if are_compatible_slices(&ot, vt) => Ok(()),
+				Some((_, ot)) if ot == vt => Ok(()),
+				Some((_, ot)) if ot.can_autoderef_into(vt) => Ok(()),
+				Some((storedid, storedtype))
+					if vt.can_autoderef_into(&storedtype) =>
+				{
+					*storedid = identifier.clone();
+					*storedtype = vt.clone();
+					Ok(())
+				}
 				Some((old_identifier, old_type)) => Err(anyhow!(
 					"first occurrence {}",
 					old_identifier.location.format()
@@ -54,7 +57,14 @@ impl Typer
 					"conflicting types for '{}', first {:?} and now {:?}",
 					identifier.name, old_type, vt
 				))),
-				None => Ok(()),
+				None =>
+				{
+					self.symbols.insert(
+						identifier.resolution_id,
+						(identifier.clone(), vt.clone()),
+					);
+					Ok(())
+				}
 			}
 		}
 		else
@@ -79,29 +89,24 @@ impl Typer
 	{
 		match self.symbols.get(&name.resolution_id)
 		{
-			Some((_, ValueType::Array { element_type, .. })) =>
-			{
-				Ok(Some(ValueType::clone(element_type)))
-			}
-			Some((_, ValueType::Slice { element_type })) =>
-			{
-				Ok(Some(ValueType::clone(element_type)))
-			}
-			Some((_, ValueType::ExtArray { element_type })) =>
-			{
-				Ok(Some(ValueType::clone(element_type)))
-			}
 			Some((old_identifier, other_type)) =>
 			{
-				return Err(anyhow!(
-					"first occurrence {}",
-					old_identifier.location.format()
-				)
-				.context(name.location.format())
-				.context(format!(
-					"conflicting types for '{}', got {:?} expected array",
-					name.name, other_type,
-				)))
+				if let Some(element_type) = other_type.get_element_type()
+				{
+					Ok(Some(element_type))
+				}
+				else
+				{
+					Err(anyhow!(
+						"first occurrence {}",
+						old_identifier.location.format()
+					)
+					.context(name.location.format())
+					.context(format!(
+						"conflicting types for '{}', got {:?} expected array",
+						name.name, other_type,
+					)))
+				}
 			}
 			None => Ok(None),
 		}
@@ -541,7 +546,7 @@ impl Analyzable for Statement
 						typer.contextual_type = Some(ValueType::Usize);
 						let argument = argument.analyze(typer)?;
 						let array_type =
-							value_type.map(|vt| ValueType::Slice {
+							value_type.map(|vt| ValueType::ExtArray {
 								element_type: Box::new(vt),
 							});
 						typer.put_symbol(name, array_type)?;
@@ -685,7 +690,11 @@ impl Typed for Expression
 				None => None,
 			},
 			Expression::StringLiteral(_literal) => None,
-			Expression::Deref { value_type, .. } => value_type.clone(),
+			Expression::Deref {
+				reference: _,
+				ref_type: _,
+				deref_type,
+			} => deref_type.clone(),
 			Expression::LengthOfArray { .. } => Some(ValueType::Usize),
 			Expression::FunctionCall { return_type, .. } => return_type.clone(),
 		}
@@ -845,22 +854,8 @@ impl Analyzable for Expression
 				else
 				{
 					let array_type = typer.contextual_type.take();
-					typer.contextual_type = match array_type
-					{
-						Some(ValueType::Array { element_type, .. }) =>
-						{
-							Some(*element_type)
-						}
-						Some(ValueType::Slice { element_type }) =>
-						{
-							Some(*element_type)
-						}
-						Some(ValueType::ExtArray { element_type }) =>
-						{
-							Some(*element_type)
-						}
-						_ => None,
-					}
+					typer.contextual_type =
+						array_type.map(|x| x.get_element_type()).flatten();
 				};
 				let array = array.analyze(typer)?;
 				let element_type = typer.get_symbol(&name);
@@ -874,62 +869,38 @@ impl Analyzable for Expression
 				Ok(Expression::StringLiteral(lit.clone()))
 			}
 			Expression::Deref {
-				reference: Reference::Identifier(name),
-				value_type: Some(value_type),
-			} =>
-			{
-				typer.put_symbol(name, Some(value_type.clone()))?;
-				let expr = Expression::Deref {
-					reference: Reference::Identifier(name.clone()),
-					value_type: Some(value_type.clone()),
-				};
-				Ok(expr)
-			}
+				reference: _,
+				ref_type: Some(_),
+				deref_type: Some(_),
+			} => Ok(self.clone()),
 			Expression::Deref {
 				reference: Reference::Identifier(name),
-				value_type: None,
+				ref_type: _,
+				deref_type: _,
 			} =>
 			{
-				let value_type = match typer.get_symbol(name)
-				{
-					Some(vt) => Some(vt),
-					None =>
-					{
-						let value_type = typer.contextual_type.take();
-						if value_type.is_some()
-						{
-							typer.put_symbol(name, value_type.clone())?;
-						}
-						value_type
-					}
-				};
-				let expr = Expression::Deref {
+				let known_type = typer.get_symbol(name);
+				let contextual_type = typer.contextual_type.take();
+				let (ref_type, deref_type) =
+					autoderef(known_type, contextual_type, 0);
+				typer.put_symbol(name, ref_type.clone())?;
+				Ok(Expression::Deref {
 					reference: Reference::Identifier(name.clone()),
-					value_type,
-				};
-				Ok(expr)
+					ref_type,
+					deref_type,
+				})
 			}
 			Expression::Deref {
 				reference: Reference::ArrayElement { name, argument },
-				value_type,
+				ref_type: _,
+				deref_type: _,
 			} =>
 			{
-				if let Some(element_type) = value_type
-				{
-					let array_type = ValueType::Slice {
-						element_type: Box::new(element_type.clone()),
-					};
-					typer.put_symbol(name, Some(array_type))?;
-				}
-				else if let Some(contextual_type) =
-					typer.contextual_type.take()
-				{
-					let array_type = ValueType::Slice {
-						element_type: Box::new(contextual_type),
-					};
-					typer.put_symbol(name, Some(array_type))?;
-				}
-				let value_type = typer.get_element_type_of_array(name)?;
+				let known_type = typer.get_symbol(name);
+				let contextual_type = typer.contextual_type.take();
+				let (ref_type, deref_type) =
+					autoderef(known_type, contextual_type, 1);
+				typer.put_symbol(name, ref_type.clone())?;
 				typer.contextual_type = Some(ValueType::Usize);
 				let argument = argument.analyze(typer)?;
 				let expr = Expression::Deref {
@@ -937,7 +908,8 @@ impl Analyzable for Expression
 						name: name.clone(),
 						argument: Box::new(argument),
 					},
-					value_type,
+					ref_type,
+					deref_type,
 				};
 				Ok(expr)
 			}
@@ -992,38 +964,49 @@ impl Analyzable for Expression
 	}
 }
 
-fn are_compatible_slices(a: &ValueType, b: &ValueType) -> bool
+fn autoderef(
+	known_type: Option<ValueType>,
+	contextual_type: Option<ValueType>,
+	array_depth: usize,
+) -> (Option<ValueType>, Option<ValueType>)
 {
-	match (a, b)
+	if array_depth > 0
 	{
-		(
-			ValueType::Slice { element_type: aa },
-			ValueType::Slice { element_type: bb },
-		) => aa == bb,
-		(
-			ValueType::Array {
-				element_type: aa,
-				length: _,
-			},
-			ValueType::Slice { element_type: bb },
-		) => aa == bb,
-		(
-			ValueType::Slice { element_type: aa },
-			ValueType::Array {
-				element_type: bb,
-				length: _,
-			},
-		) => aa == bb,
-		(
-			ValueType::Array {
-				element_type: ea,
-				length: la,
-			},
-			ValueType::Array {
-				element_type: eb,
-				length: lb,
-			},
-		) => la == lb && ea == eb,
-		_ => false,
+		let slice_type = match contextual_type.clone()
+		{
+			Some(vt) => Some(ValueType::ExtArray {
+				element_type: Box::new(vt),
+			}),
+			None => None,
+		};
+		let backup_slice_type = slice_type.clone();
+		let (ref_type, slice_deref_type) =
+			autoderef(known_type, slice_type, array_depth - 1);
+		if let Some(slice_deref_type) = slice_deref_type
+		{
+			match slice_deref_type.get_element_type()
+			{
+				Some(deref_type) => (ref_type, Some(deref_type)),
+				None => (backup_slice_type, contextual_type),
+			}
+		}
+		else
+		{
+			(None, None)
+		}
+	}
+	else
+	{
+		match (known_type, contextual_type)
+		{
+			(Some(x), Some(y)) if x == y => (Some(x), Some(y)),
+			(Some(x), Some(y)) if x.can_autoderef_into(&y) =>
+			{
+				(Some(x), Some(y))
+			}
+			(Some(vt), _) => (Some(vt.clone()), Some(vt)),
+			(None, Some(vt)) => (Some(vt.clone()), Some(vt)),
+			(None, None) => (None, None),
+		}
 	}
 }

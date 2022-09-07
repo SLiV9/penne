@@ -3,7 +3,6 @@
 use crate::common::*;
 
 use anyhow::anyhow;
-use anyhow::Context;
 
 pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 {

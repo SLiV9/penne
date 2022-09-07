@@ -99,10 +99,10 @@ impl Analyzer
 						identifier.name
 					)))
 			}
-			else if let Some((parameter, argument)) =
-				parameters.iter().zip(arguments.iter()).find(|(p, a)| {
-					!does_argument_match_parameter(*a, &p.value_type)
-				})
+			else if let Some((parameter, argument)) = parameters
+				.iter()
+				.zip(arguments.iter())
+				.find(|(p, a)| **a != p.value_type)
 			{
 				Err(anyhow!("got {:?}", argument)
 					.context(format!("expected {:?}", parameter.value_type))
@@ -518,24 +518,31 @@ impl Analyzable for Expression
 			Expression::StringLiteral(_lit) => Ok(()),
 			Expression::Deref {
 				reference,
-				value_type,
+				ref_type: _,
+				deref_type,
 			} =>
 			{
-				if !analyzer.is_immediate_function_argument
+				match deref_type
 				{
-					match value_type
+					Some(ValueType::Array { .. }) =>
 					{
-						Some(ValueType::Array { .. })
-						| Some(ValueType::Slice { .. })
-						| Some(ValueType::ExtArray { .. }) =>
+						let error = anyhow!("cannot move from array")
+							.context(reference.location().format())
+							.context("this variable cannot be moved from");
+						return Err(error);
+					}
+					Some(ValueType::Slice { .. })
+					| Some(ValueType::ExtArray { .. }) =>
+					{
+						if !analyzer.is_immediate_function_argument
 						{
-							let error = anyhow!("cannot move from array")
+							let error = anyhow!("cannot move from slice")
 								.context(reference.location().format())
 								.context("this variable cannot be moved from");
 							return Err(error);
 						}
-						_ => (),
 					}
+					_ => (),
 				}
 				analyzer.is_immediate_function_argument = false;
 				match reference
@@ -589,37 +596,5 @@ impl Analyzable for Expression
 				Ok(())
 			}
 		}
-	}
-}
-
-fn does_argument_match_parameter(
-	argument: &Option<ValueType>,
-	parameter: &Option<ValueType>,
-) -> bool
-{
-	match (argument, parameter)
-	{
-		(
-			Some(ValueType::Array {
-				element_type: x,
-				length: _,
-			}),
-			Some(ValueType::Slice { element_type: y }),
-		) => x == y,
-		(
-			Some(ValueType::Array {
-				element_type: x,
-				length: _,
-			}),
-			Some(ValueType::View {
-				element_type: viewed_type,
-			}),
-		) => match viewed_type.as_ref()
-		{
-			ValueType::ExtArray { element_type: y } => x == y,
-			_ => false,
-		},
-		(Some(a), Some(p)) => a == p,
-		(_, _) => true,
 	}
 }
