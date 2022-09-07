@@ -215,7 +215,6 @@ fn parse_function_declaration(
 	};
 
 	if flags.contains(DeclarationFlag::External)
-		&& !flags.contains(DeclarationFlag::Public)
 		&& peek(tokens) == Some(&Token::Semicolon)
 	{
 		tokens.pop_front();

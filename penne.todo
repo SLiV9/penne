@@ -12,6 +12,7 @@ Functionality:
 		☐	Think about (disallowing) cast between pointer and integer
 	✔	Pass array by const-reference (slice) by default @done (2022-09-04 18:06)
 		☐	A [3]i32 parameter is typechecked as [3]i32 but implemented as []i32
+		☐	In extern functions, use pointers instead of slice structs
 	☐	String literals
 		☐	\u{NN} through \u{NNNNN}
 	☐	Byte string literals
@@ -37,6 +38,7 @@ Functionality:
 	☐	Vec and String
 	✘	Explicit mutable parameters @cancelled (2022-09-03 16:04)
 	☐	Modules
+		☐	Public vs private
 	☐	Compile-time string and byte-array inclusion from file
 
 Syntactic sugar:

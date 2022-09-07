@@ -130,7 +130,7 @@ contexts:
     - match: ':(?!:)'
       scope: punctuation.separator.penne
       push:
-        - match: '(?=,|\)|\]|\}|\|)'
+        - match: '(?=,|\)|\}|\|)'
           pop: true
         - include: type
 
@@ -170,7 +170,7 @@ contexts:
       scope: meta.block.penne punctuation.definition.block.end.penne
       pop: true
     - match: '\{'
-      scope: punctuation.definition.block.begin.penne
+      scope: meta.block.penne punctuation.definition.block.begin.penne
       push: block_body
 
   block_body:
@@ -179,6 +179,36 @@ contexts:
       pop: true
     - include: statements
 
+#  array:
+#    - match: '\]'
+#      scope: meta.brackets.penne punctuation.section.brackets.end.penne
+#      pop: true
+#    - match: '\['
+#      scope: meta.brackets.penne punctuation.section.brackets.begin.penne
+#      push: array_body
+#
+#  array_body:
+#    - meta_scope: meta.brackets.penne
+#    - match: '(?=\])'
+#      pop: true
+#    - include: expressions
+#
+#  array_type:
+#    - match: '\]'
+#      scope: storage.type.penne meta.brackets.penne punctuation.section.brackets.end.penne
+#      pop: true
+#    - match: '\['
+#      scope: storage.type.penne meta.brackets.penne punctuation.section.brackets.begin.penne
+#      push: array_type_body
+#
+#  array_type_body:
+#    - meta_scope: storage.type.penne meta.brackets.penne
+#    - include: expressions
+#    - include: type
+#    - match: '(?=\])'
+#      pop: true
+
   type:
     - match: \b({{int_suffixes}}|{{float_suffixes}}|bool)\b
       scope: storage.type.penne
+    - include: expressions
