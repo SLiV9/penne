@@ -1,0 +1,7 @@
+extern fn diskr(dest: &[]u8, size: usize) -> u32;
+
+fn main()
+{
+	var buffer: [3]u8 = [0x00, 0x00, 0x00];
+	var read = diskr(&buffer, |buffer|);
+}

@@ -469,13 +469,25 @@ impl Rebuildable for Expression
 			{
 				let mut buffer = String::new();
 				write!(&mut buffer, "{}(", identify(name))?;
-				for argument in arguments
+				match arguments.split_first()
 				{
-					write!(
-						&mut buffer,
-						"{}",
-						argument.rebuild(&indentation.increased())?
-					)?;
+					Some((first, others)) =>
+					{
+						write!(
+							&mut buffer,
+							"{}",
+							first.rebuild(&indentation.increased())?
+						)?;
+						for argument in others
+						{
+							write!(
+								&mut buffer,
+								", {}",
+								argument.rebuild(&indentation.increased())?
+							)?;
+						}
+					}
+					None => (),
 				}
 				write!(&mut buffer, ")")?;
 				Ok(buffer)

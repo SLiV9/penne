@@ -606,6 +606,19 @@ fn does_argument_match_parameter(
 			}),
 			Some(ValueType::Slice { element_type: y }),
 		) => x == y,
+		(
+			Some(ValueType::Array {
+				element_type: x,
+				length: _,
+			}),
+			Some(ValueType::View {
+				element_type: viewed_type,
+			}),
+		) => match viewed_type.as_ref()
+		{
+			ValueType::ExtArray { element_type: y } => x == y,
+			_ => false,
+		},
 		(Some(a), Some(p)) => a == p,
 		(_, _) => true,
 	}

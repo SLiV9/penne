@@ -1,0 +1,7 @@
+extern fn diskw(src: []u8, size: usize) -> u32;
+
+fn main()
+{
+	var buffer: [3]u8 = [0x12, 0x34, 0x00];
+	var written = diskw(buffer, |buffer|);
+}
