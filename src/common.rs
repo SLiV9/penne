@@ -303,6 +303,10 @@ pub enum ValueType
 	{
 		element_type: Box<ValueType>,
 	},
+	ExtArray
+	{
+		element_type: Box<ValueType>,
+	},
 	Pointer
 	{
 		element_type: Box<ValueType>,

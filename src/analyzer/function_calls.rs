@@ -291,6 +291,10 @@ impl Analyzable for Parameter
 					)))
 			}
 			Some(ValueType::Slice { .. }) => analyzer.declare_array(&self.name),
+			Some(ValueType::ExtArray { .. }) =>
+			{
+				analyzer.declare_array(&self.name)
+			}
 			_ => Ok(()),
 		}
 	}
@@ -355,6 +359,15 @@ impl Analyzable for Statement
 								name.name
 							)));
 					}
+					Some(ValueType::ExtArray { .. }) =>
+					{
+						return Err(anyhow!("extarray variable")
+							.context(location.format())
+							.context(format!(
+								"variable '{}' may not be an external array",
+								name.name
+							)));
+					}
 					_ => (),
 				}
 				value.analyze(analyzer).with_context(|| location.format())?;
@@ -379,6 +392,15 @@ impl Analyzable for Statement
 							.context(location.format())
 							.context(format!(
 								"variable '{}' may not be a slice",
+								name.name
+							)));
+					}
+					Some(ValueType::ExtArray { .. }) =>
+					{
+						return Err(anyhow!("extarray variable")
+							.context(location.format())
+							.context(format!(
+								"variable '{}' may not be an external array",
 								name.name
 							)));
 					}
@@ -504,7 +526,8 @@ impl Analyzable for Expression
 					match value_type
 					{
 						Some(ValueType::Array { .. })
-						| Some(ValueType::Slice { .. }) =>
+						| Some(ValueType::Slice { .. })
+						| Some(ValueType::ExtArray { .. }) =>
 						{
 							let error = anyhow!("cannot move from array")
 								.context(reference.location().format())

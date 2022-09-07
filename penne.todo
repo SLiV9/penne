@@ -57,12 +57,15 @@ Syntax errors:
 	✔	Non-goto statement after if without braces @done (2020-10-18 15:15)
 	✔	Loop statement anywhere except at the end of a block @done (2020-10-18 15:23)
 	✔	Function argument number mismatch @done (2021-01-17 16:03)
+	☐	Function return value cannot be array or large struct
 
 Linting errors:
 	☐	Unreachable code
 	✔	Loop as only statement in an if-branch @done (2021-01-09 12:45)
 	☐	Functions with side effects in if-statement conditions
 	☐	Var declaration with undefined value in some/all branches
+	☐	Returning pointer, slice or view of temporary
+	☐	Warn that array length indicators in extern fn is not enforced
 
 Usability:
 	☐	Error recovery

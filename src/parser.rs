@@ -148,6 +148,7 @@ fn parse_declaration(
 
 			consume(Token::Colon, tokens).context("expected colon")?;
 			let value_type = parse_type(tokens)?;
+			let value_type = fix_type_for_flags(value_type, &flags)?;
 
 			consume(Token::Assignment, tokens)
 				.context("expected assignment")?;
@@ -187,7 +188,7 @@ fn parse_function_declaration(
 			break;
 		}
 
-		let parameter = parse_parameter(tokens)?;
+		let parameter = parse_parameter(&flags, tokens)?;
 		parameters.push(parameter);
 
 		if let Some(Token::Comma) = peek(tokens)
@@ -241,6 +242,7 @@ fn parse_function_declaration(
 }
 
 fn parse_parameter(
+	flags: &EnumSet<DeclarationFlag>,
 	tokens: &mut VecDeque<LexedToken>,
 ) -> Result<Parameter, anyhow::Error>
 {
@@ -251,6 +253,7 @@ fn parse_parameter(
 		tokens.pop_front();
 
 		let value_type = parse_type(tokens)?;
+		let value_type = fix_type_for_flags(value_type, &flags)?;
 		Some(value_type)
 	}
 	else
@@ -853,5 +856,81 @@ fn parse_rest_of_reference(
 	else
 	{
 		Ok(Reference::Identifier(identifier))
+	}
+}
+
+fn fix_type_for_flags(
+	value_type: ValueType,
+	flags: &EnumSet<DeclarationFlag>,
+) -> Result<ValueType, anyhow::Error>
+{
+	if flags.contains(DeclarationFlag::External)
+	{
+		match value_type
+		{
+			ValueType::Array {
+				element_type,
+				length: _,
+			}
+			| ValueType::Slice { element_type } =>
+			{
+				let element_type = externalize_type(*element_type)?;
+				Ok(ValueType::View {
+					element_type: Box::new(ValueType::ExtArray {
+						element_type: Box::new(element_type),
+					}),
+				})
+			}
+			_ => externalize_type(value_type),
+		}
+	}
+	else
+	{
+		Ok(value_type)
+	}
+}
+
+fn externalize_type(value_type: ValueType) -> Result<ValueType, anyhow::Error>
+{
+	match value_type
+	{
+		ValueType::Array {
+			element_type,
+			length: _,
+		}
+		| ValueType::Slice { element_type }
+		| ValueType::ExtArray { element_type } =>
+		{
+			let element_type = externalize_type(*element_type)?;
+			Ok(ValueType::ExtArray {
+				element_type: Box::new(element_type),
+			})
+		}
+		ValueType::Pointer { element_type } =>
+		{
+			let element_type = externalize_type(*element_type)?;
+			Ok(ValueType::Pointer {
+				element_type: Box::new(element_type),
+			})
+		}
+		ValueType::View { element_type } =>
+		{
+			let element_type = externalize_type(*element_type)?;
+			Ok(ValueType::View {
+				element_type: Box::new(element_type),
+			})
+		}
+		ValueType::Int8 => Ok(value_type),
+		ValueType::Int16 => Ok(value_type),
+		ValueType::Int32 => Ok(value_type),
+		ValueType::Int64 => Ok(value_type),
+		ValueType::Int128 => Ok(value_type),
+		ValueType::Uint8 => Ok(value_type),
+		ValueType::Uint16 => Ok(value_type),
+		ValueType::Uint32 => Ok(value_type),
+		ValueType::Uint64 => Ok(value_type),
+		ValueType::Uint128 => Ok(value_type),
+		ValueType::Usize => Ok(value_type),
+		ValueType::Bool => Ok(value_type),
 	}
 }

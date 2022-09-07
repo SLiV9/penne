@@ -87,6 +87,10 @@ impl Typer
 			{
 				Ok(Some(ValueType::clone(element_type)))
 			}
+			Some((_, ValueType::ExtArray { element_type })) =>
+			{
+				Ok(Some(ValueType::clone(element_type)))
+			}
 			Some((old_identifier, other_type)) =>
 			{
 				return Err(anyhow!(
@@ -755,6 +759,10 @@ impl Analyzable for Expression
 							{
 								Some(ValueType::Int32)
 							}
+							Some(ValueType::ExtArray { .. }) =>
+							{
+								Some(ValueType::Int32)
+							}
 							Some(ValueType::Pointer { .. }) =>
 							{
 								Some(ValueType::Int32)
@@ -798,14 +806,18 @@ impl Analyzable for Expression
 							Some(ValueType::Uint64) => contextual_type,
 							Some(ValueType::Uint128) => Some(ValueType::Uint64),
 							Some(ValueType::Usize) => contextual_type,
-							Some(ValueType::Bool) => Some(ValueType::Int32),
+							Some(ValueType::Bool) => Some(ValueType::Uint64),
 							Some(ValueType::Array { .. }) =>
 							{
-								Some(ValueType::Int32)
+								Some(ValueType::Uint64)
 							}
 							Some(ValueType::Slice { .. }) =>
 							{
-								Some(ValueType::Int32)
+								Some(ValueType::Uint64)
+							}
+							Some(ValueType::ExtArray { .. }) =>
+							{
+								Some(ValueType::Uint64)
 							}
 							Some(ValueType::Pointer { .. }) => contextual_type,
 							Some(ValueType::View { .. }) => contextual_type,
@@ -840,6 +852,10 @@ impl Analyzable for Expression
 							Some(*element_type)
 						}
 						Some(ValueType::Slice { element_type }) =>
+						{
+							Some(*element_type)
+						}
+						Some(ValueType::ExtArray { element_type }) =>
 						{
 							Some(*element_type)
 						}

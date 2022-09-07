@@ -984,6 +984,11 @@ impl Generatable for ValueType
 					)
 				}
 			}
+			ValueType::ExtArray { element_type } =>
+			{
+				let element_type = element_type.generate(llvm)?;
+				element_type
+			}
 			ValueType::Pointer { element_type }
 			| ValueType::View { element_type } =>
 			{

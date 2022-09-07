@@ -543,6 +543,10 @@ impl Rebuildable for ValueType
 			{
 				Ok(format!("[]{}", element_type.rebuild(indentation)?))
 			}
+			ValueType::ExtArray { element_type } =>
+			{
+				Ok(format!("[]{}", element_type.rebuild(indentation)?))
+			}
 			ValueType::Pointer { element_type } =>
 			{
 				Ok(format!("&{}", element_type.rebuild(indentation)?))
