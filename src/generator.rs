@@ -767,9 +767,16 @@ impl Generatable for Expression
 			Expression::StringLiteral(_literal) => unimplemented!(),
 			Expression::Deref {
 				reference,
-				ref_type,
-				deref_type,
-			} => reference.generate_deref(llvm),
+				ref_type: Some(ref_type),
+				deref_type: Some(deref_type),
+			} => reference.generate_autoderef(llvm, &ref_type, &deref_type),
+			Expression::Deref {
+				reference,
+				ref_type: _,
+				deref_type: _,
+			} => Err(anyhow!("failed to infer type")
+				.context(reference.location().format())
+				.context(format!("failed to infer type of reference"))),
 			Expression::LengthOfArray { reference } =>
 			{
 				reference.generate_array_len(llvm)
@@ -988,6 +995,37 @@ impl Generatable for ValueType
 
 impl Reference
 {
+	fn generate_autoderef(
+		&self,
+		llvm: &mut Generator,
+		ref_type: &ValueType,
+		deref_type: &ValueType,
+	) -> Result<LLVMValueRef, anyhow::Error>
+	{
+		match (ref_type, deref_type)
+		{
+			(
+				ValueType::Array {
+					element_type,
+					length,
+				},
+				ValueType::Slice { .. },
+			) => self.generate_array_slice(llvm, element_type.clone(), *length),
+			(
+				ValueType::Array {
+					element_type,
+					length: _,
+				},
+				ValueType::View { .. },
+			) => self.generate_ext_array_view(llvm, element_type.clone()),
+			(ValueType::Slice { element_type }, ValueType::View { .. }) =>
+			{
+				self.generate_ext_array_view(llvm, element_type.clone())
+			}
+			_ => self.generate_deref(llvm),
+		}
+	}
+
 	fn generate_storage_address(
 		&self,
 		llvm: &mut Generator,
@@ -1248,6 +1286,61 @@ impl Reference
 		let length: u32 = unsafe { LLVMGetArrayLength(array_type) };
 		let result = llvm.const_usize(length as usize);
 		Ok(result)
+	}
+
+	fn generate_ext_array_view(
+		&self,
+		llvm: &mut Generator,
+		element_type: Box<ValueType>,
+	) -> Result<LLVMValueRef, anyhow::Error>
+	{
+		match self
+		{
+			Reference::Identifier(name) =>
+			{
+				if let Some(value) =
+					llvm.local_parameters.get(&name.resolution_id)
+				{
+					let loc = *value;
+					let tmpname = CString::new("")?;
+					let address = unsafe {
+						LLVMBuildExtractValue(
+							llvm.builder,
+							loc,
+							1u32,
+							tmpname.as_ptr(),
+						)
+					};
+					let element_type = element_type.generate(llvm)?;
+					let pointertype =
+						unsafe { LLVMPointerType(element_type, 0u32) };
+					let address_value = unsafe {
+						LLVMBuildPointerCast(
+							llvm.builder,
+							address,
+							pointertype,
+							tmpname.as_ptr(),
+						)
+					};
+					return Ok(address_value);
+				}
+			}
+			Reference::ArrayElement { .. } => (),
+		}
+
+		let tmpname = CString::new("")?;
+		let element_type = element_type.generate(llvm)?;
+		let pointertype = unsafe { LLVMPointerType(element_type, 0u32) };
+		let address = self.generate_storage_address(llvm)?;
+		let address_value = unsafe {
+			LLVMBuildPointerCast(
+				llvm.builder,
+				address,
+				pointertype,
+				tmpname.as_ptr(),
+			)
+		};
+		Ok(address_value)
 	}
 
 	fn generate_array_slice(
