@@ -879,6 +879,12 @@ fn parse_rest_of_reference(
 			argument: Box::new(argument),
 		};
 		steps.push(step);
+		if steps.len() > MAX_REFERENCE_DEPTH
+		{
+			return Err(anyhow!("max reference depth exceeded"))
+				.context(location.format())
+				.context("too many index operators");
+		}
 	}
 	Ok(Reference {
 		base,

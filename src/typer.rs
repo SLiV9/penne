@@ -82,36 +82,6 @@ impl Typer
 		}
 	}
 
-	fn get_element_type_of_array(
-		&self,
-		name: &Identifier,
-	) -> Result<Option<ValueType>, anyhow::Error>
-	{
-		match self.symbols.get(&name.resolution_id)
-		{
-			Some((old_identifier, other_type)) =>
-			{
-				if let Some(element_type) = other_type.get_element_type()
-				{
-					Ok(Some(element_type))
-				}
-				else
-				{
-					Err(anyhow!(
-						"first occurrence {}",
-						old_identifier.location.format()
-					)
-					.context(name.location.format())
-					.context(format!(
-						"conflicting types for '{}', got {:?} expected array",
-						name.name, other_type,
-					)))
-				}
-			}
-			None => Ok(None),
-		}
-	}
-
 	fn get_type_of_reference(
 		&self,
 		reference: &Reference,
@@ -120,18 +90,18 @@ impl Typer
 		if let Some((old_identifier, base_type)) =
 			self.symbols.get(&reference.base.resolution_id)
 		{
-			let mut full_type = base_type.clone();
+			let mut x = base_type.fully_dereferenced();
 			for step in reference.steps.iter()
 			{
 				match step
 				{
 					ReferenceStep::Element { argument: _ } =>
 					{
-						match full_type.get_element_type()
+						match x.get_element_type()
 						{
 							Some(element_type) =>
 							{
-								full_type = element_type;
+								x = element_type.fully_dereferenced();
 							}
 							None =>
 							{
@@ -152,11 +122,11 @@ impl Typer
 			}
 			for _i in 0..reference.address_depth
 			{
-				full_type = ValueType::Pointer {
-					deref_type: Box::new(full_type),
+				x = ValueType::Pointer {
+					deref_type: Box::new(x),
 				};
 			}
-			Ok(Some(full_type))
+			Ok(Some(x))
 		}
 		else
 		{
@@ -970,34 +940,11 @@ impl Reference
 			self.steps.iter().map(|step| step.analyze(typer)).collect();
 		let steps = steps?;
 
-		let full_type = if let Some(value_type) = value_type
-		{
-			let mut full_type = value_type.clone();
-			for step in steps.iter()
-			{
-				match step
-				{
-					ReferenceStep::Element { argument: _ } =>
-					{
-						full_type = ValueType::ExtArray {
-							element_type: Box::new(full_type),
-						};
-					}
-					ReferenceStep::Member { member: _ } => unimplemented!(),
-				}
-			}
-			for _i in 0..self.address_depth
-			{
-				full_type = ValueType::Pointer {
-					deref_type: Box::new(full_type),
-				};
-			}
-			Some(full_type)
-		}
-		else
-		{
-			None
-		};
+		println!("###### {:?}", self.location.format());
+		println!("######\t storing {:?}", value_type);
+		let full_type =
+			build_type_of_reference(value_type, &steps, self.address_depth);
+		println!("######\t\t in {:?}", full_type);
 		typer.put_symbol(&self.base, full_type)?;
 
 		Ok(Reference {
@@ -1017,10 +964,18 @@ impl Reference
 			self.steps.iter().map(|step| step.analyze(typer)).collect();
 		let steps = steps?;
 
+		println!("###### {:?}", self.location.format());
 		let known_type = typer.get_type_of_reference(self)?;
+		println!("######\t knowing {:?}", known_type);
+		println!("######\t\t from {:?}", typer.get_symbol(&self.base));
 		let contextual_type = typer.contextual_type.take();
-		let (ref_type, deref_type) = autoderef(known_type, contextual_type);
-		typer.put_symbol(&self.base, ref_type.clone())?;
+		println!("######\t\t and expecting {:?}", contextual_type);
+		let (base_type, deref_type) = autoderef(known_type, contextual_type);
+		println!("######\t\t getting {:?}", deref_type);
+		let full_type =
+			build_type_of_reference(base_type, &steps, self.address_depth);
+		println!("######\t\t from {:?}", full_type);
+		typer.put_symbol(&self.base, full_type.clone())?;
 
 		let expr = Expression::Deref {
 			reference: Reference {
@@ -1029,7 +984,7 @@ impl Reference
 				address_depth: self.address_depth,
 				location: self.location.clone(),
 			},
-			ref_type,
+			ref_type: full_type,
 			deref_type,
 		};
 		Ok(expr)
@@ -1048,5 +1003,41 @@ fn autoderef(
 		(Some(vt), _) => (Some(vt.clone()), Some(vt)),
 		(None, Some(vt)) => (Some(vt.clone()), Some(vt)),
 		(None, None) => (None, None),
+	}
+}
+
+fn build_type_of_reference(
+	base_type: Option<ValueType>,
+	steps: &[ReferenceStep],
+	address_depth: u8,
+) -> Option<ValueType>
+{
+	if let Some(base_type) = base_type
+	{
+		let mut full_type = base_type;
+		for step in steps
+		{
+			match step
+			{
+				ReferenceStep::Element { argument: _ } =>
+				{
+					full_type = ValueType::ExtArray {
+						element_type: Box::new(full_type),
+					};
+				}
+				ReferenceStep::Member { member: _ } => unimplemented!(),
+			}
+		}
+		for _i in 0..address_depth
+		{
+			full_type = ValueType::Pointer {
+				deref_type: Box::new(full_type),
+			};
+		}
+		Some(full_type)
+	}
+	else
+	{
+		None
 	}
 }

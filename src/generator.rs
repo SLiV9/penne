@@ -1002,7 +1002,7 @@ impl Reference
 		deref_type: &ValueType,
 	) -> Result<LLVMValueRef, anyhow::Error>
 	{
-		println!("{:?} -> {:?}", ref_type, deref_type);
+		// TODO
 		Ok(llvm.const_u8(0))
 	}
 
@@ -1011,6 +1011,7 @@ impl Reference
 		llvm: &mut Generator,
 	) -> Result<LLVMValueRef, anyhow::Error>
 	{
+		// TODO
 		Ok(llvm.const_u8(0))
 	}
 

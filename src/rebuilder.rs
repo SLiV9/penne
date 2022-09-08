@@ -184,6 +184,7 @@ impl Rebuildable for Declaration
 						value_type.rebuild(&indentation.increased())?
 					)?;
 				}
+				writeln!(&mut buffer, ";")?;
 				Ok(buffer)
 			}
 		}

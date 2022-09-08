@@ -421,4 +421,17 @@ impl ValueType
 			ValueType::Bool => None,
 		}
 	}
+
+	pub fn fully_dereferenced(&self) -> ValueType
+	{
+		match self
+		{
+			ValueType::Pointer { deref_type } =>
+			{
+				deref_type.fully_dereferenced()
+			}
+			ValueType::View { deref_type } => deref_type.fully_dereferenced(),
+			_ => self.clone(),
+		}
+	}
 }
