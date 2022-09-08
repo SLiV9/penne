@@ -767,13 +767,19 @@ impl Generatable for Expression
 			Expression::StringLiteral(_literal) => unimplemented!(),
 			Expression::Deref {
 				reference,
-				ref_type: Some(ref_type),
 				deref_type: Some(deref_type),
-			} => reference.generate_autoderef(llvm, &ref_type, &deref_type),
+			} => reference.generate_deref(llvm, &deref_type),
+			Expression::Autocoerce {
+				expression,
+				coerced_type,
+			} =>
+			{
+				// TODO
+				Ok(llvm.const_u8(0))
+			}
 			Expression::Deref {
 				reference,
-				ref_type: _,
-				deref_type: _,
+				deref_type: None,
 			} => Err(anyhow!("failed to infer type")
 				.context(reference.location.format())
 				.context(format!("failed to infer type of reference"))),
@@ -995,10 +1001,9 @@ impl Generatable for ValueType
 
 impl Reference
 {
-	fn generate_autoderef(
+	fn generate_deref(
 		&self,
 		llvm: &mut Generator,
-		ref_type: &ValueType,
 		deref_type: &ValueType,
 	) -> Result<LLVMValueRef, anyhow::Error>
 	{

@@ -194,8 +194,12 @@ pub enum Expression
 	Deref
 	{
 		reference: Reference,
-		ref_type: Option<ValueType>,
 		deref_type: Option<ValueType>,
+	},
+	Autocoerce
+	{
+		expression: Box<Expression>,
+		coerced_type: ValueType,
 	},
 	LengthOfArray
 	{
@@ -241,12 +245,13 @@ pub enum ReferenceStep
 {
 	Element
 	{
-		argument: Box<Expression>
+		argument: Box<Expression>,
 	},
 	Member
 	{
-		member: Identifier
+		member: Identifier,
 	},
+	Autoderef,
 }
 
 #[must_use]
@@ -338,6 +343,36 @@ impl ValueType
 				_ => self == other,
 			},
 			_ => self == other,
+		}
+	}
+
+	pub fn can_coerce_into(&self, other: &ValueType) -> bool
+	{
+		match self
+		{
+			ValueType::Array {
+				element_type: a,
+				length: _,
+			} => match other
+			{
+				ValueType::Slice { element_type: b } => a == b,
+				ValueType::View { deref_type } => match deref_type.as_ref()
+				{
+					ValueType::ExtArray { element_type: b } => a == b,
+					_ => false,
+				},
+				_ => false,
+			},
+			ValueType::Slice { element_type: a } => match other
+			{
+				ValueType::View { deref_type } => match deref_type.as_ref()
+				{
+					ValueType::ExtArray { element_type: b } => a == b,
+					_ => false,
+				},
+				_ => false,
+			},
+			_ => false,
 		}
 	}
 

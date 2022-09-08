@@ -733,7 +733,6 @@ fn parse_primary_expression(
 					parse_rest_of_reference(name, location, tokens)?;
 				Ok(Expression::Deref {
 					reference,
-					ref_type: None,
 					deref_type: None,
 				})
 			}

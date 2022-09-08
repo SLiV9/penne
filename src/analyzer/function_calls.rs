@@ -439,7 +439,6 @@ impl Analyzable for Expression
 			Expression::StringLiteral(_lit) => Ok(()),
 			Expression::Deref {
 				reference,
-				ref_type: _,
 				deref_type,
 			} =>
 			{
@@ -467,6 +466,10 @@ impl Analyzable for Expression
 				}
 				reference.analyze(analyzer)
 			}
+			Expression::Autocoerce {
+				expression,
+				coerced_type: _,
+			} => expression.analyze(analyzer),
 			Expression::LengthOfArray { reference } =>
 			{
 				reference.analyze(analyzer)
@@ -541,6 +544,7 @@ impl Analyzable for Reference
 					argument.analyze(analyzer)?;
 				}
 				ReferenceStep::Member { member: _ } => (),
+				ReferenceStep::Autoderef => (),
 			}
 		}
 		Ok(())

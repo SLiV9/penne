@@ -575,15 +575,24 @@ impl Analyzable for Expression
 			Expression::StringLiteral(_lit) => Ok(self.clone()),
 			Expression::Deref {
 				reference,
-				ref_type,
 				deref_type,
 			} =>
 			{
 				let reference = reference.analyze(analyzer)?;
 				Ok(Expression::Deref {
 					reference,
-					ref_type: ref_type.clone(),
 					deref_type: deref_type.clone(),
+				})
+			}
+			Expression::Autocoerce {
+				expression,
+				coerced_type,
+			} =>
+			{
+				let expression = expression.analyze(analyzer)?;
+				Ok(Expression::Autocoerce {
+					expression: Box::new(expression),
+					coerced_type: coerced_type.clone(),
 				})
 			}
 			Expression::LengthOfArray { reference } =>
@@ -659,6 +668,7 @@ impl Analyzable for ReferenceStep
 				let member = member.clone();
 				Ok(ReferenceStep::Member { member })
 			}
+			ReferenceStep::Autoderef => Ok(ReferenceStep::Autoderef),
 		}
 	}
 }

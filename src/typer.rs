@@ -118,6 +118,7 @@ impl Typer
 						}
 					}
 					ReferenceStep::Member { member: _ } => unimplemented!(),
+					ReferenceStep::Autoderef => unimplemented!(),
 				}
 			}
 			for _i in 0..reference.address_depth
@@ -670,9 +671,12 @@ impl Typed for Expression
 			Expression::StringLiteral(_literal) => None,
 			Expression::Deref {
 				reference: _,
-				ref_type: _,
 				deref_type,
 			} => deref_type.clone(),
+			Expression::Autocoerce { coerced_type, .. } =>
+			{
+				Some(coerced_type.clone())
+			}
 			Expression::LengthOfArray { .. } => Some(ValueType::Usize),
 			Expression::FunctionCall { return_type, .. } => return_type.clone(),
 		}
@@ -848,14 +852,16 @@ impl Analyzable for Expression
 			}
 			Expression::Deref {
 				reference: _,
-				ref_type: Some(_),
 				deref_type: Some(_),
 			} => Ok(self.clone()),
 			Expression::Deref {
 				reference,
-				ref_type: _,
-				deref_type: _,
+				deref_type: None,
 			} => reference.analyze_deref_expression(typer),
+			Expression::Autocoerce {
+				expression: _,
+				coerced_type: _,
+			} => Ok(self.clone()),
 			Expression::LengthOfArray { reference } =>
 			{
 				let array_type = typer.get_type_of_reference(reference)?;
@@ -924,6 +930,7 @@ impl Analyzable for ReferenceStep
 				})
 			}
 			ReferenceStep::Member { member: _ } => unimplemented!(),
+			ReferenceStep::Autoderef => Ok(ReferenceStep::Autoderef),
 		}
 	}
 }
@@ -967,42 +974,242 @@ impl Reference
 		println!("###### {:?}", self.location.format());
 		let known_type = typer.get_type_of_reference(self)?;
 		println!("######\t knowing {:?}", known_type);
-		println!("######\t\t from {:?}", typer.get_symbol(&self.base));
+		let ref_type = typer.get_symbol(&self.base);
+		println!("######\t\t from {:?}", ref_type);
 		let contextual_type = typer.contextual_type.take();
 		println!("######\t\t and expecting {:?}", contextual_type);
-		let (base_type, deref_type) = autoderef(known_type, contextual_type);
-		println!("######\t\t getting {:?}", deref_type);
-		let full_type =
-			build_type_of_reference(base_type, &steps, self.address_depth);
+
+		match (known_type, contextual_type, ref_type)
+		{
+			(Some(x), Some(y), _) if x == y =>
+			{
+				println!("######\t\t matched {:?}", x);
+				let base_type = Some(x);
+				let deref_type = Some(y);
+				let full_type = build_type_of_reference(
+					base_type,
+					&steps,
+					self.address_depth,
+				);
+				println!("######\t\t from {:?}", full_type);
+				typer.put_symbol(&self.base, full_type.clone())?;
+				Ok(Expression::Deref {
+					reference: Reference {
+						base: self.base.clone(),
+						steps,
+						address_depth: self.address_depth,
+						location: self.location.clone(),
+					},
+					deref_type,
+				})
+			}
+			(Some(x), Some(y), Some(ref_type)) if x.can_autoderef_into(&y) =>
+			{
+				self.autoderef(ref_type, y, steps, typer)
+			}
+			(Some(def), _, _) =>
+			{
+				println!("######\t\t defaulting {:?}", def);
+				let base_type = Some(def);
+				let deref_type = base_type.clone();
+				let full_type = build_type_of_reference(
+					base_type,
+					&steps,
+					self.address_depth,
+				);
+				println!("######\t\t from {:?}", full_type);
+				typer.put_symbol(&self.base, full_type.clone())?;
+				Ok(Expression::Deref {
+					reference: Reference {
+						base: self.base.clone(),
+						steps,
+						address_depth: self.address_depth,
+						location: self.location.clone(),
+					},
+					deref_type,
+				})
+			}
+			(None, deref_type, _) =>
+			{
+				println!("######\t\t getting {:?}", deref_type);
+				let base_type = deref_type.clone();
+				let full_type = build_type_of_reference(
+					base_type,
+					&steps,
+					self.address_depth,
+				);
+				println!("######\t\t from {:?}", full_type);
+				typer.put_symbol(&self.base, full_type.clone())?;
+				Ok(Expression::Deref {
+					reference: Reference {
+						base: self.base.clone(),
+						steps,
+						address_depth: self.address_depth,
+						location: self.location.clone(),
+					},
+					deref_type,
+				})
+			}
+		}
+	}
+
+	fn autoderef(
+		&self,
+		known_ref_type: ValueType,
+		target_type: ValueType,
+		steps: Vec<ReferenceStep>,
+		typer: &mut Typer,
+	) -> Result<Expression, anyhow::Error>
+	{
+		println!("######\t\t autoderef into {:?}", target_type);
+
+		let mut available_steps = steps.into_iter().peekable();
+		let mut taken_steps = Vec::new();
+		let mut current_type = known_ref_type;
+		let mut coercion = None;
+
+		// TODO add limit
+		loop
+		{
+			match (current_type, available_steps.peek())
+			{
+				(ct, None) if ct == target_type =>
+				{
+					break;
+				}
+				(ct, None) if ct.can_coerce_into(&target_type) =>
+				{
+					coercion = Some(target_type.clone());
+					break;
+				}
+				(
+					ValueType::Pointer { deref_type },
+					Some(ReferenceStep::Element { argument }),
+				) => match deref_type.as_ref()
+				{
+					ValueType::ExtArray { element_type } =>
+					{
+						let step = ReferenceStep::Element {
+							argument: argument.clone(),
+						};
+						println!("######\t\t taking {:?}", step);
+						taken_steps.push(step);
+						available_steps.next();
+						current_type = element_type.as_ref().clone();
+					}
+					_ =>
+					{
+						let step = ReferenceStep::Autoderef;
+						println!("######\t\t taking {:?}", step);
+						taken_steps.push(step);
+						current_type = *deref_type;
+					}
+				},
+				(
+					ValueType::View { deref_type },
+					Some(ReferenceStep::Element { argument }),
+				) => match deref_type.as_ref()
+				{
+					ValueType::ExtArray { element_type } =>
+					{
+						let step = ReferenceStep::Element {
+							argument: argument.clone(),
+						};
+						println!("######\t\t taking {:?}", step);
+						taken_steps.push(step);
+						available_steps.next();
+						current_type = element_type.as_ref().clone();
+					}
+					_ =>
+					{
+						let step = ReferenceStep::Autoderef;
+						println!("######\t\t taking {:?}", step);
+						taken_steps.push(step);
+						current_type = *deref_type;
+					}
+				},
+				(ValueType::Pointer { deref_type }, _) =>
+				{
+					let step = ReferenceStep::Autoderef;
+					println!("######\t\t taking {:?}", step);
+					taken_steps.push(step);
+					current_type = *deref_type;
+				}
+				(ValueType::View { deref_type }, _) =>
+				{
+					let step = ReferenceStep::Autoderef;
+					println!("######\t\t taking {:?}", step);
+					taken_steps.push(step);
+					current_type = *deref_type;
+				}
+				(
+					ValueType::Array {
+						element_type,
+						length: _,
+					},
+					Some(ReferenceStep::Element { argument }),
+				) =>
+				{
+					let step = ReferenceStep::Element {
+						argument: argument.clone(),
+					};
+					println!("######\t\t taking {:?}", step);
+					taken_steps.push(step);
+					available_steps.next();
+					current_type = *element_type;
+				}
+				(
+					ValueType::Slice { element_type },
+					Some(ReferenceStep::Element { argument }),
+				) =>
+				{
+					let step = ReferenceStep::Element {
+						argument: argument.clone(),
+					};
+					println!("######\t\t taking {:?}", step);
+					taken_steps.push(step);
+					available_steps.next();
+					current_type = *element_type;
+				}
+				_ =>
+				{
+					return Err(anyhow!("failed to autoderef")
+						.context(self.location.format())
+						.context("failed to infer type of expression"));
+				}
+			}
+		}
+
+		let deref_type = Some(target_type);
+		let base_type = deref_type.clone();
+		let full_type = build_type_of_reference(
+			base_type,
+			&taken_steps,
+			self.address_depth,
+		);
+		println!("######\t\t coercing {:?}", coercion);
 		println!("######\t\t from {:?}", full_type);
 		typer.put_symbol(&self.base, full_type.clone())?;
-
 		let expr = Expression::Deref {
 			reference: Reference {
 				base: self.base.clone(),
-				steps,
+				steps: taken_steps,
 				address_depth: self.address_depth,
 				location: self.location.clone(),
 			},
-			ref_type: full_type,
 			deref_type,
 		};
-		Ok(expr)
-	}
-}
-
-fn autoderef(
-	known_type: Option<ValueType>,
-	contextual_type: Option<ValueType>,
-) -> (Option<ValueType>, Option<ValueType>)
-{
-	match (known_type, contextual_type)
-	{
-		(Some(x), Some(y)) if x == y => (Some(x), Some(y)),
-		(Some(x), Some(y)) if x.can_autoderef_into(&y) => (Some(x), Some(y)),
-		(Some(vt), _) => (Some(vt.clone()), Some(vt)),
-		(None, Some(vt)) => (Some(vt.clone()), Some(vt)),
-		(None, None) => (None, None),
+		if let Some(coerced_type) = coercion
+		{
+			Ok(Expression::Autocoerce {
+				expression: Box::new(expr),
+				coerced_type,
+			})
+		}
+		else
+		{
+			Ok(expr)
+		}
 	}
 }
 
@@ -1026,6 +1233,12 @@ fn build_type_of_reference(
 					};
 				}
 				ReferenceStep::Member { member: _ } => unimplemented!(),
+				ReferenceStep::Autoderef =>
+				{
+					full_type = ValueType::Pointer {
+						deref_type: Box::new(full_type),
+					}
+				}
 			}
 		}
 		for _i in 0..address_depth
