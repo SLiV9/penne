@@ -331,33 +331,34 @@ impl ValueType
 			{
 				ValueType::Slice { element_type: b } => a == b,
 				ValueType::ExtArray { element_type: b } => a == b,
-				ValueType::View { deref_type } =>
+				ValueType::View { deref_type } => match deref_type.as_ref()
 				{
-					self.can_autoderef_into(deref_type)
-				}
+					ValueType::ExtArray { element_type: b } => a == b,
+					_ => false,
+				},
 				_ => false,
 			},
 			ValueType::Slice { element_type: a } => match other
 			{
 				ValueType::ExtArray { element_type: b } => a == b,
-				ValueType::View { deref_type } =>
+				ValueType::View { deref_type } => match deref_type.as_ref()
 				{
-					self.can_autoderef_into(deref_type)
-				}
+					ValueType::ExtArray { element_type: b } => a == b,
+					_ => false,
+				},
 				_ => false,
 			},
 			ValueType::View { deref_type } =>
 			{
-				deref_type.can_autoderef_into(other)
+				// TODO
+				false && deref_type.can_autoderef_into(other)
 			}
-			_ => match other
+			ValueType::Pointer { deref_type } =>
 			{
-				ValueType::View { deref_type } =>
-				{
-					self.can_autoderef_into(deref_type)
-				}
-				_ => false,
-			},
+				// TODO
+				false && deref_type.can_autoderef_into(other)
+			}
+			_ => false,
 		}
 	}
 

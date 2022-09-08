@@ -1,0 +1,48 @@
+fn sum(x: []u8) -> u8
+{
+	var len = |x|;
+	return: 0
+}
+
+fn sort(x: &[]u8) -> bool
+{
+	//var len = |x|;
+	return: false
+}
+
+//fn sum3(x: [3]u8) -> u8
+//{
+//	return: 0
+//}
+//
+//fn sort3(x: &[3]u8) -> bool
+//{
+//	return: true
+//}
+//
+//fn sum4(x: [4]u8) -> u8
+//{
+//	return: 0
+//}
+//
+//fn sort4(x: &[4]u8) -> bool
+//{
+//	return: true
+//}
+
+extern fn diskw(dest: []u8, size: usize) -> u32;
+extern fn diskr(dest: &[]u8, size: usize) -> u32;
+
+fn main()
+{
+	var buffer: [3]u8 = [20, 32, 0x00];
+	var total = sum(buffer);
+	//var total3 = sum3(buffer);
+	//var total4 = sum4(buffer);
+	//var sorted = sort(&buffer);
+	//var sorted3 = sort3(&buffer);
+	//var sorted4 = sort4(&buffer);
+	var written = diskw(buffer, |buffer|);
+	//var read = diskr(&buffer, |buffer|);
+}
+
