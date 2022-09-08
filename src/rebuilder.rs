@@ -579,15 +579,28 @@ impl Rebuildable for Reference
 		indentation: &Indentation,
 	) -> Result<String, anyhow::Error>
 	{
-		match self
+		let mut buffer = String::new();
+		for _i in 0..self.address_depth
 		{
-			Reference::Identifier(identifier) => Ok(identify(identifier)),
-			Reference::ArrayElement { name, argument } => Ok(format!(
-				"{}[{}]",
-				identify(name),
-				argument.rebuild(&indentation.increased())?
-			)),
+			write!(&mut buffer, "&")?;
 		}
+		write!(&mut buffer, "{}", identify(&self.base))?;
+		for step in self.steps.iter()
+		{
+			match step
+			{
+				ReferenceStep::Element { argument } => write!(
+					&mut buffer,
+					"[{}]",
+					argument.rebuild(&indentation.increased())?
+				)?,
+				ReferenceStep::Member { member } =>
+				{
+					write!(&mut buffer, ".{}", identify(&member))?
+				}
+			}
+		}
+		Ok(buffer)
 	}
 }
 

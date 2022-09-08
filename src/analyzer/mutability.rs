@@ -212,19 +212,21 @@ impl Analyzable for Statement
 			} =>
 			{
 				value.analyze(analyzer).with_context(|| location.format())?;
-				match reference
+
+				// TODO if this is a pointer, ignore inner mutation
+				analyzer.use_variable(&reference.base, true)?;
+				for step in reference.steps.iter()
 				{
-					Reference::Identifier(name) =>
+					match step
 					{
-						analyzer.use_variable(name, true)
-					}
-					Reference::ArrayElement { name, argument } =>
-					{
-						analyzer.use_variable(name, true)?;
-						argument.analyze(analyzer)?;
-						Ok(())
+						ReferenceStep::Element { argument } =>
+						{
+							argument.analyze(analyzer)?;
+						}
+						ReferenceStep::Member { member: _ } => unimplemented!(),
 					}
 				}
+				Ok(())
 			}
 			Statement::Loop { location: _ } => Ok(()),
 			Statement::Goto {
@@ -313,19 +315,23 @@ impl Analyzable for Expression
 				ref_type: _,
 				deref_type: _,
 			}
-			| Expression::LengthOfArray { reference } => match reference
+			| Expression::LengthOfArray { reference } =>
 			{
-				Reference::Identifier(name) =>
+				// TODO if this is a pointer, we might mutate
+				analyzer.use_variable(&reference.base, false)?;
+				for step in reference.steps.iter()
 				{
-					analyzer.use_variable(name, false)
+					match step
+					{
+						ReferenceStep::Element { argument } =>
+						{
+							argument.analyze(analyzer)?;
+						}
+						ReferenceStep::Member { member: _ } => unimplemented!(),
+					}
 				}
-				Reference::ArrayElement { name, argument } =>
-				{
-					analyzer.use_variable(name, false)?;
-					argument.analyze(analyzer)?;
-					Ok(())
-				}
-			},
+				Ok(())
+			}
 			Expression::FunctionCall {
 				name: _,
 				arguments,

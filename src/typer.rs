@@ -117,16 +117,50 @@ impl Typer
 		reference: &Reference,
 	) -> Result<Option<ValueType>, anyhow::Error>
 	{
-		match reference
+		if let Some((old_identifier, base_type)) =
+			self.symbols.get(&reference.base.resolution_id)
 		{
-			Reference::Identifier(identifier) =>
+			let mut full_type = base_type.clone();
+			for step in reference.steps.iter()
 			{
-				Ok(self.get_symbol(identifier))
+				match step
+				{
+					ReferenceStep::Element { argument: _ } =>
+					{
+						match full_type.get_element_type()
+						{
+							Some(element_type) =>
+							{
+								full_type = element_type;
+							}
+							None =>
+							{
+								return Err(anyhow!(
+									"first occurrence {}",
+									old_identifier.location.format()
+								)
+								.context(reference.location.format())
+								.context(format!(
+									"conflicting types for '{}'",
+									reference.base.name,
+								)));
+							}
+						}
+					}
+					ReferenceStep::Member { member: _ } => unimplemented!(),
+				}
 			}
-			Reference::ArrayElement { name, .. } =>
+			for _i in 0..reference.address_depth
 			{
-				self.get_element_type_of_array(name)
+				full_type = ValueType::Pointer {
+					deref_type: Box::new(full_type),
+				};
 			}
+			Ok(Some(full_type))
+		}
+		else
+		{
+			Ok(None)
 		}
 	}
 
@@ -523,39 +557,13 @@ impl Analyzable for Statement
 				location,
 			} =>
 			{
-				typer.contextual_type = match reference
-				{
-					Reference::Identifier(name) => typer.get_symbol(name),
-					Reference::ArrayElement { name, argument: _ } =>
-					{
-						typer.get_element_type_of_array(name)?
-					}
-				};
+				typer.contextual_type =
+					typer.get_type_of_reference(reference)?;
 				let value = value.analyze(typer)?;
 				typer.contextual_type = None;
 				let value_type = value.value_type();
-				let reference = match reference
-				{
-					Reference::Identifier(name) =>
-					{
-						typer.put_symbol(name, value_type)?;
-						Reference::Identifier(name.clone())
-					}
-					Reference::ArrayElement { name, argument } =>
-					{
-						typer.contextual_type = Some(ValueType::Usize);
-						let argument = argument.analyze(typer)?;
-						let array_type =
-							value_type.map(|vt| ValueType::ExtArray {
-								element_type: Box::new(vt),
-							});
-						typer.put_symbol(name, array_type)?;
-						Reference::ArrayElement {
-							name: name.clone(),
-							argument: Box::new(argument),
-						}
-					}
-				};
+				let reference =
+					reference.analyze_assignment(value_type, typer)?;
 				let stmt = Statement::Assignment {
 					reference,
 					value,
@@ -874,45 +882,10 @@ impl Analyzable for Expression
 				deref_type: Some(_),
 			} => Ok(self.clone()),
 			Expression::Deref {
-				reference: Reference::Identifier(name),
+				reference,
 				ref_type: _,
 				deref_type: _,
-			} =>
-			{
-				let known_type = typer.get_symbol(name);
-				let contextual_type = typer.contextual_type.take();
-				let (ref_type, deref_type) =
-					autoderef(known_type, contextual_type, 0);
-				typer.put_symbol(name, ref_type.clone())?;
-				Ok(Expression::Deref {
-					reference: Reference::Identifier(name.clone()),
-					ref_type,
-					deref_type,
-				})
-			}
-			Expression::Deref {
-				reference: Reference::ArrayElement { name, argument },
-				ref_type: _,
-				deref_type: _,
-			} =>
-			{
-				let known_type = typer.get_symbol(name);
-				let contextual_type = typer.contextual_type.take();
-				let (ref_type, deref_type) =
-					autoderef(known_type, contextual_type, 1);
-				typer.put_symbol(name, ref_type.clone())?;
-				typer.contextual_type = Some(ValueType::Usize);
-				let argument = argument.analyze(typer)?;
-				let expr = Expression::Deref {
-					reference: Reference::ArrayElement {
-						name: name.clone(),
-						argument: Box::new(argument),
-					},
-					ref_type,
-					deref_type,
-				};
-				Ok(expr)
-			}
+			} => reference.analyze_deref_expression(typer),
 			Expression::LengthOfArray { reference } =>
 			{
 				let array_type = typer.get_type_of_reference(reference)?;
@@ -933,7 +906,7 @@ impl Analyzable for Expression
 					Some(_) =>
 					{
 						let error = anyhow!("can only take length of array")
-							.context(reference.location().format())
+							.context(reference.location.format())
 							.context("this variable does not have a length");
 						Err(error)
 					}
@@ -964,49 +937,116 @@ impl Analyzable for Expression
 	}
 }
 
-fn autoderef(
-	known_type: Option<ValueType>,
-	contextual_type: Option<ValueType>,
-	array_depth: usize,
-) -> (Option<ValueType>, Option<ValueType>)
+impl Analyzable for ReferenceStep
 {
-	if array_depth > 0
+	type Item = ReferenceStep;
+
+	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
 	{
-		let slice_type = match contextual_type.clone()
+		match self
 		{
-			Some(vt) => Some(ValueType::ExtArray {
-				element_type: Box::new(vt),
-			}),
-			None => None,
-		};
-		let backup_slice_type = slice_type.clone();
-		let (ref_type, slice_deref_type) =
-			autoderef(known_type, slice_type, array_depth - 1);
-		if let Some(slice_deref_type) = slice_deref_type
-		{
-			match slice_deref_type.get_element_type()
+			ReferenceStep::Element { argument } =>
 			{
-				Some(deref_type) => (ref_type, Some(deref_type)),
-				None => (backup_slice_type, contextual_type),
+				typer.contextual_type = Some(ValueType::Usize);
+				let argument = argument.analyze(typer)?;
+				Ok(ReferenceStep::Element {
+					argument: Box::new(argument),
+				})
 			}
+			ReferenceStep::Member { member: _ } => unimplemented!(),
+		}
+	}
+}
+
+impl Reference
+{
+	fn analyze_assignment(
+		&self,
+		value_type: Option<ValueType>,
+		typer: &mut Typer,
+	) -> Result<Self, anyhow::Error>
+	{
+		let steps: Result<Vec<ReferenceStep>, anyhow::Error> =
+			self.steps.iter().map(|step| step.analyze(typer)).collect();
+		let steps = steps?;
+
+		let full_type = if let Some(value_type) = value_type
+		{
+			let mut full_type = value_type.clone();
+			for step in steps.iter()
+			{
+				match step
+				{
+					ReferenceStep::Element { argument: _ } =>
+					{
+						full_type = ValueType::ExtArray {
+							element_type: Box::new(full_type),
+						};
+					}
+					ReferenceStep::Member { member: _ } => unimplemented!(),
+				}
+			}
+			for _i in 0..self.address_depth
+			{
+				full_type = ValueType::Pointer {
+					deref_type: Box::new(full_type),
+				};
+			}
+			Some(full_type)
 		}
 		else
 		{
-			(None, None)
-		}
+			None
+		};
+		typer.put_symbol(&self.base, full_type)?;
+
+		Ok(Reference {
+			base: self.base.clone(),
+			steps,
+			address_depth: self.address_depth,
+			location: self.location.clone(),
+		})
 	}
-	else
+
+	fn analyze_deref_expression(
+		&self,
+		typer: &mut Typer,
+	) -> Result<Expression, anyhow::Error>
 	{
-		match (known_type, contextual_type)
-		{
-			(Some(x), Some(y)) if x == y => (Some(x), Some(y)),
-			(Some(x), Some(y)) if x.can_autoderef_into(&y) =>
-			{
-				(Some(x), Some(y))
-			}
-			(Some(vt), _) => (Some(vt.clone()), Some(vt)),
-			(None, Some(vt)) => (Some(vt.clone()), Some(vt)),
-			(None, None) => (None, None),
-		}
+		let steps: Result<Vec<ReferenceStep>, anyhow::Error> =
+			self.steps.iter().map(|step| step.analyze(typer)).collect();
+		let steps = steps?;
+
+		let known_type = typer.get_type_of_reference(self)?;
+		let contextual_type = typer.contextual_type.take();
+		let (ref_type, deref_type) = autoderef(known_type, contextual_type);
+		typer.put_symbol(&self.base, ref_type.clone())?;
+
+		let expr = Expression::Deref {
+			reference: Reference {
+				base: self.base.clone(),
+				steps,
+				address_depth: self.address_depth,
+				location: self.location.clone(),
+			},
+			ref_type,
+			deref_type,
+		};
+		Ok(expr)
+	}
+}
+
+fn autoderef(
+	known_type: Option<ValueType>,
+	contextual_type: Option<ValueType>,
+) -> (Option<ValueType>, Option<ValueType>)
+{
+	match (known_type, contextual_type)
+	{
+		(Some(x), Some(y)) if x == y => (Some(x), Some(y)),
+		(Some(x), Some(y)) if x.can_autoderef_into(&y) => (Some(x), Some(y)),
+		(Some(vt), _) => (Some(vt.clone()), Some(vt)),
+		(None, Some(vt)) => (Some(vt.clone()), Some(vt)),
+		(None, None) => (None, None),
 	}
 }

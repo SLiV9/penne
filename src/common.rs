@@ -237,26 +237,26 @@ pub enum PrimitiveLiteral
 
 #[must_use]
 #[derive(Debug, Clone)]
-pub enum Reference
+pub enum ReferenceStep
 {
-	Identifier(Identifier),
-	ArrayElement
+	Element
 	{
-		name: Identifier,
-		argument: Box<Expression>,
+		argument: Box<Expression>
+	},
+	Member
+	{
+		member: Identifier
 	},
 }
 
-impl Reference
+#[must_use]
+#[derive(Debug, Clone)]
+pub struct Reference
 {
-	pub fn location(&self) -> &Location
-	{
-		match self
-		{
-			Reference::Identifier(name) => &name.location,
-			Reference::ArrayElement { name, .. } => &name.location,
-		}
-	}
+	pub base: Identifier,
+	pub steps: Vec<ReferenceStep>,
+	pub address_depth: u8,
+	pub location: Location,
 }
 
 #[must_use]
@@ -320,6 +320,27 @@ pub enum ValueType
 
 impl ValueType
 {
+	pub fn can_be_used_as(&self, other: &ValueType) -> bool
+	{
+		match self
+		{
+			ValueType::Array {
+				element_type: a,
+				length: _,
+			} => match other
+			{
+				ValueType::ExtArray { element_type: b } => a.can_be_used_as(b),
+				_ => self == other,
+			},
+			ValueType::Slice { element_type: a } => match other
+			{
+				ValueType::ExtArray { element_type: b } => a.can_be_used_as(b),
+				_ => self == other,
+			},
+			_ => self == other,
+		}
+	}
+
 	pub fn can_autoderef_into(&self, other: &ValueType) -> bool
 	{
 		match self
@@ -329,28 +350,39 @@ impl ValueType
 				length: _,
 			} => match other
 			{
-				ValueType::Slice { element_type: b } => a == b,
-				ValueType::ExtArray { element_type: b } => a == b,
+				ValueType::Slice { element_type: b } => a.can_be_used_as(b),
+				ValueType::ExtArray { element_type: b } => a.can_be_used_as(b),
 				ValueType::View { deref_type } => match deref_type.as_ref()
 				{
-					ValueType::ExtArray { element_type: b } => a == b,
+					ValueType::ExtArray { element_type: b } =>
+					{
+						a.can_be_used_as(b)
+					}
 					_ => false,
 				},
 				_ => false,
 			},
 			ValueType::Slice { element_type: a } => match other
 			{
-				ValueType::ExtArray { element_type: b } => a == b,
+				ValueType::ExtArray { element_type: b } => a.can_be_used_as(b),
 				ValueType::View { deref_type } => match deref_type.as_ref()
 				{
-					ValueType::ExtArray { element_type: b } => a == b,
+					ValueType::ExtArray { element_type: b } =>
+					{
+						a.can_be_used_as(b)
+					}
 					_ => false,
 				},
 				_ => false,
 			},
 			ValueType::View { deref_type } =>
 			{
-				deref_type.as_ref() == other
+				deref_type.as_ref().can_be_used_as(other)
+					|| deref_type.can_autoderef_into(other)
+			}
+			ValueType::Pointer { deref_type } =>
+			{
+				deref_type.as_ref().can_be_used_as(other)
 					|| deref_type.can_autoderef_into(other)
 			}
 			_ => false,

@@ -9,6 +9,9 @@ use anyhow::anyhow;
 use anyhow::Context;
 use enumset::EnumSet;
 
+const MAX_ADDRESS_DEPTH: u8 = 127;
+const MAX_REFERENCE_DEPTH: usize = 127;
+
 pub fn parse(tokens: Vec<LexedToken>)
 	-> Result<Vec<Declaration>, anyhow::Error>
 {
@@ -822,6 +825,28 @@ fn parse_reference(
 	let (token, location) = extract(tokens).context("expected identifier")?;
 	match token
 	{
+		Token::Ampersand =>
+		{
+			let mut address_depth: u8 = 1;
+			while let Some(Token::Ampersand) = peek(tokens)
+			{
+				tokens.pop_front();
+				address_depth += 1;
+				if address_depth > MAX_ADDRESS_DEPTH
+				{
+					return Err(anyhow!("max address depth exceeded"))
+						.context(location.format())
+						.context("too many & operators");
+				}
+			}
+			let reference = parse_reference(tokens)?;
+			Ok(Reference {
+				base: reference.base,
+				steps: reference.steps,
+				address_depth,
+				location,
+			})
+		}
 		Token::Identifier(name) =>
 		{
 			parse_rest_of_reference(name, location, tokens)
@@ -838,26 +863,29 @@ fn parse_rest_of_reference(
 	tokens: &mut VecDeque<LexedToken>,
 ) -> Result<Reference, anyhow::Error>
 {
-	let identifier = Identifier {
+	let base = Identifier {
 		name,
-		location,
+		location: location.clone(),
 		resolution_id: 0,
 	};
-	if let Some(Token::BracketLeft) = peek(tokens)
+	let mut steps = Vec::new();
+	while let Some(Token::BracketLeft) = peek(tokens)
 	{
 		let _ = extract(tokens)?;
 		let argument = parse_expression(tokens)?;
 		consume(Token::BracketRight, tokens)
 			.context("expected right bracket")?;
-		Ok(Reference::ArrayElement {
-			name: identifier,
+		let step = ReferenceStep::Element {
 			argument: Box::new(argument),
-		})
+		};
+		steps.push(step);
 	}
-	else
-	{
-		Ok(Reference::Identifier(identifier))
-	}
+	Ok(Reference {
+		base,
+		steps,
+		address_depth: 0,
+		location,
+	})
 }
 
 fn fix_type_for_flags(

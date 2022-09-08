@@ -620,21 +620,44 @@ impl Analyzable for Reference
 		analyzer: &mut Analyzer,
 	) -> Result<Self::Item, anyhow::Error>
 	{
+		let base = analyzer.use_variable(&self.base)?;
+		let steps: Result<Vec<ReferenceStep>, anyhow::Error> = self
+			.steps
+			.iter()
+			.map(|step| step.analyze(analyzer))
+			.collect();
+		let steps = steps?;
+		Ok(Reference {
+			base,
+			steps,
+			address_depth: self.address_depth,
+			location: self.location.clone(),
+		})
+	}
+}
+
+impl Analyzable for ReferenceStep
+{
+	type Item = ReferenceStep;
+
+	fn analyze(
+		&self,
+		analyzer: &mut Analyzer,
+	) -> Result<Self::Item, anyhow::Error>
+	{
 		match &self
 		{
-			Reference::Identifier(name) =>
-			{
-				let name = analyzer.use_variable(name)?;
-				Ok(Reference::Identifier(name))
-			}
-			Reference::ArrayElement { name, argument } =>
+			ReferenceStep::Element { argument } =>
 			{
 				let argument = argument.analyze(analyzer)?;
-				let name = analyzer.use_variable(name)?;
-				Ok(Reference::ArrayElement {
-					name: name.clone(),
+				Ok(ReferenceStep::Element {
 					argument: Box::new(argument),
 				})
+			}
+			ReferenceStep::Member { member } =>
+			{
+				let member = member.clone();
+				Ok(ReferenceStep::Member { member })
 			}
 		}
 	}

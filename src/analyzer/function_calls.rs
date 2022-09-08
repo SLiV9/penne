@@ -10,7 +10,6 @@ pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 {
 	let mut analyzer = Analyzer {
 		function_list: Vec::new(),
-		array_list: Vec::new(),
 		is_const_evaluated: false,
 		is_immediate_function_argument: false,
 	};
@@ -28,7 +27,6 @@ pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 struct Analyzer
 {
 	function_list: Vec<(Identifier, Vec<Parameter>)>,
-	array_list: Vec<Identifier>,
 	is_const_evaluated: bool,
 	is_immediate_function_argument: bool,
 }
@@ -127,65 +125,6 @@ impl Analyzer
 				.context(identifier.location.format())
 				.context(format!(
 					"reference to undefined function named '{}'",
-					identifier.name
-				)))
-		}
-	}
-
-	fn declare_array(
-		&mut self,
-		identifier: &Identifier,
-	) -> Result<(), anyhow::Error>
-	{
-		// Array names have been resolved during scoping.
-		self.array_list.push(identifier.clone());
-		Ok(())
-	}
-
-	fn use_array(
-		&self,
-		identifier: &Identifier,
-		argument_type: Option<ValueType>,
-	) -> Result<(), anyhow::Error>
-	{
-		if let Some(declaration_identifier) = self
-			.array_list
-			.iter()
-			.find(|x| x.resolution_id == identifier.resolution_id)
-		{
-			match argument_type
-			{
-				Some(ValueType::Usize) => Ok(()),
-				Some(other_type) => Err(anyhow!("got {:?}", other_type)
-					.context(format!("expected usize"))
-					.context(format!(
-						"array was declared {}",
-						declaration_identifier.location.format()
-					))
-					.context(identifier.location.format())
-					.context(format!(
-						"type mismatch of index into array '{}'",
-						identifier.name,
-					))),
-				None => Err(anyhow!("failed to determine type")
-					.context(format!("expected usize"))
-					.context(format!(
-						"array was declared {}",
-						declaration_identifier.location.format()
-					))
-					.context(identifier.location.format())
-					.context(format!(
-						"type mismatch of index into array '{}'",
-						identifier.name,
-					))),
-			}
-		}
-		else
-		{
-			Err(anyhow!("undefined reference")
-				.context(identifier.location.format())
-				.context(format!(
-					"reference to undefined array named '{}'",
 					identifier.name
 				)))
 		}
@@ -290,15 +229,6 @@ impl Analyzable for Parameter
 						self.name.name
 					)))
 			}
-			Some(ValueType::Slice { .. }) => analyzer.declare_array(&self.name),
-			Some(ValueType::View { deref_type }) => match deref_type.as_ref()
-			{
-				ValueType::ExtArray { .. } =>
-				{
-					analyzer.declare_array(&self.name)
-				}
-				_ => Ok(()),
-			},
 			_ => Ok(()),
 		}
 	}
@@ -350,10 +280,7 @@ impl Analyzable for Statement
 			{
 				match value_type
 				{
-					Some(ValueType::Array { .. }) =>
-					{
-						analyzer.declare_array(name)?;
-					}
+					Some(ValueType::Array { .. }) => (),
 					Some(ValueType::Slice { .. }) =>
 					{
 						return Err(anyhow!("slice variable")
@@ -386,10 +313,7 @@ impl Analyzable for Statement
 			{
 				match value_type
 				{
-					Some(ValueType::Array { .. }) =>
-					{
-						analyzer.declare_array(name)?;
-					}
+					Some(ValueType::Array { .. }) => (),
 					Some(ValueType::Slice { .. }) =>
 					{
 						return Err(anyhow!("slice variable")
@@ -418,16 +342,9 @@ impl Analyzable for Statement
 				location,
 			} =>
 			{
-				match reference
-				{
-					Reference::Identifier(..) => (),
-					Reference::ArrayElement { name: _, argument } =>
-					{
-						argument
-							.analyze(analyzer)
-							.with_context(|| location.format())?;
-					}
-				}
+				reference
+					.analyze(analyzer)
+					.with_context(|| location.format())?;
 				value.analyze(analyzer).with_context(|| location.format())?;
 				Ok(())
 			}
@@ -531,7 +448,7 @@ impl Analyzable for Expression
 					Some(ValueType::Array { .. }) =>
 					{
 						let error = anyhow!("cannot move from array")
-							.context(reference.location().format())
+							.context(reference.location.format())
 							.context("this variable cannot be moved from");
 						return Err(error);
 					}
@@ -541,38 +458,19 @@ impl Analyzable for Expression
 						if !analyzer.is_immediate_function_argument
 						{
 							let error = anyhow!("cannot move from slice")
-								.context(reference.location().format())
+								.context(reference.location.format())
 								.context("this variable cannot be moved from");
 							return Err(error);
 						}
 					}
 					_ => (),
 				}
-				analyzer.is_immediate_function_argument = false;
-				match reference
-				{
-					Reference::Identifier(_) => (),
-					Reference::ArrayElement { name, argument } =>
-					{
-						let argument_type = argument.value_type();
-						analyzer.use_array(name, argument_type)?;
-						argument.analyze(analyzer)?;
-					}
-				}
-				Ok(())
+				reference.analyze(analyzer)
 			}
-			Expression::LengthOfArray { reference } => match reference
+			Expression::LengthOfArray { reference } =>
 			{
-				Reference::Identifier(_) => Ok(()),
-				Reference::ArrayElement { name, argument } =>
-				{
-					analyzer.is_immediate_function_argument = false;
-					let argument_type = argument.value_type();
-					analyzer.use_array(name, argument_type)?;
-					argument.analyze(analyzer)?;
-					Ok(())
-				}
-			},
+				reference.analyze(analyzer)
+			}
 			Expression::FunctionCall {
 				name,
 				arguments,
@@ -600,5 +498,51 @@ impl Analyzable for Expression
 				Ok(())
 			}
 		}
+	}
+}
+
+impl Analyzable for Reference
+{
+	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
+	{
+		for step in self.steps.iter()
+		{
+			match step
+			{
+				ReferenceStep::Element { argument } =>
+				{
+					let argument_type = argument.value_type();
+					match argument_type
+					{
+						Some(ValueType::Usize) => (),
+						Some(other_type) =>
+						{
+							return Err(anyhow!("got {:?}", other_type)
+								.context(format!("expected usize"))
+								.context(self.location.format())
+								.context(format!(
+									"type mismatch of index into array '{}'",
+									self.base.name,
+								)));
+						}
+						None =>
+						{
+							return Err(anyhow!("failed to determine type")
+								.context(format!("expected usize"))
+								.context(self.location.format())
+								.context(format!(
+									"type mismatch of index into array '{}'",
+									self.base.name,
+								)));
+						}
+					}
+
+					analyzer.is_immediate_function_argument = false;
+					argument.analyze(analyzer)?;
+				}
+				ReferenceStep::Member { member: _ } => (),
+			}
+		}
+		Ok(())
 	}
 }
