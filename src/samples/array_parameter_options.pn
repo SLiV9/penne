@@ -30,7 +30,21 @@ fn sort(x: &[]u8) -> bool
 //	return: true
 //}
 
-extern fn diskw(dest: []u8, size: usize) -> u32;
+extern fn diskw(src: []u8, size: usize) -> u32
+{
+	var x: u8;
+	var i = 0;
+	{
+		if i == size
+			goto return;
+		x = src[i];
+		i = i + 1;
+		loop;
+	}
+	return:
+	0
+}
+
 extern fn diskr(dest: &[]u8, size: usize) -> u32;
 
 fn main()

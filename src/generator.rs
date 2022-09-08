@@ -1022,6 +1022,11 @@ impl Reference
 			{
 				self.generate_ext_array_view(llvm, element_type.clone())
 			}
+			(ValueType::View { deref_type }, _) => match deref_type.as_ref()
+			{
+				ValueType::ExtArray { .. } => self.generate_ext_deref(llvm),
+				_ => self.generate_deref(llvm),
+			},
 			_ => self.generate_deref(llvm),
 		}
 	}
@@ -1196,6 +1201,46 @@ impl Reference
 				Ok(result)
 			}
 		}
+	}
+
+	fn generate_ext_deref(
+		&self,
+		llvm: &mut Generator,
+	) -> Result<LLVMValueRef, anyhow::Error>
+	{
+		println!("hallo");
+		match &self
+		{
+			Reference::Identifier(..) => (),
+			Reference::ArrayElement { name, argument } =>
+			{
+				if let Some(value) =
+					llvm.local_parameters.get(&name.resolution_id)
+				{
+					let array_loc = *value;
+					let tmpname = CString::new("")?;
+					let mut indices = Vec::new();
+					let argument: LLVMValueRef = argument.generate(llvm)?;
+					indices.push(argument);
+					let address = unsafe {
+						LLVMBuildGEP(
+							llvm.builder,
+							array_loc,
+							indices.as_mut_ptr(),
+							indices.len() as u32,
+							tmpname.as_ptr(),
+						)
+					};
+					let tmpname = CString::new("")?;
+					let result = unsafe {
+						LLVMBuildLoad(llvm.builder, address, tmpname.as_ptr())
+					};
+					return Ok(result);
+				}
+			}
+		}
+
+		self.generate_deref(llvm)
 	}
 
 	fn generate_array_len(

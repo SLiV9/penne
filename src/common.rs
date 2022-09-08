@@ -350,13 +350,8 @@ impl ValueType
 			},
 			ValueType::View { deref_type } =>
 			{
-				// TODO
-				false && deref_type.can_autoderef_into(other)
-			}
-			ValueType::Pointer { deref_type } =>
-			{
-				// TODO
-				false && deref_type.can_autoderef_into(other)
+				deref_type.as_ref() == other
+					|| deref_type.can_autoderef_into(other)
 			}
 			_ => false,
 		}

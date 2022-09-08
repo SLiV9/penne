@@ -279,7 +279,7 @@ impl Analyzable for Parameter
 	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
 	{
 		analyzer.is_immediate_function_argument = false;
-		match self.value_type
+		match &self.value_type
 		{
 			Some(ValueType::Array { .. }) =>
 			{
@@ -291,10 +291,14 @@ impl Analyzable for Parameter
 					)))
 			}
 			Some(ValueType::Slice { .. }) => analyzer.declare_array(&self.name),
-			Some(ValueType::ExtArray { .. }) =>
+			Some(ValueType::View { deref_type }) => match deref_type.as_ref()
 			{
-				analyzer.declare_array(&self.name)
-			}
+				ValueType::ExtArray { .. } =>
+				{
+					analyzer.declare_array(&self.name)
+				}
+				_ => Ok(()),
+			},
 			_ => Ok(()),
 		}
 	}
