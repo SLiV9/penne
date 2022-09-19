@@ -446,10 +446,13 @@ impl Analyzable for Expression
 				{
 					Some(ValueType::Array { .. }) =>
 					{
-						let error = anyhow!("cannot move from array")
-							.context(reference.location.format())
-							.context("this variable cannot be moved from");
-						return Err(error);
+						if !analyzer.is_immediate_function_argument
+						{
+							let error = anyhow!("cannot move from array")
+								.context(reference.location.format())
+								.context("this variable cannot be moved from");
+							return Err(error);
+						}
 					}
 					Some(ValueType::Slice { .. })
 					| Some(ValueType::ExtArray { .. }) =>

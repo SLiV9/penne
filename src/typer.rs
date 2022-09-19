@@ -1079,7 +1079,7 @@ impl Reference
 				}
 				(ct, None) if ct.can_coerce_into(&target_type) =>
 				{
-					coercion = Some(target_type.clone());
+					coercion = Some((ct, target_type.clone()));
 					break;
 				}
 				(
@@ -1180,15 +1180,22 @@ impl Reference
 			}
 		}
 
-		let deref_type = Some(target_type);
+		let (deref_type, coerced_type) = match coercion
+		{
+			Some((x, y)) => (Some(x), Some(y)),
+			None => (Some(target_type), None),
+		};
 		let base_type = deref_type.clone();
 		let full_type = build_type_of_reference(
 			base_type,
 			&taken_steps,
 			self.address_depth,
 		);
-		println!("######\t\t coercing {:?}", coercion);
-		println!("######\t\t from {:?}", full_type);
+		if let Some(coerced_type) = &coerced_type
+		{
+			println!("######\t\t coercing {:?}", coerced_type);
+			println!("######\t\t from {:?}", full_type);
+		}
 		typer.put_symbol(&self.base, full_type.clone())?;
 		let expr = Expression::Deref {
 			reference: Reference {
@@ -1199,7 +1206,7 @@ impl Reference
 			},
 			deref_type,
 		};
-		if let Some(coerced_type) = coercion
+		if let Some(coerced_type) = coerced_type
 		{
 			Ok(Expression::Autocoerce {
 				expression: Box::new(expr),

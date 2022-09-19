@@ -456,12 +456,24 @@ impl Rebuildable for Expression
 			}
 			Expression::Deref {
 				reference,
-				deref_type: _,
+				deref_type: None,
 			} => reference.rebuild(indentation),
+			Expression::Deref {
+				reference,
+				deref_type: Some(deref_type),
+			} => Ok(format!(
+				"deref<{}, {}>",
+				reference.rebuild(indentation)?,
+				deref_type.rebuild(indentation)?,
+			)),
 			Expression::Autocoerce {
 				expression,
-				coerced_type: _,
-			} => expression.rebuild(indentation),
+				coerced_type,
+			} => Ok(format!(
+				"coerce<{}, {}>",
+				expression.rebuild(indentation)?,
+				coerced_type.rebuild(indentation)?,
+			)),
 			Expression::LengthOfArray { reference } => Ok(format!(
 				"|{}|",
 				reference.rebuild(&indentation.increased())?
@@ -602,7 +614,7 @@ impl Rebuildable for Reference
 				{
 					write!(&mut buffer, ".{}", identify(&member))?
 				}
-				ReferenceStep::Autoderef => (),
+				ReferenceStep::Autoderef => write!(&mut buffer, ".^")?,
 			}
 		}
 		Ok(buffer)
