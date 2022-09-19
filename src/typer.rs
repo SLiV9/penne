@@ -926,6 +926,7 @@ impl Analyzable for ReferenceStep
 			{
 				typer.contextual_type = Some(ValueType::Usize);
 				let argument = argument.analyze(typer)?;
+				typer.contextual_type = None;
 				Ok(ReferenceStep::Element {
 					argument: Box::new(argument),
 				})
