@@ -767,18 +767,12 @@ impl Generatable for Expression
 			Expression::StringLiteral(_literal) => unimplemented!(),
 			Expression::Deref {
 				reference,
-				deref_type: Some(deref_type),
-			} => reference.generate_deref(llvm, &deref_type),
+				deref_type: _,
+			} => reference.generate_deref(llvm),
 			Expression::Autocoerce {
 				expression,
 				coerced_type,
 			} => generate_autocoerce(&expression, coerced_type, llvm),
-			Expression::Deref {
-				reference,
-				deref_type: None,
-			} => Err(anyhow!("failed to infer type")
-				.context(reference.location.format())
-				.context(format!("failed to infer type of reference"))),
 			Expression::LengthOfArray { reference } =>
 			{
 				reference.generate_array_len(llvm)
@@ -1000,7 +994,6 @@ impl Reference
 	fn generate_deref(
 		&self,
 		llvm: &mut Generator,
-		deref_type: &ValueType,
 	) -> Result<LLVMValueRef, anyhow::Error>
 	{
 		let id = &self.base.resolution_id;

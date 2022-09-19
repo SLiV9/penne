@@ -459,6 +459,15 @@ mod tests
 		Ok(())
 	}
 
+	#[test]
+	fn execute_multidimensional_array() -> Result<(), anyhow::Error>
+	{
+		let result =
+			execute_calculation("src/samples/multidimensional_array.pn")?;
+		assert_eq!(result, 200);
+		Ok(())
+	}
+
 	fn execute_calculation(filename: &str) -> Result<i32, anyhow::Error>
 	{
 		let source = std::fs::read_to_string(&filename)?;
