@@ -252,6 +252,7 @@ pub enum ReferenceStep
 		member: Identifier,
 	},
 	Autoderef,
+	Autodeslice,
 }
 
 #[must_use]

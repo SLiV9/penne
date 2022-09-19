@@ -114,15 +114,7 @@ impl Generator
 	fn const_i32(&mut self, value: i32) -> LLVMValueRef
 	{
 		unsafe {
-			let inttype = LLVMInt64TypeInContext(self.context);
-			LLVMConstInt(inttype, value as u64, 1)
-		}
-	}
-
-	fn const_i64(&mut self, value: i32) -> LLVMValueRef
-	{
-		unsafe {
-			let inttype = LLVMInt64TypeInContext(self.context);
+			let inttype = LLVMInt32TypeInContext(self.context);
 			LLVMConstInt(inttype, value as u64, 1)
 		}
 	}
@@ -1105,6 +1097,22 @@ impl Reference
 					addr = unsafe {
 						LLVMBuildLoad(llvm.builder, address, tmpname.as_ptr())
 					};
+					indices.clear();
+				}
+				ReferenceStep::Autodeslice =>
+				{
+					assert!(indices.is_empty());
+
+					let tmpname = CString::new("")?;
+					addr = unsafe {
+						LLVMBuildExtractValue(
+							llvm.builder,
+							addr,
+							1u32,
+							tmpname.as_ptr(),
+						)
+					};
+					indices.push(llvm.const_i32(0));
 				}
 			}
 		}

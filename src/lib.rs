@@ -434,6 +434,31 @@ mod tests
 		Ok(())
 	}
 
+	#[test]
+	fn execute_array_by_reference() -> Result<(), anyhow::Error>
+	{
+		let result = execute_calculation("src/samples/array_by_reference.pn")?;
+		assert_eq!(result, 200);
+		Ok(())
+	}
+
+	#[test]
+	fn execute_reference_array_by_reference() -> Result<(), anyhow::Error>
+	{
+		let result =
+			execute_calculation("src/samples/array_reference_by_reference.pn")?;
+		assert_eq!(result, 200);
+		Ok(())
+	}
+
+	#[test]
+	fn execute_mutable_array() -> Result<(), anyhow::Error>
+	{
+		let result = execute_calculation("src/samples/mutable_array.pn")?;
+		assert_eq!(result, 200);
+		Ok(())
+	}
+
 	fn execute_calculation(filename: &str) -> Result<i32, anyhow::Error>
 	{
 		let source = std::fs::read_to_string(&filename)?;

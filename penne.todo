@@ -13,6 +13,7 @@ Functionality:
 	✔	Pass array by const-reference (slice) by default @done (2022-09-04 18:06)
 		☐	A [3]i32 parameter is typechecked as [3]i32 but implemented as []i32
 		✔	In extern functions, use pointers instead of slice structs @done (2022-09-08 12:09)
+		☐	Flip length and pointer to be pointer first, makes more sense
 	☐	String literals
 		☐	\u{NN} through \u{NNNNN}
 	☐	Byte string literals

@@ -14,5 +14,6 @@ fn main()
 {
 	var x: []i32 = [55, 66];
 	var y = outer(x);
-	return: y
+	var z = 198 + y;
+	return: z
 }

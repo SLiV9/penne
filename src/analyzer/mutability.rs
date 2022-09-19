@@ -225,6 +225,7 @@ impl Analyzable for Statement
 						}
 						ReferenceStep::Member { member: _ } => unimplemented!(),
 						ReferenceStep::Autoderef => (),
+						ReferenceStep::Autodeslice => (),
 					}
 				}
 				Ok(())
@@ -333,6 +334,7 @@ impl Analyzable for Expression
 						}
 						ReferenceStep::Member { member: _ } => unimplemented!(),
 						ReferenceStep::Autoderef => (),
+						ReferenceStep::Autodeslice => (),
 					}
 				}
 				Ok(())

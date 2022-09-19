@@ -548,6 +548,7 @@ impl Analyzable for Reference
 				}
 				ReferenceStep::Member { member: _ } => (),
 				ReferenceStep::Autoderef => (),
+				ReferenceStep::Autodeslice => (),
 			}
 		}
 		Ok(())

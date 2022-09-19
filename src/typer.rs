@@ -118,7 +118,8 @@ impl Typer
 						}
 					}
 					ReferenceStep::Member { member: _ } => unimplemented!(),
-					ReferenceStep::Autoderef => unimplemented!(),
+					ReferenceStep::Autoderef => unreachable!(),
+					ReferenceStep::Autodeslice => unreachable!(),
 				}
 			}
 			for _i in 0..reference.address_depth
@@ -931,6 +932,7 @@ impl Analyzable for ReferenceStep
 			}
 			ReferenceStep::Member { member: _ } => unimplemented!(),
 			ReferenceStep::Autoderef => Ok(ReferenceStep::Autoderef),
+			ReferenceStep::Autodeslice => Ok(ReferenceStep::Autodeslice),
 		}
 	}
 }
@@ -1006,6 +1008,11 @@ impl Reference
 			(Some(x), Some(y), Some(ref_type)) if x.can_autoderef_into(&y) =>
 			{
 				self.autoderef(ref_type, y, steps, typer)
+			}
+			(Some(def), None, Some(ref_type)) =>
+			{
+				println!("######\t\t with default {:?}", def);
+				self.autoderef(ref_type, def, steps, typer)
 			}
 			(Some(def), _, _) =>
 			{
@@ -1163,6 +1170,10 @@ impl Reference
 					Some(ReferenceStep::Element { argument }),
 				) =>
 				{
+					let autostep = ReferenceStep::Autodeslice;
+					println!("######\t\t taking {:?}", autostep);
+					taken_steps.push(autostep);
+
 					let step = ReferenceStep::Element {
 						argument: argument.clone(),
 					};
@@ -1244,8 +1255,9 @@ fn build_type_of_reference(
 				{
 					full_type = ValueType::Pointer {
 						deref_type: Box::new(full_type),
-					}
+					};
 				}
+				ReferenceStep::Autodeslice => (),
 			}
 		}
 		for _i in 0..address_depth

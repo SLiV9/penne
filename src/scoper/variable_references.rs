@@ -669,6 +669,7 @@ impl Analyzable for ReferenceStep
 				Ok(ReferenceStep::Member { member })
 			}
 			ReferenceStep::Autoderef => Ok(ReferenceStep::Autoderef),
+			ReferenceStep::Autodeslice => Ok(ReferenceStep::Autodeslice),
 		}
 	}
 }
