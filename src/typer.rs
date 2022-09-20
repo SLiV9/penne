@@ -575,8 +575,23 @@ impl Analyzable for Statement
 				location,
 			} =>
 			{
-				typer.contextual_type =
-					typer.get_type_of_reference(reference)?;
+				let ref_type = typer.get_type_of_reference(reference)?;
+				let ref_type = if let Some(x) = ref_type
+				{
+					let mut ref_type = x;
+					for _i in 0..reference.address_depth
+					{
+						ref_type = ValueType::Pointer {
+							deref_type: Box::new(ref_type),
+						};
+					}
+					Some(ref_type)
+				}
+				else
+				{
+					None
+				};
+				typer.contextual_type = ref_type;
 				let value = value.analyze(typer)?;
 				typer.contextual_type = None;
 				let value_type = value.value_type();
@@ -1228,13 +1243,18 @@ impl Reference
 		{
 			match (current_type, available_steps.peek(), address_depth)
 			{
-				(ct, None, 0) if ct == target_type =>
+				(ct, None, _) if ct == target_type =>
 				{
 					break;
 				}
-				(ct, None, 0) if ct.can_coerce_into(&target_type) =>
+				(ct, None, _) if ct.can_coerce_into(&target_type) =>
 				{
 					coercion = Some((ct, target_type.clone()));
+					break;
+				}
+				(ValueType::Pointer { deref_type }, None, ad)
+					if deref_type.as_ref() == &target_type && ad > 0 =>
+				{
 					break;
 				}
 				(ct, None, ad) if ad > 0 =>
@@ -1345,6 +1365,7 @@ impl Reference
 				(ct, step, ad) =>
 				{
 					return Err(anyhow!("failed to autoderef")
+						.context(format!("target type: {:?}", target_type))
 						.context(format!("current type: {:?}", ct))
 						.context(format!("available step: {:?}", step))
 						.context(format!("remaining address depth: {:?}", ad))
@@ -1431,7 +1452,7 @@ fn build_type_of_reference(
 				{
 					full_type = *deref_type;
 				}
-				_ => unreachable!(),
+				_ => break,
 			}
 		}
 		Some(full_type)

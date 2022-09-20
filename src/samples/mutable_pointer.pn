@@ -1,7 +1,6 @@
-fn foo(x: &&u8, y: &u8) -> bool
+fn foo(x: &&u8, y: &u8)
 {
 	&x = &y;
-	return: true
 }
 
 fn main()
@@ -10,6 +9,6 @@ fn main()
 	var b: u8 = 200;
 	var x: &u8 = &a;
 	var y: &u8 = &b;
-	var success = foo(&&x, &y);
+	foo(&&x, &y);
 	return: x
 }
