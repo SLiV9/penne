@@ -1,0 +1,12 @@
+fn foo(x: &u8) -> bool
+{
+	x = 200;
+	return: true
+}
+
+fn main()
+{
+	var x: u8 = 17;
+	var success = foo(&x);
+	return: x
+}

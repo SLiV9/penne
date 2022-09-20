@@ -360,6 +360,17 @@ mod tests
 	}
 
 	#[test]
+	fn fail_to_analyze_missing_address() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/missing_address.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
 	fn rebuild_foo_bar() -> Result<(), anyhow::Error>
 	{
 		let filename = "src/samples/foo_bar.pn";
@@ -464,6 +475,14 @@ mod tests
 	{
 		let result =
 			execute_calculation("src/samples/multidimensional_array.pn")?;
+		assert_eq!(result, 200);
+		Ok(())
+	}
+
+	#[test]
+	fn execute_pointers() -> Result<(), anyhow::Error>
+	{
+		let result = execute_calculation("src/samples/pointers.pn")?;
 		assert_eq!(result, 200);
 		Ok(())
 	}

@@ -1,0 +1,17 @@
+const C: u8 = 200;
+
+fn foo(x: &&u8) -> bool
+{
+	// This should not be allowed because pointees are mutable.
+	// Use a view instead?
+	&x = &C;
+	return: true
+}
+
+fn main()
+{
+	var a: u8 = 17;
+	var x = &a;
+	var success = foo(&&x);
+	return: x
+}

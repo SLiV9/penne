@@ -1,26 +1,7 @@
-fn foo()
-{
-	var buffer: [3]u8 = [20, 32, 0x00];
-	var x: &[]u8 = buffer;
-	var alternative: [4]u8 = [0, 0, 0, 0];
-	&x = &alternative;
-}
-
-fn bar(x: &u8)
-{
-	x = 10;
-}
-
-const C: u8 = 1000;
-
-fn baz(x: &&u8)
-{
-	&x = &C;
-}
-
 fn main() -> u8
 {
-	var x: u8 = 0;
+	var x: u8 = 17;
+	var d = &x;
 	var a: &u8 = &x;
 	a = 50;
 	var y: u8 = 98;

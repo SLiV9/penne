@@ -1,0 +1,15 @@
+fn foo(x: &&u8, y: &u8) -> bool
+{
+	&x = &y;
+	return: true
+}
+
+fn main()
+{
+	var a: u8 = 17;
+	var b: u8 = 200;
+	var x = &a;
+	var y = &b;
+	var success = foo(&&x, &y);
+	return: x
+}

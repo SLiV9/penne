@@ -544,6 +544,23 @@ fn parse_statement(
 			};
 			Ok(statement)
 		}
+		Token::Ampersand =>
+		{
+			let assignment_location = location.clone();
+			let reference = parse_addressed_reference(location, tokens)?;
+
+			consume(Token::Assignment, tokens)
+				.context("expected assignment")?;
+			let expression = parse_expression(tokens)?;
+			consume(Token::Semicolon, tokens).context("expected semicolon")?;
+
+			let statement = Statement::Assignment {
+				reference,
+				value: expression,
+				location: assignment_location,
+			};
+			Ok(statement)
+		}
 		other => Err(anyhow!("got {:?}", other))
 			.context(location.format())
 			.context("expected keyword, identifier or opening brace"),
@@ -737,6 +754,14 @@ fn parse_primary_expression(
 				})
 			}
 		}
+		Token::Ampersand =>
+		{
+			let reference = parse_addressed_reference(location, tokens)?;
+			Ok(Expression::Deref {
+				reference,
+				deref_type: None,
+			})
+		}
 		Token::BracketLeft =>
 		{
 			let array = Array {
@@ -815,6 +840,32 @@ fn parse_rest_of_array(
 	consume(Token::BracketRight, tokens).context("expected right bracket")?;
 
 	return Ok(array);
+}
+
+fn parse_addressed_reference(
+	location: Location,
+	tokens: &mut VecDeque<LexedToken>,
+) -> Result<Reference, anyhow::Error>
+{
+	let Reference {
+		base,
+		steps,
+		address_depth,
+		location: _,
+	} = parse_reference(tokens)?;
+	if address_depth + 1 > MAX_ADDRESS_DEPTH
+	{
+		return Err(anyhow!("max address depth exceeded"))
+			.context(location.format())
+			.context("too many & operators");
+	}
+	let reference = Reference {
+		base,
+		steps,
+		address_depth: address_depth + 1,
+		location,
+	};
+	Ok(reference)
 }
 
 fn parse_reference(

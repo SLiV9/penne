@@ -48,6 +48,11 @@ impl Typer
 				Some((storedid, storedtype))
 					if vt.can_autoderef_into(&storedtype) =>
 				{
+					println!(
+						"###### Upgrading '{}' from {:?} to {:?}",
+						identifier.name, storedtype, vt
+					);
+
 					*storedid = identifier.clone();
 					*storedtype = vt.clone();
 					Ok(())
@@ -122,7 +127,7 @@ impl Typer
 						}
 					}
 					ReferenceStep::Member { member: _ } => unimplemented!(),
-					ReferenceStep::Autoderef => unreachable!(),
+					ReferenceStep::Autoderef => (),
 					ReferenceStep::Autodeslice => unreachable!(),
 				}
 			}
@@ -952,19 +957,105 @@ impl Reference
 	{
 		let steps: Result<Vec<ReferenceStep>, anyhow::Error> =
 			self.steps.iter().map(|step| step.analyze(typer)).collect();
-		let steps = steps?;
+		let steps: Vec<ReferenceStep> = steps?;
 
 		println!("###### {:?}", self.location.format());
+
+		let base_type = typer.get_symbol(&self.base);
+		println!("######\t knowing {:?}", base_type);
+
+		let mut address_depth = self.address_depth;
+		let steps = if let Some(base_type) = base_type
+		{
+			let previous_steps = steps;
+			let mut steps = Vec::new();
+
+			let mut current_type = base_type;
+			for step in previous_steps.into_iter()
+			{
+				match step
+				{
+					ReferenceStep::Element { argument: _ } =>
+					{
+						for _i in 0..MAX_AUTODEREF_DEPTH
+						{
+							match current_type
+							{
+								ValueType::Pointer { deref_type } =>
+								{
+									let step = ReferenceStep::Autoderef;
+									println!("######\t\t taking {:?}", step);
+									steps.push(step);
+									current_type = *deref_type;
+								}
+								_ => break,
+							}
+						}
+						match current_type.get_element_type()
+						{
+							Some(element_type) =>
+							{
+								current_type = element_type;
+							}
+							None => unreachable!(),
+						}
+					}
+					ReferenceStep::Member { member: _ } => unimplemented!(),
+					ReferenceStep::Autoderef => match current_type
+					{
+						ValueType::Pointer { deref_type } =>
+						{
+							current_type = *deref_type;
+						}
+						_ => unreachable!(),
+					},
+					ReferenceStep::Autodeslice => unreachable!(),
+				}
+				steps.push(step);
+			}
+			for _i in 0..MAX_AUTODEREF_DEPTH
+			{
+				match current_type
+				{
+					ct if value_type.as_ref() == Some(&ct) =>
+					{
+						address_depth = 0;
+						break;
+					}
+					ValueType::Pointer { deref_type } =>
+					{
+						if address_depth > 0
+						{
+							address_depth -= 1;
+						}
+						else
+						{
+							let step = ReferenceStep::Autoderef;
+							println!("######\t\t taking {:?}", step);
+							steps.push(step);
+						}
+						current_type = *deref_type;
+					}
+					_ => break,
+				}
+			}
+			steps
+		}
+		else
+		{
+			steps
+		};
+
 		println!("######\t storing {:?}", value_type);
 		let full_type =
-			build_type_of_reference(value_type, &steps, self.address_depth);
+			build_type_of_reference(value_type, &steps, address_depth);
 		println!("######\t\t in {:?}", full_type);
 		typer.put_symbol(&self.base, full_type)?;
 
 		Ok(Reference {
 			base: self.base.clone(),
 			steps,
-			address_depth: self.address_depth,
+			address_depth,
 			location: self.location.clone(),
 		})
 	}
@@ -988,6 +1079,11 @@ impl Reference
 
 		match (known_type, contextual_type, ref_type)
 		{
+			(Some(x), Some(y), Some(ref_type)) if x == y =>
+			{
+				println!("######\t\t with match {:?}", x);
+				self.autoderef(ref_type, y, steps, typer)
+			}
 			(Some(x), Some(y), _) if x == y =>
 			{
 				println!("######\t\t matched {:?}", x);
@@ -1076,26 +1172,36 @@ impl Reference
 		println!("######\t\t autoderef into {:?}", target_type);
 
 		let mut available_steps = steps.into_iter().peekable();
+		let mut address_depth = self.address_depth;
 		let mut taken_steps = Vec::new();
 		let mut current_type = known_ref_type;
 		let mut coercion = None;
 
 		for _i in 0..MAX_AUTODEREF_DEPTH
 		{
-			match (current_type, available_steps.peek())
+			match (current_type, available_steps.peek(), address_depth)
 			{
-				(ct, None) if ct == target_type =>
+				(ct, None, 0) if ct == target_type =>
 				{
 					break;
 				}
-				(ct, None) if ct.can_coerce_into(&target_type) =>
+				(ct, None, 0) if ct.can_coerce_into(&target_type) =>
 				{
 					coercion = Some((ct, target_type.clone()));
 					break;
 				}
+				(ct, None, ad) if ad > 0 =>
+				{
+					println!("######\t\t taking address");
+					current_type = ValueType::Pointer {
+						deref_type: Box::new(ct),
+					};
+					address_depth -= 1;
+				}
 				(
 					ValueType::Pointer { deref_type },
 					Some(ReferenceStep::Element { argument }),
+					_,
 				) => match deref_type.as_ref()
 				{
 					ValueType::ExtArray { element_type } =>
@@ -1119,6 +1225,7 @@ impl Reference
 				(
 					ValueType::View { deref_type },
 					Some(ReferenceStep::Element { argument }),
+					0,
 				) => match deref_type.as_ref()
 				{
 					ValueType::ExtArray { element_type } =>
@@ -1139,14 +1246,14 @@ impl Reference
 						current_type = *deref_type;
 					}
 				},
-				(ValueType::Pointer { deref_type }, _) =>
+				(ValueType::Pointer { deref_type }, _, 0) =>
 				{
 					let step = ReferenceStep::Autoderef;
 					println!("######\t\t taking {:?}", step);
 					taken_steps.push(step);
 					current_type = *deref_type;
 				}
-				(ValueType::View { deref_type }, _) =>
+				(ValueType::View { deref_type }, _, 0) =>
 				{
 					let step = ReferenceStep::Autoderef;
 					println!("######\t\t taking {:?}", step);
@@ -1159,6 +1266,7 @@ impl Reference
 						length: _,
 					},
 					Some(ReferenceStep::Element { argument }),
+					0,
 				) =>
 				{
 					let step = ReferenceStep::Element {
@@ -1172,6 +1280,7 @@ impl Reference
 				(
 					ValueType::Slice { element_type },
 					Some(ReferenceStep::Element { argument }),
+					0,
 				) =>
 				{
 					let autostep = ReferenceStep::Autodeslice;
@@ -1186,9 +1295,12 @@ impl Reference
 					available_steps.next();
 					current_type = *element_type;
 				}
-				_ =>
+				(ct, step, ad) =>
 				{
 					return Err(anyhow!("failed to autoderef")
+						.context(format!("current type: {:?}", ct))
+						.context(format!("available step: {:?}", step))
+						.context(format!("remaining address depth: {:?}", ad))
 						.context(self.location.format())
 						.context("failed to infer type of expression"));
 				}
@@ -1266,9 +1378,14 @@ fn build_type_of_reference(
 		}
 		for _i in 0..address_depth
 		{
-			full_type = ValueType::Pointer {
-				deref_type: Box::new(full_type),
-			};
+			match full_type
+			{
+				ValueType::Pointer { deref_type } =>
+				{
+					full_type = *deref_type;
+				}
+				_ => unreachable!(),
+			}
 		}
 		Some(full_type)
 	}

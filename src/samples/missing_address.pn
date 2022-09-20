@@ -1,0 +1,11 @@
+fn foo(x: &u8) -> u8
+{
+	return: x
+}
+
+fn main()
+{
+	var x: u8 = 10;
+	var y = foo(x);
+	return: y
+}

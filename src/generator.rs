@@ -767,8 +767,14 @@ impl Generatable for Expression
 			Expression::StringLiteral(_literal) => unimplemented!(),
 			Expression::Deref {
 				reference,
-				deref_type: _,
-			} => reference.generate_deref(llvm),
+				deref_type: None,
+			} => Err(anyhow!("failed to infer type")
+				.context(reference.location.format())
+				.context(format!("failed to infer type of reference"))),
+			Expression::Deref {
+				reference,
+				deref_type: Some(deref_type),
+			} => reference.generate_deref(deref_type, llvm),
 			Expression::Autocoerce {
 				expression,
 				coerced_type,
@@ -993,6 +999,7 @@ impl Reference
 {
 	fn generate_deref(
 		&self,
+		_deref_type: &ValueType,
 		llvm: &mut Generator,
 	) -> Result<LLVMValueRef, anyhow::Error>
 	{
@@ -1006,9 +1013,15 @@ impl Reference
 		}
 
 		let address = self.generate_storage_address(llvm)?;
-		let tmpname = CString::new("")?;
-		let result =
-			unsafe { LLVMBuildLoad(llvm.builder, address, tmpname.as_ptr()) };
+		let result = if self.address_depth > 0
+		{
+			address
+		}
+		else
+		{
+			let tmpname = CString::new("")?;
+			unsafe { LLVMBuildLoad(llvm.builder, address, tmpname.as_ptr()) }
+		};
 		Ok(result)
 	}
 
@@ -1077,18 +1090,21 @@ impl Reference
 				ReferenceStep::Autoderef =>
 				{
 					let tmpname = CString::new("")?;
-					let address = unsafe {
-						LLVMBuildGEP(
-							llvm.builder,
-							addr,
-							indices.as_mut_ptr(),
-							indices.len() as u32,
-							tmpname.as_ptr(),
-						)
+					if !indices.is_empty()
+					{
+						addr = unsafe {
+							LLVMBuildGEP(
+								llvm.builder,
+								addr,
+								indices.as_mut_ptr(),
+								indices.len() as u32,
+								tmpname.as_ptr(),
+							)
+						}
 					};
 					let tmpname = CString::new("")?;
 					addr = unsafe {
-						LLVMBuildLoad(llvm.builder, address, tmpname.as_ptr())
+						LLVMBuildLoad(llvm.builder, addr, tmpname.as_ptr())
 					};
 					indices.clear();
 				}
