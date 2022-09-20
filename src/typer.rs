@@ -482,15 +482,51 @@ impl Analyzable for Statement
 			Statement::Declaration {
 				name,
 				value: Some(value),
-				value_type,
+				value_type: Some(declared_type),
 				location,
 			} =>
 			{
-				typer.put_symbol(name, value_type.clone())?;
+				typer.put_symbol(name, Some(declared_type.clone()))?;
+				typer.contextual_type = Some(declared_type.clone());
+				let value = value.analyze(typer)?;
+				typer.contextual_type = None;
+				let value_type = if let Some(inferred_type) = value.value_type()
+				{
+					typer.put_symbol(name, Some(inferred_type.clone()))?;
+					if inferred_type.can_be_declared_as(declared_type)
+					{
+						Some(inferred_type)
+					}
+					else
+					{
+						Some(declared_type.clone())
+					}
+				}
+				else
+				{
+					None
+				};
+				let stmt = Statement::Declaration {
+					name: name.clone(),
+					value: Some(value),
+					value_type,
+					location: location.clone(),
+				};
+				Ok(stmt)
+			}
+			Statement::Declaration {
+				name,
+				value: Some(value),
+				value_type: None,
+				location,
+			} =>
+			{
+				typer.put_symbol(name, None)?;
 				typer.contextual_type = typer.get_symbol(name);
 				let value = value.analyze(typer)?;
 				typer.contextual_type = None;
 				let value_type = value.value_type();
+				let value_type = infer_for_declaration(value_type);
 				typer.put_symbol(name, value_type.clone())?;
 				let stmt = Statement::Declaration {
 					name: name.clone(),
@@ -524,6 +560,7 @@ impl Analyzable for Statement
 			} =>
 			{
 				let value_type = typer.get_symbol(name);
+				let value_type = infer_for_declaration(value_type);
 				let stmt = Statement::Declaration {
 					name: name.clone(),
 					value: None,
@@ -1402,5 +1439,15 @@ fn build_type_of_reference(
 	else
 	{
 		None
+	}
+}
+
+fn infer_for_declaration(value_type: Option<ValueType>) -> Option<ValueType>
+{
+	match value_type
+	{
+		Some(ValueType::Pointer { .. }) => None,
+		Some(vt) => Some(vt),
+		None => None,
 	}
 }

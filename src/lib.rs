@@ -520,7 +520,7 @@ mod tests
 	}
 
 	#[test]
-	fn execute_reference_array_by_reference() -> Result<(), anyhow::Error>
+	fn execute_array_reference_by_reference() -> Result<(), anyhow::Error>
 	{
 		let result =
 			execute_calculation("src/samples/array_reference_by_reference.pn")?;
@@ -557,6 +557,14 @@ mod tests
 	fn execute_pointer_to_mut() -> Result<(), anyhow::Error>
 	{
 		let result = execute_calculation("src/samples/pointer_to_mut.pn")?;
+		assert_eq!(result, 200);
+		Ok(())
+	}
+
+	#[test]
+	fn execute_mutable_pointer() -> Result<(), anyhow::Error>
+	{
+		let result = execute_calculation("src/samples/mutable_pointer.pn")?;
 		assert_eq!(result, 200);
 		Ok(())
 	}

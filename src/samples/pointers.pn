@@ -1,7 +1,6 @@
 fn main() -> u8
 {
 	var x: u8 = 17;
-	var d = &x;
 	var a: &u8 = &x;
 	a = 50;
 	var y: u8 = 98;

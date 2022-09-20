@@ -8,8 +8,8 @@ fn main()
 {
 	var a: u8 = 17;
 	var b: u8 = 200;
-	var x = &a;
-	var y = &b;
+	var x: &u8 = &a;
+	var y: &u8 = &b;
 	var success = foo(&&x, &y);
 	return: x
 }

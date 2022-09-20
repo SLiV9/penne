@@ -353,6 +353,22 @@ impl ValueType
 		}
 	}
 
+	pub fn can_be_declared_as(&self, other: &ValueType) -> bool
+	{
+		match self
+		{
+			ValueType::Array {
+				element_type: a,
+				length: _,
+			} => match other
+			{
+				ValueType::Slice { element_type: b } => a == b,
+				_ => self == other,
+			},
+			_ => self == other,
+		}
+	}
+
 	pub fn can_coerce_into(&self, other: &ValueType) -> bool
 	{
 		match self

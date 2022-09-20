@@ -1,10 +1,10 @@
 fn main()
 {
 	var x: i32 = 17;
-	var y = &x;
-	var z = &x;
-	var a = &y;
-	var b = &z;
+	var y: &i32 = &x;
+	var z: &i32 = &x;
+	var a: &&i32 = &y;
+	var b: &&i32 = &z;
 	&&a = &&b;
 	b = 200;
 	return: x
