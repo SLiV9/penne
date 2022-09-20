@@ -9,8 +9,8 @@ use anyhow::anyhow;
 use anyhow::Context;
 use enumset::EnumSet;
 
-const MAX_ADDRESS_DEPTH: u8 = 127;
-const MAX_REFERENCE_DEPTH: usize = 127;
+pub const MAX_ADDRESS_DEPTH: u8 = 127;
+pub const MAX_REFERENCE_DEPTH: usize = 127;
 
 pub fn parse(tokens: Vec<LexedToken>)
 	-> Result<Vec<Declaration>, anyhow::Error>

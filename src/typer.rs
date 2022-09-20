@@ -1,8 +1,12 @@
 /**/
 
 use crate::common::*;
+use crate::parser::{MAX_ADDRESS_DEPTH, MAX_REFERENCE_DEPTH};
 
 use anyhow::anyhow;
+
+pub const MAX_AUTODEREF_DEPTH: usize =
+	MAX_REFERENCE_DEPTH + MAX_ADDRESS_DEPTH as usize;
 
 pub fn analyze(
 	program: Vec<Declaration>,
@@ -1076,8 +1080,7 @@ impl Reference
 		let mut current_type = known_ref_type;
 		let mut coercion = None;
 
-		// TODO add limit
-		loop
+		for _i in 0..MAX_AUTODEREF_DEPTH
 		{
 			match (current_type, available_steps.peek())
 			{

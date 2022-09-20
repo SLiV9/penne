@@ -963,7 +963,7 @@ impl Generatable for ValueType
 				let storagetype = unsafe { LLVMArrayType(element_type, 0u32) };
 				let pointertype = unsafe { LLVMPointerType(storagetype, 0u32) };
 				let sizetype = ValueType::Usize.generate(llvm)?;
-				let mut member_types = [sizetype, pointertype];
+				let mut member_types = [pointertype, sizetype];
 				unsafe {
 					LLVMStructTypeInContext(
 						llvm.context,
@@ -1101,7 +1101,7 @@ impl Reference
 						LLVMBuildExtractValue(
 							llvm.builder,
 							addr,
-							1u32,
+							0u32,
 							tmpname.as_ptr(),
 						)
 					};
@@ -1136,6 +1136,7 @@ impl Reference
 		let base_addr = if let Some(value) = llvm.local_parameters.get(id)
 		{
 			let param = *value;
+			// We assume that the parameter is ValueType::Slice.
 			if self.steps.is_empty()
 			{
 				let tmpname = CString::new("")?;
@@ -1143,7 +1144,7 @@ impl Reference
 					LLVMBuildExtractValue(
 						llvm.builder,
 						param,
-						0u32,
+						1u32,
 						tmpname.as_ptr(),
 					)
 				};
@@ -1156,7 +1157,7 @@ impl Reference
 					LLVMBuildExtractValue(
 						llvm.builder,
 						param,
-						1u32,
+						0u32,
 						tmpname.as_ptr(),
 					)
 				};
@@ -1220,7 +1221,7 @@ impl Reference
 		let storagetype = unsafe { LLVMArrayType(element_type, 0u32) };
 		let pointertype = unsafe { LLVMPointerType(storagetype, 0u32) };
 		let sizetype = ValueType::Usize.generate(llvm)?;
-		let mut member_types = [sizetype, pointertype];
+		let mut member_types = [pointertype, sizetype];
 		let slice_type = unsafe {
 			LLVMStructTypeInContext(
 				llvm.context,
@@ -1230,16 +1231,6 @@ impl Reference
 			)
 		};
 		let mut slice = unsafe { LLVMGetUndef(slice_type) };
-		let length_value = llvm.const_usize(length);
-		slice = unsafe {
-			LLVMBuildInsertValue(
-				llvm.builder,
-				slice,
-				length_value,
-				0u32,
-				tmpname.as_ptr(),
-			)
-		};
 		let address = self.generate_storage_address(llvm)?;
 		let address_value = unsafe {
 			LLVMBuildPointerCast(
@@ -1254,6 +1245,16 @@ impl Reference
 				llvm.builder,
 				slice,
 				address_value,
+				0u32,
+				tmpname.as_ptr(),
+			)
+		};
+		let length_value = llvm.const_usize(length);
+		slice = unsafe {
+			LLVMBuildInsertValue(
+				llvm.builder,
+				slice,
+				length_value,
 				1u32,
 				tmpname.as_ptr(),
 			)
