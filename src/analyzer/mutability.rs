@@ -213,8 +213,7 @@ impl Analyzable for Statement
 			{
 				value.analyze(analyzer).with_context(|| location.format())?;
 
-				// TODO if this is a pointer, ignore inner mutation
-				analyzer.use_variable(&reference.base, true)?;
+				let mut needs_outer_mutability = true;
 				for step in reference.steps.iter()
 				{
 					match step
@@ -224,10 +223,16 @@ impl Analyzable for Statement
 							argument.analyze(analyzer)?;
 						}
 						ReferenceStep::Member { member: _ } => unimplemented!(),
-						ReferenceStep::Autoderef => (),
+						ReferenceStep::Autoderef =>
+						{
+							needs_outer_mutability = false;
+						}
 						ReferenceStep::Autodeslice => (),
 					}
 				}
+
+				analyzer
+					.use_variable(&reference.base, needs_outer_mutability)?;
 				Ok(())
 			}
 			Statement::MethodCall { name: _, arguments } =>
@@ -327,10 +332,40 @@ impl Analyzable for Expression
 			Expression::Deref {
 				reference,
 				deref_type: _,
-			}
-			| Expression::LengthOfArray { reference } =>
+			} =>
 			{
-				// TODO if this is a pointer, we might mutate
+				let is_addressed = match reference.address_depth
+				{
+					0 => false,
+					1 => true,
+					_ =>
+					{
+						return Err(anyhow!("address depth too high")
+							.context(reference.location.format())
+							.context(format!(
+							"cannot take address of temporary address of '{}'",
+							reference.base.name
+						)));
+					}
+				};
+				analyzer.use_variable(&reference.base, is_addressed)?;
+				for step in reference.steps.iter()
+				{
+					match step
+					{
+						ReferenceStep::Element { argument } =>
+						{
+							argument.analyze(analyzer)?;
+						}
+						ReferenceStep::Member { member: _ } => unimplemented!(),
+						ReferenceStep::Autoderef => (),
+						ReferenceStep::Autodeslice => (),
+					}
+				}
+				Ok(())
+			}
+			Expression::LengthOfArray { reference } =>
+			{
 				analyzer.use_variable(&reference.base, false)?;
 				for step in reference.steps.iter()
 				{

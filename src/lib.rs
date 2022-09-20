@@ -371,6 +371,64 @@ mod tests
 	}
 
 	#[test]
+	fn fail_to_analyze_pointer_to_temporary_pointer(
+	) -> Result<(), anyhow::Error>
+	{
+		let analysis_result =
+			analyze("src/samples/pointer_to_temporary_pointer.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_analyze_pointer_to_parameter() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/pointer_to_parameter.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_analyze_pointer_to_const() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/pointer_to_const.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_analyze_assign_to_array_slice() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/assign_to_array_slice.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_analyze_assign_to_pointer_parameter() -> Result<(), anyhow::Error>
+	{
+		let analysis_result =
+			analyze("src/samples/assign_to_pointer_parameter.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
 	fn rebuild_foo_bar() -> Result<(), anyhow::Error>
 	{
 		let filename = "src/samples/foo_bar.pn";
@@ -495,6 +553,14 @@ mod tests
 		Ok(())
 	}
 
+	#[test]
+	fn execute_pointer_to_mut() -> Result<(), anyhow::Error>
+	{
+		let result = execute_calculation("src/samples/pointer_to_mut.pn")?;
+		assert_eq!(result, 200);
+		Ok(())
+	}
+
 	fn execute_calculation(filename: &str) -> Result<i32, anyhow::Error>
 	{
 		let source = std::fs::read_to_string(&filename)?;
@@ -502,6 +568,7 @@ mod tests
 		let declarations = parser::parse(tokens)?;
 		let declarations = scoper::analyze(declarations)?;
 		let declarations = typer::analyze(declarations)?;
+		analyzer::analyze(&declarations)?;
 		let ir = generator::generate(&declarations, filename)?;
 		let mut cmd = std::process::Command::new("lli")
 			.stdin(std::process::Stdio::piped())

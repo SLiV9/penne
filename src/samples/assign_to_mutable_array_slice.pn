@@ -1,0 +1,11 @@
+fn foo(x: &[]i32)
+{
+	x[0] = 400;
+}
+
+fn main()
+{
+	var x: []i32 = [17, 50];
+	foo(&x);
+	return: x[0]
+}

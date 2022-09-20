@@ -1,0 +1,5 @@
+fn main()
+{
+	var a: u8 = 10;
+	var x: &&u8 = &&a;
+}

@@ -1,12 +1,11 @@
-fn foo(x: &u8) -> bool
+fn foo(x: &i32)
 {
 	x = 200;
-	return: true
 }
 
 fn main()
 {
-	var x: u8 = 17;
-	var success = foo(&x);
+	var x: i32 = 17;
+	foo(&x);
 	return: x
 }

@@ -1,0 +1,12 @@
+fn foo(y: u8)
+{
+	// This should not be allowed because pointees must be mutable.
+	// Use a view instead?
+	var x: &u8 = &y;
+	x = 999;
+}
+
+fn main()
+{
+	foo(100);
+}

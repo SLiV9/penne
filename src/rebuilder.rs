@@ -326,7 +326,7 @@ impl Rebuildable for Statement
 			Statement::MethodCall { name, arguments } =>
 			{
 				let mut buffer = String::new();
-				write!(&mut buffer, "{}(", identify(name))?;
+				write!(&mut buffer, "{}{}(", indentation, identify(name))?;
 				match arguments.split_first()
 				{
 					Some((first, others)) =>
@@ -347,7 +347,7 @@ impl Rebuildable for Statement
 					}
 					None => (),
 				}
-				write!(&mut buffer, ");")?;
+				write!(&mut buffer, ");\n")?;
 				Ok(buffer)
 			}
 			Statement::Loop { location: _ } =>

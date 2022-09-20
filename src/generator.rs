@@ -1125,9 +1125,9 @@ impl Reference
 				}
 				ReferenceStep::Autoderef =>
 				{
-					let tmpname = CString::new("")?;
 					if !indices.is_empty()
 					{
+						let tmpname = CString::new("")?;
 						addr = unsafe {
 							LLVMBuildGEP(
 								llvm.builder,
@@ -1136,13 +1136,13 @@ impl Reference
 								indices.len() as u32,
 								tmpname.as_ptr(),
 							)
-						}
-					};
-					let tmpname = CString::new("")?;
-					addr = unsafe {
-						LLVMBuildLoad(llvm.builder, addr, tmpname.as_ptr())
-					};
-					indices.clear();
+						};
+						let tmpname = CString::new("")?;
+						addr = unsafe {
+							LLVMBuildLoad(llvm.builder, addr, tmpname.as_ptr())
+						};
+						indices.clear();
+					}
 				}
 				ReferenceStep::Autodeslice =>
 				{

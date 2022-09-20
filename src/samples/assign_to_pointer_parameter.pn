@@ -1,0 +1,12 @@
+fn foo(x: &u8, y: &u8)
+{
+	&x = &y;
+}
+
+fn main() -> i32
+{
+	var x: u8 = 17;
+	var y: u8 = 25;
+	foo(&x, &y);
+	return: 400
+}
