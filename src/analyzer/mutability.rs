@@ -4,7 +4,6 @@ use crate::common::*;
 
 use anyhow::anyhow;
 use anyhow::Context;
-use enumset::{EnumSet, EnumSetType};
 
 pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 {
@@ -18,16 +17,9 @@ pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
 	Ok(())
 }
 
-#[derive(EnumSetType, Debug)]
-enum Flag
-{
-	Mutable,
-	Addressable,
-}
-
 struct Analyzer
 {
-	variables: std::collections::HashMap<u32, (Identifier, EnumSet<Flag>)>,
+	variables: std::collections::HashMap<u32, (Identifier, bool)>,
 }
 
 impl Analyzer
@@ -35,23 +27,23 @@ impl Analyzer
 	fn declare_variable(
 		&mut self,
 		identifier: &Identifier,
-		flags: EnumSet<Flag>,
+		is_mutable: bool,
 	) -> Result<(), anyhow::Error>
 	{
 		let old_value = self
 			.variables
-			.insert(identifier.resolution_id, (identifier.clone(), flags));
+			.insert(identifier.resolution_id, (identifier.clone(), is_mutable));
 		match old_value
 		{
-			Some((_, old_flags)) if old_flags == flags => Ok(()),
-			Some((old_identifier, old_flags)) => Err(anyhow!(
+			Some((_, was_mutable)) if was_mutable == is_mutable => Ok(()),
+			Some((old_identifier, was_mutable)) => Err(anyhow!(
 				"first occurrence {}",
 				old_identifier.location.format()
 			)
 			.context(identifier.location.format())
 			.context(format!(
 				"conflicting mutabilities for '{}', {:?} and {:?}",
-				identifier.name, old_flags, flags
+				identifier.name, was_mutable, is_mutable
 			))),
 			None => Ok(()),
 		}
@@ -60,14 +52,13 @@ impl Analyzer
 	fn use_variable(
 		&self,
 		identifier: &Identifier,
-		flags: EnumSet<Flag>,
+		is_mutated: bool,
 	) -> Result<(), anyhow::Error>
 	{
-		if let Some((previous_identifier, declared_flags)) =
+		if let Some((previous_identifier, is_mutable)) =
 			self.variables.get(&identifier.resolution_id)
 		{
-			let missing = flags.difference(*declared_flags);
-			if missing.contains(Flag::Mutable)
+			if is_mutated && !is_mutable
 			{
 				return Err(anyhow!(
 					"previous declaration {}",
@@ -76,18 +67,6 @@ impl Analyzer
 				.context(identifier.location.format())
 				.context(format!(
 					"the variable '{}' is not mutable",
-					identifier.name
-				)));
-			}
-			else if missing.contains(Flag::Addressable)
-			{
-				return Err(anyhow!(
-					"previous declaration {}",
-					previous_identifier.location.format()
-				)
-				.context(identifier.location.format())
-				.context(format!(
-					"the variable '{}' is not addressable",
 					identifier.name
 				)));
 			}
@@ -126,7 +105,7 @@ impl Analyzable for Declaration
 				flags: _,
 			} =>
 			{
-				analyzer.declare_variable(name, EnumSet::empty())?;
+				analyzer.declare_variable(name, false)?;
 				value.analyze(analyzer)?;
 				Ok(())
 			}
@@ -166,7 +145,7 @@ impl Analyzable for Parameter
 {
 	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
 	{
-		analyzer.declare_variable(&self.name, EnumSet::empty())?;
+		analyzer.declare_variable(&self.name, false)?;
 		Ok(())
 	}
 }
@@ -213,10 +192,7 @@ impl Analyzable for Statement
 			} =>
 			{
 				value.analyze(analyzer).with_context(|| location.format())?;
-				analyzer.declare_variable(
-					name,
-					Flag::Mutable | Flag::Addressable,
-				)?;
+				analyzer.declare_variable(name, true)?;
 				Ok(())
 			}
 			Statement::Declaration {
@@ -226,10 +202,7 @@ impl Analyzable for Statement
 				location: _,
 			} =>
 			{
-				analyzer.declare_variable(
-					name,
-					Flag::Mutable | Flag::Addressable,
-				)?;
+				analyzer.declare_variable(name, true)?;
 				Ok(())
 			}
 			Statement::Assignment {
