@@ -4,7 +4,7 @@ Features:
 	☐	Tagged unions for error handling
 
 Functionality:
-	☐	Void functions
+	✔	Void functions @done (2022-09-20 16:13)
 	✔	Fixed-length stack-based arrays @done (2022-09-03 21:22)
 		✔	Array length operator @done (2022-09-04 11:48)
 	✔	Multidimensional arrays @done (2022-09-19 17:28)

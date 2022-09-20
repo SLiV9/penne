@@ -446,6 +446,14 @@ mod tests
 	}
 
 	#[test]
+	fn execute_void_function() -> Result<(), anyhow::Error>
+	{
+		let result = execute_calculation("src/samples/void_function.pn")?;
+		assert_eq!(result, 200);
+		Ok(())
+	}
+
+	#[test]
 	fn execute_array_by_reference() -> Result<(), anyhow::Error>
 	{
 		let result = execute_calculation("src/samples/array_by_reference.pn")?;

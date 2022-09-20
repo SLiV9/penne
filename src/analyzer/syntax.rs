@@ -156,6 +156,7 @@ impl Analyzable for Statement
 				}
 			}
 			Statement::Assignment { .. } => Ok(()),
+			Statement::MethodCall { .. } => Ok(()),
 			Statement::Loop { location } =>
 			{
 				if analyzer.is_final_statement_in_block

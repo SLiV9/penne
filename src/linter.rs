@@ -100,6 +100,7 @@ impl Lintable for Statement
 		{
 			Statement::Declaration { .. } => (),
 			Statement::Assignment { .. } => (),
+			Statement::MethodCall { .. } => (),
 			Statement::Loop { location } =>
 			{
 				if linter.is_first_statement_of_branch

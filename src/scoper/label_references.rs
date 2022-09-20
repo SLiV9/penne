@@ -213,6 +213,7 @@ impl Analyzable for Statement
 		{
 			Statement::Declaration { .. } => Ok(self.clone()),
 			Statement::Assignment { .. } => Ok(self.clone()),
+			Statement::MethodCall { .. } => Ok(self.clone()),
 			Statement::Loop { location: _ } => Ok(self.clone()),
 			Statement::Goto { label, location } =>
 			{

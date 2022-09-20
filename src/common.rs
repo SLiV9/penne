@@ -82,6 +82,11 @@ pub enum Statement
 		value: Expression,
 		location: Location,
 	},
+	MethodCall
+	{
+		name: Identifier,
+		arguments: Vec<Expression>,
+	},
 	Loop
 	{
 		location: Location,
@@ -114,6 +119,7 @@ impl Statement
 		{
 			Statement::Declaration { location, .. } => location,
 			Statement::Assignment { location, .. } => location,
+			Statement::MethodCall { name, .. } => &name.location,
 			Statement::Loop { location } => location,
 			Statement::Goto { location, .. } => location,
 			Statement::Label { location, .. } => location,

@@ -1,7 +1,7 @@
 
-fn foo()
+fn foo() -> i32
 {
-	end:
+	return: 99
 }
 
 fn main() -> i32

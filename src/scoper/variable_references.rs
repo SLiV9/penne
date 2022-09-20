@@ -436,6 +436,14 @@ impl Analyzable for Statement
 					location: location.clone(),
 				})
 			}
+			Statement::MethodCall { name, arguments } =>
+			{
+				let name = analyzer.use_function(name)?;
+				let arguments: Result<Vec<Expression>, anyhow::Error> =
+					arguments.iter().map(|a| a.analyze(analyzer)).collect();
+				let arguments = arguments?;
+				Ok(Statement::MethodCall { name, arguments })
+			}
 			Statement::Loop { .. } => Ok(self.clone()),
 			Statement::Goto { .. } => Ok(self.clone()),
 			Statement::Label { .. } => Ok(self.clone()),

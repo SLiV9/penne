@@ -528,6 +528,22 @@ fn parse_statement(
 				};
 				return Ok(statement);
 			}
+			else if let Some(Token::ParenLeft) = peek(tokens)
+			{
+				let identifier = Identifier {
+					name: x,
+					location,
+					resolution_id: 0,
+				};
+				let arguments = parse_arguments(tokens)?;
+				consume(Token::Semicolon, tokens)
+					.context("expected semicolon")?;
+				let statement = Statement::MethodCall {
+					name: identifier,
+					arguments,
+				};
+				return Ok(statement);
+			}
 
 			let reference =
 				parse_rest_of_reference(x, location.clone(), tokens)?;

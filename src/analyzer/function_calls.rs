@@ -348,6 +348,28 @@ impl Analyzable for Statement
 				value.analyze(analyzer).with_context(|| location.format())?;
 				Ok(())
 			}
+			Statement::MethodCall { name, arguments } =>
+			{
+				if analyzer.is_const_evaluated
+				{
+					let error = anyhow!("const evaluation")
+						.context(name.location.format())
+						.context("cannot call methods in const context");
+					return Err(error);
+				}
+
+				let argument_types =
+					arguments.iter().map(|x| x.value_type()).collect();
+				analyzer.use_function(name, argument_types)?;
+				for argument in arguments
+				{
+					analyzer.is_immediate_function_argument = true;
+					argument.analyze(analyzer)?;
+				}
+				analyzer.is_immediate_function_argument = false;
+
+				Ok(())
+			}
 			Statement::Loop { location: _ } => Ok(()),
 			Statement::Goto {
 				label: _,

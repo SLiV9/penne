@@ -464,6 +464,42 @@ impl Generatable for Statement
 				}
 				Ok(())
 			}
+			Statement::MethodCall { name, arguments } =>
+			{
+				let function = llvm.global_functions.get(&name.resolution_id);
+				let function = match function
+				{
+					Some(function) => *function,
+					None =>
+					{
+						return Err(anyhow!("undefined reference")
+							.context(name.location.format())
+							.context(format!(
+								"undefined reference to method '{}'",
+								name.name
+							)))
+					}
+				};
+
+				let arguments: Result<Vec<LLVMValueRef>, anyhow::Error> =
+					arguments
+						.iter()
+						.map(|argument| argument.generate(llvm))
+						.collect();
+				let mut arguments: Vec<LLVMValueRef> = arguments?;
+
+				let tmpname = CString::new("")?;
+				unsafe {
+					LLVMBuildCall(
+						llvm.builder,
+						function,
+						arguments.as_mut_ptr(),
+						arguments.len() as u32,
+						tmpname.as_ptr(),
+					);
+				}
+				Ok(())
+			}
 			Statement::Loop { location } => Err(anyhow!("misplaced loop")
 				.context(location.format())
 				.context("misplaced loop")),

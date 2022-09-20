@@ -552,6 +552,16 @@ impl Analyzable for Statement
 				};
 				Ok(stmt)
 			}
+			Statement::MethodCall { name, arguments } =>
+			{
+				let arguments =
+					typer.analyze_function_arguments(name, arguments)?;
+				let stmt = Statement::MethodCall {
+					name: name.clone(),
+					arguments,
+				};
+				Ok(stmt)
+			}
 			Statement::Loop { location } => Ok(Statement::Loop {
 				location: location.clone(),
 			}),

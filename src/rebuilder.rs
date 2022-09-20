@@ -323,6 +323,33 @@ impl Rebuildable for Statement
 				reference.rebuild(&indentation.increased())?,
 				value.rebuild(&indentation.increased())?
 			)),
+			Statement::MethodCall { name, arguments } =>
+			{
+				let mut buffer = String::new();
+				write!(&mut buffer, "{}(", identify(name))?;
+				match arguments.split_first()
+				{
+					Some((first, others)) =>
+					{
+						write!(
+							&mut buffer,
+							"{}",
+							first.rebuild(&indentation.increased())?
+						)?;
+						for argument in others
+						{
+							write!(
+								&mut buffer,
+								", {}",
+								argument.rebuild(&indentation.increased())?
+							)?;
+						}
+					}
+					None => (),
+				}
+				write!(&mut buffer, ");")?;
+				Ok(buffer)
+			}
 			Statement::Loop { location: _ } =>
 			{
 				Ok(format!("{}loop;\n", indentation))

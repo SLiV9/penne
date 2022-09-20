@@ -230,6 +230,14 @@ impl Analyzable for Statement
 				}
 				Ok(())
 			}
+			Statement::MethodCall { name: _, arguments } =>
+			{
+				for argument in arguments
+				{
+					argument.analyze(analyzer)?;
+				}
+				Ok(())
+			}
 			Statement::Loop { location: _ } => Ok(()),
 			Statement::Goto {
 				label: _,

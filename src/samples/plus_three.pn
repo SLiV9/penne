@@ -1,16 +1,13 @@
 
 fn plus_three(x)
 {
-	var y = x;
-	x = 10;
-	x = y;
 	return:
 	x + 3
 }
 
 fn main()
 {
-	var a = 50;
+	var a = 197;
 	var b = plus_three(a);
 	return:
 	b
