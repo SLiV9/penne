@@ -336,7 +336,7 @@ impl Analyzable for Expression
 				array,
 				element_type: _,
 			} => array.analyze(analyzer),
-			Expression::StringLiteral(_lit) => Ok(()),
+			Expression::StringLiteral { .. } => Ok(()),
 			Expression::Autocoerce {
 				expression,
 				coerced_type: _,

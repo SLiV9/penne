@@ -191,7 +191,12 @@ pub enum Expression
 		value_type: Option<ValueType>,
 		location: Location,
 	},
-	StringLiteral(String),
+	StringLiteral
+	{
+		bytes: Vec<u8>,
+		value_type: Option<ValueType>,
+		location: Location,
+	},
 	ArrayLiteral
 	{
 		array: Array,
@@ -307,6 +312,8 @@ pub enum ValueType
 	Uint128,
 	Usize,
 	Bool,
+	Char,
+	String,
 	Array
 	{
 		element_type: Box<ValueType>,
@@ -332,6 +339,13 @@ pub enum ValueType
 
 impl ValueType
 {
+	pub fn for_byte_string() -> ValueType
+	{
+		ValueType::Slice {
+			element_type: Box::new(ValueType::Uint8),
+		}
+	}
+
 	pub fn can_be_used_as(&self, other: &ValueType) -> bool
 	{
 		match self
@@ -463,20 +477,7 @@ impl ValueType
 			{
 				Some(element_type.as_ref().clone())
 			}
-			ValueType::Pointer { .. } => None,
-			ValueType::View { .. } => None,
-			ValueType::Int8 => None,
-			ValueType::Int16 => None,
-			ValueType::Int32 => None,
-			ValueType::Int64 => None,
-			ValueType::Int128 => None,
-			ValueType::Uint8 => None,
-			ValueType::Uint16 => None,
-			ValueType::Uint32 => None,
-			ValueType::Uint64 => None,
-			ValueType::Uint128 => None,
-			ValueType::Usize => None,
-			ValueType::Bool => None,
+			_ => None,
 		}
 	}
 
@@ -484,26 +485,11 @@ impl ValueType
 	{
 		match self
 		{
-			ValueType::Array { .. } => None,
-			ValueType::Slice { .. } => None,
-			ValueType::ExtArray { .. } => None,
 			ValueType::Pointer { deref_type } =>
 			{
 				Some(deref_type.as_ref().clone())
 			}
-			ValueType::View { .. } => None,
-			ValueType::Int8 => None,
-			ValueType::Int16 => None,
-			ValueType::Int32 => None,
-			ValueType::Int64 => None,
-			ValueType::Int128 => None,
-			ValueType::Uint8 => None,
-			ValueType::Uint16 => None,
-			ValueType::Uint32 => None,
-			ValueType::Uint64 => None,
-			ValueType::Uint128 => None,
-			ValueType::Usize => None,
-			ValueType::Bool => None,
+			_ => None,
 		}
 	}
 

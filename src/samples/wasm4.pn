@@ -72,15 +72,7 @@ pub extern fn oval(x: i32, y: i32, width: u32, height: u32);
 pub extern fn rect(x: i32, y: i32, width: u32, height: u32);
 
 /// Draws text using the built-in system font.
-// TODO strings or bytestrings
-//pub fn text<T: AsRef<str>>(text: T, x: i32, y: i32) {
-//    let text_ref = text.as_ref();
-//    unsafe { extern_text(text_ref.as_ptr(), text_ref.len(), x, y) }
-//}
-//extern "C" {
-//    #[link_name = "textFromUtf8"]
-//    fn extern_text(text: *const u8, length: usize, x: i32, y: i32);
-//}
+pub extern fn text(text: []u8, length: usize, x: i32, y: i32);
 
 /// Draws a vertical line
 pub extern fn vline(x: i32, y: i32, len: u32);
@@ -127,12 +119,4 @@ pub extern fn diskw(src: []u8, size: u32) -> u32;
 // └───────────────────────────────────────────────────────────────────────────┘
 
 /// Prints a message to the debug console.
-// TODO strings or bytestrings
-//pub fn trace<T: AsRef<str>>(text: T) {
-//    let text_ref = text.as_ref();
-//    unsafe { extern_trace(text_ref.as_ptr(), text_ref.len()) }
-//}
-//extern "C" {
-//    #[link_name = "traceUtf8"]
-//    fn extern_trace(trace: *const u8, length: usize);
-//}
+pub extern fn trace(text: []u8, length: usize);

@@ -57,7 +57,11 @@ pub enum Token
 	Uint128(u128),
 	Usize(usize),
 	Bool(bool),
-	StringLiteral(String),
+	StringLiteral
+	{
+		bytes: Vec<u8>,
+		value_type: Option<ValueType>,
+	},
 
 	// Types.
 	Type(ValueType),
@@ -89,6 +93,8 @@ pub enum Error
 	UnexpectedTrailingBackslash,
 	#[error("missing closing quote")]
 	MissingClosingQuote,
+	#[error("invalid mixed string")]
+	InvalidMixedString,
 }
 
 #[derive(Debug, Clone)]
@@ -225,6 +231,7 @@ fn lex_line(
 					"u128" => Token::Type(ValueType::Uint128),
 					"usize" => Token::Type(ValueType::Usize),
 					"bool" => Token::Type(ValueType::Bool),
+					"char" => Token::Type(ValueType::Char),
 					"pub" => Token::Pub,
 					"extern" => Token::Extern,
 					_ => Token::Identifier(identifier),
@@ -406,9 +413,12 @@ fn lex_line(
 			}
 			'"' =>
 			{
-				let mut literal = String::new();
+				let mut bytes = Vec::new();
 				let mut closed = false;
 				let mut end_of_line_offset = line_offset + 1;
+				let mut must_be_utf8 = false;
+				let mut must_be_bytestring = false;
+
 				while let Some((inner_line_offset, x)) = iter.next()
 				{
 					end_of_line_offset = inner_line_offset + 1;
@@ -416,11 +426,59 @@ fn lex_line(
 					{
 						match iter.next()
 						{
-							Some((_, 'n')) => literal.push('\n'),
-							Some((_, 'r')) => literal.push('\r'),
-							Some((_, '\\')) => literal.push('\\'),
-							Some((_, '\'')) => literal.push('\''),
-							Some((_, '\"')) => literal.push('\"'),
+							Some((_, 'n')) => bytes.push(b'\n'),
+							Some((_, 'r')) => bytes.push(b'\r'),
+							Some((_, '\\')) => bytes.push(b'\\'),
+							Some((_, '\'')) => bytes.push(b'\''),
+							Some((_, '\"')) => bytes.push(b'\"'),
+							Some((_, 'x')) =>
+							{
+								must_be_bytestring = true;
+
+								let mut byte = None;
+								let mut digits = String::new();
+								while let Some(&(_, y)) = iter.peek()
+								{
+									if y.is_digit(16)
+									{
+										digits.push(y);
+										iter.next();
+									}
+									else
+									{
+										break;
+									}
+
+									if digits.len() < 2
+									{
+										continue;
+									}
+
+									byte = match u8::from_str_radix(&digits, 16)
+									{
+										Ok(v) => Some(v),
+										Err(_error) => None,
+									};
+								}
+								if let Some(byte) = byte
+								{
+									bytes.push(byte);
+								}
+								else
+								{
+									let error = Error::InvalidEscapeSequence {
+										sequence: format!("x{}", digits),
+									};
+									let warning = LexedToken {
+										result: Err(error),
+										location: Location {
+											line_offset: end_of_line_offset,
+											..location.clone()
+										},
+									};
+									tokens.push(warning);
+								}
+							}
 							Some((_, y)) =>
 							{
 								let warning = LexedToken {
@@ -454,9 +512,37 @@ fn lex_line(
 						closed = true;
 						break;
 					}
+					else if x == ' '
+					{
+						bytes.push(b' ');
+					}
+					else if x.is_ascii_graphic()
+					{
+						for byte in x.to_string().as_bytes()
+						{
+							bytes.push(*byte);
+						}
+					}
+					else if x.is_ascii()
+					{
+						let warning = LexedToken {
+							result: Err(Error::UnexpectedCharacter {
+								character: x,
+							}),
+							location: Location {
+								line_offset: end_of_line_offset,
+								..location.clone()
+							},
+						};
+						tokens.push(warning);
+					}
 					else
 					{
-						literal.push(x);
+						for byte in x.to_string().as_bytes()
+						{
+							bytes.push(*byte);
+						}
+						must_be_utf8 = true;
 					}
 				}
 				if !closed
@@ -470,7 +556,26 @@ fn lex_line(
 					};
 					tokens.push(warning);
 				}
-				Ok(Token::StringLiteral(literal))
+				if must_be_bytestring && must_be_utf8
+				{
+					Err(Error::InvalidMixedString)
+				}
+				else
+				{
+					let value_type = if must_be_utf8
+					{
+						Some(ValueType::String)
+					}
+					else if must_be_bytestring
+					{
+						Some(ValueType::for_byte_string())
+					}
+					else
+					{
+						None
+					};
+					Ok(Token::StringLiteral { bytes, value_type })
+				}
 			}
 			' ' | '\t' => continue,
 			_ => Err(Error::UnexpectedCharacter { character: x }),

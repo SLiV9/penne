@@ -458,7 +458,7 @@ impl Analyzable for Expression
 				analyzer.is_immediate_function_argument = false;
 				array.analyze(analyzer)
 			}
-			Expression::StringLiteral(_lit) => Ok(()),
+			Expression::StringLiteral { .. } => Ok(()),
 			Expression::Deref {
 				reference,
 				deref_type,

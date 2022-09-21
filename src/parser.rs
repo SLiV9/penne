@@ -728,21 +728,48 @@ fn parse_primary_expression(
 		{
 			Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Bool(value)))
 		}
-		Token::StringLiteral(mut value) =>
+		Token::StringLiteral { bytes, value_type } =>
 		{
+			let mut bytes = bytes;
+			let mut value_type = value_type;
 			while let Some(next_token) = peek(tokens)
 			{
 				match next_token
 				{
-					Token::StringLiteral(extra_value) =>
-					{
-						value = value + extra_value;
-						let _ = extract(tokens)?;
-					}
+					Token::StringLiteral { .. } =>
+					{}
 					_ => break,
 				}
+
+				let (token, _location) = extract(tokens)?;
+				match token
+				{
+					Token::StringLiteral {
+						bytes: mut extra_bytes,
+						value_type: other_value_type,
+					} =>
+					{
+						if other_value_type.is_some()
+						{
+							if value_type.is_none()
+							{
+								value_type = other_value_type;
+							}
+							else if value_type != other_value_type
+							{
+								break;
+							}
+						}
+						bytes.append(&mut extra_bytes);
+					}
+					_ => unreachable!(),
+				}
 			}
-			Ok(Expression::StringLiteral(value))
+			Ok(Expression::StringLiteral {
+				bytes,
+				value_type,
+				location,
+			})
 		}
 		Token::Identifier(name) =>
 		{
@@ -1033,5 +1060,7 @@ fn externalize_type(value_type: ValueType) -> Result<ValueType, anyhow::Error>
 		ValueType::Uint128 => Ok(value_type),
 		ValueType::Usize => Ok(value_type),
 		ValueType::Bool => Ok(value_type),
+		ValueType::Char => unimplemented!(),
+		ValueType::String => unimplemented!(),
 	}
 }

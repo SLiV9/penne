@@ -800,7 +800,7 @@ impl Generatable for Expression
 				.context(format!(
 					"failed to infer array literal element type"
 				))),
-			Expression::StringLiteral(_literal) => unimplemented!(),
+			Expression::StringLiteral { .. } => unimplemented!(),
 			Expression::Deref {
 				reference,
 				deref_type: None,
@@ -991,6 +991,8 @@ impl Generatable for ValueType
 			unsafe { LLVMInt64TypeInContext(llvm.context) },
 			ValueType::Bool =>
 			unsafe { LLVMInt8TypeInContext(llvm.context) },
+			ValueType::Char => unimplemented!(),
+			ValueType::String => unimplemented!(),
 			ValueType::Array {
 				element_type,
 				length,

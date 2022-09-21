@@ -580,7 +580,7 @@ impl Analyzable for Expression
 					element_type: element_type.clone(),
 				})
 			}
-			Expression::StringLiteral(_lit) => Ok(self.clone()),
+			Expression::StringLiteral { .. } => Ok(self.clone()),
 			Expression::Deref {
 				reference,
 				deref_type,

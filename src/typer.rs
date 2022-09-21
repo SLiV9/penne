@@ -725,7 +725,7 @@ impl Typed for Expression
 				}),
 				None => None,
 			},
-			Expression::StringLiteral(_literal) => None,
+			Expression::StringLiteral { value_type, .. } => value_type.clone(),
 			Expression::Deref {
 				reference: _,
 				deref_type,
@@ -785,42 +785,7 @@ impl Analyzable for Expression
 					None =>
 					{
 						let contextual_type = typer.contextual_type.take();
-						match contextual_type
-						{
-							Some(ValueType::Int8) => contextual_type,
-							Some(ValueType::Int16) => contextual_type,
-							Some(ValueType::Int32) => contextual_type,
-							Some(ValueType::Int64) => contextual_type,
-							Some(ValueType::Int128) => contextual_type,
-							Some(ValueType::Uint8) => contextual_type,
-							Some(ValueType::Uint16) => contextual_type,
-							Some(ValueType::Uint32) => contextual_type,
-							Some(ValueType::Uint64) => contextual_type,
-							Some(ValueType::Uint128) => contextual_type,
-							Some(ValueType::Usize) => contextual_type,
-							Some(ValueType::Bool) => Some(ValueType::Int32),
-							Some(ValueType::Array { .. }) =>
-							{
-								Some(ValueType::Int32)
-							}
-							Some(ValueType::Slice { .. }) =>
-							{
-								Some(ValueType::Int32)
-							}
-							Some(ValueType::ExtArray { .. }) =>
-							{
-								Some(ValueType::Int32)
-							}
-							Some(ValueType::Pointer { .. }) =>
-							{
-								Some(ValueType::Int32)
-							}
-							Some(ValueType::View { .. }) =>
-							{
-								Some(ValueType::Int32)
-							}
-							None => None,
-						}
+						filter_for_naked_integer(contextual_type)
 					}
 				};
 				Ok(Expression::NakedIntegerLiteral {
@@ -841,36 +806,7 @@ impl Analyzable for Expression
 					None =>
 					{
 						let contextual_type = typer.contextual_type.take();
-						match contextual_type
-						{
-							Some(ValueType::Int8) => Some(ValueType::Uint64),
-							Some(ValueType::Int16) => Some(ValueType::Uint64),
-							Some(ValueType::Int32) => Some(ValueType::Uint64),
-							Some(ValueType::Int64) => Some(ValueType::Uint64),
-							Some(ValueType::Int128) => Some(ValueType::Uint64),
-							Some(ValueType::Uint8) => contextual_type,
-							Some(ValueType::Uint16) => contextual_type,
-							Some(ValueType::Uint32) => contextual_type,
-							Some(ValueType::Uint64) => contextual_type,
-							Some(ValueType::Uint128) => Some(ValueType::Uint64),
-							Some(ValueType::Usize) => contextual_type,
-							Some(ValueType::Bool) => Some(ValueType::Uint64),
-							Some(ValueType::Array { .. }) =>
-							{
-								Some(ValueType::Uint64)
-							}
-							Some(ValueType::Slice { .. }) =>
-							{
-								Some(ValueType::Uint64)
-							}
-							Some(ValueType::ExtArray { .. }) =>
-							{
-								Some(ValueType::Uint64)
-							}
-							Some(ValueType::Pointer { .. }) => contextual_type,
-							Some(ValueType::View { .. }) => contextual_type,
-							None => None,
-						}
+						filter_for_bit_integer(contextual_type)
 					}
 				};
 				Ok(Expression::BitIntegerLiteral {
@@ -903,9 +839,23 @@ impl Analyzable for Expression
 					element_type,
 				})
 			}
-			Expression::StringLiteral(lit) =>
+			Expression::StringLiteral {
+				value_type: Some(_),
+				..
+			} => Ok(self.clone()),
+			Expression::StringLiteral {
+				bytes,
+				value_type: None,
+				location,
+			} =>
 			{
-				Ok(Expression::StringLiteral(lit.clone()))
+				let contextual_type = typer.contextual_type.take();
+				let value_type = filter_for_string_literal(contextual_type);
+				Ok(Expression::StringLiteral {
+					bytes: bytes.clone(),
+					value_type,
+					location: location.clone(),
+				})
 			}
 			Expression::Deref {
 				reference: _,
@@ -1478,6 +1428,55 @@ fn infer_for_declaration(value_type: Option<ValueType>) -> Option<ValueType>
 	{
 		Some(ValueType::Pointer { .. }) => None,
 		Some(vt) => Some(vt),
+		None => None,
+	}
+}
+
+fn filter_for_naked_integer(value_type: Option<ValueType>)
+	-> Option<ValueType>
+{
+	match value_type
+	{
+		Some(ValueType::Int8) => value_type,
+		Some(ValueType::Int16) => value_type,
+		Some(ValueType::Int32) => value_type,
+		Some(ValueType::Int64) => value_type,
+		Some(ValueType::Int128) => value_type,
+		Some(ValueType::Uint8) => value_type,
+		Some(ValueType::Uint16) => value_type,
+		Some(ValueType::Uint32) => value_type,
+		Some(ValueType::Uint64) => value_type,
+		Some(ValueType::Uint128) => value_type,
+		Some(ValueType::Usize) => value_type,
+		Some(_) => Some(ValueType::Int32),
+		None => None,
+	}
+}
+
+fn filter_for_bit_integer(value_type: Option<ValueType>) -> Option<ValueType>
+{
+	match value_type
+	{
+		Some(ValueType::Uint8) => value_type,
+		Some(ValueType::Uint16) => value_type,
+		Some(ValueType::Uint32) => value_type,
+		Some(ValueType::Uint64) => value_type,
+		Some(ValueType::Usize) => value_type,
+		Some(ValueType::Pointer { .. }) => value_type,
+		Some(ValueType::View { .. }) => value_type,
+		Some(..) => Some(ValueType::Uint64),
+		None => None,
+	}
+}
+
+fn filter_for_string_literal(value_type: Option<ValueType>)
+	-> Option<ValueType>
+{
+	match value_type
+	{
+		Some(ValueType::String) => value_type,
+		Some(vt) if vt == ValueType::for_byte_string() => Some(vt),
+		Some(_) => Some(ValueType::String),
 		None => None,
 	}
 }

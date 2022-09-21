@@ -477,10 +477,29 @@ impl Rebuildable for Expression
 				array,
 				element_type: _,
 			} => array.rebuild(indentation),
-			Expression::StringLiteral(value) =>
+			Expression::StringLiteral {
+				bytes,
+				value_type,
+				location: _,
+			} => match value_type
 			{
-				Ok(format!("\"{}\"", value.escape_default()))
-			}
+				None | Some(ValueType::String) =>
+				{
+					let value = String::from_utf8_lossy(&bytes).to_string();
+					Ok(format!("\"{}\"", value.escape_default()))
+				}
+				Some(_) =>
+				{
+					// Escape this bytestring as an ASCII string with \xFF.
+					let escaped_bytes: Vec<u8> = bytes
+						.iter()
+						.flat_map(|b| std::ascii::escape_default(*b))
+						.collect();
+					let value =
+						String::from_utf8_lossy(&escaped_bytes).to_string();
+					Ok(format!("\"{}\"", value))
+				}
+			},
 			Expression::Deref {
 				reference,
 				deref_type: None,
@@ -587,6 +606,8 @@ impl Rebuildable for ValueType
 			ValueType::Uint128 => Ok("u128".to_string()),
 			ValueType::Usize => Ok("usize".to_string()),
 			ValueType::Bool => Ok("bool".to_string()),
+			ValueType::Char => Ok("char".to_string()),
+			ValueType::String => Ok("STRING".to_string()),
 			ValueType::Array {
 				element_type,
 				length,
