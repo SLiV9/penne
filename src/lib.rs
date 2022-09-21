@@ -406,6 +406,28 @@ mod tests
 	}
 
 	#[test]
+	fn fail_to_analyze_assign_to_view() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/assign_to_view.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_analyze_change_view_address() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = analyze("src/samples/change_view_address.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
 	fn fail_to_analyze_assign_to_array_slice() -> Result<(), anyhow::Error>
 	{
 		let analysis_result = analyze("src/samples/assign_to_array_slice.pn")?;

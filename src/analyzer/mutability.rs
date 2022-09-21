@@ -187,22 +187,34 @@ impl Analyzable for Statement
 			Statement::Declaration {
 				name,
 				value: Some(value),
-				value_type: _,
+				value_type,
 				location,
 			} =>
 			{
 				value.analyze(analyzer).with_context(|| location.format())?;
-				analyzer.declare_variable(name, true)?;
+				let is_mutable = match value_type
+				{
+					Some(ValueType::View { .. }) => false,
+					Some(_) => true,
+					None => false,
+				};
+				analyzer.declare_variable(name, is_mutable)?;
 				Ok(())
 			}
 			Statement::Declaration {
 				name,
 				value: None,
-				value_type: _,
+				value_type,
 				location: _,
 			} =>
 			{
-				analyzer.declare_variable(name, true)?;
+				let is_mutable = match value_type
+				{
+					Some(ValueType::View { .. }) => false,
+					Some(_) => true,
+					None => false,
+				};
+				analyzer.declare_variable(name, is_mutable)?;
 				Ok(())
 			}
 			Statement::Assignment {
