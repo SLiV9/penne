@@ -1,11 +1,23 @@
 fn main()
 {
-	var x: i32 = 17;
-	var y: &i32 = &x;
-	var z: &i32 = &x;
-	var a: &&i32 = &y;
-	var b: &&i32 = &z;
-	&&a = &&b;
-	b = 200;
-	return: x
+	var i: i32 = 17;
+	var x: &i32 = &i;
+	var y: &i32 = &i;
+	&y = &x;
+	var a: &&i32 = &&x;
+	//var b: &&i32 = &&i; Cannot take address of temporary address.
+	var c: &&i32 = &&a;
+	&&a = &&c;
+	c = 58;
+	var p: &&&i32 = &&&a;
+	&p = &y;
+	var q: &&&i32 = &&&p;
+	&&q = &&c;
+	&&&p = &&&q;
+	p = 21;
+	var d: &&i32 = &&q;
+	var z: &i32 = &d;
+	var u: &i32 = &q;
+	u = 200;
+	return: i
 }
