@@ -1067,6 +1067,7 @@ impl Reference
 	) -> Result<LLVMValueRef, anyhow::Error>
 	{
 		let mut indices = Vec::new();
+		let mut is_immediate_parameter = false;
 
 		let id = &self.base.resolution_id;
 		let base_addr = if let Some(value) = llvm.local_parameters.get(id)
@@ -1082,6 +1083,7 @@ impl Reference
 			}
 			else
 			{
+				is_immediate_parameter = true;
 				*value
 			}
 		}
@@ -1107,6 +1109,11 @@ impl Reference
 				)));
 		};
 
+		if self.steps.is_empty()
+		{
+			return Ok(base_addr);
+		}
+
 		let mut addr = base_addr;
 		for step in &self.steps
 		{
@@ -1123,6 +1130,10 @@ impl Reference
 					let offset = 0;
 					indices.push(llvm.const_i32(offset));
 				}
+				ReferenceStep::Autoderef if is_immediate_parameter =>
+				{
+					is_immediate_parameter = false;
+				}
 				ReferenceStep::Autoderef =>
 				{
 					if !indices.is_empty()
@@ -1137,12 +1148,12 @@ impl Reference
 								tmpname.as_ptr(),
 							)
 						};
-						let tmpname = CString::new("")?;
-						addr = unsafe {
-							LLVMBuildLoad(llvm.builder, addr, tmpname.as_ptr())
-						};
-						indices.clear();
 					}
+					let tmpname = CString::new("")?;
+					addr = unsafe {
+						LLVMBuildLoad(llvm.builder, addr, tmpname.as_ptr())
+					};
+					indices.clear();
 				}
 				ReferenceStep::Autodeslice =>
 				{

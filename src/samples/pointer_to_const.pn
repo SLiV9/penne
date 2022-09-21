@@ -10,7 +10,7 @@ fn foo(x: &&u8)
 fn main()
 {
 	var a: u8 = 17;
-	var x = &a;
+	var x: &u8 = &a;
 	foo(&&x);
 	return: x
 }

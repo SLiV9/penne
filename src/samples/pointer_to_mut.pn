@@ -6,6 +6,8 @@ fn foo(x: &i32)
 fn main()
 {
 	var x: i32 = 17;
+	var y: &i32 = &x;
+	y = 33;
 	foo(&x);
 	return: x
 }

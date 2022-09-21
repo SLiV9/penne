@@ -1071,16 +1071,9 @@ impl Reference
 					}
 					ValueType::Pointer { deref_type } =>
 					{
-						if address_depth > 0
-						{
-							address_depth -= 1;
-						}
-						else
-						{
-							let step = ReferenceStep::Autoderef;
-							println!("######\t\t taking {:?}", step);
-							steps.push(step);
-						}
+						let step = ReferenceStep::Autoderef;
+						println!("######\t\t taking {:?}", step);
+						steps.push(step);
 						current_type = *deref_type;
 					}
 					_ => break,
@@ -1355,6 +1348,29 @@ impl Reference
 					taken_steps.push(step);
 					available_steps.next();
 					current_type = *element_type;
+				}
+				(_, _, None) if self.address_depth >= 2 =>
+				{
+					// This is invalid, but we want a proper error, not an
+					// autoderef failure, so just skip the autoderef.
+					println!("######\t\t bailing out");
+					let base_type = Some(target_type.clone());
+					let full_type = build_type_of_reference(
+						base_type,
+						&taken_steps,
+						self.address_depth,
+					);
+					typer.put_symbol(&self.base, full_type.clone())?;
+					let expr = Expression::Deref {
+						reference: Reference {
+							base: self.base.clone(),
+							steps: taken_steps,
+							address_depth: self.address_depth,
+							location: self.location.clone(),
+						},
+						deref_type: Some(target_type),
+					};
+					return Ok(expr);
 				}
 				(ct, tt, step) =>
 				{
