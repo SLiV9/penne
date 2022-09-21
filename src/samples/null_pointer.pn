@@ -1,0 +1,7 @@
+fn main()
+{
+	var a: u8 = 17;
+	var x: &u8 = &a;
+	&x = 0x0;
+	return: x
+}

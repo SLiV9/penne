@@ -78,6 +78,7 @@ Usability:
 		☐	Account for (variable) tab width in Location
 		☐	Switch to something more sensible than anyhow for context
 		✔	Better type inference errors for return values @done (2022-09-05 18:39)
+	☐	Debug symbols in the resulting IR/executable
 	☐	Add helpful note when trying to jump backwards
 		☐	Similarly, add note when referencing variable declared later
 		☐	Add note when referencing variable from an inner scope
@@ -86,6 +87,9 @@ Usability:
 	☐ Match expected error codes in tests
 	✔	Color default terminal output differently from LLVM errors @done (2022-09-07 15:22)
 	☐	Allow goto to skip var declaration if short-lived (skip_shortlived_var.pn)
+
+Development:
+	☐	Logger instead of print statements
 
 Theory:
 	☐	Prove Turing completeness
