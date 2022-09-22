@@ -13,17 +13,27 @@ const SMILEY: [8]u8 = [
 
 pub extern fn update()
 {
+	var draw_colors: &u16 = 0x14;
+	draw_colors = 1;
+
+	//PALETTE[0] = 0xFF00FF;
+
 	//trace("hello world");
-	DRAW_COLORS = 2;
+	//DRAW_COLORS = 2;
 	//text("Hello from Penne!", 10, 10);
+
+	rect(20, 20, 100, 20);
+
+	DRAW_COLORS = 3;
+	rect(20, 50, 100, 20);
 
 	var gamepad = GAMEPAD1;
 	if gamepad & BUTTON_1 != 0
 	{
 		DRAW_COLORS = 4;
+		rect(20, 80, 100, 20);
 	}
 
-	rect(20, 20, 100, 50);
 	//blit(SMILEY, 76, 76, 8, 8, BLIT_1BPP);
 	//text("Press X to blink", 16, 90);
 }
