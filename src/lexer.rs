@@ -627,6 +627,7 @@ fn lex_line(
 					Ok(Token::StringLiteral { bytes, value_type })
 				}
 			}
+			'$' => Ok(Token::DebugDollar),
 			' ' | '\t' => continue,
 			_ => Err(Error::UnexpectedCharacter { character: x }),
 		};

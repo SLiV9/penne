@@ -141,6 +141,7 @@ impl Analyzable for Declaration
 				Ok(function)
 			}
 			Declaration::FunctionHead { .. } => Ok(self.clone()),
+			Declaration::PreprocessorDirective { .. } => unreachable!(),
 		}
 	}
 }

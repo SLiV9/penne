@@ -30,6 +30,11 @@ pub enum Declaration
 		return_type: Option<ValueType>,
 		flags: EnumSet<DeclarationFlag>,
 	},
+	PreprocessorDirective
+	{
+		directive: String,
+		location: Location,
+	},
 }
 
 #[must_use]
@@ -290,6 +295,7 @@ pub enum ReferenceStep
 		member: Identifier,
 	},
 	Autoderef,
+	Autoview,
 	Autodeslice,
 }
 

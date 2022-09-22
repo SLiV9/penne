@@ -17,6 +17,9 @@ contexts:
       scope: punctuation.definition.comment.penne
       push: line_comment
 
+    - match: '\$'
+      push: preprocessor_directive
+
     - match: '\b(pub|extern)\b'
       scope: storage.modifier.penne
 
@@ -88,6 +91,11 @@ contexts:
 
   line_comment:
     - meta_scope: comment.line.penne
+    - match: $
+      pop: true
+
+  preprocessor_directive:
+    - meta_scope: invalid.illegal.debug.penne
     - match: $
       pop: true
 

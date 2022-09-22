@@ -1,6 +1,7 @@
 /**/
 
 use penne::analyzer;
+use penne::common::Declaration;
 use penne::generator;
 use penne::lexer;
 use penne::linter;
@@ -9,7 +10,11 @@ use penne::rebuilder;
 use penne::scoper;
 use penne::typer;
 
+use std::collections::HashMap;
 use std::io::Write;
+
+use anyhow::anyhow;
+use anyhow::Context;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 fn main() -> Result<(), anyhow::Error>
@@ -40,6 +45,8 @@ fn do_main() -> Result<(), anyhow::Error>
 	{
 		vec!["src/samples/five.pn".to_string()]
 	};
+
+	let mut modules = HashMap::new();
 
 	let colorspec_header = ColorSpec::new().to_owned();
 	let colorspec_dump = ColorSpec::new().set_dimmed(true).to_owned();
@@ -77,6 +84,12 @@ fn do_main() -> Result<(), anyhow::Error>
 		stdout.set_color(&colorspec_header)?;
 		writeln!(stdout, "Parsing {}...", filename)?;
 		let declarations = parser::parse(tokens)?;
+		stdout.set_color(&colorspec_dump)?;
+		writeln!(stdout, "{:?}", declarations)?;
+		writeln!(stdout)?;
+		stdout.set_color(&colorspec_header)?;
+		writeln!(stdout, "Preprocessing {}...", filename)?;
+		let declarations = preprocess(declarations, &filename, &modules)?;
 		stdout.set_color(&colorspec_dump)?;
 		writeln!(stdout, "{:?}", declarations)?;
 		writeln!(stdout)?;
@@ -147,10 +160,66 @@ fn do_main() -> Result<(), anyhow::Error>
 		stdout.set_color(&colorspec_header)?;
 		writeln!(stdout, "Writing to {}...", outputfilename)?;
 		std::fs::write(outputfilename, ir)?;
+		// Store the declarations for later use.
+		modules.insert(filename, declarations);
 	}
 
 	stdout.reset()?;
 	writeln!(stdout, "Done.")?;
 
 	Ok(())
+}
+
+fn preprocess(
+	mut declarations: Vec<Declaration>,
+	filename: &str,
+	modules: &HashMap<String, Vec<Declaration>>,
+) -> Result<Vec<Declaration>, anyhow::Error>
+{
+	let relative_path = std::path::Path::new(filename);
+
+	while let Some(i) = declarations.iter().position(|d| is_directive(d))
+	{
+		let (directive, location) = match declarations.remove(i)
+		{
+			Declaration::PreprocessorDirective {
+				directive,
+				location,
+			} => (directive, location),
+			_ => unreachable!(),
+		};
+		let mut is_resolved = false;
+		let mut resolutions = relative_path.ancestors().skip(1);
+		while let Some(path) = resolutions.next()
+		{
+			let resolved = path.join(directive.clone());
+			match resolved.to_str().map(|x| modules.get(x)).flatten()
+			{
+				Some(result) =>
+				{
+					let imported_declarations = result.to_vec();
+					is_resolved = true;
+					declarations.splice(i..i, imported_declarations);
+					break;
+				}
+				None => (),
+			}
+		}
+		if !is_resolved
+		{
+			return Err(anyhow!("failed to resolve {:?}", directive))
+				.context(location.format())
+				.context("failed to preprocess");
+		}
+	}
+	Ok(declarations)
+}
+
+fn is_directive(declaration: &Declaration) -> bool
+{
+	match declaration
+	{
+		Declaration::PreprocessorDirective { .. } => true,
+		_ => false,
+	}
 }

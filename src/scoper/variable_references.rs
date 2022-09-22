@@ -202,6 +202,7 @@ fn declare(
 			return_type: _,
 			flags: _,
 		} => analyzer.declare_function(name),
+		Declaration::PreprocessorDirective { .. } => unreachable!(),
 	}
 }
 
@@ -294,6 +295,7 @@ impl Analyzable for Declaration
 				};
 				Ok(function)
 			}
+			Declaration::PreprocessorDirective { .. } => unreachable!(),
 		}
 	}
 }
@@ -692,6 +694,7 @@ impl Analyzable for ReferenceStep
 				Ok(ReferenceStep::Member { member })
 			}
 			ReferenceStep::Autoderef => Ok(ReferenceStep::Autoderef),
+			ReferenceStep::Autoview => Ok(ReferenceStep::Autoview),
 			ReferenceStep::Autodeslice => Ok(ReferenceStep::Autodeslice),
 		}
 	}

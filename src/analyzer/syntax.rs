@@ -73,6 +73,7 @@ impl Analyzable for Declaration
 				return_type: _,
 				flags: _,
 			} => Ok(()),
+			Declaration::PreprocessorDirective { .. } => unreachable!(),
 		}
 	}
 }

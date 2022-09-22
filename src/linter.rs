@@ -55,6 +55,7 @@ impl Lintable for Declaration
 				return_type: _,
 				flags: _,
 			} => (),
+			Declaration::PreprocessorDirective { .. } => unreachable!(),
 		}
 	}
 }

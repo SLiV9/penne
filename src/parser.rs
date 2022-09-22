@@ -170,6 +170,31 @@ fn parse_declaration(
 			Ok(declaration)
 		}
 		Token::Fn => parse_function_declaration(flags, tokens),
+		Token::DebugDollar =>
+		{
+			let (token, location) = extract(tokens).context("expected path")?;
+			match token
+			{
+				Token::StringLiteral { bytes, value_type } => match value_type
+				{
+					None | Some(ValueType::String) =>
+					{
+						let directive =
+							String::from_utf8_lossy(&bytes).to_string();
+						Ok(Declaration::PreprocessorDirective {
+							directive,
+							location,
+						})
+					}
+					Some(vt) => Err(anyhow!("got {:?}", vt))
+						.context(location.format())
+						.context("expected UTF8-encoded string"),
+				},
+				other => Err(anyhow!("got {:?}", other))
+					.context(location.format())
+					.context("expected path"),
+			}
+		}
 		token => Err(anyhow!("got {:?}", token))
 			.context(location.format())
 			.context("expected top-level declaration"),

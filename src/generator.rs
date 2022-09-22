@@ -209,6 +209,7 @@ fn declare(
 
 			Ok(())
 		}
+		Declaration::PreprocessorDirective { .. } => unreachable!(),
 	}
 }
 
@@ -309,6 +310,7 @@ impl Generatable for Declaration
 				return_type: _,
 				flags: _,
 			} => Ok(()),
+			Declaration::PreprocessorDirective { .. } => unreachable!(),
 		}
 	}
 }
@@ -1291,11 +1293,12 @@ impl Reference
 					let offset = 0;
 					indices.push(llvm.const_i32(offset));
 				}
-				ReferenceStep::Autoderef if is_immediate_parameter =>
+				ReferenceStep::Autoderef | ReferenceStep::Autoview
+					if is_immediate_parameter =>
 				{
 					is_immediate_parameter = false;
 				}
-				ReferenceStep::Autoderef =>
+				ReferenceStep::Autoderef | ReferenceStep::Autoview =>
 				{
 					if !indices.is_empty()
 					{
@@ -1411,80 +1414,78 @@ impl Reference
 		let result = llvm.const_usize(length as usize);
 		Ok(result)
 	}
+}
 
-	fn generate_ext_array_view(
-		&self,
-		llvm: &mut Generator,
-		element_type: Box<ValueType>,
-	) -> Result<LLVMValueRef, anyhow::Error>
-	{
-		let tmpname = CString::new("")?;
-		let element_type = element_type.generate(llvm)?;
-		let pointertype = unsafe { LLVMPointerType(element_type, 0u32) };
-		let address = self.generate_storage_address(llvm)?;
-		let address_value = unsafe {
-			LLVMBuildPointerCast(
-				llvm.builder,
-				address,
-				pointertype,
-				tmpname.as_ptr(),
-			)
-		};
-		Ok(address_value)
-	}
+fn generate_ext_array_view(
+	address: LLVMValueRef,
+	element_type: &ValueType,
+	llvm: &mut Generator,
+) -> Result<LLVMValueRef, anyhow::Error>
+{
+	let tmpname = CString::new("")?;
+	let element_type = element_type.generate(llvm)?;
+	let pointertype = unsafe { LLVMPointerType(element_type, 0u32) };
+	let address_value = unsafe {
+		LLVMBuildPointerCast(
+			llvm.builder,
+			address,
+			pointertype,
+			tmpname.as_ptr(),
+		)
+	};
+	Ok(address_value)
+}
 
-	fn generate_array_slice(
-		&self,
-		llvm: &mut Generator,
-		element_type: Box<ValueType>,
-		length: usize,
-	) -> Result<LLVMValueRef, anyhow::Error>
-	{
-		let tmpname = CString::new("")?;
-		let element_type = element_type.generate(llvm)?;
-		let storagetype = unsafe { LLVMArrayType(element_type, 0u32) };
-		let pointertype = unsafe { LLVMPointerType(storagetype, 0u32) };
-		let sizetype = ValueType::Usize.generate(llvm)?;
-		let mut member_types = [pointertype, sizetype];
-		let slice_type = unsafe {
-			LLVMStructTypeInContext(
-				llvm.context,
-				member_types.as_mut_ptr(),
-				member_types.len() as u32,
-				0,
-			)
-		};
-		let mut slice = unsafe { LLVMGetUndef(slice_type) };
-		let address = self.generate_storage_address(llvm)?;
-		let address_value = unsafe {
-			LLVMBuildPointerCast(
-				llvm.builder,
-				address,
-				pointertype,
-				tmpname.as_ptr(),
-			)
-		};
-		slice = unsafe {
-			LLVMBuildInsertValue(
-				llvm.builder,
-				slice,
-				address_value,
-				0u32,
-				tmpname.as_ptr(),
-			)
-		};
-		let length_value = llvm.const_usize(length);
-		slice = unsafe {
-			LLVMBuildInsertValue(
-				llvm.builder,
-				slice,
-				length_value,
-				1u32,
-				tmpname.as_ptr(),
-			)
-		};
-		Ok(slice)
-	}
+fn generate_array_slice(
+	address: LLVMValueRef,
+	element_type: &ValueType,
+	length: usize,
+	llvm: &mut Generator,
+) -> Result<LLVMValueRef, anyhow::Error>
+{
+	let tmpname = CString::new("")?;
+	let element_type = element_type.generate(llvm)?;
+	let storagetype = unsafe { LLVMArrayType(element_type, 0u32) };
+	let pointertype = unsafe { LLVMPointerType(storagetype, 0u32) };
+	let sizetype = ValueType::Usize.generate(llvm)?;
+	let mut member_types = [pointertype, sizetype];
+	let slice_type = unsafe {
+		LLVMStructTypeInContext(
+			llvm.context,
+			member_types.as_mut_ptr(),
+			member_types.len() as u32,
+			0,
+		)
+	};
+	let mut slice = unsafe { LLVMGetUndef(slice_type) };
+	let address_value = unsafe {
+		LLVMBuildPointerCast(
+			llvm.builder,
+			address,
+			pointertype,
+			tmpname.as_ptr(),
+		)
+	};
+	slice = unsafe {
+		LLVMBuildInsertValue(
+			llvm.builder,
+			slice,
+			address_value,
+			0u32,
+			tmpname.as_ptr(),
+		)
+	};
+	let length_value = llvm.const_usize(length);
+	slice = unsafe {
+		LLVMBuildInsertValue(
+			llvm.builder,
+			slice,
+			length_value,
+			1u32,
+			tmpname.as_ptr(),
+		)
+	};
+	Ok(slice)
 }
 
 fn generate_autocoerce(
@@ -1495,7 +1496,7 @@ fn generate_autocoerce(
 {
 	match coerced_type
 	{
-		ValueType::Slice { element_type: _ } => match expression
+		ValueType::Slice { element_type } => match expression
 		{
 			Expression::Deref {
 				reference,
@@ -1505,11 +1506,12 @@ fn generate_autocoerce(
 				Some(ValueType::Array {
 					element_type,
 					length,
-				}) => reference.generate_array_slice(
-					llvm,
-					element_type.clone(),
-					*length,
-				),
+				}) =>
+				{
+					let address = reference.generate_storage_address(llvm)?;
+					generate_array_slice(address, &element_type, *length, llvm)
+				}
+
 				Some(_) => unimplemented!(),
 				None => Err(anyhow!("failed to infer type")
 					.context(reference.location.format())
@@ -1518,6 +1520,12 @@ fn generate_autocoerce(
 						reference.base.name
 					))),
 			},
+			Expression::StringLiteral { bytes, .. } =>
+			{
+				let address = expression.generate(llvm)?;
+				let length = bytes.len();
+				generate_array_slice(address, &element_type, length, llvm)
+			}
 			_ => unimplemented!(),
 		},
 		ValueType::View { deref_type } => match deref_type.as_ref()
@@ -1529,25 +1537,13 @@ fn generate_autocoerce(
 					deref_type: _,
 				} =>
 				{
-					let element_type = element_type.clone();
-					reference.generate_ext_array_view(llvm, element_type)
+					let address = reference.generate_storage_address(llvm)?;
+					generate_ext_array_view(address, &element_type, llvm)
 				}
 				Expression::StringLiteral { .. } =>
 				{
-					let tmpname = CString::new("")?;
-					let element_type = element_type.generate(llvm)?;
-					let pointertype =
-						unsafe { LLVMPointerType(element_type, 0u32) };
 					let address = expression.generate(llvm)?;
-					let address_value = unsafe {
-						LLVMBuildPointerCast(
-							llvm.builder,
-							address,
-							pointertype,
-							tmpname.as_ptr(),
-						)
-					};
-					Ok(address_value)
+					generate_ext_array_view(address, &element_type, llvm)
 				}
 				_ => unimplemented!(),
 			},

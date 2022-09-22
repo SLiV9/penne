@@ -187,6 +187,7 @@ impl Rebuildable for Declaration
 				writeln!(&mut buffer, ";")?;
 				Ok(buffer)
 			}
+			Declaration::PreprocessorDirective { .. } => unreachable!(),
 		}
 	}
 }
@@ -663,6 +664,7 @@ impl Rebuildable for Reference
 					write!(&mut buffer, ".{}", identify(&member))?
 				}
 				ReferenceStep::Autoderef => write!(&mut buffer, ".^")?,
+				ReferenceStep::Autoview => write!(&mut buffer, ".^")?,
 				ReferenceStep::Autodeslice => write!(&mut buffer, ".0")?,
 			}
 		}

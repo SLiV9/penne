@@ -128,6 +128,7 @@ impl Typer
 					}
 					ReferenceStep::Member { member: _ } => unimplemented!(),
 					ReferenceStep::Autoderef => (),
+					ReferenceStep::Autoview => (),
 					ReferenceStep::Autodeslice => unreachable!(),
 				}
 			}
@@ -264,6 +265,7 @@ fn declare(
 			typer.declare_function_parameters(name, &parameters);
 			Ok(())
 		}
+		Declaration::PreprocessorDirective { .. } => unreachable!(),
 	}
 }
 
@@ -289,6 +291,7 @@ impl Typed for Declaration
 			{
 				return_type.clone()
 			}
+			Declaration::PreprocessorDirective { .. } => unreachable!(),
 		}
 	}
 }
@@ -403,6 +406,7 @@ impl Analyzable for Declaration
 				};
 				Ok(function)
 			}
+			Declaration::PreprocessorDirective { .. } => unreachable!(),
 		}
 	}
 }
@@ -897,8 +901,11 @@ impl Analyzable for Expression
 			} =>
 			{
 				let contextual_type = typer.contextual_type.take();
+				println!("?????? coercing string for {:?}", contextual_type);
 				let (value_type, coerced_type) =
 					coerce_for_string_literal(contextual_type);
+				println!("?????? from {:?}", value_type);
+				println!("?????? into {:?}", coerced_type);
 				let expr = Expression::StringLiteral {
 					bytes: bytes.clone(),
 					value_type,
@@ -998,6 +1005,7 @@ impl Analyzable for ReferenceStep
 			}
 			ReferenceStep::Member { member: _ } => unimplemented!(),
 			ReferenceStep::Autoderef => Ok(ReferenceStep::Autoderef),
+			ReferenceStep::Autoview => Ok(ReferenceStep::Autoview),
 			ReferenceStep::Autodeslice => Ok(ReferenceStep::Autodeslice),
 		}
 	}
@@ -1058,6 +1066,14 @@ impl Reference
 					}
 					ReferenceStep::Member { member: _ } => unimplemented!(),
 					ReferenceStep::Autoderef => match current_type
+					{
+						ValueType::Pointer { deref_type } =>
+						{
+							current_type = *deref_type;
+						}
+						_ => unreachable!(),
+					},
+					ReferenceStep::Autoview => match current_type
 					{
 						ValueType::Pointer { deref_type } =>
 						{
@@ -1303,7 +1319,7 @@ impl Reference
 					}
 					_ =>
 					{
-						let step = ReferenceStep::Autoderef;
+						let step = ReferenceStep::Autoview;
 						println!("######\t\t taking {:?}", step);
 						taken_steps.push(step);
 						current_type = *deref_type;
@@ -1318,7 +1334,7 @@ impl Reference
 				}
 				(ValueType::View { deref_type }, _, _) =>
 				{
-					let step = ReferenceStep::Autoderef;
+					let step = ReferenceStep::Autoview;
 					println!("######\t\t taking {:?}", step);
 					taken_steps.push(step);
 					current_type = *deref_type;
@@ -1459,6 +1475,12 @@ fn build_type_of_reference(
 						deref_type: Box::new(full_type),
 					};
 				}
+				ReferenceStep::Autoview =>
+				{
+					full_type = ValueType::View {
+						deref_type: Box::new(full_type),
+					};
+				}
 				ReferenceStep::Autodeslice => (),
 			}
 		}
@@ -1535,6 +1557,10 @@ fn coerce_for_string_literal(
 	match value_type
 	{
 		Some(ValueType::String) => (value_type, None),
+		Some(vt) if vt == ValueType::for_byte_string() =>
+		{
+			(Some(vt.clone()), Some(vt))
+		}
 		Some(vt) if ValueType::for_byte_string().can_coerce_into(&vt) =>
 		{
 			(Some(ValueType::for_byte_string()), Some(vt))

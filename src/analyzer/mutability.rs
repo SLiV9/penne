@@ -137,6 +137,7 @@ impl Analyzable for Declaration
 				}
 				Ok(())
 			}
+			Declaration::PreprocessorDirective { .. } => unreachable!(),
 		}
 	}
 }
@@ -239,6 +240,7 @@ impl Analyzable for Statement
 						{
 							needs_outer_mutability = false;
 						}
+						ReferenceStep::Autoview => (),
 						ReferenceStep::Autodeslice => (),
 					}
 				}
@@ -382,6 +384,7 @@ impl Analyzable for Expression
 						}
 						ReferenceStep::Member { member: _ } => unimplemented!(),
 						ReferenceStep::Autoderef => (),
+						ReferenceStep::Autoview => (),
 						ReferenceStep::Autodeslice => (),
 					}
 				}
@@ -400,6 +403,7 @@ impl Analyzable for Expression
 						}
 						ReferenceStep::Member { member: _ } => unimplemented!(),
 						ReferenceStep::Autoderef => (),
+						ReferenceStep::Autoview => (),
 						ReferenceStep::Autodeslice => (),
 					}
 				}
