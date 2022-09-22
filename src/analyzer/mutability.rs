@@ -329,6 +329,17 @@ impl Analyzable for Expression
 				right.analyze(analyzer).with_context(|| location.format())?;
 				Ok(())
 			}
+			Expression::Unary {
+				op: _,
+				expression,
+				location,
+			} =>
+			{
+				expression
+					.analyze(analyzer)
+					.with_context(|| location.format())?;
+				Ok(())
+			}
 			Expression::PrimitiveLiteral(_lit) => Ok(()),
 			Expression::NakedIntegerLiteral { .. } => Ok(()),
 			Expression::BitIntegerLiteral { .. } => Ok(()),

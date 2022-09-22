@@ -186,7 +186,7 @@ pub enum Expression
 	Unary
 	{
 		op: UnaryOp,
-		right: Box<Expression>,
+		expression: Box<Expression>,
 		location: Location,
 	},
 	PrimitiveLiteral(PrimitiveLiteral),
@@ -244,13 +244,11 @@ pub enum BinaryOp
 	Multiply,
 	Divide,
 	Modulo,
-	//LogicalAnd,
-	//LogicalOr,
 	BitwiseAnd,
 	BitwiseOr,
 	BitwiseXor,
-	//ShiftLeft,
-	//ShiftRight,
+	ShiftLeft,
+	ShiftRight,
 }
 
 #[must_use]
@@ -258,7 +256,7 @@ pub enum BinaryOp
 pub enum UnaryOp
 {
 	Negative,
-	Complement,
+	BitwiseComplement,
 }
 
 #[must_use]

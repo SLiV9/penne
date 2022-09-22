@@ -36,8 +36,6 @@ pub enum Token
 	DoesNotEqual, // !=
 	IsGE,         // >=
 	IsLE,         // <=
-	LogicalAnd,   // &&
-	LogicalOr,    // ||
 	ShiftLeft,    // <<
 	ShiftRight,   // >>
 	Arrow,        // ->
@@ -200,24 +198,9 @@ fn lex_line(
 				}
 				_ => Ok(Token::AngleRight),
 			},
-			'|' => match iter.peek()
-			{
-				Some((_, '|')) =>
-				{
-					iter.next();
-					Ok(Token::LogicalOr)
-				}
-				_ => Ok(Token::Pipe),
-			},
-			'&' => match iter.peek()
-			{
-				Some((_, '&')) =>
-				{
-					iter.next();
-					Ok(Token::LogicalAnd)
-				}
-				_ => Ok(Token::Ampersand),
-			},
+			'|' => Ok(Token::Pipe),
+			'&' => Ok(Token::Ampersand),
+
 			'^' => Ok(Token::Caret),
 			'!' => match iter.peek()
 			{

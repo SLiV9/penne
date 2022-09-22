@@ -398,14 +398,12 @@ impl Rebuildable for Comparison
 		indentation: &Indentation,
 	) -> Result<String, anyhow::Error>
 	{
-		match self.op
-		{
-			ComparisonOp::Equals => Ok(format!(
-				"{} == {}",
-				self.left.rebuild(&indentation.increased())?,
-				self.right.rebuild(&indentation.increased())?
-			)),
-		}
+		Ok(format!(
+			"{} {} {}",
+			self.left.rebuild(&indentation.increased())?,
+			self.op,
+			self.right.rebuild(&indentation.increased())?
+		))
 	}
 }
 
@@ -446,19 +444,21 @@ impl Rebuildable for Expression
 				left,
 				right,
 				location: _,
-			} => match op
-			{
-				BinaryOp::Add => Ok(format!(
-					"{} + {}",
-					left.rebuild(&indentation.increased())?,
-					right.rebuild(&indentation.increased())?
-				)),
-				BinaryOp::Subtract => Ok(format!(
-					"{} - {}",
-					left.rebuild(&indentation.increased())?,
-					right.rebuild(&indentation.increased())?
-				)),
-			},
+			} => Ok(format!(
+				"{} {} {}",
+				left.rebuild(&indentation.increased())?,
+				op,
+				right.rebuild(&indentation.increased())?
+			)),
+			Expression::Unary {
+				op,
+				expression,
+				location: _,
+			} => Ok(format!(
+				"{}{}",
+				op,
+				expression.rebuild(&indentation.increased())?,
+			)),
 			Expression::PrimitiveLiteral(literal) =>
 			{
 				literal.rebuild(indentation)
@@ -683,5 +683,53 @@ fn identify(identifier: &Identifier) -> String
 	else
 	{
 		identifier.name.to_string()
+	}
+}
+
+impl std::fmt::Display for ComparisonOp
+{
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result
+	{
+		match self
+		{
+			ComparisonOp::Equals => write!(f, "=="),
+			ComparisonOp::DoesNotEqual => write!(f, "!="),
+			ComparisonOp::IsGreater => write!(f, ">"),
+			ComparisonOp::IsGE => write!(f, ">="),
+			ComparisonOp::IsLess => write!(f, "<"),
+			ComparisonOp::IsLE => write!(f, "<="),
+		}
+	}
+}
+
+impl std::fmt::Display for BinaryOp
+{
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result
+	{
+		match self
+		{
+			BinaryOp::Add => write!(f, "+"),
+			BinaryOp::Subtract => write!(f, "-"),
+			BinaryOp::Multiply => write!(f, "*"),
+			BinaryOp::Divide => write!(f, "/"),
+			BinaryOp::Modulo => write!(f, "%"),
+			BinaryOp::BitwiseAnd => write!(f, "&"),
+			BinaryOp::BitwiseOr => write!(f, "|"),
+			BinaryOp::BitwiseXor => write!(f, "^"),
+			BinaryOp::ShiftLeft => write!(f, "<<"),
+			BinaryOp::ShiftRight => write!(f, ">>"),
+		}
+	}
+}
+
+impl std::fmt::Display for UnaryOp
+{
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result
+	{
+		match self
+		{
+			UnaryOp::Negative => write!(f, "-"),
+			UnaryOp::BitwiseComplement => write!(f, "!"),
+		}
 	}
 }

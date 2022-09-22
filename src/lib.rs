@@ -523,6 +523,14 @@ mod tests
 	}
 
 	#[test]
+	fn execute_bitwise_operations() -> Result<(), anyhow::Error>
+	{
+		let result = execute_calculation("src/samples/bitwise_operations.pn")?;
+		assert_eq!(result, 200);
+		Ok(())
+	}
+
+	#[test]
 	fn execute_scoped_variables() -> Result<(), anyhow::Error>
 	{
 		let result = execute_calculation("src/samples/scoped_variables.pn")?;

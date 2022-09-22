@@ -715,6 +715,7 @@ impl Typed for Expression
 		match self
 		{
 			Expression::Binary { left, .. } => left.value_type(),
+			Expression::Unary { expression, .. } => expression.value_type(),
 			Expression::PrimitiveLiteral(literal) => literal.value_type(),
 			Expression::NakedIntegerLiteral { value_type, .. } =>
 			{
@@ -775,6 +776,20 @@ impl Analyzable for Expression
 					op: *op,
 					left: Box::new(left),
 					right: Box::new(right),
+					location: location.clone(),
+				};
+				Ok(expr)
+			}
+			Expression::Unary {
+				op,
+				expression,
+				location,
+			} =>
+			{
+				let expr = expression.analyze(typer)?;
+				let expr = Expression::Unary {
+					op: *op,
+					expression: Box::new(expr),
 					location: location.clone(),
 				};
 				Ok(expr)

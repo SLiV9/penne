@@ -1,6 +1,7 @@
 /**/
 
 use crate::common::*;
+use crate::typer::Typed;
 
 use std::ffi::{CStr, CString};
 
@@ -664,12 +665,42 @@ impl Generatable for Comparison
 		llvm: &mut Generator,
 	) -> Result<Self::Item, anyhow::Error>
 	{
+		let is_signed = match self.left.value_type()
+		{
+			Some(ValueType::Int8) => true,
+			Some(ValueType::Int16) => true,
+			Some(ValueType::Int32) => true,
+			Some(ValueType::Int64) => true,
+			Some(ValueType::Int128) => true,
+			_ => false,
+		};
 		let left = self.left.generate(llvm)?;
 		let right = self.right.generate(llvm)?;
 		let name = CString::new("")?;
 		let pred = match self.op
 		{
 			ComparisonOp::Equals => llvm_sys::LLVMIntPredicate::LLVMIntEQ,
+			ComparisonOp::DoesNotEqual => llvm_sys::LLVMIntPredicate::LLVMIntNE,
+			ComparisonOp::IsGreater if is_signed =>
+			{
+				llvm_sys::LLVMIntPredicate::LLVMIntSGT
+			}
+			ComparisonOp::IsGreater => llvm_sys::LLVMIntPredicate::LLVMIntUGT,
+			ComparisonOp::IsLess if is_signed =>
+			{
+				llvm_sys::LLVMIntPredicate::LLVMIntSLT
+			}
+			ComparisonOp::IsLess => llvm_sys::LLVMIntPredicate::LLVMIntULT,
+			ComparisonOp::IsGE if is_signed =>
+			{
+				llvm_sys::LLVMIntPredicate::LLVMIntSGE
+			}
+			ComparisonOp::IsGE => llvm_sys::LLVMIntPredicate::LLVMIntUGE,
+			ComparisonOp::IsLE if is_signed =>
+			{
+				llvm_sys::LLVMIntPredicate::LLVMIntSLE
+			}
+			ComparisonOp::IsLE => llvm_sys::LLVMIntPredicate::LLVMIntULE,
 		};
 		let result = unsafe {
 			LLVMBuildICmp(llvm.builder, pred, left, right, name.as_ptr())
@@ -696,6 +727,15 @@ impl Generatable for Expression
 				location: _,
 			} =>
 			{
+				let is_signed = match left.value_type()
+				{
+					Some(ValueType::Int8) => true,
+					Some(ValueType::Int16) => true,
+					Some(ValueType::Int32) => true,
+					Some(ValueType::Int64) => true,
+					Some(ValueType::Int128) => true,
+					_ => false,
+				};
 				let left = left.generate(llvm)?;
 				let right = right.generate(llvm)?;
 				let name = CString::new("")?;
@@ -708,6 +748,71 @@ impl Generatable for Expression
 					BinaryOp::Subtract =>
 					unsafe {
 						LLVMBuildSub(llvm.builder, left, right, name.as_ptr())
+					},
+					BinaryOp::Multiply =>
+					unsafe {
+						LLVMBuildMul(llvm.builder, left, right, name.as_ptr())
+					},
+					BinaryOp::Divide if is_signed =>
+					unsafe {
+						LLVMBuildSDiv(llvm.builder, left, right, name.as_ptr())
+					},
+					BinaryOp::Divide =>
+					unsafe {
+						LLVMBuildUDiv(llvm.builder, left, right, name.as_ptr())
+					},
+					BinaryOp::Modulo if is_signed =>
+					unsafe {
+						LLVMBuildSRem(llvm.builder, left, right, name.as_ptr())
+					},
+					BinaryOp::Modulo =>
+					unsafe {
+						LLVMBuildURem(llvm.builder, left, right, name.as_ptr())
+					},
+					BinaryOp::BitwiseAnd =>
+					unsafe {
+						LLVMBuildAnd(llvm.builder, left, right, name.as_ptr())
+					},
+					BinaryOp::BitwiseOr =>
+					unsafe {
+						LLVMBuildOr(llvm.builder, left, right, name.as_ptr())
+					},
+					BinaryOp::BitwiseXor =>
+					unsafe {
+						LLVMBuildXor(llvm.builder, left, right, name.as_ptr())
+					},
+					BinaryOp::ShiftLeft =>
+					unsafe {
+						LLVMBuildShl(llvm.builder, left, right, name.as_ptr())
+					},
+					BinaryOp::ShiftRight if is_signed =>
+					unsafe {
+						LLVMBuildAShr(llvm.builder, left, right, name.as_ptr())
+					},
+					BinaryOp::ShiftRight =>
+					unsafe {
+						LLVMBuildLShr(llvm.builder, left, right, name.as_ptr())
+					},
+				};
+				Ok(result)
+			}
+			Expression::Unary {
+				op,
+				expression,
+				location: _,
+			} =>
+			{
+				let expr = expression.generate(llvm)?;
+				let name = CString::new("")?;
+				let result = match op
+				{
+					UnaryOp::Negative =>
+					unsafe {
+						LLVMBuildNeg(llvm.builder, expr, name.as_ptr())
+					},
+					UnaryOp::BitwiseComplement =>
+					unsafe {
+						LLVMBuildNot(llvm.builder, expr, name.as_ptr())
 					},
 				};
 				Ok(result)

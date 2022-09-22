@@ -566,6 +566,21 @@ impl Analyzable for Expression
 					location: location.clone(),
 				})
 			}
+			Expression::Unary {
+				op,
+				expression,
+				location,
+			} =>
+			{
+				let expr = expression
+					.analyze(analyzer)
+					.with_context(|| location.format())?;
+				Ok(Expression::Unary {
+					op: *op,
+					expression: Box::new(expr),
+					location: location.clone(),
+				})
+			}
 			Expression::PrimitiveLiteral(_lit) => Ok(self.clone()),
 			Expression::NakedIntegerLiteral { .. } => Ok(self.clone()),
 			Expression::BitIntegerLiteral { .. } => Ok(self.clone()),

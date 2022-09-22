@@ -1,0 +1,10 @@
+fn main() -> u8
+{
+	var b7 = 0x07;
+	var b15 = 15;
+	var b8 = b15 & !b7;
+	var b64 = 1 << 6;
+	var b128 = 0b10000000;
+	var x = b128 | b64 | b8;
+	return: x
+}

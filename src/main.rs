@@ -64,6 +64,16 @@ fn do_main() -> Result<(), anyhow::Error>
 		stdout.set_color(&colorspec_dump)?;
 		writeln!(stdout, "{:?}", tokens)?;
 		writeln!(stdout)?;
+		for token in &tokens
+		{
+			match &token.result
+			{
+				Result::Ok(token) => write!(stdout, "{:?}   ", token)?,
+				Result::Err(_) => write!(stdout, "ERROR   ")?,
+			}
+		}
+		writeln!(stdout)?;
+		writeln!(stdout)?;
 		stdout.set_color(&colorspec_header)?;
 		writeln!(stdout, "Parsing {}...", filename)?;
 		let declarations = parser::parse(tokens)?;
