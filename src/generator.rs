@@ -7,6 +7,7 @@ use std::ffi::{CStr, CString};
 use llvm_sys::analysis::*;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
+use llvm_sys::*;
 use llvm_sys::{LLVMBuilder, LLVMContext, LLVMModule};
 
 use anyhow::anyhow;
@@ -800,7 +801,53 @@ impl Generatable for Expression
 				.context(format!(
 					"failed to infer array literal element type"
 				))),
-			Expression::StringLiteral { .. } => unimplemented!(),
+			Expression::StringLiteral {
+				bytes: _,
+				value_type: Some(ValueType::String),
+				location: _,
+			} => unimplemented!(),
+			Expression::StringLiteral {
+				bytes,
+				value_type: Some(ValueType::Slice { element_type }),
+				location: _,
+			} =>
+			{
+				let element_type: LLVMTypeRef = element_type.generate(llvm)?;
+				let mut values = Vec::with_capacity(bytes.len());
+				for byte in bytes
+				{
+					let value = llvm.const_u8(*byte);
+					values.push(value);
+				}
+				let initializer = unsafe {
+					LLVMConstArray(
+						element_type,
+						values.as_mut_ptr(),
+						values.len() as u32,
+					)
+				};
+				let num_elements: u32 = bytes.len() as u32;
+				let array_type =
+					unsafe { LLVMArrayType(element_type, num_elements) };
+				let strname = CString::new(".str")?;
+				let global = unsafe {
+					LLVMAddGlobal(llvm.module, array_type, strname.as_ptr())
+				};
+				unsafe {
+					LLVMSetGlobalConstant(global, 1);
+					LLVMSetUnnamedAddr(global, 1);
+					LLVMSetLinkage(global, LLVMLinkage::LLVMPrivateLinkage);
+					LLVMSetInitializer(global, initializer);
+				}
+				Ok(global)
+			}
+			Expression::StringLiteral {
+				bytes: _,
+				value_type: _,
+				location,
+			} => Err(anyhow!("failed to infer type")
+				.context(location.format())
+				.context(format!("failed to infer string literal type"))),
 			Expression::Deref {
 				reference,
 				deref_type: None,
@@ -991,7 +1038,8 @@ impl Generatable for ValueType
 			unsafe { LLVMInt64TypeInContext(llvm.context) },
 			ValueType::Bool =>
 			unsafe { LLVMInt8TypeInContext(llvm.context) },
-			ValueType::Char => unimplemented!(),
+			ValueType::Char =>
+			unsafe { LLVMInt32TypeInContext(llvm.context) },
 			ValueType::String => unimplemented!(),
 			ValueType::Array {
 				element_type,
@@ -1372,6 +1420,23 @@ fn generate_autocoerce(
 				{
 					let element_type = element_type.clone();
 					reference.generate_ext_array_view(llvm, element_type)
+				}
+				Expression::StringLiteral { .. } =>
+				{
+					let tmpname = CString::new("")?;
+					let element_type = element_type.generate(llvm)?;
+					let pointertype =
+						unsafe { LLVMPointerType(element_type, 0u32) };
+					let address = expression.generate(llvm)?;
+					let address_value = unsafe {
+						LLVMBuildPointerCast(
+							llvm.builder,
+							address,
+							pointertype,
+							tmpname.as_ptr(),
+						)
+					};
+					Ok(address_value)
 				}
 				_ => unimplemented!(),
 			},

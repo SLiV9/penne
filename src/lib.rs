@@ -71,6 +71,17 @@ mod tests
 		}
 	}
 
+	#[test]
+	fn fail_to_parse_empty_return() -> Result<(), anyhow::Error>
+	{
+		let parse_result = parse("src/samples/empty_return.pn")?;
+		match parse_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
 	fn do_scope(
 		filename: &str,
 	) -> Result<Result<Vec<common::Declaration>, anyhow::Error>, anyhow::Error>
@@ -107,6 +118,17 @@ mod tests
 	fn fail_to_type_return_type_mismatch() -> Result<(), anyhow::Error>
 	{
 		let analysis_result = do_type("src/samples/return_type_mismatch.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_type_missing_return() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = do_type("src/samples/missing_return.pn")?;
 		match analysis_result
 		{
 			Ok(_) => Err(anyhow!("broken test")),

@@ -73,6 +73,8 @@ contexts:
 
   double_quoted_string:
     - meta_scope: string.quoted.double.penne
+    - match: '\\x[0-9a-fA-F]{2}'
+      scope: constant.character.escape.penne
     - match: '\\.'
       scope: constant.character.escape.penne
     - match: '"'

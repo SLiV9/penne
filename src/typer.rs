@@ -326,6 +326,16 @@ impl Analyzable for Declaration
 				flags,
 			} =>
 			{
+				if body.return_value.is_none() && return_type.is_some()
+				{
+					return Err(anyhow!("missing return value")
+						.context(name.location.format())
+						.context(format!(
+							"missing return value for '{}'",
+							name.name
+						)));
+				}
+
 				let parameters: Result<Vec<Parameter>, anyhow::Error> =
 					parameters.iter().map(|x| x.analyze(typer)).collect();
 				let parameters = parameters?;
@@ -840,9 +850,31 @@ impl Analyzable for Expression
 				})
 			}
 			Expression::StringLiteral {
-				value_type: Some(_),
+				value_type: Some(vt),
 				..
-			} => Ok(self.clone()),
+			} =>
+			{
+				let contextual_type = typer.contextual_type.take();
+				if let Some(ct) = contextual_type
+				{
+					if vt.can_coerce_into(&ct)
+					{
+						let expr = self.clone();
+						Ok(Expression::Autocoerce {
+							expression: Box::new(expr),
+							coerced_type: ct,
+						})
+					}
+					else
+					{
+						Ok(self.clone())
+					}
+				}
+				else
+				{
+					Ok(self.clone())
+				}
+			}
 			Expression::StringLiteral {
 				bytes,
 				value_type: None,
@@ -850,12 +882,24 @@ impl Analyzable for Expression
 			} =>
 			{
 				let contextual_type = typer.contextual_type.take();
-				let value_type = filter_for_string_literal(contextual_type);
-				Ok(Expression::StringLiteral {
+				let (value_type, coerced_type) =
+					coerce_for_string_literal(contextual_type);
+				let expr = Expression::StringLiteral {
 					bytes: bytes.clone(),
 					value_type,
 					location: location.clone(),
-				})
+				};
+				if let Some(coerced_type) = coerced_type
+				{
+					Ok(Expression::Autocoerce {
+						expression: Box::new(expr),
+						coerced_type,
+					})
+				}
+				else
+				{
+					Ok(expr)
+				}
 			}
 			Expression::Deref {
 				reference: _,
@@ -1469,14 +1513,18 @@ fn filter_for_bit_integer(value_type: Option<ValueType>) -> Option<ValueType>
 	}
 }
 
-fn filter_for_string_literal(value_type: Option<ValueType>)
-	-> Option<ValueType>
+fn coerce_for_string_literal(
+	value_type: Option<ValueType>,
+) -> (Option<ValueType>, Option<ValueType>)
 {
 	match value_type
 	{
-		Some(ValueType::String) => value_type,
-		Some(vt) if vt == ValueType::for_byte_string() => Some(vt),
-		Some(_) => Some(ValueType::String),
-		None => None,
+		Some(ValueType::String) => (value_type, None),
+		Some(vt) if ValueType::for_byte_string().can_coerce_into(&vt) =>
+		{
+			(Some(ValueType::for_byte_string()), Some(vt))
+		}
+		Some(_) => (Some(ValueType::String), None),
+		None => (None, None),
 	}
 }

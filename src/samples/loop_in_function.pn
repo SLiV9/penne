@@ -1,4 +1,4 @@
-fn main() -> i32
+fn main()
 {
 	var x = 33;
 

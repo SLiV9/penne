@@ -151,7 +151,9 @@ fn parse_declaration(
 
 			consume(Token::Colon, tokens).context("expected colon")?;
 			let value_type = parse_type(tokens)?;
-			let value_type = fix_type_for_flags(value_type, &flags)?;
+			let value_type = fix_type_for_flags(value_type, &flags)
+				.with_context(|| location.format())
+				.with_context(|| "malformed constant declaration")?;
 
 			consume(Token::Assignment, tokens)
 				.context("expected assignment")?;
@@ -256,7 +258,9 @@ fn parse_parameter(
 		tokens.pop_front();
 
 		let value_type = parse_type(tokens)?;
-		let value_type = fix_type_for_flags(value_type, &flags)?;
+		let value_type = fix_type_for_flags(value_type, &flags)
+			.with_context(|| name.location.format())
+			.with_context(|| "malformed function declaration")?;
 		Some(value_type)
 	}
 	else
@@ -1060,7 +1064,6 @@ fn externalize_type(value_type: ValueType) -> Result<ValueType, anyhow::Error>
 		ValueType::Uint128 => Ok(value_type),
 		ValueType::Usize => Ok(value_type),
 		ValueType::Bool => Ok(value_type),
-		ValueType::Char => unimplemented!(),
-		ValueType::String => unimplemented!(),
+		_ => Err(anyhow!("type {:?} not allowed in extern", value_type)),
 	}
 }
