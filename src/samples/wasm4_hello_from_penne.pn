@@ -1,27 +1,29 @@
 $"wasm4.pn"
 
 const SMILEY: [8]u8 = [
-    0b11000011,
-    0b10000001,
-    0b00100100,
-    0b00100100,
-    0b00000000,
-    0b00100100,
-    0b10011001,
-    0b11000011,
+	0b11000011,
+	0b10000001,
+	0b00100100,
+	0b00100100,
+	0b00000000,
+	0b00100100,
+	0b10011001,
+	0b11000011,
 ];
 
 pub extern fn update()
 {
-    DRAW_COLORS = 2;
-    text("Hello from Penne!", 10, 10);
+	//trace("hello world");
+	DRAW_COLORS = 2;
+	//text("Hello from Penne!", 10, 10);
 
-    var gamepad = GAMEPAD1;
-    if gamepad & BUTTON_1 != 0
-    {
-        DRAW_COLORS = 4;
-    }
+	var gamepad = GAMEPAD1;
+	if gamepad & BUTTON_1 != 0
+	{
+		DRAW_COLORS = 4;
+	}
 
-    blit(SMILEY, 76, 76, 8, 8, BLIT_1BPP);
-    text("Press X to blink", 16, 90);
+	rect(20, 20, 100, 50);
+	//blit(SMILEY, 76, 76, 8, 8, BLIT_1BPP);
+	//text("Press X to blink", 16, 90);
 }

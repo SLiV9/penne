@@ -305,11 +305,38 @@ impl Generatable for Declaration
 				Ok(())
 			}
 			Declaration::FunctionHead {
-				name: _,
+				name,
 				parameters: _,
 				return_type: _,
-				flags: _,
-			} => Ok(()),
+				flags,
+			} =>
+			{
+				let function = llvm.global_functions.get(&name.resolution_id);
+				let function = match function
+				{
+					Some(function) => *function,
+					None =>
+					{
+						return Err(anyhow!("failed to find signature")
+							.context(name.location.format())
+							.context(format!(
+								"failed to generate signature of function '{}'",
+								name.name
+							)))
+					}
+				};
+
+				if flags.contains(DeclarationFlag::External)
+				{
+					unsafe {
+						LLVMSetLinkage(
+							function,
+							LLVMLinkage::LLVMExternalLinkage,
+						);
+					}
+				}
+				Ok(())
+			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
 		}
 	}
@@ -942,7 +969,10 @@ impl Generatable for Expression
 				};
 				unsafe {
 					LLVMSetGlobalConstant(global, 1);
-					LLVMSetUnnamedAddr(global, 1);
+					LLVMSetUnnamedAddress(
+						global,
+						LLVMUnnamedAddr::LLVMGlobalUnnamedAddr,
+					);
 					LLVMSetLinkage(global, LLVMLinkage::LLVMPrivateLinkage);
 					LLVMSetInitializer(global, initializer);
 				}
