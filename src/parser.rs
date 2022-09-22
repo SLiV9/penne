@@ -598,6 +598,11 @@ fn parse_comparison(
 	let op = match token
 	{
 		Token::Equals => ComparisonOp::Equals,
+		Token::DoesNotEqual => ComparisonOp::DoesNotEqual,
+		Token::AngleLeft => ComparisonOp::IsLess,
+		Token::AngleRight => ComparisonOp::IsGreater,
+		Token::IsGE => ComparisonOp::IsGE,
+		Token::IsLE => ComparisonOp::IsLE,
 		token =>
 		{
 			return Err(anyhow!("got {:?}", token))
@@ -627,7 +632,7 @@ fn parse_addition(
 	tokens: &mut VecDeque<LexedToken>,
 ) -> Result<Expression, anyhow::Error>
 {
-	let mut expression = parse_unary_expression(tokens)?;
+	let mut expression = parse_multiplication(tokens)?;
 
 	loop
 	{
@@ -635,6 +640,37 @@ fn parse_addition(
 		{
 			Some(Token::Plus) => BinaryOp::Add,
 			Some(Token::Minus) => BinaryOp::Subtract,
+			_ =>
+			{
+				return Ok(expression);
+			}
+		};
+		let (_, location) = extract(tokens).unwrap();
+
+		let right = parse_multiplication(tokens)?;
+
+		expression = Expression::Binary {
+			op,
+			left: Box::new(expression),
+			right: Box::new(right),
+			location,
+		};
+	}
+}
+
+fn parse_multiplication(
+	tokens: &mut VecDeque<LexedToken>,
+) -> Result<Expression, anyhow::Error>
+{
+	let mut expression = parse_unary_expression(tokens)?;
+
+	loop
+	{
+		let op = match peek(tokens)
+		{
+			Some(Token::Times) => BinaryOp::Multiply,
+			Some(Token::Divide) => BinaryOp::Divide,
+			Some(Token::Modulo) => BinaryOp::Modulo,
 			_ =>
 			{
 				return Ok(expression);
@@ -665,6 +701,30 @@ fn parse_unary_expression(
 			let reference = parse_reference(tokens)?;
 			consume(Token::Pipe, tokens).context("expected pipe")?;
 			let expression = Expression::LengthOfArray { reference };
+			Ok(expression)
+		}
+		Some(Token::Exclamation) =>
+		{
+			let (_, location) = extract(tokens).unwrap();
+			let op = UnaryOp::Complement;
+			let right = parse_primary_expression(tokens)?;
+			let expression = Expression::Unary {
+				op,
+				right: Box::new(right),
+				location,
+			};
+			Ok(expression)
+		}
+		Some(Token::Minus) =>
+		{
+			let (_, location) = extract(tokens).unwrap();
+			let op = UnaryOp::Negative;
+			let right = parse_primary_expression(tokens)?;
+			let expression = Expression::Unary {
+				op,
+				right: Box::new(right),
+				location,
+			};
 			Ok(expression)
 		}
 		_ => parse_primary_expression(tokens),

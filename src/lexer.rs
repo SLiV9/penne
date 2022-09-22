@@ -14,21 +14,33 @@ pub enum Token
 	BraceRight,
 	BracketLeft,
 	BracketRight,
+	AngleLeft,
+	AngleRight,
 	Pipe,
 	Ampersand,
+	Caret,
+	Exclamation,
 	DebugDollar,
 	Plus,
 	Minus,
 	Times,
 	Divide,
+	Modulo,
 	Colon,
 	Semicolon,
 	Comma,
 	Assignment, // =
 
 	// Double-character tokens.
-	Equals, // ==
-	Arrow,  // ->
+	Equals,       // ==
+	DoesNotEqual, // !=
+	IsGE,         // >=
+	IsLE,         // <=
+	LogicalAnd,   // &&
+	LogicalOr,    // ||
+	ShiftLeft,    // <<
+	ShiftRight,   // >>
+	Arrow,        // ->
 
 	// Keywords.
 	Fn,
@@ -160,10 +172,65 @@ fn lex_line(
 			'}' => Ok(Token::BraceRight),
 			'[' => Ok(Token::BracketLeft),
 			']' => Ok(Token::BracketRight),
-			'|' => Ok(Token::Pipe),
-			'&' => Ok(Token::Ampersand),
+			'<' => match iter.peek()
+			{
+				Some((_, '<')) =>
+				{
+					iter.next();
+					Ok(Token::ShiftLeft)
+				}
+				Some((_, '=')) =>
+				{
+					iter.next();
+					Ok(Token::IsLE)
+				}
+				_ => Ok(Token::AngleLeft),
+			},
+			'>' => match iter.peek()
+			{
+				Some((_, '>')) =>
+				{
+					iter.next();
+					Ok(Token::ShiftRight)
+				}
+				Some((_, '=')) =>
+				{
+					iter.next();
+					Ok(Token::IsGE)
+				}
+				_ => Ok(Token::AngleRight),
+			},
+			'|' => match iter.peek()
+			{
+				Some((_, '|')) =>
+				{
+					iter.next();
+					Ok(Token::LogicalOr)
+				}
+				_ => Ok(Token::Pipe),
+			},
+			'&' => match iter.peek()
+			{
+				Some((_, '&')) =>
+				{
+					iter.next();
+					Ok(Token::LogicalAnd)
+				}
+				_ => Ok(Token::Ampersand),
+			},
+			'^' => Ok(Token::Caret),
+			'!' => match iter.peek()
+			{
+				Some((_, '=')) =>
+				{
+					iter.next();
+					Ok(Token::DoesNotEqual)
+				}
+				_ => Ok(Token::Exclamation),
+			},
 			'+' => Ok(Token::Plus),
 			'*' => Ok(Token::Times),
+			'%' => Ok(Token::Modulo),
 			':' => Ok(Token::Colon),
 			';' => Ok(Token::Semicolon),
 			',' => Ok(Token::Comma),

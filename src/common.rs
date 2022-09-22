@@ -144,6 +144,11 @@ pub struct Comparison
 pub enum ComparisonOp
 {
 	Equals,
+	DoesNotEqual,
+	IsGreater,
+	IsGE,
+	IsLess,
+	IsLE,
 }
 
 #[must_use]
@@ -175,6 +180,12 @@ pub enum Expression
 	{
 		op: BinaryOp,
 		left: Box<Expression>,
+		right: Box<Expression>,
+		location: Location,
+	},
+	Unary
+	{
+		op: UnaryOp,
 		right: Box<Expression>,
 		location: Location,
 	},
@@ -230,6 +241,24 @@ pub enum BinaryOp
 {
 	Add,
 	Subtract,
+	Multiply,
+	Divide,
+	Modulo,
+	//LogicalAnd,
+	//LogicalOr,
+	BitwiseAnd,
+	BitwiseOr,
+	BitwiseXor,
+	//ShiftLeft,
+	//ShiftRight,
+}
+
+#[must_use]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnaryOp
+{
+	Negative,
+	Complement,
 }
 
 #[must_use]
