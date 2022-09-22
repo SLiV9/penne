@@ -19,11 +19,12 @@ Functionality:
 		✔	In extern functions, use pointers instead of slice structs @done (2022-09-08 12:09)
 	☐	String literals
 		☐	\u{NN} through \u{NNNNN}
-	☐	Byte string literals
-		☐	\xNN
-	☐	FFI
+	✔	Byte string literals @done (2022-09-22 15:22)
+		✔	\xNN @done (2022-09-22 15:22)
+	✔	FFI @done (2022-09-22 15:22)
 		✔	extern C fn(); @done (2022-09-05 18:38)
 		✔	pub extern C fn() {...} @done (2022-09-05 16:51)
+  ☐	Specify data layout and target triple
 	☐	stdlib
 		☐	print()
 		☐	fopen(), fclose()

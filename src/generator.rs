@@ -1124,12 +1124,18 @@ impl Reference
 		{
 			if self.steps.is_empty()
 			{
-				return Err(anyhow!("is parameter")
-					.context(self.location.format())
-					.context(format!(
-						"cannot take address of parameter '{}'",
-						self.base.name
-					)));
+				// We assume that the parameter is ValueType::Slice.
+				let param = *value;
+				let tmpname = CString::new("")?;
+				let tmp = unsafe {
+					LLVMBuildExtractValue(
+						llvm.builder,
+						param,
+						0u32,
+						tmpname.as_ptr(),
+					)
+				};
+				tmp
 			}
 			else
 			{
