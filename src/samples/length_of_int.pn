@@ -1,0 +1,6 @@
+fn main() -> usize
+{
+	var x: i32 = 3;
+	var y = |x|;
+	return: y
+}

@@ -623,7 +623,7 @@ impl Rebuildable for ValueType
 			}
 			ValueType::ExtArray { element_type } =>
 			{
-				Ok(format!("[]{}", element_type.rebuild(indentation)?))
+				Ok(format!("[EXT]{}", element_type.rebuild(indentation)?))
 			}
 			ValueType::Pointer { deref_type } =>
 			{

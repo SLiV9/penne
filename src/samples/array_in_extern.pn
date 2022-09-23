@@ -1,0 +1,17 @@
+extern fn foo(x: &[]i32)
+{
+	x[1] = 200;
+}
+
+extern fn bar(x: []i32) -> i32
+{
+	return: x[1]
+}
+
+fn main()
+{
+	var x: []i32 = [50, 150];
+	foo(&x);
+	var y = bar(x);
+	return: y
+}

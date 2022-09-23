@@ -129,7 +129,7 @@ impl Typer
 					ReferenceStep::Member { member: _ } => unimplemented!(),
 					ReferenceStep::Autoderef => (),
 					ReferenceStep::Autoview => (),
-					ReferenceStep::Autodeslice => unreachable!(),
+					ReferenceStep::Autodeslice => (),
 				}
 			}
 			for _i in 0..reference.address_depth
@@ -937,20 +937,23 @@ impl Analyzable for Expression
 			} => Ok(self.clone()),
 			Expression::LengthOfArray { reference } =>
 			{
+				let base_type = typer.get_symbol(&reference.base);
 				let array_type = typer.get_type_of_reference(reference)?;
+				println!("?????? {:?}", array_type);
 				match array_type
 				{
-					Some(ValueType::Array { .. }) =>
+					Some(ValueType::Array { .. })
+					| Some(ValueType::Slice { .. }) =>
 					{
-						Ok(Expression::LengthOfArray {
-							reference: reference.clone(),
-						})
-					}
-					Some(ValueType::Slice { .. }) =>
-					{
-						Ok(Expression::LengthOfArray {
-							reference: reference.clone(),
-						})
+						let reference = if base_type == array_type
+						{
+							reference.clone()
+						}
+						else
+						{
+							reference.analyze_length(array_type, typer)?
+						};
+						Ok(Expression::LengthOfArray { reference })
 					}
 					Some(_) =>
 					{
@@ -959,9 +962,7 @@ impl Analyzable for Expression
 							.context("this variable does not have a length");
 						Err(error)
 					}
-					None => Ok(Expression::LengthOfArray {
-						reference: reference.clone(),
-					}),
+					None => Ok(self.clone()),
 				}
 			}
 			Expression::FunctionCall {
@@ -1013,6 +1014,15 @@ impl Analyzable for ReferenceStep
 
 impl Reference
 {
+	fn analyze_length(
+		&self,
+		value_type: Option<ValueType>,
+		typer: &mut Typer,
+	) -> Result<Self, anyhow::Error>
+	{
+		self.analyze_assignment(value_type, typer)
+	}
+
 	fn analyze_assignment(
 		&self,
 		value_type: Option<ValueType>,
@@ -1052,8 +1062,25 @@ impl Reference
 									steps.push(step);
 									current_type = *deref_type;
 								}
+								ValueType::View { deref_type } =>
+								{
+									let step = ReferenceStep::Autoview;
+									println!("######\t\t taking {:?}", step);
+									steps.push(step);
+									current_type = *deref_type;
+								}
 								_ => break,
 							}
+						}
+						match current_type
+						{
+							ValueType::Slice { .. } =>
+							{
+								let autostep = ReferenceStep::Autodeslice;
+								println!("######\t\t taking {:?}", autostep);
+								steps.push(autostep);
+							}
+							_ => (),
 						}
 						match current_type.get_element_type()
 						{
@@ -1075,13 +1102,13 @@ impl Reference
 					},
 					ReferenceStep::Autoview => match current_type
 					{
-						ValueType::Pointer { deref_type } =>
+						ValueType::View { deref_type } =>
 						{
 							current_type = *deref_type;
 						}
 						_ => unreachable!(),
 					},
-					ReferenceStep::Autodeslice => unreachable!(),
+					ReferenceStep::Autodeslice => (),
 				}
 				steps.push(step);
 			}
@@ -1458,7 +1485,7 @@ fn build_type_of_reference(
 	if let Some(base_type) = base_type
 	{
 		let mut full_type = base_type;
-		for step in steps
+		for step in steps.iter().rev()
 		{
 			match step
 			{

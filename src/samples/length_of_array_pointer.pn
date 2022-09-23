@@ -1,0 +1,7 @@
+fn main() -> usize
+{
+	var x: [1]u8 = [0x00];
+	var a: &[1]u8 = &x;
+	var result = 199 + |a|;
+	return: result
+}

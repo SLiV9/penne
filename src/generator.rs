@@ -489,6 +489,26 @@ impl Generatable for Statement
 			} =>
 			{
 				let address = reference.generate_storage_address(llvm)?;
+				let tmpname = CString::new("")?;
+				let value_type = value.value_type().ok_or_else(|| {
+					anyhow!("failed to infer type")
+						.context(reference.location.format())
+						.context(format!(
+							"failed to infer type for '{}'",
+							reference.base.name
+						))
+				})?;
+				let element_type = value_type.generate(llvm)?;
+				let pointertype =
+					unsafe { LLVMPointerType(element_type, 0u32) };
+				let address = unsafe {
+					LLVMBuildPointerCast(
+						llvm.builder,
+						address,
+						pointertype,
+						tmpname.as_ptr(),
+					)
+				};
 				let value = value.generate(llvm)?;
 				unsafe {
 					LLVMBuildStore(llvm.builder, value, address);
@@ -1222,7 +1242,7 @@ impl Reference
 {
 	fn generate_deref(
 		&self,
-		_deref_type: &ValueType,
+		deref_type: &ValueType,
 		llvm: &mut Generator,
 	) -> Result<LLVMValueRef, anyhow::Error>
 	{
@@ -1243,6 +1263,16 @@ impl Reference
 		else
 		{
 			let tmpname = CString::new("")?;
+			let element_type = deref_type.generate(llvm)?;
+			let pointertype = unsafe { LLVMPointerType(element_type, 0u32) };
+			let address = unsafe {
+				LLVMBuildPointerCast(
+					llvm.builder,
+					address,
+					pointertype,
+					tmpname.as_ptr(),
+				)
+			};
 			unsafe { LLVMBuildLoad(llvm.builder, address, tmpname.as_ptr()) }
 		};
 		Ok(result)
@@ -1305,6 +1335,21 @@ impl Reference
 		if self.steps.is_empty()
 		{
 			return Ok(base_addr);
+		}
+
+		for step in &self.steps
+		{
+			match step
+			{
+				ReferenceStep::Element { .. } => (),
+				ReferenceStep::Member { .. } => (),
+				ReferenceStep::Autoderef { .. } => (),
+				ReferenceStep::Autoview { .. } => (),
+				ReferenceStep::Autodeslice =>
+				{
+					is_immediate_parameter = false;
+				}
+			}
 		}
 
 		let mut addr = base_addr;
@@ -1390,12 +1435,12 @@ impl Reference
 	) -> Result<LLVMValueRef, anyhow::Error>
 	{
 		let id = &self.base.resolution_id;
-		let base_addr = if let Some(value) = llvm.local_parameters.get(id)
+		if let Some(value) = llvm.local_parameters.get(id)
 		{
 			let param = *value;
-			// We assume that the parameter is ValueType::Slice.
 			if self.steps.is_empty()
 			{
+				// We assume that the parameter is ValueType::Slice.
 				let tmpname = CString::new("")?;
 				let result = unsafe {
 					LLVMBuildExtractValue(
@@ -1407,39 +1452,11 @@ impl Reference
 				};
 				return Ok(result);
 			}
-			else
-			{
-				let tmpname = CString::new("")?;
-				let tmp = unsafe {
-					LLVMBuildExtractValue(
-						llvm.builder,
-						param,
-						0u32,
-						tmpname.as_ptr(),
-					)
-				};
-				tmp
-			}
 		}
-		else if let Some(loc) = llvm.local_variables.get(id)
-		{
-			*loc
-		}
-		else if let Some(loc) = llvm.global_variables.get(id)
-		{
-			*loc
-		}
-		else
-		{
-			return Err(anyhow!("undefined reference")
-				.context(self.location.format())
-				.context(format!(
-					"undefined reference to '{}'",
-					self.base.name
-				)));
-		};
 
-		let array_type = unsafe { LLVMGetAllocatedType(base_addr) };
+		let address = self.generate_storage_address(llvm)?;
+		let pointer_type = unsafe { LLVMTypeOf(address) };
+		let array_type = unsafe { LLVMGetElementType(pointer_type) };
 		let length: u32 = unsafe { LLVMGetArrayLength(array_type) };
 		let result = llvm.const_usize(length as usize);
 		Ok(result)
@@ -1541,7 +1558,6 @@ fn generate_autocoerce(
 					let address = reference.generate_storage_address(llvm)?;
 					generate_array_slice(address, &element_type, *length, llvm)
 				}
-
 				Some(_) => unimplemented!(),
 				None => Err(anyhow!("failed to infer type")
 					.context(reference.location.format())
@@ -1579,6 +1595,84 @@ fn generate_autocoerce(
 			},
 			_ => unimplemented!(),
 		},
+		ValueType::Pointer { deref_type } => match deref_type.as_ref()
+		{
+			ValueType::ExtArray { element_type } => match expression
+			{
+				Expression::Deref {
+					reference,
+					deref_type: _,
+				} =>
+				{
+					let address = reference.generate_storage_address(llvm)?;
+					generate_ext_array_view(address, &element_type, llvm)
+				}
+				Expression::StringLiteral { .. } =>
+				{
+					let address = expression.generate(llvm)?;
+					generate_ext_array_view(address, &element_type, llvm)
+				}
+				_ => unimplemented!(),
+			},
+			inner_type => match expression
+			{
+				Expression::Deref {
+					reference,
+					deref_type: expr_type,
+				} if reference.address_depth > 0 => match expr_type
+					.as_ref()
+					.and_then(|t| t.get_pointee_type())
+				{
+					Some(pointee_type) =>
+					{
+						let pointee = Expression::Deref {
+							reference: Reference {
+								address_depth: 0,
+								..reference.clone()
+							},
+							deref_type: Some(pointee_type),
+						};
+						let tmpname = CString::new("")?;
+						let vartype = inner_type.generate(llvm)?;
+						let tmp = unsafe {
+							LLVMBuildAlloca(
+								llvm.builder,
+								vartype,
+								tmpname.as_ptr(),
+							)
+						};
+						let value =
+							generate_autocoerce(&pointee, inner_type, llvm)?;
+						unsafe {
+							LLVMBuildStore(llvm.builder, value, tmp);
+						}
+						Ok(tmp)
+					}
+					None => unimplemented!(),
+				},
+				_ => unimplemented!(),
+			},
+		},
 		_ => unimplemented!(),
+	}
+}
+
+#[allow(unused)]
+fn debug_print_value_and_type(name: &str, value: LLVMValueRef)
+{
+	unsafe {
+		println!(
+			"{} = {:?}",
+			name,
+			CStr::from_ptr(LLVMPrintValueToString(value))
+		);
+	}
+	let value_type = unsafe { LLVMTypeOf(value) };
+	unsafe {
+		println!(
+			"type of {} = {:?}",
+			name,
+			CStr::from_ptr(LLVMPrintTypeToString(value_type))
+		);
 	}
 }

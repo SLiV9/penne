@@ -171,6 +171,17 @@ mod tests
 	}
 
 	#[test]
+	fn fail_to_type_length_of_int() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = do_type("src/samples/length_of_int.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
 	fn fail_to_scope_duplicate_label() -> Result<(), anyhow::Error>
 	{
 		let analysis_result = do_scope("src/samples/duplicate_label.pn")?;
@@ -439,6 +450,18 @@ mod tests
 	}
 
 	#[test]
+	fn fail_to_analyze_assign_to_view_parameter() -> Result<(), anyhow::Error>
+	{
+		let analysis_result =
+			analyze("src/samples/assign_to_view_parameter.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
 	fn fail_to_analyze_change_view_address() -> Result<(), anyhow::Error>
 	{
 		let analysis_result = analyze("src/samples/change_view_address.pn")?;
@@ -564,6 +587,14 @@ mod tests
 	}
 
 	#[test]
+	fn execute_array_length() -> Result<(), anyhow::Error>
+	{
+		let result = execute_calculation("src/samples/array_length.pn")?;
+		assert_eq!(result, 200);
+		Ok(())
+	}
+
+	#[test]
 	fn execute_array_by_reference() -> Result<(), anyhow::Error>
 	{
 		let result = execute_calculation("src/samples/array_by_reference.pn")?;
@@ -629,6 +660,46 @@ mod tests
 		Ok(())
 	}
 
+	#[test]
+	fn execute_pointer_to_array() -> Result<(), anyhow::Error>
+	{
+		let result = execute_calculation("src/samples/pointer_to_array.pn")?;
+		assert_eq!(result, 200);
+		Ok(())
+	}
+
+	#[test]
+	fn execute_array_by_pointer() -> Result<(), anyhow::Error>
+	{
+		let result = execute_calculation("src/samples/array_by_pointer.pn")?;
+		assert_eq!(result, 200);
+		Ok(())
+	}
+
+	#[test]
+	fn execute_array_in_extern() -> Result<(), anyhow::Error>
+	{
+		let result = execute_calculation("src/samples/array_in_extern.pn")?;
+		assert_eq!(result, 200);
+		Ok(())
+	}
+
+	#[test]
+	fn execute_pointer_aliasing() -> Result<(), anyhow::Error>
+	{
+		let result = execute_calculation("src/samples/pointer_aliasing.pn")?;
+		assert_eq!(result, 200);
+		Ok(())
+	}
+
+	#[test]
+	fn execute_array_aliasing() -> Result<(), anyhow::Error>
+	{
+		let result = execute_calculation("src/samples/array_aliasing.pn")?;
+		assert_eq!(result, 200);
+		Ok(())
+	}
+
 	fn execute_calculation(filename: &str) -> Result<i32, anyhow::Error>
 	{
 		let source = std::fs::read_to_string(&filename)?;
@@ -638,7 +709,7 @@ mod tests
 		let declarations = typer::analyze(declarations)?;
 		analyzer::analyze(&declarations)?;
 		let ir = generator::generate(&declarations, filename)?;
-		let mut cmd = std::process::Command::new("lli")
+		let mut cmd = std::process::Command::new("lli-10")
 			.stdin(std::process::Stdio::piped())
 			.spawn()?;
 		cmd.stdin.as_mut().unwrap().write_all(ir.as_bytes())?;

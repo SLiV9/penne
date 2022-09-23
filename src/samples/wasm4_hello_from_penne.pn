@@ -16,7 +16,10 @@ pub extern fn update()
 	var draw_colors: &u16 = 0x14;
 	draw_colors = 2;
 
-	//PALETTE[0] = 0xFF00FF;
+	PALETTE[0] = 0x00303b;
+	PALETTE[1] = 0xff7777;
+	PALETTE[2] = 0xffce96;
+	PALETTE[3] = 0xf1f2da;
 
 	//trace("hello world");
 	//DRAW_COLORS = 2;
@@ -34,6 +37,6 @@ pub extern fn update()
 		rect(20, 80, 100, 20);
 	}
 
-	//blit(SMILEY, 76, 76, 8, 8, BLIT_1BPP);
+	blit(SMILEY, 76, 76, 8, 8, BLIT_1BPP);
 	//text("Press X to blink", 16, 90);
 }

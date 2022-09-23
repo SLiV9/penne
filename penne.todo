@@ -14,6 +14,9 @@ Functionality:
 		✔	Allow assigning to pointers @done (2022-09-21 12:11)
 		✔	Disallow mutating view @done (2022-09-21 12:37)
 		☐	Think about (disallowing) cast between pointer and integer
+		☐	array_by_pointer.pn segfaults on execution
+		☐	array_aliasing.pn return undefined value
+		☐	pointer_to_slice.pn segfaults on IR generation
 	✔	Pass array by const-reference (slice) by default @done (2022-09-04 18:06)
 		☐	A [3]i32 parameter is typechecked as [3]i32 but implemented as []i32
 		✔	In extern functions, use pointers instead of slice structs @done (2022-09-08 12:09)
@@ -79,6 +82,8 @@ Usability:
 		☐	Account for (variable) tab width in Location
 		☐	Switch to something more sensible than anyhow for context
 		✔	Better type inference errors for return values @done (2022-09-05 18:39)
+	☐	Check that typing has finished after the second pass
+		Instead of during IR generation. In particular for LengthOfArray.
 	☐	Debug symbols in the resulting IR/executable
 	☐	Add helpful note when trying to jump backwards
 		☐	Similarly, add note when referencing variable declared later

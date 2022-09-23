@@ -1,0 +1,9 @@
+fn main() -> u8
+{
+	var buffer: [3]u8 = [20, 32, 0x00];
+	var x: &[]u8 = &buffer;
+	var alternative: [4]u8 = [0, 0, 0, 0];
+	&x = &alternative;
+	alternative[2] = 200;
+	return: x[2]
+}

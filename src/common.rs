@@ -426,6 +426,7 @@ impl ValueType
 			} => match other
 			{
 				ValueType::Slice { element_type: b } => a == b,
+				ValueType::ExtArray { element_type: b } => a == b,
 				ValueType::View { deref_type } => match deref_type.as_ref()
 				{
 					ValueType::ExtArray { element_type: b } => a == b,
@@ -435,6 +436,7 @@ impl ValueType
 			},
 			ValueType::Slice { element_type: a } => match other
 			{
+				ValueType::ExtArray { element_type: b } => a == b,
 				ValueType::View { deref_type } => match deref_type.as_ref()
 				{
 					ValueType::ExtArray { element_type: b } => a == b,
@@ -484,11 +486,19 @@ impl ValueType
 			{
 				deref_type.as_ref().can_be_used_as(other)
 					|| deref_type.can_autoderef_into(other)
+					|| other.get_viewee_type().map_or(false, |t| {
+						deref_type.as_ref().can_be_used_as(&t)
+							|| deref_type.can_autoderef_into(&t)
+					})
 			}
 			ValueType::Pointer { deref_type } =>
 			{
 				deref_type.as_ref().can_be_used_as(other)
 					|| deref_type.can_autoderef_into(other)
+					|| other.get_pointee_type().map_or(false, |t| {
+						deref_type.as_ref().can_be_used_as(&t)
+							|| deref_type.can_autoderef_into(&t)
+					})
 			}
 			_ => false,
 		}
@@ -522,6 +532,15 @@ impl ValueType
 			{
 				Some(deref_type.as_ref().clone())
 			}
+			_ => None,
+		}
+	}
+
+	pub fn get_viewee_type(&self) -> Option<ValueType>
+	{
+		match self
+		{
+			ValueType::View { deref_type } => Some(deref_type.as_ref().clone()),
 			_ => None,
 		}
 	}
