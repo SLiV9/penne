@@ -372,22 +372,11 @@ pub enum ValueType
 
 impl ValueType
 {
-	pub fn for_array_literal(
-		element_type: ValueType,
-		length: usize,
-	) -> ValueType
+	pub fn for_byte_string() -> ValueType
 	{
-		ValueType::View {
-			deref_type: Box::new(ValueType::Array {
-				element_type: Box::new(element_type),
-				length,
-			}),
+		ValueType::Slice {
+			element_type: Box::new(ValueType::Uint8),
 		}
-	}
-
-	pub fn for_byte_string_literal(byte_length: usize) -> ValueType
-	{
-		ValueType::for_array_literal(ValueType::Uint8, byte_length)
 	}
 
 	pub fn can_be_used_as(&self, other: &ValueType) -> bool
@@ -453,11 +442,6 @@ impl ValueType
 					ValueType::ExtArray { element_type: b } => a == b,
 					_ => false,
 				},
-				_ => false,
-			},
-			ValueType::View { deref_type } => match other
-			{
-				ValueType::Array { .. } => deref_type.as_ref() == other,
 				_ => false,
 			},
 			_ => false,
