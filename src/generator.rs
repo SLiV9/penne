@@ -5,9 +5,6 @@ use crate::typer::Typed;
 
 use std::ffi::{CStr, CString};
 
-// TODO remove
-use std::convert::TryInto;
-
 use llvm_sys::analysis::*;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
