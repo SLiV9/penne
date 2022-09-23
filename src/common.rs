@@ -294,9 +294,12 @@ pub enum ReferenceStep
 	{
 		member: Identifier,
 	},
+	Autodeslice
+	{
+		offset: u8,
+	},
 	Autoderef,
 	Autoview,
-	Autodeslice,
 }
 
 #[must_use]

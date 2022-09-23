@@ -235,13 +235,13 @@ impl Analyzable for Statement
 						{
 							argument.analyze(analyzer)?;
 						}
-						ReferenceStep::Member { member: _ } => unimplemented!(),
+						ReferenceStep::Member { .. } => (),
+						ReferenceStep::Autodeslice { .. } => (),
 						ReferenceStep::Autoderef =>
 						{
 							needs_outer_mutability = false;
 						}
 						ReferenceStep::Autoview => (),
-						ReferenceStep::Autodeslice => (),
 					}
 				}
 
@@ -382,10 +382,10 @@ impl Analyzable for Expression
 						{
 							argument.analyze(analyzer)?;
 						}
-						ReferenceStep::Member { member: _ } => unimplemented!(),
+						ReferenceStep::Member { .. } => (),
+						ReferenceStep::Autodeslice { .. } => (),
 						ReferenceStep::Autoderef => (),
 						ReferenceStep::Autoview => (),
-						ReferenceStep::Autodeslice => (),
 					}
 				}
 				Ok(())
@@ -401,10 +401,10 @@ impl Analyzable for Expression
 						{
 							argument.analyze(analyzer)?;
 						}
-						ReferenceStep::Member { member: _ } => unimplemented!(),
+						ReferenceStep::Member { .. } => (),
+						ReferenceStep::Autodeslice { .. } => (),
 						ReferenceStep::Autoderef => (),
 						ReferenceStep::Autoview => (),
-						ReferenceStep::Autodeslice => (),
 					}
 				}
 				Ok(())

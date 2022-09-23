@@ -663,9 +663,12 @@ impl Rebuildable for Reference
 				{
 					write!(&mut buffer, ".{}", identify(&member))?
 				}
+				ReferenceStep::Autodeslice { offset } =>
+				{
+					write!(&mut buffer, ".{}", offset)?
+				}
 				ReferenceStep::Autoderef => write!(&mut buffer, ".^")?,
 				ReferenceStep::Autoview => write!(&mut buffer, ".^")?,
-				ReferenceStep::Autodeslice => write!(&mut buffer, ".0")?,
 			}
 		}
 		Ok(buffer)

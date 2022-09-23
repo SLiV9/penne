@@ -5,6 +5,9 @@ use crate::typer::Typed;
 
 use std::ffi::{CStr, CString};
 
+// TODO remove
+use std::convert::TryInto;
+
 use llvm_sys::analysis::*;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
@@ -12,6 +15,7 @@ use llvm_sys::*;
 use llvm_sys::{LLVMBuilder, LLVMContext, LLVMModule};
 
 use anyhow::anyhow;
+use anyhow::Context;
 
 pub fn generate(
 	program: &Vec<Declaration>,
@@ -1253,9 +1257,30 @@ impl Reference
 		let id = &self.base.resolution_id;
 		if let Some(param) = llvm.local_parameters.get(id)
 		{
-			if self.steps.is_empty()
+			if self.steps.len() <= 1
 			{
-				return Ok(*param);
+				match self.steps.iter().next()
+				{
+					None =>
+					{
+						return Ok(*param);
+					}
+					Some(ReferenceStep::Autodeslice { offset: 1 }) =>
+					{
+						let tmpname = CString::new("")?;
+						let addr = *param;
+						let value = unsafe {
+							LLVMBuildExtractValue(
+								llvm.builder,
+								addr,
+								1,
+								tmpname.as_ptr(),
+							)
+						};
+						return Ok(value);
+					}
+					Some(_) => (),
+				}
 			}
 		}
 
@@ -1342,10 +1367,13 @@ impl Reference
 					let argument: LLVMValueRef = argument.generate(llvm)?;
 					indices.push(argument)
 				}
-				ReferenceStep::Member { member: _ } =>
+				ReferenceStep::Member { member } =>
 				{
-					// TODO get offset of member in struct
-					let offset = 0;
+					let offset: i32 = member
+						.resolution_id
+						.try_into()
+						.with_context(|| member.location.format())
+						.with_context(|| "failed to resolve struct member")?;
 					indices.push(llvm.const_i32(offset));
 				}
 				ReferenceStep::Autoderef | ReferenceStep::Autoview =>
@@ -1356,11 +1384,21 @@ impl Reference
 						Some(ReferenceStep::Member { .. }) => true,
 						Some(ReferenceStep::Autoderef { .. }) => false,
 						Some(ReferenceStep::Autoview { .. }) => false,
-						Some(ReferenceStep::Autodeslice) =>
+						Some(ReferenceStep::Autodeslice { offset: 0 }) =>
 						{
-							// If we are a parameter slice, we do deref.
+							// If we are a parameter slice, we do deref,
+							// because we need the pointer to the data.
 							is_immediate_parameter = false;
 							false
+						}
+						Some(ReferenceStep::Autodeslice { offset: 1 }) =>
+						{
+							indices.push(llvm.const_i32(0));
+							false
+						}
+						Some(ReferenceStep::Autodeslice { offset: _ }) =>
+						{
+							unreachable!()
 						}
 						None => false,
 					};
@@ -1394,7 +1432,7 @@ impl Reference
 						indices.push(llvm.const_i32(0));
 					}
 				}
-				ReferenceStep::Autodeslice =>
+				ReferenceStep::Autodeslice { offset: 0 } =>
 				{
 					assert!(indices.is_empty());
 
@@ -1403,12 +1441,17 @@ impl Reference
 						LLVMBuildExtractValue(
 							llvm.builder,
 							addr,
-							0u32,
+							0,
 							tmpname.as_ptr(),
 						)
 					};
-					indices.push(llvm.const_i32(0));
+					indices.push(llvm.const_i32(0))
 				}
+				ReferenceStep::Autodeslice { offset: 1 } =>
+				{
+					indices.push(llvm.const_i32(1))
+				}
+				ReferenceStep::Autodeslice { offset: _ } => unreachable!(),
 			}
 		}
 
@@ -1434,26 +1477,6 @@ impl Reference
 		llvm: &mut Generator,
 	) -> Result<LLVMValueRef, anyhow::Error>
 	{
-		let id = &self.base.resolution_id;
-		if let Some(value) = llvm.local_parameters.get(id)
-		{
-			let param = *value;
-			if self.steps.is_empty()
-			{
-				// We assume that the parameter is ValueType::Slice.
-				let tmpname = CString::new("")?;
-				let result = unsafe {
-					LLVMBuildExtractValue(
-						llvm.builder,
-						param,
-						1u32,
-						tmpname.as_ptr(),
-					)
-				};
-				return Ok(result);
-			}
-		}
-
 		let address = self.generate_storage_address(llvm)?;
 		let pointer_type = unsafe { LLVMTypeOf(address) };
 		let array_type = unsafe { LLVMGetElementType(pointer_type) };

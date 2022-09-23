@@ -582,10 +582,10 @@ impl Analyzable for Reference
 					analyzer.is_immediate_function_argument = false;
 					argument.analyze(analyzer)?;
 				}
-				ReferenceStep::Member { member: _ } => (),
+				ReferenceStep::Member { .. } => (),
+				ReferenceStep::Autodeslice { .. } => (),
 				ReferenceStep::Autoderef => (),
 				ReferenceStep::Autoview => (),
-				ReferenceStep::Autodeslice => (),
 			}
 		}
 		Ok(())

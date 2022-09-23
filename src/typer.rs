@@ -126,10 +126,10 @@ impl Typer
 							}
 						}
 					}
-					ReferenceStep::Member { member: _ } => unimplemented!(),
+					ReferenceStep::Member { .. } => (),
+					ReferenceStep::Autodeslice { .. } => (),
 					ReferenceStep::Autoderef => (),
 					ReferenceStep::Autoview => (),
-					ReferenceStep::Autodeslice => (),
 				}
 			}
 			for _i in 0..reference.address_depth
@@ -942,8 +942,7 @@ impl Analyzable for Expression
 				println!("?????? {:?}", array_type);
 				match array_type
 				{
-					Some(ValueType::Array { .. })
-					| Some(ValueType::Slice { .. }) =>
+					Some(ValueType::Array { .. }) =>
 					{
 						let reference = if base_type == array_type
 						{
@@ -954,6 +953,25 @@ impl Analyzable for Expression
 							reference.analyze_length(array_type, typer)?
 						};
 						Ok(Expression::LengthOfArray { reference })
+					}
+					Some(ValueType::Slice { .. }) =>
+					{
+						let mut reference = if base_type == array_type
+						{
+							reference.clone()
+						}
+						else
+						{
+							reference.analyze_length(array_type, typer)?
+						};
+						let autostep = ReferenceStep::Autodeslice { offset: 1 };
+						println!("######\t\t taking {:?}", autostep);
+						reference.steps.push(autostep);
+						let expr = Expression::Deref {
+							reference,
+							deref_type: Some(ValueType::Usize),
+						};
+						Ok(expr)
 					}
 					Some(_) =>
 					{
@@ -1004,10 +1022,10 @@ impl Analyzable for ReferenceStep
 					argument: Box::new(argument),
 				})
 			}
-			ReferenceStep::Member { member: _ } => unimplemented!(),
+			ReferenceStep::Member { member: _ } => Ok(self.clone()),
+			ReferenceStep::Autodeslice { offset: _ } => Ok(self.clone()),
 			ReferenceStep::Autoderef => Ok(ReferenceStep::Autoderef),
 			ReferenceStep::Autoview => Ok(ReferenceStep::Autoview),
-			ReferenceStep::Autodeslice => Ok(ReferenceStep::Autodeslice),
 		}
 	}
 }
@@ -1076,7 +1094,8 @@ impl Reference
 						{
 							ValueType::Slice { .. } =>
 							{
-								let autostep = ReferenceStep::Autodeslice;
+								let autostep =
+									ReferenceStep::Autodeslice { offset: 0 };
 								println!("######\t\t taking {:?}", autostep);
 								steps.push(autostep);
 							}
@@ -1108,7 +1127,12 @@ impl Reference
 						}
 						_ => unreachable!(),
 					},
-					ReferenceStep::Autodeslice => (),
+					ReferenceStep::Autodeslice { offset: 0 } => (),
+					ReferenceStep::Autodeslice { offset: 1 } =>
+					{
+						current_type = ValueType::Usize;
+					}
+					ReferenceStep::Autodeslice { offset: _ } => unreachable!(),
 				}
 				steps.push(step);
 			}
@@ -1389,7 +1413,7 @@ impl Reference
 					Some(ReferenceStep::Element { argument }),
 				) =>
 				{
-					let autostep = ReferenceStep::Autodeslice;
+					let autostep = ReferenceStep::Autodeslice { offset: 0 };
 					println!("######\t\t taking {:?}", autostep);
 					taken_steps.push(autostep);
 
@@ -1508,7 +1532,7 @@ fn build_type_of_reference(
 						deref_type: Box::new(full_type),
 					};
 				}
-				ReferenceStep::Autodeslice => (),
+				ReferenceStep::Autodeslice { offset: _ } => (),
 			}
 		}
 		for _i in 0..address_depth

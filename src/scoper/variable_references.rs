@@ -690,12 +690,17 @@ impl Analyzable for ReferenceStep
 			}
 			ReferenceStep::Member { member } =>
 			{
-				let member = member.clone();
+				// TODO determine offset of member in struct
+				let offset = 0;
+				let member = Identifier {
+					resolution_id: offset,
+					..member.clone()
+				};
 				Ok(ReferenceStep::Member { member })
 			}
+			ReferenceStep::Autodeslice { .. } => Ok(self.clone()),
 			ReferenceStep::Autoderef => Ok(ReferenceStep::Autoderef),
 			ReferenceStep::Autoview => Ok(ReferenceStep::Autoview),
-			ReferenceStep::Autodeslice => Ok(ReferenceStep::Autodeslice),
 		}
 	}
 }
