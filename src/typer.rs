@@ -504,21 +504,53 @@ impl Analyzable for Statement
 				typer.contextual_type = Some(declared_type.clone());
 				let value = value.analyze(typer)?;
 				typer.contextual_type = None;
+				let mut must_coerce = false;
 				let value_type = if let Some(inferred_type) = value.value_type()
 				{
 					typer.put_symbol(name, Some(inferred_type.clone()))?;
-					if inferred_type.can_be_declared_as(declared_type)
+					if &inferred_type == declared_type
 					{
 						Some(inferred_type)
 					}
+					else if inferred_type.can_be_declared_as(declared_type)
+					{
+						Some(inferred_type)
+					}
+					else if inferred_type.can_coerce_into(declared_type)
+					{
+						must_coerce = true;
+						Some(declared_type.clone())
+					}
 					else
 					{
-						Some(declared_type.clone())
+						return Err(anyhow!(
+							"declared {}",
+							name.location.format()
+						)
+						.context(format!(
+							"declared {:?} but initialized with {:?}",
+							declared_type, inferred_type
+						))
+						.context(format!(
+							"conflicting declaration for '{}'",
+							name.name
+						)));
 					}
 				}
 				else
 				{
 					None
+				};
+				let value = if must_coerce
+				{
+					Expression::Autocoerce {
+						expression: Box::new(value),
+						coerced_type: declared_type.clone(),
+					}
+				}
+				else
+				{
+					value
 				};
 				let stmt = Statement::Declaration {
 					name: name.clone(),
@@ -734,10 +766,10 @@ impl Typed for Expression
 				array: Array { elements, .. },
 			} => match element_type
 			{
-				Some(element_type) => Some(ValueType::Array {
-					element_type: Box::new(element_type.clone()),
-					length: elements.len(),
-				}),
+				Some(element_type) => Some(ValueType::for_array_literal(
+					element_type.clone(),
+					elements.len(),
+				)),
 				None => None,
 			},
 			Expression::StringLiteral { value_type, .. } => value_type.clone(),
@@ -849,6 +881,8 @@ impl Analyzable for Expression
 				element_type,
 			} =>
 			{
+				let contextual_type = typer.contextual_type.take();
+
 				let name = array.get_identifier();
 				if element_type.is_some()
 				{
@@ -857,16 +891,36 @@ impl Analyzable for Expression
 				}
 				else
 				{
-					let array_type = typer.contextual_type.take();
+					let array_type = contextual_type.clone();
 					typer.contextual_type =
 						array_type.map(|x| x.get_element_type()).flatten();
 				};
 				let array = array.analyze(typer)?;
 				let element_type = typer.get_symbol(&name);
-				Ok(Expression::ArrayLiteral {
+
+				println!("?????? coercing array for {:?}", contextual_type);
+				let (value_type, coerced_type) = coerce_for_array_literal(
+					contextual_type,
+					element_type.clone(),
+					array.elements.len(),
+				);
+				println!("?????? from {:?}", value_type);
+				println!("?????? into {:?}", coerced_type);
+				let expr = Expression::ArrayLiteral {
 					array,
 					element_type,
-				})
+				};
+				if let Some(coerced_type) = coerced_type
+				{
+					Ok(Expression::Autocoerce {
+						expression: Box::new(expr),
+						coerced_type,
+					})
+				}
+				else
+				{
+					Ok(expr)
+				}
 			}
 			Expression::StringLiteral {
 				value_type: Some(vt),
@@ -903,7 +957,7 @@ impl Analyzable for Expression
 				let contextual_type = typer.contextual_type.take();
 				println!("?????? coercing string for {:?}", contextual_type);
 				let (value_type, coerced_type) =
-					coerce_for_string_literal(contextual_type);
+					coerce_for_string_literal(contextual_type, bytes.len());
 				println!("?????? from {:?}", value_type);
 				println!("?????? into {:?}", coerced_type);
 				let expr = Expression::StringLiteral {
@@ -1577,20 +1631,43 @@ fn filter_for_bit_integer(value_type: Option<ValueType>) -> Option<ValueType>
 	}
 }
 
-fn coerce_for_string_literal(
+fn coerce_for_array_literal(
 	value_type: Option<ValueType>,
+	element_type: Option<ValueType>,
+	length: usize,
 ) -> (Option<ValueType>, Option<ValueType>)
 {
+	let element_type = match element_type
+	{
+		Some(e) => e,
+		None => return (None, None),
+	};
+	let array_type = ValueType::for_array_literal(element_type, length);
+	match value_type
+	{
+		Some(vt) if vt == array_type => (Some(vt.clone()), Some(vt)),
+		Some(vt) if array_type.can_coerce_into(&vt) =>
+		{
+			(Some(array_type), Some(vt))
+		}
+		Some(_) => (Some(array_type), None),
+		None => (None, None),
+	}
+}
+
+fn coerce_for_string_literal(
+	value_type: Option<ValueType>,
+	byte_length: usize,
+) -> (Option<ValueType>, Option<ValueType>)
+{
+	let byte_string_type = ValueType::for_byte_string_literal(byte_length);
 	match value_type
 	{
 		Some(ValueType::String) => (value_type, None),
-		Some(vt) if vt == ValueType::for_byte_string() =>
+		Some(vt) if vt == byte_string_type => (Some(vt.clone()), Some(vt)),
+		Some(vt) if byte_string_type.can_coerce_into(&vt) =>
 		{
-			(Some(vt.clone()), Some(vt))
-		}
-		Some(vt) if ValueType::for_byte_string().can_coerce_into(&vt) =>
-		{
-			(Some(ValueType::for_byte_string()), Some(vt))
+			(Some(byte_string_type), Some(vt))
 		}
 		Some(_) => (Some(ValueType::String), None),
 		None => (None, None),

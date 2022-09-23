@@ -618,7 +618,7 @@ fn lex_line(
 					}
 					else if must_be_bytestring
 					{
-						Some(ValueType::for_byte_string())
+						Some(ValueType::for_byte_string_literal(bytes.len()))
 					}
 					else
 					{

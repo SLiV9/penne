@@ -469,11 +469,30 @@ impl Generatable for Statement
 					LLVMBuildAlloca(llvm.builder, vartype, cname.as_ptr())
 				};
 				llvm.local_variables.insert(name.resolution_id, loc);
-				let value = value.generate(llvm)?;
-				unsafe {
-					LLVMBuildStore(llvm.builder, value, loc);
+				match value
+				{
+					Expression::Autocoerce {
+						expression,
+						coerced_type,
+					} =>
+					{
+						generate_coerced_assignment(
+							loc,
+							expression,
+							coerced_type,
+							llvm,
+						)?;
+						Ok(())
+					}
+					value =>
+					{
+						let value = value.generate(llvm)?;
+						unsafe {
+							LLVMBuildStore(llvm.builder, value, loc);
+						}
+						Ok(())
+					}
 				}
-				Ok(())
 			}
 			Statement::Declaration {
 				name,
@@ -1549,6 +1568,43 @@ fn generate_array_slice(
 		)
 	};
 	Ok(slice)
+}
+
+fn generate_coerced_assignment(
+	target: LLVMValueRef,
+	expression: &Expression,
+	coerced_type: &ValueType,
+	llvm: &mut Generator,
+) -> Result<(), anyhow::Error>
+{
+	match coerced_type
+	{
+		ValueType::Array { .. } => match expression.value_type()
+		{
+			Some(ValueType::View { deref_type })
+				if deref_type.as_ref() == coerced_type =>
+			{
+				let expr = expression.generate(llvm)?;
+				debug_print_value_and_type("target", target);
+				debug_print_value_and_type("expr", expr);
+				unsafe {
+					let bytesize = LLVMSizeOf(coerced_type.generate(llvm)?);
+					debug_print_value_and_type("bytesize", bytesize);
+					LLVMBuildMemCpy(
+						llvm.builder,
+						target,
+						LLVMGetAlignment(target),
+						expr,
+						LLVMGetAlignment(expr),
+						bytesize,
+					);
+				}
+				Ok(())
+			}
+			_ => unimplemented!(),
+		},
+		_ => unimplemented!(),
+	}
 }
 
 fn generate_autocoerce(
