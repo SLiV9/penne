@@ -15,7 +15,6 @@ Functionality:
 		✔	Disallow mutating view @done (2022-09-21 12:37)
 		☐	Think about (disallowing) cast between pointer and integer
 		☐	array_by_pointer.pn segfaults on execution
-		☐	array_aliasing.pn return undefined value
 		☐	pointer_to_slice.pn segfaults on IR generation
 	✔	Pass array by const-reference (slice) by default @done (2022-09-04 18:06)
 		☐	A [3]i32 parameter is typechecked as [3]i32 but implemented as []i32

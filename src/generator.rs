@@ -504,9 +504,7 @@ impl Generatable for Statement
 				location: _,
 			} =>
 			{
-				let address = reference.generate_storage_address(llvm)?;
-				let tmpname = CString::new("")?;
-				let value_type = value.value_type().ok_or_else(|| {
+				let _value_type = value.value_type().ok_or_else(|| {
 					anyhow!("failed to infer type")
 						.context(reference.location.format())
 						.context(format!(
@@ -514,17 +512,7 @@ impl Generatable for Statement
 							reference.base.name
 						))
 				})?;
-				let element_type = value_type.generate(llvm)?;
-				let pointertype =
-					unsafe { LLVMPointerType(element_type, 0u32) };
-				let address = unsafe {
-					LLVMBuildPointerCast(
-						llvm.builder,
-						address,
-						pointertype,
-						tmpname.as_ptr(),
-					)
-				};
+				let address = reference.generate_storage_address(llvm)?;
 				let value = value.generate(llvm)?;
 				unsafe {
 					LLVMBuildStore(llvm.builder, value, address);
@@ -1258,7 +1246,7 @@ impl Reference
 {
 	fn generate_deref(
 		&self,
-		deref_type: &ValueType,
+		_deref_type: &ValueType,
 		llvm: &mut Generator,
 	) -> Result<LLVMValueRef, anyhow::Error>
 	{
@@ -1279,16 +1267,6 @@ impl Reference
 		else
 		{
 			let tmpname = CString::new("")?;
-			let element_type = deref_type.generate(llvm)?;
-			let pointertype = unsafe { LLVMPointerType(element_type, 0u32) };
-			let address = unsafe {
-				LLVMBuildPointerCast(
-					llvm.builder,
-					address,
-					pointertype,
-					tmpname.as_ptr(),
-				)
-			};
 			unsafe { LLVMBuildLoad(llvm.builder, address, tmpname.as_ptr()) }
 		};
 		Ok(result)
@@ -1353,23 +1331,9 @@ impl Reference
 			return Ok(base_addr);
 		}
 
-		for step in &self.steps
-		{
-			match step
-			{
-				ReferenceStep::Element { .. } => (),
-				ReferenceStep::Member { .. } => (),
-				ReferenceStep::Autoderef { .. } => (),
-				ReferenceStep::Autoview { .. } => (),
-				ReferenceStep::Autodeslice =>
-				{
-					is_immediate_parameter = false;
-				}
-			}
-		}
-
+		let mut steps = self.steps.iter().peekable();
 		let mut addr = base_addr;
-		for step in &self.steps
+		while let Some(step) = steps.next()
 		{
 			match step
 			{
@@ -1384,13 +1348,29 @@ impl Reference
 					let offset = 0;
 					indices.push(llvm.const_i32(offset));
 				}
-				ReferenceStep::Autoderef | ReferenceStep::Autoview
-					if is_immediate_parameter =>
-				{
-					is_immediate_parameter = false;
-				}
 				ReferenceStep::Autoderef | ReferenceStep::Autoview =>
 				{
+					let is_followed_by_access = match steps.peek()
+					{
+						Some(ReferenceStep::Element { .. }) => true,
+						Some(ReferenceStep::Member { .. }) => true,
+						Some(ReferenceStep::Autoderef { .. }) => false,
+						Some(ReferenceStep::Autoview { .. }) => false,
+						Some(ReferenceStep::Autodeslice) =>
+						{
+							// If we are a parameter slice, we do deref.
+							is_immediate_parameter = false;
+							false
+						}
+						None => false,
+					};
+					// If we are a parameter, we are not really a pointer,
+					// so we do not need to deref (i.e. load).
+					if is_immediate_parameter
+					{
+						is_immediate_parameter = false;
+						continue;
+					}
 					if !indices.is_empty()
 					{
 						let tmpname = CString::new("")?;
@@ -1409,6 +1389,10 @@ impl Reference
 						LLVMBuildLoad(llvm.builder, addr, tmpname.as_ptr())
 					};
 					indices.clear();
+					if is_followed_by_access
+					{
+						indices.push(llvm.const_i32(0));
+					}
 				}
 				ReferenceStep::Autodeslice =>
 				{
