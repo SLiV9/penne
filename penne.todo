@@ -34,6 +34,8 @@ Functionality:
 	☐	Floats
 	✔	Other integer sizes @done (2022-09-05 14:30)
 		☐	Think about size of usize
+		☐	Different generated integer sizes for WASM and x86
+		☐	Think about natural stack alignment
 		☐	Think about isize
 		☐	Difference between usize and upointer
 	☐	Casting
