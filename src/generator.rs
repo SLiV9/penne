@@ -1386,10 +1386,17 @@ impl Reference
 						Some(ReferenceStep::Autoview { .. }) => false,
 						Some(ReferenceStep::Autodeslice { offset: 0 }) =>
 						{
-							// If we are a parameter slice, we do deref,
-							// because we need the pointer to the data.
-							is_immediate_parameter = false;
-							false
+							if is_immediate_parameter
+							{
+								// If we are a parameter slice, we do deref,
+								// because we need the pointer to the data.
+								is_immediate_parameter = false;
+								false
+							}
+							else
+							{
+								true
+							}
 						}
 						Some(ReferenceStep::Autodeslice { offset: 1 }) =>
 						{
@@ -1434,17 +1441,37 @@ impl Reference
 				}
 				ReferenceStep::Autodeslice { offset: 0 } =>
 				{
-					assert!(indices.is_empty());
-
-					let tmpname = CString::new("")?;
-					addr = unsafe {
-						LLVMBuildExtractValue(
-							llvm.builder,
-							addr,
-							0,
-							tmpname.as_ptr(),
-						)
-					};
+					if indices.is_empty()
+					{
+						let tmpname = CString::new("")?;
+						addr = unsafe {
+							LLVMBuildExtractValue(
+								llvm.builder,
+								addr,
+								0,
+								tmpname.as_ptr(),
+							)
+						};
+					}
+					else
+					{
+						indices.push(llvm.const_i32(0));
+						let tmpname = CString::new("")?;
+						addr = unsafe {
+							LLVMBuildGEP(
+								llvm.builder,
+								addr,
+								indices.as_mut_ptr(),
+								indices.len() as u32,
+								tmpname.as_ptr(),
+							)
+						};
+						let tmpname = CString::new("")?;
+						addr = unsafe {
+							LLVMBuildLoad(llvm.builder, addr, tmpname.as_ptr())
+						};
+						indices.clear();
+					}
 					indices.push(llvm.const_i32(0))
 				}
 				ReferenceStep::Autodeslice { offset: 1 } =>

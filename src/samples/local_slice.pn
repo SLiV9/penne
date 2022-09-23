@@ -1,0 +1,8 @@
+fn main() -> u8
+{
+	var buffer: [3]u8 = [20, 32, 0x00];
+	// Local slice variable is not allowed.
+	var x: []u8 = buffer;
+	x[2] = 200;
+	return: buffer[2]
+}
