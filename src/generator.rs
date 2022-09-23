@@ -17,9 +17,18 @@ use anyhow::Context;
 pub fn generate(
 	program: &Vec<Declaration>,
 	source_filename: &str,
+	for_wasm: bool,
 ) -> Result<String, anyhow::Error>
 {
 	let mut generator = Generator::new(source_filename)?;
+	if for_wasm
+	{
+		generator.for_wasm()?;
+	}
+	else
+	{
+		generator.for_linux_64()?;
+	}
 
 	for declaration in program
 	{
@@ -59,22 +68,6 @@ impl Generator
 				context,
 			);
 			let builder = LLVMCreateBuilderInContext(context);
-			if true
-			{
-				let triple = CString::new("x86_64-pc-linux-gnu")?;
-				LLVMSetTarget(module, triple.as_ptr());
-				let data_layout = "e-m:e-p:64:64-i64:64-n8:16:32:64-S128";
-				let data_layout = CString::new(data_layout)?;
-				LLVMSetDataLayout(module, data_layout.as_ptr());
-			}
-			else
-			{
-				let triple = CString::new("wasm32-unknown-unknown")?;
-				LLVMSetTarget(module, triple.as_ptr());
-				let data_layout = "e-p:32:32-i64:64-n32:64-S64";
-				let data_layout = CString::new(data_layout)?;
-				LLVMSetDataLayout(module, data_layout.as_ptr());
-			}
 			Generator {
 				module,
 				context,
@@ -87,6 +80,30 @@ impl Generator
 			}
 		};
 		Ok(generator)
+	}
+
+	fn for_linux_64(&mut self) -> Result<(), anyhow::Error>
+	{
+		unsafe {
+			let triple = CString::new("x86_64-pc-linux-gnu")?;
+			LLVMSetTarget(self.module, triple.as_ptr());
+			let data_layout = "e-m:e-p:64:64-i64:64-n8:16:32:64-S128";
+			let data_layout = CString::new(data_layout)?;
+			LLVMSetDataLayout(self.module, data_layout.as_ptr());
+			Ok(())
+		}
+	}
+
+	fn for_wasm(&mut self) -> Result<(), anyhow::Error>
+	{
+		unsafe {
+			let triple = CString::new("wasm32-unknown-unknown")?;
+			LLVMSetTarget(self.module, triple.as_ptr());
+			let data_layout = "e-p:32:32-i64:64-n32:64-S64";
+			let data_layout = CString::new(data_layout)?;
+			LLVMSetDataLayout(self.module, data_layout.as_ptr());
+			Ok(())
+		}
 	}
 
 	fn verify(&self)

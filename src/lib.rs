@@ -733,7 +733,7 @@ mod tests
 		let declarations = scoper::analyze(declarations)?;
 		let declarations = typer::analyze(declarations)?;
 		analyzer::analyze(&declarations)?;
-		let ir = generator::generate(&declarations, filename)?;
+		let ir = generator::generate(&declarations, filename, false)?;
 		let mut cmd = std::process::Command::new("lli-10")
 			.stdin(std::process::Stdio::piped())
 			.spawn()?;

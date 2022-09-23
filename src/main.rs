@@ -15,11 +15,25 @@ use std::io::Write;
 
 use anyhow::anyhow;
 use anyhow::Context;
+use clap::Parser;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+
+#[derive(clap::Parser)]
+struct Args
+{
+	#[clap(value_parser)]
+	filepaths: Vec<std::path::PathBuf>,
+
+	/// Target wasm32-unknown-unknown
+	#[clap(short, long)]
+	wasm: bool,
+}
 
 fn main() -> Result<(), anyhow::Error>
 {
-	let result = do_main();
+	let args = Args::parse();
+
+	let result = do_main(args);
 	if result.is_err()
 	{
 		let mut stdout = StandardStream::stdout(ColorChoice::Auto);
@@ -33,21 +47,11 @@ fn main() -> Result<(), anyhow::Error>
 	result
 }
 
-fn do_main() -> Result<(), anyhow::Error>
+fn do_main(args: Args) -> Result<(), anyhow::Error>
 {
+	let Args { filepaths, wasm } = args;
+
 	let mut stdout = StandardStream::stdout(ColorChoice::Auto);
-
-	let filenames: Vec<String> = if std::env::args().len() > 1
-	{
-		std::env::args().skip(1).collect()
-	}
-	else
-	{
-		vec!["src/samples/five.pn".to_string()]
-	};
-
-	let mut modules = HashMap::new();
-
 	let colorspec_header = ColorSpec::new().to_owned();
 	let colorspec_dump = ColorSpec::new().set_dimmed(true).to_owned();
 	let colorspec_error = ColorSpec::new()
@@ -61,10 +65,13 @@ fn do_main() -> Result<(), anyhow::Error>
 	let colorspec_success =
 		ColorSpec::new().set_fg(Some(Color::Green)).to_owned();
 
-	for filename in filenames
+	let mut modules = HashMap::new();
+
+	for filepath in filepaths
 	{
+		let filename = filepath.to_string_lossy().to_string();
 		writeln!(stdout)?;
-		let program = std::fs::read_to_string(&filename)?;
+		let program = std::fs::read_to_string(&filepath)?;
 		stdout.set_color(&colorspec_header)?;
 		writeln!(stdout, "Lexing {}...", filename)?;
 		let tokens = lexer::lex(&program, &filename);
@@ -89,7 +96,7 @@ fn do_main() -> Result<(), anyhow::Error>
 		writeln!(stdout)?;
 		stdout.set_color(&colorspec_header)?;
 		writeln!(stdout, "Preprocessing {}...", filename)?;
-		let declarations = preprocess(declarations, &filename, &modules)?;
+		let declarations = preprocess(declarations, &filepath, &modules)?;
 		stdout.set_color(&colorspec_dump)?;
 		writeln!(stdout, "{:?}", declarations)?;
 		writeln!(stdout)?;
@@ -103,13 +110,13 @@ fn do_main() -> Result<(), anyhow::Error>
 		stdout.set_color(&colorspec_dump)?;
 		writeln!(stdout, "{}", code)?;
 		stdout.set_color(&colorspec_header)?;
-		writeln!(stdout, "Scoping {:?}...", filename)?;
+		writeln!(stdout, "Scoping {}...", filename)?;
 		let declarations = scoper::analyze(declarations)?;
 		stdout.set_color(&colorspec_dump)?;
 		writeln!(stdout, "{:?}", declarations)?;
 		writeln!(stdout)?;
 		stdout.set_color(&colorspec_header)?;
-		writeln!(stdout, "Typing {:?}...", filename)?;
+		writeln!(stdout, "Typing {}...", filename)?;
 		let declarations = typer::analyze(declarations)?;
 		stdout.set_color(&colorspec_dump)?;
 		writeln!(stdout, "{:?}", declarations)?;
@@ -125,13 +132,13 @@ fn do_main() -> Result<(), anyhow::Error>
 		writeln!(stdout, "{}", code)?;
 		writeln!(stdout)?;
 		stdout.set_color(&colorspec_header)?;
-		writeln!(stdout, "Analyzing {:?}...", filename)?;
+		writeln!(stdout, "Analyzing {}...", filename)?;
 		analyzer::analyze(&declarations)?;
 		stdout.set_color(&colorspec_success)?;
 		writeln!(stdout, "Analysis complete.")?;
 		writeln!(stdout)?;
 		stdout.set_color(&colorspec_header)?;
-		writeln!(stdout, "Linting {:?}...", filename)?;
+		writeln!(stdout, "Linting {}...", filename)?;
 		let lints = linter::lint(&declarations);
 		if !lints.is_empty()
 		{
@@ -151,17 +158,22 @@ fn do_main() -> Result<(), anyhow::Error>
 		write!(stdout, "Generating IR for {}...", filename)?;
 		stdout.set_color(&colorspec_error)?;
 		writeln!(stdout)?;
-		let ir = generator::generate(&declarations, &filename)?;
+		let ir = generator::generate(&declarations, &filename, wasm)?;
 		stdout.set_color(&colorspec_dump)?;
 		writeln!(stdout, "{}", ir)?;
-		let outputfilename = format!("bin/{}.ll", filename);
-		let dirname = std::path::Path::new(&outputfilename).parent().unwrap();
+		let outputpath = {
+			let mut path = std::path::Path::new("bin/").to_owned();
+			path.push(filepath.clone());
+			path.push(".ll");
+			path
+		};
+		let dirname = outputpath.parent().unwrap();
 		std::fs::create_dir_all(dirname)?;
 		stdout.set_color(&colorspec_header)?;
-		writeln!(stdout, "Writing to {}...", outputfilename)?;
-		std::fs::write(outputfilename, ir)?;
+		writeln!(stdout, "Writing to {}...", outputpath.to_string_lossy())?;
+		std::fs::write(outputpath, ir)?;
 		// Store the declarations for later use.
-		modules.insert(filename, declarations);
+		modules.insert(filepath, declarations);
 	}
 
 	stdout.reset()?;
@@ -172,12 +184,10 @@ fn do_main() -> Result<(), anyhow::Error>
 
 fn preprocess(
 	mut declarations: Vec<Declaration>,
-	filename: &str,
-	modules: &HashMap<String, Vec<Declaration>>,
+	relative_path: &std::path::Path,
+	modules: &HashMap<std::path::PathBuf, Vec<Declaration>>,
 ) -> Result<Vec<Declaration>, anyhow::Error>
 {
-	let relative_path = std::path::Path::new(filename);
-
 	while let Some(i) = declarations.iter().position(|d| is_directive(d))
 	{
 		let (directive, location) = match declarations.remove(i)
@@ -193,7 +203,7 @@ fn preprocess(
 		while let Some(path) = resolutions.next()
 		{
 			let resolved = path.join(directive.clone());
-			match resolved.to_str().map(|x| modules.get(x)).flatten()
+			match modules.get(&resolved)
 			{
 				Some(result) =>
 				{
