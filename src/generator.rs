@@ -54,6 +54,7 @@ struct Generator
 	local_parameters: std::collections::HashMap<u32, LLVMValueRef>,
 	local_variables: std::collections::HashMap<u32, LLVMValueRef>,
 	local_labeled_blocks: std::collections::HashMap<u32, LLVMBasicBlockRef>,
+	type_of_usize: LLVMTypeRef,
 }
 
 impl Generator
@@ -68,6 +69,7 @@ impl Generator
 				context,
 			);
 			let builder = LLVMCreateBuilderInContext(context);
+			let type_of_usize = LLVMInt64TypeInContext(context);
 			Generator {
 				module,
 				context,
@@ -77,6 +79,7 @@ impl Generator
 				local_parameters: std::collections::HashMap::new(),
 				local_variables: std::collections::HashMap::new(),
 				local_labeled_blocks: std::collections::HashMap::new(),
+				type_of_usize,
 			}
 		};
 		Ok(generator)
@@ -90,6 +93,7 @@ impl Generator
 			let data_layout = "e-m:e-p:64:64-i64:64-n8:16:32:64-S128";
 			let data_layout = CString::new(data_layout)?;
 			LLVMSetDataLayout(self.module, data_layout.as_ptr());
+			self.type_of_usize = LLVMInt64TypeInContext(self.context);
 			Ok(())
 		}
 	}
@@ -97,11 +101,12 @@ impl Generator
 	fn for_wasm(&mut self) -> Result<(), anyhow::Error>
 	{
 		unsafe {
-			let triple = CString::new("wasm32-unknown-unknown")?;
+			let triple = CString::new("wasm32-unknown-wasi")?;
 			LLVMSetTarget(self.module, triple.as_ptr());
 			let data_layout = "e-p:32:32-i64:64-n32:64-S64";
 			let data_layout = CString::new(data_layout)?;
 			LLVMSetDataLayout(self.module, data_layout.as_ptr());
+			self.type_of_usize = LLVMInt32TypeInContext(self.context);
 			Ok(())
 		}
 	}
@@ -157,10 +162,7 @@ impl Generator
 
 	fn const_usize(&mut self, value: usize) -> LLVMValueRef
 	{
-		unsafe {
-			let inttype = LLVMInt64TypeInContext(self.context);
-			LLVMConstInt(inttype, value as u64, 0)
-		}
+		unsafe { LLVMConstInt(self.type_of_usize, value as u64, 0) }
 	}
 }
 
@@ -1162,11 +1164,7 @@ impl Generatable for PrimitiveLiteral
 				];
 				Ok(LLVMConstIntOfArbitraryPrecision(inttype, 2, words.as_ptr()))
 			},
-			PrimitiveLiteral::Usize(value) =>
-			unsafe {
-				let inttype = LLVMInt64TypeInContext(llvm.context);
-				Ok(LLVMConstInt(inttype, *value as u64, 0))
-			},
+			PrimitiveLiteral::Usize(value) => Ok(llvm.const_usize(*value)),
 			PrimitiveLiteral::Bool(value) => Ok(llvm.const_u8(*value as u8)),
 		}
 	}
@@ -1213,8 +1211,7 @@ impl Generatable for ValueType
 			unsafe {
 				LLVMInt128TypeInContext(llvm.context)
 			},
-			ValueType::Usize =>
-			unsafe { LLVMInt64TypeInContext(llvm.context) },
+			ValueType::Usize => llvm.type_of_usize,
 			ValueType::Bool =>
 			unsafe { LLVMInt8TypeInContext(llvm.context) },
 			ValueType::Char =>

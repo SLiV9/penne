@@ -24,7 +24,7 @@ struct Args
 	#[clap(value_parser)]
 	filepaths: Vec<std::path::PathBuf>,
 
-	/// Target wasm32-unknown-unknown
+	/// Set target to 'wasm32-unknown-wasi'
 	#[clap(short, long)]
 	wasm: bool,
 }
@@ -164,7 +164,7 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 		let outputpath = {
 			let mut path = std::path::Path::new("bin/").to_owned();
 			path.push(filepath.clone());
-			path.push(".ll");
+			path.set_extension("pn.ll");
 			path
 		};
 		let dirname = outputpath.parent().unwrap();
