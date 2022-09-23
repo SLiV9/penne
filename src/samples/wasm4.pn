@@ -74,9 +74,9 @@ pub extern fn rect(x: i32, y: i32, width: u32, height: u32);
 /// Draws text using the built-in system font.
 pub fn text(text: []u8, x: i32, y: i32)
 {
-	text8(text, |text|, x, y);
+	textUtf8(text, |text|, x, y);
 }
-extern fn text8(text: []u8, length: usize, x: i32, y: i32);
+extern fn textUtf8(text: []u8, length: usize, x: i32, y: i32);
 
 /// Draws a vertical line
 pub extern fn vline(x: i32, y: i32, len: u32);
