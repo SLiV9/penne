@@ -21,6 +21,7 @@ Functionality:
 		☐	\u{NN} through \u{NNNNN}
 	✔	Byte string literals @done (2022-09-22 15:22)
 		✔	\xNN @done (2022-09-22 15:22)
+		☐	Byte strings don't cast to slice correctly
 	✔	FFI @done (2022-09-22 15:22)
 		✔	extern C fn(); @done (2022-09-05 18:38)
 		✔	pub extern C fn() {...} @done (2022-09-05 16:51)
@@ -36,6 +37,7 @@ Functionality:
 		☐	Think about isize
 		☐	Difference between usize and upointer
 	☐	Casting
+		☐	Currently false != !true
 	☐	Strong enums
 	✔	Function calls @done (2021-01-16 18:03)
 	✔	Function parameters @done (2021-01-16 18:03)
@@ -45,6 +47,7 @@ Functionality:
 	☐	Vec and String
 	✘	Explicit mutable parameters @cancelled (2022-09-03 16:04)
 	☐	Modules
+		☐	pragma once
 		☐	Public vs private
 	☐	Compile-time string and byte-array inclusion from file
 
