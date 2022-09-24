@@ -3,6 +3,10 @@ Features:
 	☐	If-statement-based pattern matching
 	☐	Tagged unions for error handling
 
+Known bugs:
+		☐	Currently false != !true
+		☐	Variable is not mutable
+
 Functionality:
 	✔	Void functions @done (2022-09-20 16:13)
 	✔	Fixed-length stack-based arrays @done (2022-09-03 21:22)
@@ -37,7 +41,6 @@ Functionality:
 		☐	Think about isize
 		☐	Difference between usize and upointer
 	☐	Casting
-		☐	Currently false != !true
 	☐	Strong enums
 	✔	Function calls @done (2021-01-16 18:03)
 	✔	Function parameters @done (2021-01-16 18:03)
