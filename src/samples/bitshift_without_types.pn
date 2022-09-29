@@ -1,6 +1,6 @@
 fn main() -> i32
 {
-	var c = 0;
+	var c: usize = 0;
 	var mask = 1 << 47;
 	mask = mask << 160;
 	{

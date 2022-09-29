@@ -11,9 +11,6 @@ use llvm_sys::prelude::*;
 use llvm_sys::*;
 use llvm_sys::{LLVMBuilder, LLVMContext, LLVMModule};
 
-use anyhow::anyhow;
-use anyhow::Context;
-
 pub fn generate(
 	program: &Vec<Declaration>,
 	source_filename: &str,
@@ -216,12 +213,7 @@ fn declare(
 					.map(|parameter| match &parameter.value_type
 					{
 						Some(vt) => vt.generate(llvm),
-						None => Err(anyhow!("failed to infer type")
-							.context(parameter.name.location.format())
-							.context(format!(
-								"failed to infer type for '{}'",
-								parameter.name.name
-							))),
+						None => unreachable!(),
 					})
 					.collect();
 			let mut param_types: Vec<LLVMTypeRef> = param_types?;
@@ -302,15 +294,7 @@ impl Generatable for Declaration
 				let function = match function
 				{
 					Some(function) => *function,
-					None =>
-					{
-						return Err(anyhow!("failed to find signature")
-							.context(name.location.format())
-							.context(format!(
-								"failed to generate signature of function '{}'",
-								name.name
-							)))
-					}
+					None => unreachable!(),
 				};
 
 				let entry_block_name = CString::new("entry")?;
@@ -351,15 +335,7 @@ impl Generatable for Declaration
 				let function = match function
 				{
 					Some(function) => *function,
-					None =>
-					{
-						return Err(anyhow!("failed to find signature")
-							.context(name.location.format())
-							.context(format!(
-								"failed to generate signature of function '{}'",
-								name.name
-							)))
-					}
+					None => unreachable!(),
 				};
 
 				if flags.contains(DeclarationFlag::External)
@@ -511,27 +487,17 @@ impl Generatable for Statement
 				Ok(())
 			}
 			Statement::Declaration {
-				name,
+				name: _,
 				value: _,
 				value_type: None,
-				location,
-			} => Err(anyhow!("failed to infer type")
-				.context(location.format())
-				.context(format!("failed to infer type for '{}'", name.name))),
+				location: _,
+			} => unreachable!(),
 			Statement::Assignment {
 				reference,
 				value,
 				location: _,
 			} =>
 			{
-				let _value_type = value.value_type().ok_or_else(|| {
-					anyhow!("failed to infer type")
-						.context(reference.location.format())
-						.context(format!(
-							"failed to infer type for '{}'",
-							reference.base.name
-						))
-				})?;
 				let address = reference.generate_storage_address(llvm)?;
 				let value = value.generate(llvm)?;
 				unsafe {
@@ -545,15 +511,7 @@ impl Generatable for Statement
 				let function = match function
 				{
 					Some(function) => *function,
-					None =>
-					{
-						return Err(anyhow!("undefined reference")
-							.context(name.location.format())
-							.context(format!(
-								"undefined reference to method '{}'",
-								name.name
-							)))
-					}
+					None => unreachable!(),
 				};
 
 				let arguments: Result<Vec<LLVMValueRef>, anyhow::Error> =
@@ -575,9 +533,7 @@ impl Generatable for Statement
 				}
 				Ok(())
 			}
-			Statement::Loop { location } => Err(anyhow!("misplaced loop")
-				.context(location.format())
-				.context("misplaced loop")),
+			Statement::Loop { .. } => unreachable!(),
 			Statement::Goto { label, location: _ } =>
 			{
 				let current_block = unsafe { LLVMGetInsertBlock(llvm.builder) };
@@ -915,10 +871,8 @@ impl Generatable for Expression
 			Expression::NakedIntegerLiteral {
 				value: _,
 				value_type: None,
-				location,
-			} => Err(anyhow!("failed to infer type")
-				.context(location.format())
-				.context(format!("failed to infer integer literal type"))),
+				location: _,
+			} => unreachable!(),
 			Expression::BitIntegerLiteral {
 				value,
 				value_type: Some(value_type),
@@ -946,10 +900,8 @@ impl Generatable for Expression
 			Expression::BitIntegerLiteral {
 				value: _,
 				value_type: None,
-				location,
-			} => Err(anyhow!("failed to infer type")
-				.context(location.format())
-				.context(format!("failed to infer integer literal type"))),
+				location: _,
+			} => unreachable!(),
 			Expression::ArrayLiteral {
 				array: Array { elements, .. },
 				element_type: Some(element_type),
@@ -973,12 +925,8 @@ impl Generatable for Expression
 			}
 			Expression::ArrayLiteral {
 				element_type: None,
-				array: Array { location, .. },
-			} => Err(anyhow!("failed to infer type")
-				.context(location.format())
-				.context(format!(
-					"failed to infer array literal element type"
-				))),
+				array: _,
+			} => unreachable!(),
 			Expression::StringLiteral {
 				bytes: _,
 				value_type: Some(ValueType::String),
@@ -1022,23 +970,15 @@ impl Generatable for Expression
 				}
 				Ok(global)
 			}
-			Expression::StringLiteral {
-				bytes: _,
-				value_type: _,
-				location,
-			} => Err(anyhow!("failed to infer type")
-				.context(location.format())
-				.context(format!("failed to infer string literal type"))),
-			Expression::Deref {
-				reference,
-				deref_type: None,
-			} => Err(anyhow!("failed to infer type")
-				.context(reference.location.format())
-				.context(format!("failed to infer type of reference"))),
+			Expression::StringLiteral { value_type: _, .. } => unreachable!(),
 			Expression::Deref {
 				reference,
 				deref_type: Some(deref_type),
 			} => reference.generate_deref(deref_type, llvm),
+			Expression::Deref {
+				reference: _,
+				deref_type: None,
+			} => unreachable!(),
 			Expression::Autocoerce {
 				expression,
 				coerced_type,
@@ -1057,15 +997,7 @@ impl Generatable for Expression
 				let function = match function
 				{
 					Some(function) => *function,
-					None =>
-					{
-						return Err(anyhow!("undefined reference")
-							.context(name.location.format())
-							.context(format!(
-								"undefined reference to function '{}'",
-								name.name
-							)))
-					}
+					None => unreachable!(),
 				};
 
 				let arguments: Result<Vec<LLVMValueRef>, anyhow::Error> =
@@ -1354,12 +1286,7 @@ impl Reference
 		}
 		else
 		{
-			return Err(anyhow!("undefined reference")
-				.context(self.location.format())
-				.context(format!(
-					"undefined reference to '{}'",
-					self.base.name
-				)));
+			unreachable!()
 		};
 
 		if self.steps.is_empty()
@@ -1380,11 +1307,7 @@ impl Reference
 				}
 				ReferenceStep::Member { member } =>
 				{
-					let offset: i32 = member
-						.resolution_id
-						.try_into()
-						.with_context(|| member.location.format())
-						.with_context(|| "failed to resolve struct member")?;
+					let offset: i32 = member.resolution_id.try_into()?;
 					indices.push(llvm.const_i32(offset));
 				}
 				ReferenceStep::Autoderef | ReferenceStep::Autoview =>
@@ -1620,12 +1543,7 @@ fn generate_autocoerce(
 					generate_array_slice(address, &element_type, *length, llvm)
 				}
 				Some(_) => unimplemented!(),
-				None => Err(anyhow!("failed to infer type")
-					.context(reference.location.format())
-					.context(format!(
-						"failed to infer type for '{}'",
-						reference.base.name
-					))),
+				None => unreachable!(),
 			},
 			Expression::StringLiteral { bytes, .. } =>
 			{
@@ -1709,7 +1627,7 @@ fn generate_autocoerce(
 						}
 						Ok(tmp)
 					}
-					None => unimplemented!(),
+					None => unreachable!(),
 				},
 				_ => unimplemented!(),
 			},

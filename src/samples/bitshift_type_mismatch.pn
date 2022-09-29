@@ -1,0 +1,6 @@
+fn main() -> i32
+{
+	var c = 0;
+	var mask = 1i32 << 47u64;
+	return: 200
+}

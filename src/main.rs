@@ -7,6 +7,7 @@ use penne::lexer;
 use penne::linter;
 use penne::parser;
 use penne::rebuilder;
+use penne::resolver;
 use penne::scoper;
 use penne::typer;
 
@@ -156,6 +157,18 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			writeln!(stdout, "Typing {}...", filename)?;
 		}
 		let declarations = typer::analyze(declarations)?;
+		if verbose
+		{
+			stdout.set_color(&colorspec_dump)?;
+			writeln!(stdout, "{:?}", declarations)?;
+			writeln!(stdout)?;
+		}
+		if verbose
+		{
+			stdout.set_color(&colorspec_header)?;
+			writeln!(stdout, "Resolving {}...", filename)?;
+		}
+		let declarations = resolver::analyze(declarations)?;
 		if verbose
 		{
 			stdout.set_color(&colorspec_dump)?;

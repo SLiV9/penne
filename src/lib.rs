@@ -7,6 +7,7 @@ pub mod lexer;
 pub mod linter;
 pub mod parser;
 pub mod rebuilder;
+pub mod resolver;
 pub mod scoper;
 pub mod typer;
 
@@ -103,6 +104,18 @@ mod tests
 		Ok(typer::analyze(declarations))
 	}
 
+	fn resolve(
+		filename: &str,
+	) -> Result<Result<Vec<common::Declaration>, anyhow::Error>, anyhow::Error>
+	{
+		let source = std::fs::read_to_string(filename)?;
+		let tokens = lexer::lex(&source, filename);
+		let declarations = parser::parse(tokens)?;
+		let declarations = scoper::analyze(declarations)?;
+		let declarations = typer::analyze(declarations)?;
+		Ok(resolver::analyze(declarations))
+	}
+
 	#[test]
 	fn allow_differing_local_variable_types() -> Result<(), anyhow::Error>
 	{
@@ -174,6 +187,28 @@ mod tests
 	fn fail_to_type_length_of_int() -> Result<(), anyhow::Error>
 	{
 		let analysis_result = do_type("src/samples/length_of_int.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_resolve_bitshift_without_types() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = resolve("src/samples/bitshift_without_types.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_resolve_bitshift_type_mismatch() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = resolve("src/samples/bitshift_type_mismatch.pn")?;
 		match analysis_result
 		{
 			Ok(_) => Err(anyhow!("broken test")),
@@ -726,10 +761,10 @@ mod tests
 	}
 
 	#[test]
-	fn execute_variable_is_not_mutable_bug() -> Result<(), anyhow::Error>
+	fn execute_bitshift_type_inference() -> Result<(), anyhow::Error>
 	{
 		let result =
-			execute_calculation("src/samples/variable_is_not_mutable_bug.pn")?;
+			execute_calculation("src/samples/bitshift_type_inference.pn")?;
 		assert_eq!(result, 200);
 		Ok(())
 	}
