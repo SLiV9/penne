@@ -1,6 +1,7 @@
 fn main() -> i32
 {
+	var result;
 	goto return;
-	var result = 10;
+	result = 10;
 	return: result
 }

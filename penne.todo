@@ -100,8 +100,6 @@ Development:
 
 Documentation:
 	☐ Move tests from lib.rs to *tests/*
-	☐	Move code samples from *src/samples* to *examples/* and/or *tests/samples/*
-		☐	With separate folders for samples expected to fail
 	☐	Add mode code samples to the README
 
 Theory:

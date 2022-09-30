@@ -6,6 +6,6 @@ fn foo()
 
 fn main() -> i32
 {
-	var x = foo();
+	var x: i32 = foo();
 	return: 400
 }

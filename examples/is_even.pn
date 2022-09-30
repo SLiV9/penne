@@ -1,5 +1,6 @@
-fn is_even(x: i32) -> bool
+fn is_even(value: u8) -> bool
 {
+	var x = value;
 	var is_even = false;
 	{
 		if x == 0
@@ -16,10 +17,12 @@ fn is_even(x: i32) -> bool
 	is_even
 }
 
-fn main()
+fn main() -> i32
 {
-	var x = 33;
-
-	return:
-	is_even(x)
+	var result = -1;
+	if is_even(32) == true
+	{
+		result = 200;
+	}
+	return: result
 }

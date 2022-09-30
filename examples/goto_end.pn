@@ -1,7 +1,7 @@
+
 fn main()
 {
-	var x = 33;
-
+	var x: i32 = 33;
 	var y;
 	{
 		goto end;
@@ -9,6 +9,5 @@ fn main()
 		loop;
 	}
 	y = x;
-
 	end:
 }

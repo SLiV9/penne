@@ -1,10 +1,10 @@
-fn main()
+fn main() -> i32
 {
-	var x = 33;
+	var x = 200;
 
 	goto entry;
 
-	x = 100;
+	x = 23;
 
 	entry:
 

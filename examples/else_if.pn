@@ -1,10 +1,14 @@
-fn main()
+fn main() -> i32
 {
 	var x = 33;
 
 	if x == 0
-		if x == 1
-			goto return;
+	{
+		x = 10;
+		goto return;
+	}
+	else if x == 1
+		goto return;
 	else if x == 2
 	{
 		if x == 5

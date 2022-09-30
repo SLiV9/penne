@@ -1,9 +1,8 @@
 fn main() -> i32
 {
-	if  10 == 10
-	{
-		var x = 13;
-	}
+	var x = y;
+
+	var y = 13;
 
 	return:
 	x
