@@ -1,10 +1,8 @@
 Features:
 	✔	Forward-only goto's @done (2020-10-18 14:46)
+	✔	Pointers with automatic dereference @done (2022-09-20 14:56)
 	☐	If-statement-based pattern matching
 	☐	Tagged unions for error handling
-
-Known bugs:
-		☐	Currently false != !true
 
 Functionality:
 	✔	Void functions @done (2022-09-20 16:13)
@@ -12,10 +10,6 @@ Functionality:
 		✔	Array length operator @done (2022-09-04 11:48)
 	✔	Multidimensional arrays @done (2022-09-19 17:28)
 	✔	Pointers with automatic dereference @done (2022-09-20 14:56)
-		✔	Allow mutations through pointers @done (2022-09-20 17:30)
-			✔	Disallow pointers to const @done (2022-09-20 16:51)
-		✔	Allow assigning to pointers @done (2022-09-21 12:11)
-		✔	Disallow mutating view @done (2022-09-21 12:37)
 		☐	Think about (disallowing) cast between pointer and integer
 	✔	Pass array by const-reference (slice) by default @done (2022-09-04 18:06)
 		☐	A [3]i32 parameter is typechecked as [3]i32 but implemented as []i32
@@ -24,16 +18,12 @@ Functionality:
 		☐	\u{NN} through \u{NNNNN}
 	✔	Byte string literals @done (2022-09-22 15:22)
 		✔	\xNN @done (2022-09-22 15:22)
-		☐	Byte strings don't cast to slice correctly
 	✔	FFI @done (2022-09-22 15:22)
 		✔	extern C fn(); @done (2022-09-05 18:38)
 		✔	pub extern C fn() {...} @done (2022-09-05 16:51)
-  ☐	Specify data layout and target triple
-	☐	stdlib
-		☐	print()
-		☐	fopen(), fclose()
 	☐	Floats
 	✔	Other integer sizes @done (2022-09-05 14:30)
+		☐	int type that is i63 with niche for optional
 		☐	Think about size of usize
 		✔	Different generated integer sizes for WASM and x86 @done (2022-09-23 21:56)
 		☐	Think about natural stack alignment
@@ -41,9 +31,9 @@ Functionality:
 		☐	Difference between usize and upointer
 	☐	Casting
 	☐	Strong enums
+	☐	Optional
 	✔	Function calls @done (2021-01-16 18:03)
 	✔	Function parameters @done (2021-01-16 18:03)
-		✔	Parameter type declarations @done (2021-01-17 15:28)
 	☐	Structs
 	☐	Nested arrays
 	☐	Vec and String
@@ -51,6 +41,9 @@ Functionality:
 	☐	Modules
 		☐	pragma once
 		☐	Public vs private
+	☐	stdlib
+		☐	print()
+		☐	fopen(), fclose()
 	☐	Compile-time string and byte-array inclusion from file
 
 Syntactic sugar:
@@ -104,6 +97,12 @@ Usability:
 Development:
 	☐	Logger instead of print statements
 	☐	Use typestate / different AST types to ensure that the phases are executed in order and to remove some unreachable!()s
+
+Documentation:
+	☐ Move tests from lib.rs to *tests/*
+	☐	Move code samples from *src/samples* to *examples/* and/or *tests/samples/*
+		☐	With separate folders for samples expected to fail
+	☐	Add mode code samples to the README
 
 Theory:
 	☐	Prove Turing completeness

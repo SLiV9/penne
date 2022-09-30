@@ -1,0 +1,5 @@
+fn main() -> usize
+{
+	var x = 0usize;
+	return: !x
+}

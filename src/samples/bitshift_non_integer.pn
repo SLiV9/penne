@@ -1,0 +1,4 @@
+fn main()
+{
+	var x = true << true;
+}

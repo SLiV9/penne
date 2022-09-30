@@ -1,0 +1,13 @@
+fn main() -> u8
+{
+	var result = 0;
+	var a: i32 = 10;
+	var b: i32 = 10;
+	var x: &i32 = &a;
+	var y: &i32 = &b;
+	if &x >= &y
+	{
+		result = 23;
+	}
+	return: result
+}

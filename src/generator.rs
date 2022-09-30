@@ -141,6 +141,14 @@ impl Generator
 		Ok(ircode)
 	}
 
+	fn const_bool(&mut self, value: bool) -> LLVMValueRef
+	{
+		unsafe {
+			let bytetype = LLVMInt1TypeInContext(self.context);
+			LLVMConstInt(bytetype, value as u64, 0)
+		}
+	}
+
 	fn const_u8(&mut self, value: u8) -> LLVMValueRef
 	{
 		unsafe {
@@ -1097,7 +1105,7 @@ impl Generatable for PrimitiveLiteral
 				Ok(LLVMConstIntOfArbitraryPrecision(inttype, 2, words.as_ptr()))
 			},
 			PrimitiveLiteral::Usize(value) => Ok(llvm.const_usize(*value)),
-			PrimitiveLiteral::Bool(value) => Ok(llvm.const_u8(*value as u8)),
+			PrimitiveLiteral::Bool(value) => Ok(llvm.const_bool(*value)),
 		}
 	}
 }
@@ -1145,7 +1153,7 @@ impl Generatable for ValueType
 			},
 			ValueType::Usize => llvm.type_of_usize,
 			ValueType::Bool =>
-			unsafe { LLVMInt8TypeInContext(llvm.context) },
+			unsafe { LLVMInt1TypeInContext(llvm.context) },
 			ValueType::Char =>
 			unsafe { LLVMInt32TypeInContext(llvm.context) },
 			ValueType::String => unimplemented!(),

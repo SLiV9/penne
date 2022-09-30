@@ -1,0 +1,11 @@
+fn main() -> u8
+{
+	var result = -1;
+	var x = true;
+	var y = false;
+	if x == !y
+	{
+		result = 200;
+	}
+	return: result
+}

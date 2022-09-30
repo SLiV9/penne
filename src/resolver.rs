@@ -348,26 +348,17 @@ impl Analyzable for Comparison
 			.right
 			.analyze(analyzer)
 			.with_context(|| self.location.format())?;
-		let lvt = left.value_type();
-		let rvt = right.value_type();
-		if lvt.is_some() && lvt == rvt
-		{
-			Ok(Comparison {
-				op: self.op,
-				left,
-				right,
-				location: self.location.clone(),
-			})
-		}
-		else
-		{
-			Err(anyhow!("failed to infer type")
-				.context(format!("got {:?} and {:?}", lvt, rvt))
-				.context(self.location.format())
-				.context(format!(
-					"failed to infer operand types for comparison operator",
-				)))
-		}
+		analyze_comparison_operand_types(self.op, &left, &right)
+			.with_context(|| self.location.format())
+			.with_context(|| {
+				"failed to infer valid operand types for comparison operator"
+			})?;
+		Ok(Comparison {
+			op: self.op,
+			left,
+			right,
+			location: self.location.clone(),
+		})
 	}
 }
 
@@ -413,26 +404,17 @@ impl Analyzable for Expression
 				let right = right
 					.analyze(analyzer)
 					.with_context(|| location.format())?;
-				let lvt = left.value_type();
-				let rvt = right.value_type();
-				if lvt.is_some() && lvt == rvt
-				{
-					Ok(Expression::Binary {
-						op: *op,
-						left: Box::new(left),
-						right: Box::new(right),
-						location: location.clone(),
-					})
-				}
-				else
-				{
-					Err(anyhow!("failed to infer type")
-						.context(format!("got {:?} and {:?}", lvt, rvt))
-						.context(location.format())
-						.context(format!(
-							"failed to infer operand types for binary operator",
-						)))
-				}
+				analyze_binary_expression_operand_types(*op, &left, &right)
+					.with_context(|| location.format())
+					.with_context(|| {
+						"failed to infer valid operand types for binary operator"
+					})?;
+				Ok(Expression::Binary {
+					op: *op,
+					left: Box::new(left),
+					right: Box::new(right),
+					location: location.clone(),
+				})
 			}
 			Expression::Unary {
 				op,
@@ -443,6 +425,11 @@ impl Analyzable for Expression
 				let expr = expression
 					.analyze(analyzer)
 					.with_context(|| location.format())?;
+				analyze_unary_expression_operand_type(*op, &expr)
+					.with_context(|| location.format())
+					.with_context(|| {
+						"failed to infer valid operand type for unary operator"
+					})?;
 				Ok(Expression::Unary {
 					op: *op,
 					expression: Box::new(expr),
@@ -643,5 +630,189 @@ impl Analyzable for ReferenceStep
 			ReferenceStep::Autoderef => Ok(ReferenceStep::Autoderef),
 			ReferenceStep::Autoview => Ok(ReferenceStep::Autoview),
 		}
+	}
+}
+
+fn analyze_comparison_operand_types(
+	op: ComparisonOp,
+	left: &Expression,
+	right: &Expression,
+) -> Result<(), anyhow::Error>
+{
+	let vt = if let Some(vt) = left.value_type()
+	{
+		vt
+	}
+	else
+	{
+		return Err(anyhow!("failed to infer type"));
+	};
+	match right.value_type()
+	{
+		Some(rvt) if rvt == vt => (),
+		Some(rvt) =>
+		{
+			return Err(anyhow!("type mismatch")
+				.context(format!("got {:?} and {:?}", vt, rvt)))
+		}
+		None => return Err(anyhow!("failed to infer type")),
+	}
+	match op
+	{
+		ComparisonOp::Equals | ComparisonOp::DoesNotEqual => match vt
+		{
+			ValueType::Int8 => Ok(()),
+			ValueType::Int16 => Ok(()),
+			ValueType::Int32 => Ok(()),
+			ValueType::Int64 => Ok(()),
+			ValueType::Int128 => Ok(()),
+			ValueType::Uint8 => Ok(()),
+			ValueType::Uint16 => Ok(()),
+			ValueType::Uint32 => Ok(()),
+			ValueType::Uint64 => Ok(()),
+			ValueType::Uint128 => Ok(()),
+			ValueType::Usize => Ok(()),
+			ValueType::Bool => Ok(()),
+			ValueType::Char => Ok(()),
+			ValueType::Pointer { deref_type: _ } => Ok(()),
+			vt => Err(anyhow!("invalid operand types").context(format!(
+				"expected number, bool, char, pointer, got {:?}",
+				vt
+			))),
+		},
+		ComparisonOp::IsGreater
+		| ComparisonOp::IsLess
+		| ComparisonOp::IsGE
+		| ComparisonOp::IsLE => match vt
+		{
+			ValueType::Int8 => Ok(()),
+			ValueType::Int16 => Ok(()),
+			ValueType::Int32 => Ok(()),
+			ValueType::Int64 => Ok(()),
+			ValueType::Int128 => Ok(()),
+			ValueType::Uint8 => Ok(()),
+			ValueType::Uint16 => Ok(()),
+			ValueType::Uint32 => Ok(()),
+			ValueType::Uint64 => Ok(()),
+			ValueType::Uint128 => Ok(()),
+			ValueType::Usize => Ok(()),
+			ValueType::Bool => Ok(()),
+			ValueType::Char => Ok(()),
+			vt => Err(anyhow!("invalid operand types")
+				.context(format!("expected number, bool, char, got {:?}", vt))),
+		},
+	}
+}
+
+fn analyze_binary_expression_operand_types(
+	op: BinaryOp,
+	left: &Expression,
+	right: &Expression,
+) -> Result<(), anyhow::Error>
+{
+	let vt = if let Some(vt) = left.value_type()
+	{
+		vt
+	}
+	else
+	{
+		return Err(anyhow!("failed to infer type"));
+	};
+	match right.value_type()
+	{
+		Some(rvt) if rvt == vt => (),
+		Some(rvt) =>
+		{
+			return Err(anyhow!("type mismatch")
+				.context(format!("got {:?} and {:?}", vt, rvt)))
+		}
+		None => return Err(anyhow!("failed to infer type")),
+	}
+	match op
+	{
+		BinaryOp::Add
+		| BinaryOp::Subtract
+		| BinaryOp::Multiply
+		| BinaryOp::Divide
+		| BinaryOp::Modulo => match vt
+		{
+			ValueType::Int8 => Ok(()),
+			ValueType::Int16 => Ok(()),
+			ValueType::Int32 => Ok(()),
+			ValueType::Int64 => Ok(()),
+			ValueType::Int128 => Ok(()),
+			ValueType::Uint8 => Ok(()),
+			ValueType::Uint16 => Ok(()),
+			ValueType::Uint32 => Ok(()),
+			ValueType::Uint64 => Ok(()),
+			ValueType::Uint128 => Ok(()),
+			ValueType::Usize => Ok(()),
+			vt => Err(anyhow!("invalid operand types").context(format!(
+				"expected i8, i16, ..., u8, u16, ..., usize, got {:?}",
+				vt
+			))),
+		},
+		BinaryOp::BitwiseAnd | BinaryOp::BitwiseOr | BinaryOp::BitwiseXor =>
+		{
+			match vt
+			{
+				ValueType::Uint8 => Ok(()),
+				ValueType::Uint16 => Ok(()),
+				ValueType::Uint32 => Ok(()),
+				ValueType::Uint64 => Ok(()),
+				ValueType::Uint128 => Ok(()),
+				vt => Err(anyhow!("invalid operand types")
+					.context(format!("expected u8, u16, ..., got {:?}", vt))),
+			}
+		}
+		BinaryOp::ShiftLeft | BinaryOp::ShiftRight => match vt
+		{
+			ValueType::Uint8 => Ok(()),
+			ValueType::Uint16 => Ok(()),
+			ValueType::Uint32 => Ok(()),
+			ValueType::Uint64 => Ok(()),
+			ValueType::Uint128 => Ok(()),
+			vt => Err(anyhow!("invalid operand types")
+				.context(format!("expected u8, u16, ..., got {:?}", vt))),
+		},
+	}
+}
+
+fn analyze_unary_expression_operand_type(
+	op: UnaryOp,
+	operand: &Expression,
+) -> Result<(), anyhow::Error>
+{
+	let vt = if let Some(vt) = operand.value_type()
+	{
+		vt
+	}
+	else
+	{
+		return Err(anyhow!("failed to infer type"));
+	};
+	match op
+	{
+		UnaryOp::Negative => match vt
+		{
+			ValueType::Int8 => Ok(()),
+			ValueType::Int16 => Ok(()),
+			ValueType::Int32 => Ok(()),
+			ValueType::Int64 => Ok(()),
+			ValueType::Int128 => Ok(()),
+			vt => Err(anyhow!("invalid operand type")
+				.context(format!("expected i8, i16, ..., got {:?}", vt))),
+		},
+		UnaryOp::BitwiseComplement => match vt
+		{
+			ValueType::Bool => Ok(()),
+			ValueType::Uint8 => Ok(()),
+			ValueType::Uint16 => Ok(()),
+			ValueType::Uint32 => Ok(()),
+			ValueType::Uint64 => Ok(()),
+			ValueType::Uint128 => Ok(()),
+			vt => Err(anyhow!("invalid operand type")
+				.context(format!("expected bool, u8, u16, ..., got {:?}", vt))),
+		},
 	}
 }

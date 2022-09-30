@@ -217,6 +217,61 @@ mod tests
 	}
 
 	#[test]
+	fn fail_to_resolve_bitshift_non_integer() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = resolve("src/samples/bitshift_non_integer.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_resolve_negative_u32() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = resolve("src/samples/negative_u32.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_resolve_bitwise_not_usize() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = resolve("src/samples/bitwise_not_usize.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_resolve_comparison_on_arrays() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = resolve("src/samples/comparison_on_arrays.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
+	fn fail_to_resolve_comparison_ge_pointer() -> Result<(), anyhow::Error>
+	{
+		let analysis_result = resolve("src/samples/comparison_ge_pointer.pn")?;
+		match analysis_result
+		{
+			Ok(_) => Err(anyhow!("broken test")),
+			Err(_) => Ok(()),
+		}
+	}
+
+	#[test]
 	fn fail_to_scope_duplicate_label() -> Result<(), anyhow::Error>
 	{
 		let analysis_result = do_scope("src/samples/duplicate_label.pn")?;
@@ -765,6 +820,23 @@ mod tests
 	{
 		let result =
 			execute_calculation("src/samples/bitshift_type_inference.pn")?;
+		assert_eq!(result, 200);
+		Ok(())
+	}
+
+	#[test]
+	fn execute_true_is_not_false() -> Result<(), anyhow::Error>
+	{
+		let result = execute_calculation("src/samples/true_is_not_false.pn")?;
+		assert_eq!(result, 200);
+		Ok(())
+	}
+
+	#[test]
+	fn execute_comparison_eq_pointer() -> Result<(), anyhow::Error>
+	{
+		let result =
+			execute_calculation("src/samples/comparison_eq_pointer.pn")?;
 		assert_eq!(result, 200);
 		Ok(())
 	}

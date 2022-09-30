@@ -1,0 +1,5 @@
+fn main() -> u32
+{
+	var x = -23u32;
+	return: x
+}
