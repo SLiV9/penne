@@ -1024,7 +1024,13 @@ mod tests
 		let declarations = typer::analyze(declarations)?;
 		analyzer::analyze(&declarations)?;
 		let ir = generator::generate(&declarations, filename, false)?;
-		let mut cmd = std::process::Command::new("lli-10")
+		let llistr: std::borrow::Cow<str> = match std::env::var("PENNE_LLI")
+		{
+			Ok(value) => value.into(),
+			Err(std::env::VarError::NotPresent) => "lli".into(),
+			Err(e) => return Err(e.into()),
+		};
+		let mut cmd = std::process::Command::new(llistr.as_ref())
 			.stdin(std::process::Stdio::piped())
 			.spawn()?;
 		cmd.stdin.as_mut().unwrap().write_all(ir.as_bytes())?;

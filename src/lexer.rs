@@ -483,6 +483,7 @@ fn lex_line(
 							Some((_, '\\')) => bytes.push(b'\\'),
 							Some((_, '\'')) => bytes.push(b'\''),
 							Some((_, '\"')) => bytes.push(b'\"'),
+							Some((_, '0')) => bytes.push(b'\0'),
 							Some((_, 'x')) =>
 							{
 								must_be_bytestring = true;

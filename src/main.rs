@@ -22,16 +22,16 @@ use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 #[derive(clap::Parser)]
 struct Args
 {
-	#[clap(value_parser)]
+	#[clap(value_parser, required(true))]
 	filepaths: Vec<std::path::PathBuf>,
-
-	/// Set target to 'wasm32-unknown-wasi'
-	#[clap(short, long)]
-	wasm: bool,
 
 	/// Show a lot of intermediate output.
 	#[clap(long)]
 	verbose: bool,
+
+	/// Set target to 'wasm32-unknown-wasi'
+	#[clap(short, long)]
+	wasm: bool,
 }
 
 fn main() -> Result<(), anyhow::Error>

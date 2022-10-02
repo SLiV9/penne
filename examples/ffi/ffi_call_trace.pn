@@ -2,6 +2,6 @@ extern fn trace(text: []u8);
 
 fn main() -> i32
 {
-	trace("Hello world!\x00");
+	trace("Hello world!\0");
 	return: 0
 }
