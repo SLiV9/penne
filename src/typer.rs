@@ -744,6 +744,10 @@ impl Typed for Expression
 			{
 				Some(coerced_type.clone())
 			}
+			Expression::PrimitiveCast { coerced_type, .. } =>
+			{
+				Some(coerced_type.clone())
+			}
 			Expression::LengthOfArray { .. } => Some(ValueType::Usize),
 			Expression::FunctionCall { return_type, .. } => return_type.clone(),
 		}
@@ -930,6 +934,20 @@ impl Analyzable for Expression
 				expression: _,
 				coerced_type: _,
 			} => Ok(self.clone()),
+			Expression::PrimitiveCast {
+				expression,
+				coerced_type,
+				location,
+			} =>
+			{
+				let expr = expression.analyze(typer)?;
+				let expr = Expression::PrimitiveCast {
+					expression: Box::new(expr),
+					coerced_type: coerced_type.clone(),
+					location: location.clone(),
+				};
+				Ok(expr)
+			}
 			Expression::LengthOfArray { reference } =>
 			{
 				let base_type = typer.get_symbol(&reference.base);

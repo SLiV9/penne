@@ -991,6 +991,11 @@ impl Generatable for Expression
 				expression,
 				coerced_type,
 			} => generate_autocoerce(&expression, coerced_type, llvm),
+			Expression::PrimitiveCast {
+				expression,
+				coerced_type,
+				location: _,
+			} => generate_primitive_cast(&expression, coerced_type, llvm),
 			Expression::LengthOfArray { reference } =>
 			{
 				reference.generate_array_len(llvm)
@@ -1641,6 +1646,136 @@ fn generate_autocoerce(
 			},
 		},
 		_ => unimplemented!(),
+	}
+}
+
+fn generate_primitive_cast(
+	expression: &Expression,
+	coerced_type: &ValueType,
+	llvm: &mut Generator,
+) -> Result<LLVMValueRef, anyhow::Error>
+{
+	let value = expression.generate(llvm)?;
+
+	let value_type = match expression.value_type()
+	{
+		Some(vt) => vt,
+		None => unreachable!(),
+	};
+
+	generate_cast(value, value_type, coerced_type.clone(), llvm)
+}
+
+fn generate_cast(
+	value: LLVMValueRef,
+	value_type: ValueType,
+	coerced_type: ValueType,
+	llvm: &mut Generator,
+) -> Result<LLVMValueRef, anyhow::Error>
+{
+	match (&value_type, &coerced_type)
+	{
+		(x, y) if x == y => Ok(value),
+		(ValueType::Usize, _) =>
+		{
+			let interim_type = ValueType::Uint128;
+			let dest_type = interim_type.generate(llvm)?;
+			let tmpname = CString::new("")?;
+			let interim = unsafe {
+				LLVMBuildZExtOrBitCast(
+					llvm.builder,
+					value,
+					dest_type,
+					tmpname.as_ptr(),
+				)
+			};
+			generate_cast(interim, interim_type, coerced_type, llvm)
+		}
+		(_, ValueType::Usize) =>
+		{
+			let interim_type = ValueType::Uint128;
+			let value = generate_cast(value, value_type, interim_type, llvm)?;
+			let dest_type = coerced_type.generate(llvm)?;
+			let tmpname = CString::new("")?;
+			let result = unsafe {
+				LLVMBuildTruncOrBitCast(
+					llvm.builder,
+					value,
+					dest_type,
+					tmpname.as_ptr(),
+				)
+			};
+			Ok(result)
+		}
+		(vt, ct) if vt.is_integral() && ct.is_integral() =>
+		{
+			let dest_type = coerced_type.generate(llvm)?;
+			let tmpname = CString::new("")?;
+			let is_truncated = ct.fixed_bit_length() < vt.fixed_bit_length();
+			let result = if is_truncated
+			{
+				unsafe {
+					LLVMBuildTrunc(
+						llvm.builder,
+						value,
+						dest_type,
+						tmpname.as_ptr(),
+					)
+				}
+			}
+			else if vt.is_signed()
+			{
+				unsafe {
+					LLVMBuildSExtOrBitCast(
+						llvm.builder,
+						value,
+						dest_type,
+						tmpname.as_ptr(),
+					)
+				}
+			}
+			else
+			{
+				unsafe {
+					LLVMBuildSExtOrBitCast(
+						llvm.builder,
+						value,
+						dest_type,
+						tmpname.as_ptr(),
+					)
+				}
+			};
+			Ok(result)
+		}
+		(ValueType::Bool, ct) if ct.is_integral() =>
+		{
+			let dest_type = coerced_type.generate(llvm)?;
+			let tmpname = CString::new("")?;
+			let result = unsafe {
+				LLVMBuildZExtOrBitCast(
+					llvm.builder,
+					value,
+					dest_type,
+					tmpname.as_ptr(),
+				)
+			};
+			Ok(result)
+		}
+		(vt, ValueType::Bool) if vt.is_integral() =>
+		{
+			let dest_type = coerced_type.generate(llvm)?;
+			let tmpname = CString::new("")?;
+			let result = unsafe {
+				LLVMBuildTruncOrBitCast(
+					llvm.builder,
+					value,
+					dest_type,
+					tmpname.as_ptr(),
+				)
+			};
+			Ok(result)
+		}
+		(_, _) => unimplemented!(),
 	}
 }
 

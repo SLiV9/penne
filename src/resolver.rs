@@ -539,6 +539,24 @@ impl Analyzable for Expression
 						.context(format!("failed to infer type in coercion")))
 				}
 			}
+			Expression::PrimitiveCast {
+				expression,
+				coerced_type,
+				location,
+			} =>
+			{
+				let expression = expression.analyze(analyzer)?;
+				analyze_primitive_cast(&expression, coerced_type.clone())
+					.with_context(|| location.format())
+					.with_context(|| {
+						"failed to infer valid expression type for cast"
+					})?;
+				Ok(Expression::PrimitiveCast {
+					expression: Box::new(expression),
+					coerced_type: coerced_type.clone(),
+					location: location.clone(),
+				})
+			}
 			Expression::LengthOfArray { reference } =>
 			{
 				let reference = reference.analyze(analyzer)?;
@@ -814,5 +832,33 @@ fn analyze_unary_expression_operand_type(
 			vt => Err(anyhow!("invalid operand type")
 				.context(format!("expected bool, u8, u16, ..., got {:?}", vt))),
 		},
+	}
+}
+
+fn analyze_primitive_cast(
+	expression: &Expression,
+	coerced_type: ValueType,
+) -> Result<(), anyhow::Error>
+{
+	let vt = if let Some(vt) = expression.value_type()
+	{
+		vt
+	}
+	else
+	{
+		return Err(anyhow!("failed to infer type"));
+	};
+	match (vt, coerced_type)
+	{
+		(x, y) if x == y => Ok(()),
+		(vt, ct) if vt.is_integral() && ct.is_integral() => Ok(()),
+		(ValueType::Bool, ct) if ct.is_integral() => Ok(()),
+		(vt, ValueType::Bool) if vt.is_integral() => Ok(()),
+		(ValueType::Char, ValueType::Uint8) => Ok(()),
+		(ValueType::Char, ValueType::Uint32) => Ok(()),
+		(ValueType::Uint8, ValueType::Char) => Ok(()),
+		(ValueType::Uint32, ValueType::Char) => Ok(()),
+		(vt, _) => Err(anyhow!("invalid expression type")
+			.context(format!("expected primitive, got {:?}", vt))),
 	}
 }

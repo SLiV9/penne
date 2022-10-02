@@ -228,6 +228,12 @@ pub enum Expression
 		expression: Box<Expression>,
 		coerced_type: ValueType,
 	},
+	PrimitiveCast
+	{
+		expression: Box<Expression>,
+		coerced_type: ValueType,
+		location: Location,
+	},
 	LengthOfArray
 	{
 		reference: Reference,
@@ -379,6 +385,63 @@ impl ValueType
 	{
 		ValueType::Slice {
 			element_type: Box::new(ValueType::Uint8),
+		}
+	}
+
+	pub fn is_integral(&self) -> bool
+	{
+		match self
+		{
+			ValueType::Int8 => true,
+			ValueType::Int16 => true,
+			ValueType::Int32 => true,
+			ValueType::Int64 => true,
+			ValueType::Int128 => true,
+			ValueType::Uint8 => true,
+			ValueType::Uint16 => true,
+			ValueType::Uint32 => true,
+			ValueType::Uint64 => true,
+			ValueType::Uint128 => true,
+			ValueType::Usize => true,
+			ValueType::Bool => false,
+			ValueType::Char => false,
+			ValueType::String => false,
+			ValueType::Array { .. } => false,
+			ValueType::Slice { .. } => false,
+			ValueType::ExtArray { .. } => false,
+			ValueType::Pointer { .. } => false,
+			ValueType::View { .. } => false,
+		}
+	}
+
+	pub fn fixed_bit_length(&self) -> usize
+	{
+		match self
+		{
+			ValueType::Int8 => 8,
+			ValueType::Int16 => 16,
+			ValueType::Int32 => 32,
+			ValueType::Int64 => 64,
+			ValueType::Int128 => 128,
+			ValueType::Uint8 => 8,
+			ValueType::Uint16 => 16,
+			ValueType::Uint32 => 32,
+			ValueType::Uint64 => 64,
+			ValueType::Uint128 => 128,
+			_ => 0,
+		}
+	}
+
+	pub fn is_signed(&self) -> bool
+	{
+		match self
+		{
+			ValueType::Int8 => true,
+			ValueType::Int16 => true,
+			ValueType::Int32 => true,
+			ValueType::Int64 => true,
+			ValueType::Int128 => true,
+			_ => false,
 		}
 	}
 

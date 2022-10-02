@@ -48,6 +48,7 @@ pub enum Token
 	Goto,
 	Loop,
 	Else,
+	As,
 	Pub,
 	Extern,
 
@@ -89,7 +90,7 @@ pub enum Error
 	InvalidIntegerLiteral(#[from] std::num::ParseIntError),
 	#[error("large integer literal without type suffix")]
 	InvalidNakedIntegerLiteral,
-	#[error("invalid integer type suffix '\\{sequence:?}'")]
+	#[error("invalid integer type suffix '{sequence:?}'")]
 	InvalidIntegerTypeSuffix
 	{
 		sequence: String
@@ -267,6 +268,7 @@ fn lex_line(
 					"goto" => Token::Goto,
 					"loop" => Token::Loop,
 					"else" => Token::Else,
+					"as" => Token::As,
 					"true" => Token::Bool(true),
 					"false" => Token::Bool(false),
 					"i8" => Token::Type(ValueType::Int8),

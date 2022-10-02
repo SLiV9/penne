@@ -354,6 +354,11 @@ impl Analyzable for Expression
 				expression,
 				coerced_type: _,
 			} => expression.analyze(analyzer),
+			Expression::PrimitiveCast {
+				expression,
+				coerced_type: _,
+				location: _,
+			} => expression.analyze(analyzer),
 			Expression::Deref {
 				reference,
 				deref_type: _,

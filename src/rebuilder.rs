@@ -521,6 +521,15 @@ impl Rebuildable for Expression
 				expression.rebuild(indentation)?,
 				coerced_type.rebuild(indentation)?,
 			)),
+			Expression::PrimitiveCast {
+				expression,
+				coerced_type,
+				location: _,
+			} => Ok(format!(
+				"{} as {}",
+				expression.rebuild(indentation)?,
+				coerced_type.rebuild(indentation)?,
+			)),
 			Expression::LengthOfArray { reference } => Ok(format!(
 				"|{}|",
 				reference.rebuild(&indentation.increased())?

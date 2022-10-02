@@ -23,7 +23,6 @@ Functionality:
 		✔	pub extern C fn() {...} @done (2022-09-05 16:51)
 	☐	Floats
 	✔	Other integer sizes @done (2022-09-05 14:30)
-		☐	int type that is i63 with niche for optional
 		☐	Think about size of usize
 		✔	Different generated integer sizes for WASM and x86 @done (2022-09-23 21:56)
 		☐	Think about natural stack alignment
@@ -32,6 +31,7 @@ Functionality:
 	☐	Casting
 	☐	Strong enums
 	☐	Optional
+		☐	int types with niches
 	✔	Function calls @done (2021-01-16 18:03)
 	✔	Function parameters @done (2021-01-16 18:03)
 	☐	Structs

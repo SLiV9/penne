@@ -620,6 +620,19 @@ impl Analyzable for Expression
 					coerced_type: coerced_type.clone(),
 				})
 			}
+			Expression::PrimitiveCast {
+				expression,
+				coerced_type,
+				location,
+			} =>
+			{
+				let expression = expression.analyze(analyzer)?;
+				Ok(Expression::PrimitiveCast {
+					expression: Box::new(expression),
+					coerced_type: coerced_type.clone(),
+					location: location.clone(),
+				})
+			}
 			Expression::LengthOfArray { reference } =>
 			{
 				let reference = reference.analyze(analyzer)?;

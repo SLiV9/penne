@@ -796,7 +796,7 @@ fn parse_multiplication(
 	tokens: &mut VecDeque<LexedToken>,
 ) -> Result<Expression, anyhow::Error>
 {
-	let mut expression = parse_unary_expression(tokens)?;
+	let mut expression = parse_singular_expression(tokens)?;
 
 	loop
 	{
@@ -812,12 +812,40 @@ fn parse_multiplication(
 		};
 		let (_, location) = extract(tokens).unwrap();
 
-		let right = parse_unary_expression(tokens)?;
+		let right = parse_singular_expression(tokens)?;
 
 		expression = Expression::Binary {
 			op,
 			left: Box::new(expression),
 			right: Box::new(right),
+			location,
+		};
+	}
+}
+
+fn parse_singular_expression(
+	tokens: &mut VecDeque<LexedToken>,
+) -> Result<Expression, anyhow::Error>
+{
+	let mut expression = parse_unary_expression(tokens)?;
+
+	loop
+	{
+		match peek(tokens)
+		{
+			Some(Token::As) => (),
+			_ =>
+			{
+				return Ok(expression);
+			}
+		};
+		let (_, location) = extract(tokens).unwrap();
+
+		let coerced_type = parse_type(tokens)?;
+
+		expression = Expression::PrimitiveCast {
+			expression: Box::new(expression),
+			coerced_type,
 			location,
 		};
 	}
