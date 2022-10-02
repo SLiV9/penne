@@ -8,8 +8,11 @@ use std::ffi::{CStr, CString};
 use llvm_sys::analysis::*;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
+use llvm_sys::target_machine::LLVMGetDefaultTargetTriple;
 use llvm_sys::*;
 use llvm_sys::{LLVMBuilder, LLVMContext, LLVMModule};
+
+pub const DEFAULT_DATA_LAYOUT: &str = "e-m:e-p:64:64-i64:64-n8:16:32:64-S128";
 
 pub fn generate(
 	program: &Vec<Declaration>,
@@ -21,10 +24,6 @@ pub fn generate(
 	if for_wasm
 	{
 		generator.for_wasm()?;
-	}
-	else
-	{
-		generator.for_linux_64()?;
 	}
 
 	for declaration in program
@@ -65,6 +64,9 @@ impl Generator
 				module_name.as_ptr(),
 				context,
 			);
+			LLVMSetTarget(module, LLVMGetDefaultTargetTriple());
+			let data_layout = CString::new(DEFAULT_DATA_LAYOUT)?;
+			LLVMSetDataLayout(module, data_layout.as_ptr());
 			let builder = LLVMCreateBuilderInContext(context);
 			let type_of_usize = LLVMInt64TypeInContext(context);
 			Generator {
@@ -80,19 +82,6 @@ impl Generator
 			}
 		};
 		Ok(generator)
-	}
-
-	fn for_linux_64(&mut self) -> Result<(), anyhow::Error>
-	{
-		unsafe {
-			let triple = CString::new("x86_64-pc-linux-gnu")?;
-			LLVMSetTarget(self.module, triple.as_ptr());
-			let data_layout = "e-m:e-p:64:64-i64:64-n8:16:32:64-S128";
-			let data_layout = CString::new(data_layout)?;
-			LLVMSetDataLayout(self.module, data_layout.as_ptr());
-			self.type_of_usize = LLVMInt64TypeInContext(self.context);
-			Ok(())
-		}
 	}
 
 	fn for_wasm(&mut self) -> Result<(), anyhow::Error>

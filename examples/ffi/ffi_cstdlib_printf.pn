@@ -1,0 +1,7 @@
+extern fn printf(format: []u8, text: []u8);
+
+fn main() -> i32
+{
+	printf("%s\0", "Hello world!\n\0");
+	return: 0
+}

@@ -25,6 +25,18 @@ struct Args
 	#[clap(value_parser, required(true))]
 	filepaths: Vec<std::path::PathBuf>,
 
+	#[clap(long)]
+	backend: Option<std::path::PathBuf>,
+
+	#[clap(short)]
+	output_filepath: Option<std::path::PathBuf>,
+
+	#[clap(long)]
+	out_dir: Option<std::path::PathBuf>,
+
+	#[clap(long)]
+	print_exitcode: bool,
+
 	/// Show a lot of intermediate output.
 	#[clap(long)]
 	verbose: bool,
@@ -56,9 +68,38 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 {
 	let Args {
 		filepaths,
+		backend: arg_backend,
+		output_filepath,
+		out_dir: arg_out_dir,
 		wasm,
 		verbose,
+		print_exitcode,
 	} = args;
+	let config_backend = None;
+	let config_out_dir = None;
+	let backend = get_backend(arg_backend, config_backend)?;
+	let out_dir = arg_out_dir.or(config_out_dir);
+
+	let output_filepath = output_filepath.or_else(|| {
+		filepaths
+			.iter()
+			.last()
+			.and_then(|filepath| filepath.file_name())
+			.and_then(|filename| {
+				let mut path =
+					out_dir.clone().unwrap_or(std::path::PathBuf::new());
+				path.push(filename);
+				if wasm
+				{
+					path.set_extension("wasm");
+				}
+				else
+				{
+					path.set_extension(get_exe_extension());
+				}
+				Some(path)
+			})
+	});
 
 	let mut stdout = StandardStream::stdout(ColorChoice::Auto);
 	let colorspec_header = ColorSpec::new().to_owned();
@@ -75,6 +116,7 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 		ColorSpec::new().set_fg(Some(Color::Green)).to_owned();
 
 	let mut modules = HashMap::new();
+	let mut backend_source = BackendSource::None;
 
 	for filepath in filepaths
 	{
@@ -234,19 +276,83 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			stdout.set_color(&colorspec_dump)?;
 			writeln!(stdout, "{}", ir)?;
 		}
-		let outputpath = {
-			let mut path = std::path::Path::new("bin/").to_owned();
-			path.push(filepath.clone());
-			path.set_extension("pn.ll");
-			path
-		};
-		let dirname = outputpath.parent().unwrap();
-		std::fs::create_dir_all(dirname)?;
-		stdout.set_color(&colorspec_header)?;
-		writeln!(stdout, "Writing to {}...", outputpath.to_string_lossy())?;
-		std::fs::write(outputpath, ir)?;
+		if let Some(out_dir) = &out_dir
+		{
+			let outputpath = {
+				let mut path = out_dir.clone();
+				path.push(filepath.clone());
+				path.set_extension("pn.ll");
+				path
+			};
+			let dirname = outputpath.parent().context("invalid output dir")?;
+			std::fs::create_dir_all(dirname)?;
+			backend_source = BackendSource::File(outputpath.clone());
+			stdout.set_color(&colorspec_header)?;
+			writeln!(stdout, "Writing to {}...", outputpath.to_string_lossy())?;
+			std::fs::write(outputpath, ir)?;
+		}
+		else
+		{
+			backend_source = BackendSource::Stdin(ir);
+		}
 		// Store the declarations for later use.
 		modules.insert(filepath, declarations);
+	}
+
+	if let Some(output_filepath) = output_filepath
+	{
+		if verbose
+		{
+			stdout.set_color(&colorspec_header)?;
+			write!(stdout, "Compiling...")?;
+		}
+		stdout.set_color(&colorspec_error)?;
+		writeln!(stdout)?;
+
+		let mut cmd = std::process::Command::new(&backend);
+		match &backend_source
+		{
+			BackendSource::File(filepath) =>
+			{
+				cmd.arg(filepath);
+			}
+			BackendSource::Stdin(_) =>
+			{
+				cmd.arg("-x");
+				cmd.arg("ir");
+				cmd.arg("-");
+				cmd.stdin(std::process::Stdio::piped());
+			}
+			BackendSource::None => (),
+		}
+		cmd.arg("-o");
+		cmd.arg(output_filepath);
+		let mut cmd = cmd.spawn()?;
+		match backend_source
+		{
+			BackendSource::Stdin(full_ir) =>
+			{
+				cmd.stdin
+					.as_mut()
+					.context("failed to pipe")?
+					.write_all(full_ir.as_bytes())?;
+			}
+			_ => (),
+		}
+		let status = cmd.wait()?;
+		if print_exitcode
+		{
+			let exitcode = status.code().context("no exitcode")?;
+			stdout.reset()?;
+			writeln!(stdout, "Output: {}", exitcode)?;
+		}
+		else
+		{
+			status
+				.success()
+				.then(|| Some(()))
+				.context("compilation unsuccessful")?;
+		}
 	}
 
 	stdout.reset()?;
@@ -304,5 +410,45 @@ fn is_directive(declaration: &Declaration) -> bool
 	{
 		Declaration::PreprocessorDirective { .. } => true,
 		_ => false,
+	}
+}
+
+fn get_backend(
+	arg_backend: Option<std::path::PathBuf>,
+	config_backend: Option<std::path::PathBuf>,
+) -> Result<String, anyhow::Error>
+{
+	arg_backend
+		.map(|x| x.to_str().map(|x| x.to_string()).context("invalid backend"))
+		.or_else(|| match std::env::var("PENNEC_BACKEND")
+		{
+			Ok(value) => Some(Ok(value.into())),
+			Err(std::env::VarError::NotPresent) => None,
+			Err(e) => return Some(Err(e.into())),
+		})
+		.or(config_backend.map(|x| {
+			x.to_str()
+				.map(|x| x.to_string())
+				.context("invalid backend in config")
+		}))
+		.unwrap_or_else(|| Ok("clang".to_string()))
+}
+
+enum BackendSource
+{
+	File(std::path::PathBuf),
+	Stdin(String),
+	None,
+}
+
+fn get_exe_extension() -> &'static str
+{
+	if cfg!(windows)
+	{
+		"exe"
+	}
+	else
+	{
+		std::env::consts::ARCH
 	}
 }
