@@ -118,3 +118,79 @@ fn foo() -> i32
 ```
 
 Here the line `x = x + 1` is executed forever and the end of the function is never reached.
+
+## Slices
+
+Function arguments other than pointers (see below) and primitives are passed by slice. For arrays this means an array slice is created and passed into the function. Array slices remember the length of their array, which can be accessed with the length operation `|x|`.
+
+```
+fn foo()
+{
+	var data: [4]i32 = [1, 2, 3, 4];
+	var total = sum(data);
+}
+
+fn sum(x: []i32) -> i32
+{
+	var total = 0;
+	var i = 0;
+	{
+		if i == |x|
+			goto return;
+		total = total + x[i];
+		i = i + 1;
+		loop;
+	}
+	return: total
+}
+```
+
+
+## Reference pointers
+
+Slices allow you to pass a large value by reference, but they only give immutable access. For mutable access, a pointer is needed. They can be created by taking the address of a value. Unlike in most other languages, reference pointers in Penne automatically dereference to their base type, which is any type that isn't a reference pointer.
+
+```
+	var x: i32 = 17;
+	var a: &i32 = &x;
+	var y: i32 = a;
+	a = 30;
+	// Now x == 30 and y == 17.
+```
+
+To change which value a reference pointer points to, you need to explicitly modify the address.
+
+```
+	var x: i32 = 17;
+	var y: i32 = 30;
+	var z: i32 = 88;
+	var a: &i32 = &x;
+	&a = &y;
+	// Now a points to y instead of x.
+	var b: &i32 = &z;
+	&a = &b;
+	// Now a and b both point to z.
+```
+
+Reference pointers allow a function to modify its arguments, but require the caller to explicitly pass in an address.
+
+```
+fn foo()
+{
+	var data: [4]i32 = [1, 2, 3, 4];
+	set_to_zero(&data);
+}
+
+fn set_to_zero(x: &[]i32)
+{
+	var i = 0;
+	{
+		if i == |x|
+			goto end;
+		x[i] = 0;
+		i = i + 1;
+		loop;
+	}
+	end:
+}
+```
