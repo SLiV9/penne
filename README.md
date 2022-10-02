@@ -81,7 +81,24 @@ int determine_collatz_number(int x)
 }
 ```
 
-## `goto` and `loop`
+## Usage
+
+The compiler uses LLVM as its backend. It requires LLVM version 6.0 or newer to be installed.
+
+```shell
+# Compile a source file:
+pennec examples/addition.pn
+
+# Or run it directly:
+pennec --backend=lli --print-exitcode examples.addition.pn
+# Output: 10
+```
+
+## Language features
+
+A brief overview of the more unique language features of Penne:
+
+### `goto` and `loop`
 
 In Penne, `goto` is a local forward-only jump. This is achieved by giving labels a reverse scope: similar to how variables cannot be referenced before they are declared, labels cannot be jumped to _after_ they are declared.
 
@@ -119,7 +136,7 @@ fn foo() -> i32
 
 Here the line `x = x + 1` is executed forever and the end of the function is never reached.
 
-## Slices
+### Slices
 
 Function arguments other than pointers (see below) and primitives are passed by slice. For arrays this means an array slice is created and passed into the function. Array slices remember the length of their array, which can be accessed with the length operation `|x|`.
 
@@ -145,8 +162,7 @@ fn sum(x: []i32) -> i32
 }
 ```
 
-
-## Reference pointers
+### Reference pointers
 
 Slices allow you to pass a large value by reference, but they only give immutable access. For mutable access, a pointer is needed. They can be created by taking the address of a value. Unlike in most other languages, reference pointers in Penne automatically dereference to their base type, which is any type that isn't a reference pointer.
 
@@ -194,3 +210,11 @@ fn set_to_zero(x: &[]i32)
 	end:
 }
 ```
+
+## License
+
+This library was created by Sander in 't Veld.
+It is made available to you under the MIT License,
+as specified in `LICENSE.txt`.
+
+The software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the software or the use or other dealings in the software.

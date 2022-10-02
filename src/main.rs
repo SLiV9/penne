@@ -20,25 +20,30 @@ use clap::Parser;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 #[derive(clap::Parser)]
+#[command(version)]
 struct Args
 {
 	#[clap(value_parser, required(true))]
 	filepaths: Vec<std::path::PathBuf>,
 
-	#[clap(long)]
+	/// Which LLVM executable to pipe the generated IR into (default: 'clang')
+	#[clap(short, long)]
 	backend: Option<std::path::PathBuf>,
 
+	/// Write binary output to this file
 	#[clap(short)]
 	output_filepath: Option<std::path::PathBuf>,
 
+	/// Write binary output and generated IR to this directory
 	#[clap(long)]
 	out_dir: Option<std::path::PathBuf>,
 
+	/// Show the exitcode of the backend (useful when backend is 'lli')
 	#[clap(long)]
 	print_exitcode: bool,
 
-	/// Show a lot of intermediate output.
-	#[clap(long)]
+	/// Show a lot of intermediate output
+	#[clap(short, long)]
 	verbose: bool,
 
 	/// Set target to 'wasm32-unknown-wasi'
