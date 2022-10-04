@@ -23,6 +23,9 @@ use anyhow::Context;
 use clap::Parser;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
+#[cfg(feature = "logging")]
+use env_logger;
+
 #[derive(clap::Parser)]
 #[command(version)]
 struct Args
@@ -75,6 +78,9 @@ fn main() -> Result<(), anyhow::Error>
 
 fn do_main(args: Args) -> Result<(), anyhow::Error>
 {
+	#[cfg(feature = "logging")]
+	env_logger::init();
+
 	let Args {
 		filepaths,
 		backend: arg_backend,

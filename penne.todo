@@ -95,7 +95,6 @@ Usability:
 	☐	Allow goto to skip var declaration if short-lived (skip_shortlived_var.pn)
 
 Development:
-	☐	Logger instead of print statements
 	☐	Use typestate / different AST types to ensure that the phases are executed in order and to remove some unreachable!()s
 
 Documentation:
