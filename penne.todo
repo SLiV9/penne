@@ -99,7 +99,7 @@ Development:
 	☐	Use typestate / different AST types to ensure that the phases are executed in order and to remove some unreachable!()s
 
 Documentation:
-	☐ Move tests from lib.rs to *tests/*
+	✔ Move tests from lib.rs to *tests/* @done (2022-10-04 16:44)
 
 Theory:
 	☐	Prove Turing completeness

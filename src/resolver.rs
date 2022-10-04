@@ -447,12 +447,25 @@ impl Analyzable for Expression
 				location: _,
 			} => Ok(self.clone()),
 			Expression::NakedIntegerLiteral {
-				value: _,
+				value,
 				value_type: None,
 				location,
-			} => Err(anyhow!("failed to infer type")
-				.context(location.format())
-				.context(format!("failed to infer integer literal type"))),
+			} => match i32::try_from(*value)
+			{
+				// Naked integer literals that can fit in an int should not
+				// cause type resolution errors; if they are assigned to a
+				// variable that that variable will error, if they are unused
+				// (e.g. excess function argument) then that is more relevant.
+				// Disallow i32::MIN because ValueType::Int is symmetric.
+				Ok(i32::MIN) | Err(_) => Err(anyhow!("failed to infer type")
+					.context(location.format())
+					.context(format!("failed to infer integer literal type"))),
+				Ok(_) => Ok(Expression::NakedIntegerLiteral {
+					value: *value,
+					value_type: Some(ValueType::Int32),
+					location: location.clone(),
+				}),
+			},
 			Expression::BitIntegerLiteral {
 				value: _,
 				value_type: Some(_),

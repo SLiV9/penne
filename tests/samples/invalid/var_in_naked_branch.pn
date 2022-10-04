@@ -1,6 +1,6 @@
 fn main() -> i32
 {
-	var x = 33;
+	var x: i32 = 33;
 	if x == 100
 		var result = 500;
 	return: result

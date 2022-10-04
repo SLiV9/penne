@@ -1,5 +1,6 @@
-fn main() -> i32
+fn main() -> u8
 {
 	var x = 1 << 8;
-	return: x - 56
+	var result: u16 = x - 56;
+	return: result as u8
 }
