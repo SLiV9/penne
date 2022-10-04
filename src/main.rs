@@ -6,6 +6,7 @@
 
 use penne::analyzer;
 use penne::common::Declaration;
+use penne::common::DeclarationFlag;
 use penne::generator;
 use penne::lexer;
 use penne::linter;
@@ -220,18 +221,6 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 		if verbose
 		{
 			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Resolving {}...", filename)?;
-		}
-		let declarations = resolver::analyze(declarations)?;
-		if verbose
-		{
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{:?}", declarations)?;
-			writeln!(stdout)?;
-		}
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
 			writeln!(stdout, "Rebuilding {}...", filename)?;
 			let indentation = rebuilder::Indentation {
 				value: "\u{00a6}   ",
@@ -254,6 +243,10 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			writeln!(stdout, "Analysis complete.")?;
 			writeln!(stdout)?;
 		}
+		let forward_declarations = declarations
+			.iter()
+			.flat_map(|x| create_forward_declaration(x))
+			.collect();
 		if verbose
 		{
 			stdout.set_color(&colorspec_header)?;
@@ -273,6 +266,18 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 		{
 			stdout.set_color(&colorspec_success)?;
 			writeln!(stdout, "Linting complete.")?;
+			writeln!(stdout)?;
+		}
+		if verbose
+		{
+			stdout.set_color(&colorspec_header)?;
+			writeln!(stdout, "Resolving {}...", filename)?;
+		}
+		let declarations = resolver::resolve(declarations)?;
+		if verbose
+		{
+			stdout.set_color(&colorspec_dump)?;
+			writeln!(stdout, "{:?}", declarations)?;
 			writeln!(stdout)?;
 		}
 		if verbose
@@ -308,7 +313,7 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			backend_source = BackendSource::Stdin(ir);
 		}
 		// Store the declarations for later use.
-		modules.insert(filepath, declarations);
+		modules.insert(filepath, forward_declarations);
 	}
 
 	if let Some(output_filepath) = output_filepath
@@ -422,6 +427,64 @@ fn is_directive(declaration: &Declaration) -> bool
 	{
 		Declaration::PreprocessorDirective { .. } => true,
 		_ => false,
+	}
+}
+
+fn create_forward_declaration(declaration: &Declaration)
+	-> Option<Declaration>
+{
+	match declaration
+	{
+		Declaration::Constant {
+			name,
+			value,
+			value_type,
+			flags,
+		} =>
+		{
+			if flags.contains(DeclarationFlag::Public)
+			{
+				Some(Declaration::Constant {
+					name: name.clone(),
+					value: value.clone(),
+					value_type: value_type.clone(),
+					flags: *flags,
+				})
+			}
+			else
+			{
+				None
+			}
+		}
+		Declaration::Function {
+			name,
+			parameters,
+			body: _,
+			return_type,
+			flags,
+		}
+		| Declaration::FunctionHead {
+			name,
+			parameters,
+			return_type,
+			flags,
+		} =>
+		{
+			if flags.contains(DeclarationFlag::Public)
+			{
+				Some(Declaration::FunctionHead {
+					name: name.clone(),
+					parameters: parameters.clone(),
+					return_type: return_type.clone(),
+					flags: *flags,
+				})
+			}
+			else
+			{
+				None
+			}
+		}
+		Declaration::PreprocessorDirective { .. } => unreachable!(),
 	}
 }
 

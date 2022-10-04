@@ -4,8 +4,7 @@
 // License: MIT
 //
 
-use crate::common::*;
-use crate::typer::Typed;
+use crate::resolved::*;
 
 use std::ffi::{CStr, CString};
 
@@ -211,11 +210,7 @@ fn declare(
 			let param_types: Result<Vec<LLVMTypeRef>, anyhow::Error> =
 				parameters
 					.iter()
-					.map(|parameter| match &parameter.value_type
-					{
-						Some(vt) => vt.generate(llvm),
-						None => unreachable!(),
-					})
+					.map(|parameter| parameter.value_type.generate(llvm))
 					.collect();
 			let mut param_types: Vec<LLVMTypeRef> = param_types?;
 
@@ -238,7 +233,6 @@ fn declare(
 
 			Ok(())
 		}
-		Declaration::PreprocessorDirective { .. } => unreachable!(),
 	}
 }
 
@@ -350,7 +344,6 @@ impl Generatable for Declaration
 				}
 				Ok(())
 			}
-			Declaration::PreprocessorDirective { .. } => unreachable!(),
 		}
 	}
 }
@@ -456,12 +449,11 @@ impl Generatable for Statement
 			Statement::Declaration {
 				name,
 				value: Some(value),
-				value_type: Some(vt),
-				location: _,
+				value_type,
 			} =>
 			{
 				let cname = CString::new(&name.name as &str)?;
-				let vartype = vt.generate(llvm)?;
+				let vartype = value_type.generate(llvm)?;
 				let loc = unsafe {
 					LLVMBuildAlloca(llvm.builder, vartype, cname.as_ptr())
 				};
@@ -475,29 +467,18 @@ impl Generatable for Statement
 			Statement::Declaration {
 				name,
 				value: None,
-				value_type: Some(vt),
-				location: _,
+				value_type,
 			} =>
 			{
 				let cname = CString::new(&name.name as &str)?;
-				let vartype = vt.generate(llvm)?;
+				let vartype = value_type.generate(llvm)?;
 				let loc = unsafe {
 					LLVMBuildAlloca(llvm.builder, vartype, cname.as_ptr())
 				};
 				llvm.local_variables.insert(name.resolution_id, loc);
 				Ok(())
 			}
-			Statement::Declaration {
-				name: _,
-				value: _,
-				value_type: None,
-				location: _,
-			} => unreachable!(),
-			Statement::Assignment {
-				reference,
-				value,
-				location: _,
-			} =>
+			Statement::Assignment { reference, value } =>
 			{
 				let address = reference.generate_storage_address(llvm)?;
 				let value = value.generate(llvm)?;
@@ -535,7 +516,7 @@ impl Generatable for Statement
 				Ok(())
 			}
 			Statement::Loop { .. } => unreachable!(),
-			Statement::Goto { label, location: _ } =>
+			Statement::Goto { label } =>
 			{
 				let current_block = unsafe { LLVMGetInsertBlock(llvm.builder) };
 				let cname = CString::new("unreachable-after-goto")?;
@@ -556,7 +537,7 @@ impl Generatable for Statement
 				}
 				Ok(())
 			}
-			Statement::Label { label, location: _ } =>
+			Statement::Label { label } =>
 			{
 				let current_block = unsafe { LLVMGetInsertBlock(llvm.builder) };
 				let labeled_block = find_or_append_labeled_block(llvm, &label)?;
@@ -571,7 +552,6 @@ impl Generatable for Statement
 				condition,
 				then_branch,
 				else_branch,
-				location: _,
 			} =>
 			{
 				let condition = condition.generate(llvm)?;
@@ -695,13 +675,13 @@ impl Generatable for Comparison
 		llvm: &mut Generator,
 	) -> Result<Self::Item, anyhow::Error>
 	{
-		let is_signed = match self.left.value_type()
+		let is_signed = match self.compared_type
 		{
-			Some(ValueType::Int8) => true,
-			Some(ValueType::Int16) => true,
-			Some(ValueType::Int32) => true,
-			Some(ValueType::Int64) => true,
-			Some(ValueType::Int128) => true,
+			ValueType::Int8 => true,
+			ValueType::Int16 => true,
+			ValueType::Int32 => true,
+			ValueType::Int64 => true,
+			ValueType::Int128 => true,
 			_ => false,
 		};
 		let left = self.left.generate(llvm)?;
@@ -754,16 +734,16 @@ impl Generatable for Expression
 				op,
 				left,
 				right,
-				location: _,
+				value_type,
 			} =>
 			{
-				let is_signed = match left.value_type()
+				let is_signed = match value_type
 				{
-					Some(ValueType::Int8) => true,
-					Some(ValueType::Int16) => true,
-					Some(ValueType::Int32) => true,
-					Some(ValueType::Int64) => true,
-					Some(ValueType::Int128) => true,
+					ValueType::Int8 => true,
+					ValueType::Int16 => true,
+					ValueType::Int32 => true,
+					ValueType::Int64 => true,
+					ValueType::Int128 => true,
 					_ => false,
 				};
 				let left = left.generate(llvm)?;
@@ -826,11 +806,7 @@ impl Generatable for Expression
 				};
 				Ok(result)
 			}
-			Expression::Unary {
-				op,
-				expression,
-				location: _,
-			} =>
+			Expression::Unary { op, expression } =>
 			{
 				let expr = expression.generate(llvm)?;
 				let name = CString::new("")?;
@@ -848,11 +824,7 @@ impl Generatable for Expression
 				Ok(result)
 			}
 			Expression::PrimitiveLiteral(literal) => literal.generate(llvm),
-			Expression::NakedIntegerLiteral {
-				value,
-				value_type: Some(value_type),
-				location: _,
-			} =>
+			Expression::NakedIntegerLiteral { value, value_type } =>
 			{
 				// Naked integers are allowed to be 64-bits,
 				// thus between i64::MIN and u64::MAX.
@@ -869,16 +841,7 @@ impl Generatable for Expression
 				let inttype = value_type.generate(llvm)?;
 				unsafe { Ok(LLVMConstInt(inttype, value_bits, signed as i32)) }
 			}
-			Expression::NakedIntegerLiteral {
-				value: _,
-				value_type: None,
-				location: _,
-			} => unreachable!(),
-			Expression::BitIntegerLiteral {
-				value,
-				value_type: Some(value_type),
-				location: _,
-			} =>
+			Expression::BitIntegerLiteral { value, value_type } =>
 			{
 				let value_bits: u64 = *value;
 				match value_type
@@ -898,14 +861,9 @@ impl Generatable for Expression
 					}
 				}
 			}
-			Expression::BitIntegerLiteral {
-				value: _,
-				value_type: None,
-				location: _,
-			} => unreachable!(),
 			Expression::ArrayLiteral {
-				array: Array { elements, .. },
-				element_type: Some(element_type),
+				elements,
+				element_type,
 			} =>
 			{
 				let element_type: LLVMTypeRef = element_type.generate(llvm)?;
@@ -924,22 +882,11 @@ impl Generatable for Expression
 				};
 				Ok(result)
 			}
-			Expression::ArrayLiteral {
-				element_type: None,
-				array: _,
-			} => unreachable!(),
-			Expression::StringLiteral {
-				bytes: _,
-				value_type: Some(ValueType::String),
-				location: _,
-			} => unimplemented!(),
-			Expression::StringLiteral {
-				bytes,
-				value_type: Some(ValueType::Slice { element_type }),
-				location: _,
-			} =>
+			Expression::StringLiteral { bytes: _ } => unimplemented!(),
+			Expression::ByteStringLiteral { bytes } =>
 			{
-				let element_type: LLVMTypeRef = element_type.generate(llvm)?;
+				let element_type: LLVMTypeRef =
+					ValueType::Uint8.generate(llvm)?;
 				let mut values = Vec::with_capacity(bytes.len());
 				for byte in bytes
 				{
@@ -968,24 +915,24 @@ impl Generatable for Expression
 				}
 				Ok(global)
 			}
-			Expression::StringLiteral { value_type: _, .. } => unreachable!(),
 			Expression::Deref {
 				reference,
-				deref_type: Some(deref_type),
+				deref_type,
 			} => reference.generate_deref(deref_type, llvm),
-			Expression::Deref {
-				reference: _,
-				deref_type: None,
-			} => unreachable!(),
 			Expression::Autocoerce {
 				expression,
 				coerced_type,
 			} => generate_autocoerce(&expression, coerced_type, llvm),
 			Expression::PrimitiveCast {
 				expression,
+				expression_type,
 				coerced_type,
-				location: _,
-			} => generate_primitive_cast(&expression, coerced_type, llvm),
+			} => generate_primitive_cast(
+				&expression,
+				expression_type,
+				coerced_type,
+				llvm,
+			),
 			Expression::LengthOfArray { reference } =>
 			{
 				reference.generate_array_len(llvm)
@@ -1231,7 +1178,7 @@ impl Reference
 		}
 
 		let address = self.generate_storage_address(llvm)?;
-		let result = if self.address_depth > 0
+		let result = if self.take_address
 		{
 			address
 		}
@@ -1537,18 +1484,18 @@ fn generate_autocoerce(
 				deref_type,
 			} => match deref_type
 			{
-				Some(ValueType::Array {
+				ValueType::Array {
 					element_type,
 					length,
-				}) =>
+				} =>
 				{
 					let address = reference.generate_storage_address(llvm)?;
 					generate_array_slice(address, &element_type, *length, llvm)
 				}
-				Some(_) => unimplemented!(),
-				None => unreachable!(),
+				_ => unimplemented!(),
 			},
-			Expression::StringLiteral { bytes, .. } =>
+			Expression::StringLiteral { .. } => unimplemented!(),
+			Expression::ByteStringLiteral { bytes } =>
 			{
 				let address = expression.generate(llvm)?;
 				let length = bytes.len();
@@ -1568,7 +1515,8 @@ fn generate_autocoerce(
 					let address = reference.generate_storage_address(llvm)?;
 					generate_ext_array_view(address, &element_type, llvm)
 				}
-				Expression::StringLiteral { .. } =>
+				Expression::StringLiteral { .. } => unimplemented!(),
+				Expression::ByteStringLiteral { .. } =>
 				{
 					let address = expression.generate(llvm)?;
 					generate_ext_array_view(address, &element_type, llvm)
@@ -1589,7 +1537,8 @@ fn generate_autocoerce(
 					let address = reference.generate_storage_address(llvm)?;
 					generate_ext_array_view(address, &element_type, llvm)
 				}
-				Expression::StringLiteral { .. } =>
+				Expression::StringLiteral { .. } => unimplemented!(),
+				Expression::ByteStringLiteral { bytes: _ } =>
 				{
 					let address = expression.generate(llvm)?;
 					generate_ext_array_view(address, &element_type, llvm)
@@ -1601,18 +1550,16 @@ fn generate_autocoerce(
 				Expression::Deref {
 					reference,
 					deref_type: expr_type,
-				} if reference.address_depth > 0 => match expr_type
-					.as_ref()
-					.and_then(|t| t.get_pointee_type())
+				} if reference.take_address => match expr_type.get_pointee_type()
 				{
 					Some(pointee_type) =>
 					{
 						let pointee = Expression::Deref {
 							reference: Reference {
-								address_depth: 0,
+								take_address: false,
 								..reference.clone()
 							},
-							deref_type: Some(pointee_type),
+							deref_type: pointee_type,
 						};
 						let tmpname = CString::new("")?;
 						let vartype = inner_type.generate(llvm)?;
@@ -1641,29 +1588,23 @@ fn generate_autocoerce(
 
 fn generate_primitive_cast(
 	expression: &Expression,
+	expression_type: &ValueType,
 	coerced_type: &ValueType,
 	llvm: &mut Generator,
 ) -> Result<LLVMValueRef, anyhow::Error>
 {
 	let value = expression.generate(llvm)?;
-
-	let value_type = match expression.value_type()
-	{
-		Some(vt) => vt,
-		None => unreachable!(),
-	};
-
-	generate_cast(value, value_type, coerced_type.clone(), llvm)
+	generate_cast(value, expression_type, coerced_type, llvm)
 }
 
 fn generate_cast(
 	value: LLVMValueRef,
-	value_type: ValueType,
-	coerced_type: ValueType,
+	value_type: &ValueType,
+	coerced_type: &ValueType,
 	llvm: &mut Generator,
 ) -> Result<LLVMValueRef, anyhow::Error>
 {
-	match (&value_type, &coerced_type)
+	match (value_type, coerced_type)
 	{
 		(x, y) if x == y => Ok(value),
 		(ValueType::Usize, _) =>
@@ -1679,12 +1620,12 @@ fn generate_cast(
 					tmpname.as_ptr(),
 				)
 			};
-			generate_cast(interim, interim_type, coerced_type, llvm)
+			generate_cast(interim, &interim_type, coerced_type, llvm)
 		}
 		(_, ValueType::Usize) =>
 		{
 			let interim_type = ValueType::Uint128;
-			let value = generate_cast(value, value_type, interim_type, llvm)?;
+			let value = generate_cast(value, value_type, &interim_type, llvm)?;
 			let dest_type = coerced_type.generate(llvm)?;
 			let tmpname = CString::new("")?;
 			let result = unsafe {

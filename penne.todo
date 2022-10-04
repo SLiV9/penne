@@ -79,7 +79,8 @@ Usability:
 	☐	Error recovery
 	✔	Errors with line numbers @done (2020-09-26 21:26)
 		✔	Also for analysis errors and linting warnings @done (2021-01-10 14:32)
-		☐	Account for (variable) tab width in Location
+		✘	Account for (variable) tab width in Location @cancelled (2022-10-04 18:51)
+			rustc does not do this either
 		☐	Switch to something more sensible than anyhow for context
 		✔	Better type inference errors for return values @done (2022-09-05 18:39)
 	☐	Check that typing has finished after the second pass
@@ -93,9 +94,6 @@ Usability:
 	☐ Match expected error codes in tests
 	✔	Color default terminal output differently from LLVM errors @done (2022-09-07 15:22)
 	☐	Allow goto to skip var declaration if short-lived (skip_shortlived_var.pn)
-
-Development:
-	☐	Use typestate / different AST types to ensure that the phases are executed in order and to remove some unreachable!()s
 
 Documentation:
 	✔ Move tests from lib.rs to *tests/* @done (2022-10-04 16:44)

@@ -201,7 +201,7 @@ impl Analyzable for Statement
 				{
 					Some(ValueType::View { .. }) => false,
 					Some(_) => true,
-					None => false,
+					None => true,
 				};
 				analyzer.declare_variable(name, is_mutable)?;
 				Ok(())
@@ -217,7 +217,7 @@ impl Analyzable for Statement
 				{
 					Some(ValueType::View { .. }) => false,
 					Some(_) => true,
-					None => false,
+					None => true,
 				};
 				analyzer.declare_variable(name, is_mutable)?;
 				Ok(())

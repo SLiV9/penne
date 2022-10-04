@@ -7,7 +7,6 @@
 use penne::analyzer;
 use penne::lexer;
 use penne::parser;
-use penne::resolver;
 use penne::scoper;
 use penne::typer;
 
@@ -20,7 +19,6 @@ fn analyze(filename: &str) -> Result<Result<(), anyhow::Error>, anyhow::Error>
 	let declarations = parser::parse(tokens)?;
 	let declarations = scoper::analyze(declarations)?;
 	let declarations = typer::analyze(declarations)?;
-	let declarations = resolver::analyze(declarations)?;
 	Ok(analyzer::analyze(&declarations))
 }
 

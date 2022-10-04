@@ -87,7 +87,7 @@ impl Rebuildable for Declaration
 				}
 				write!(
 					&mut buffer,
-					"const {}: {} = {};",
+					"const {}: {} = {};\n",
 					identify(name),
 					value_type.rebuild(&indentation.increased())?,
 					value.rebuild(&indentation.increased())?

@@ -4,40 +4,45 @@
 // License: MIT
 //
 
+use crate::common;
 use crate::common::*;
+use crate::resolved;
 use crate::typer::Typed;
 
 use anyhow::anyhow;
 use anyhow::Context;
 
-pub fn analyze(
-	program: Vec<Declaration>,
-) -> Result<Vec<Declaration>, anyhow::Error>
+pub fn resolve(
+	program: Vec<common::Declaration>,
+) -> Result<Vec<resolved::Declaration>, anyhow::Error>
 {
-	let mut analyzer = Analyzer {};
-	program.iter().map(|x| x.analyze(&mut analyzer)).collect()
+	program.resolve()
 }
 
-struct Analyzer {}
-
-trait Analyzable
+trait Resolvable
 {
 	type Item;
 
-	fn analyze(
-		&self,
-		analyzer: &mut Analyzer,
-	) -> Result<Self::Item, anyhow::Error>;
+	fn resolve(self) -> Result<Self::Item, anyhow::Error>;
 }
 
-impl Analyzable for Declaration
+impl<T> Resolvable for Vec<T>
+where
+	T: Resolvable,
 {
-	type Item = Declaration;
+	type Item = Vec<T::Item>;
 
-	fn analyze(
-		&self,
-		analyzer: &mut Analyzer,
-	) -> Result<Self::Item, anyhow::Error>
+	fn resolve(self) -> Result<Self::Item, anyhow::Error>
+	{
+		self.into_iter().map(|x| x.resolve()).collect()
+	}
+}
+
+impl Resolvable for Declaration
+{
+	type Item = resolved::Declaration;
+
+	fn resolve(self) -> Result<Self::Item, anyhow::Error>
 	{
 		match self
 		{
@@ -46,77 +51,52 @@ impl Analyzable for Declaration
 				value,
 				value_type,
 				flags,
-			} =>
-			{
-				let value = value.analyze(analyzer)?;
-				let declaration = Declaration::Constant {
-					name: name.clone(),
-					value,
-					value_type: value_type.clone(),
-					flags: *flags,
-				};
-				Ok(declaration)
-			}
+			} => Ok(resolved::Declaration::Constant {
+				name: name.resolve()?,
+				value: value.resolve()?,
+				value_type,
+				flags,
+			}),
 			Declaration::Function {
 				name,
 				parameters,
 				body,
 				return_type,
 				flags,
-			} =>
-			{
-				let parameters: Result<Vec<Parameter>, anyhow::Error> =
-					parameters.iter().map(|x| x.analyze(analyzer)).collect();
-				let parameters = parameters?;
-				let body = body.analyze(analyzer)?;
-
-				let function = Declaration::Function {
-					name: name.clone(),
-					parameters,
-					body,
-					return_type: return_type.clone(),
-					flags: *flags,
-				};
-				Ok(function)
-			}
+			} => Ok(resolved::Declaration::Function {
+				name: name.resolve()?,
+				parameters: parameters.resolve()?,
+				body: body.resolve()?,
+				return_type,
+				flags,
+			}),
 			Declaration::FunctionHead {
 				name,
 				parameters,
 				return_type,
 				flags,
-			} =>
-			{
-				let parameters: Result<Vec<Parameter>, anyhow::Error> =
-					parameters.iter().map(|x| x.analyze(analyzer)).collect();
-				let parameters = parameters?;
-
-				let function = Declaration::FunctionHead {
-					name: name.clone(),
-					parameters,
-					return_type: return_type.clone(),
-					flags: *flags,
-				};
-				Ok(function)
-			}
+			} => Ok(resolved::Declaration::FunctionHead {
+				name: name.resolve()?,
+				parameters: parameters.resolve()?,
+				return_type,
+				flags,
+			}),
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
 		}
 	}
 }
 
-impl Analyzable for Parameter
+impl Resolvable for Parameter
 {
-	type Item = Parameter;
+	type Item = resolved::Parameter;
 
-	fn analyze(
-		&self,
-		_analyzer: &mut Analyzer,
-	) -> Result<Self::Item, anyhow::Error>
+	fn resolve(self) -> Result<Self::Item, anyhow::Error>
 	{
-		if self.value_type.is_some()
+		if let Some(value_type) = self.value_type
 		{
-			Ok(Parameter {
-				name: self.name.clone(),
-				value_type: self.value_type.clone(),
+			Ok(resolved::Parameter {
+				name: self.name.resolve()?,
+				value_type,
 			})
 		}
 		else
@@ -131,66 +111,24 @@ impl Analyzable for Parameter
 	}
 }
 
-impl Analyzable for FunctionBody
+impl Resolvable for FunctionBody
 {
-	type Item = FunctionBody;
+	type Item = resolved::FunctionBody;
 
-	fn analyze(
-		&self,
-		analyzer: &mut Analyzer,
-	) -> Result<Self::Item, anyhow::Error>
+	fn resolve(self) -> Result<Self::Item, anyhow::Error>
 	{
-		let statements: Result<Vec<Statement>, anyhow::Error> = self
-			.statements
-			.iter()
-			.map(|x| x.analyze(analyzer))
-			.collect();
-		let statements = statements?;
-		let return_value = self
-			.return_value
-			.as_ref()
-			.map(|v| v.analyze(analyzer))
-			.transpose()?;
-
-		Ok(FunctionBody {
-			statements,
-			return_value,
-			return_value_identifier: self.return_value_identifier.clone(),
+		Ok(resolved::FunctionBody {
+			statements: self.statements.resolve()?,
+			return_value: self.return_value.map(|v| v.resolve()).transpose()?,
 		})
 	}
 }
 
-impl Analyzable for Block
+impl Resolvable for Statement
 {
-	type Item = Block;
+	type Item = resolved::Statement;
 
-	fn analyze(
-		&self,
-		analyzer: &mut Analyzer,
-	) -> Result<Self::Item, anyhow::Error>
-	{
-		let statements: Result<Vec<Statement>, anyhow::Error> = self
-			.statements
-			.iter()
-			.map(|x| x.analyze(analyzer))
-			.collect();
-		let statements = statements?;
-
-		Ok(Block {
-			statements,
-			location: self.location.clone(),
-		})
-	}
-}
-
-impl Analyzable for Statement
-{
-	type Item = Statement;
-
-	fn analyze(
-		&self,
-		analyzer: &mut Analyzer,
-	) -> Result<Statement, anyhow::Error>
+	fn resolve(self) -> Result<Self::Item, anyhow::Error>
 	{
 		match self
 		{
@@ -201,26 +139,23 @@ impl Analyzable for Statement
 				location,
 			} =>
 			{
-				let value = value
-					.analyze(analyzer)
-					.with_context(|| location.format())?;
-				Ok(Statement::Declaration {
-					name: name.clone(),
+				let value =
+					value.resolve().with_context(|| location.format())?;
+				Ok(resolved::Statement::Declaration {
+					name: name.resolve()?,
 					value: Some(value),
-					value_type: Some(vt.clone()),
-					location: location.clone(),
+					value_type: vt,
 				})
 			}
 			Statement::Declaration {
 				name,
 				value: None,
 				value_type: Some(vt),
-				location,
-			} => Ok(Statement::Declaration {
-				name: name.clone(),
+				location: _,
+			} => Ok(resolved::Statement::Declaration {
+				name: name.resolve()?,
 				value: None,
-				value_type: Some(vt.clone()),
-				location: location.clone(),
+				value_type: vt,
 			}),
 			Statement::Declaration {
 				name,
@@ -234,68 +169,44 @@ impl Analyzable for Statement
 				reference,
 				value,
 				location,
-			} =>
+			} if value.value_type().is_some() =>
 			{
-				let value = value
-					.analyze(analyzer)
-					.with_context(|| location.format())?;
-				let reference = reference
-					.analyze(analyzer)
-					.with_context(|| location.format())?;
-
-				if value.value_type().is_some()
-				{
-					Ok(Statement::Assignment {
-						reference,
-						value,
-						location: location.clone(),
-					})
-				}
-				else
-				{
-					Err(anyhow!("failed to infer type")
-						.context(reference.location.format())
-						.context(format!(
-							"failed to infer type for '{}'",
-							reference.base.name
-						)))
-				}
+				let value =
+					value.resolve().with_context(|| location.format())?;
+				let reference =
+					reference.resolve().with_context(|| location.format())?;
+				Ok(resolved::Statement::Assignment { reference, value })
 			}
+			Statement::Assignment {
+				reference,
+				value: _,
+				location: _,
+			} => Err(anyhow!("failed to infer type")
+				.context(reference.location.format())
+				.context(format!(
+					"failed to infer type for '{}'",
+					reference.base.name
+				))),
 			Statement::MethodCall { name, arguments } =>
 			{
-				let arguments: Result<Vec<Expression>, anyhow::Error> =
-					arguments.iter().map(|a| a.analyze(analyzer)).collect();
-				let arguments = arguments?;
-
-				if name.resolution_id > 0
-				{
-					Ok(Statement::MethodCall {
-						name: name.clone(),
-						arguments,
-					})
-				}
-				else
-				{
-					Err(anyhow!("failed to resolve method call")
-						.context(name.location.format())
-						.context(format!("failed to resolve '{}'", name.name)))
-				}
+				Ok(resolved::Statement::MethodCall {
+					name: name.resolve()?,
+					arguments: arguments.resolve()?,
+				})
 			}
-			Statement::Loop { .. } => Ok(self.clone()),
-			Statement::Goto { label, location } =>
+			Statement::Loop { .. } => Ok(resolved::Statement::Loop),
+			Statement::Goto { label, location: _ } =>
 			{
-				if label.resolution_id > 0
-				{
-					Ok(self.clone())
-				}
-				else
-				{
-					Err(anyhow!("failed to resolve method call")
-						.context(location.format())
-						.context(format!("failed to resolve '{}'", label.name)))
-				}
+				Ok(resolved::Statement::Goto {
+					label: label.resolve()?,
+				})
 			}
-			Statement::Label { .. } => Ok(self.clone()),
+			Statement::Label { label, location: _ } =>
+			{
+				Ok(resolved::Statement::Label {
+					label: label.resolve()?,
+				})
+			}
 			Statement::If {
 				condition,
 				then_branch,
@@ -303,95 +214,71 @@ impl Analyzable for Statement
 				location,
 			} =>
 			{
-				let condition = condition
-					.analyze(analyzer)
-					.with_context(|| location.format())?;
+				let condition =
+					condition.resolve().with_context(|| location.format())?;
 				let then_branch = {
-					let branch = then_branch.analyze(analyzer)?;
+					let branch = then_branch.resolve()?;
 					Box::new(branch)
 				};
 				let else_branch = match else_branch
 				{
 					Some(else_branch) =>
 					{
-						let branch = else_branch.analyze(analyzer)?;
+						let branch = else_branch.resolve()?;
 						Some(Box::new(branch))
 					}
 					None => None,
 				};
-				Ok(Statement::If {
+				Ok(resolved::Statement::If {
 					condition,
 					then_branch,
 					else_branch,
-					location: location.clone(),
 				})
 			}
-			Statement::Block(block) =>
-			{
-				let block = block.analyze(analyzer)?;
-				Ok(Statement::Block(block))
-			}
+			Statement::Block(Block {
+				statements,
+				location: _,
+			}) => Ok(resolved::Statement::Block(resolved::Block {
+				statements: statements.resolve()?,
+			})),
 		}
 	}
 }
 
-impl Analyzable for Comparison
+impl Resolvable for Comparison
 {
-	type Item = Comparison;
+	type Item = resolved::Comparison;
 
-	fn analyze(
-		&self,
-		analyzer: &mut Analyzer,
-	) -> Result<Comparison, anyhow::Error>
+	fn resolve(self) -> Result<Self::Item, anyhow::Error>
 	{
+		let compared_type =
+			resolve_compared_type(self.op, &self.left, &self.right)
+				.with_context(|| self.location.format())
+				.with_context(|| {
+					"failed to infer valid operand types for comparison operator"
+				})?;
 		let left = self
 			.left
-			.analyze(analyzer)
+			.resolve()
 			.with_context(|| self.location.format())?;
 		let right = self
 			.right
-			.analyze(analyzer)
+			.resolve()
 			.with_context(|| self.location.format())?;
-		analyze_comparison_operand_types(self.op, &left, &right)
-			.with_context(|| self.location.format())
-			.with_context(|| {
-				"failed to infer valid operand types for comparison operator"
-			})?;
-		Ok(Comparison {
+		Ok(resolved::Comparison {
 			op: self.op,
 			left,
 			right,
-			location: self.location.clone(),
+			compared_type,
 		})
 	}
 }
 
-impl Analyzable for Array
+impl Resolvable for Expression
 {
-	type Item = Array;
+	type Item = resolved::Expression;
 
-	fn analyze(&self, analyzer: &mut Analyzer) -> Result<Array, anyhow::Error>
-	{
-		let elements: Result<Vec<Expression>, anyhow::Error> =
-			self.elements.iter().map(|x| x.analyze(analyzer)).collect();
-		let elements = elements?;
-
-		Ok(Array {
-			elements,
-			location: self.location.clone(),
-			resolution_id: self.resolution_id,
-		})
-	}
-}
-
-impl Analyzable for Expression
-{
-	type Item = Expression;
-
-	fn analyze(
-		&self,
-		analyzer: &mut Analyzer,
-	) -> Result<Expression, anyhow::Error>
+	fn resolve(self) -> Result<Self::Item, anyhow::Error>
 	{
 		match self
 		{
@@ -402,22 +289,19 @@ impl Analyzable for Expression
 				location,
 			} =>
 			{
-				let left = left
-					.analyze(analyzer)
-					.with_context(|| location.format())?;
-				let right = right
-					.analyze(analyzer)
-					.with_context(|| location.format())?;
-				analyze_binary_expression_operand_types(*op, &left, &right)
+				let value_type = resolve_binary_op_type(op, &left, &right)
 					.with_context(|| location.format())
 					.with_context(|| {
-						"failed to infer valid operand types for binary operator"
+						"failed to infer valid types for binary operator"
 					})?;
-				Ok(Expression::Binary {
-					op: *op,
+				let left = left.resolve().with_context(|| location.format())?;
+				let right =
+					right.resolve().with_context(|| location.format())?;
+				Ok(resolved::Expression::Binary {
+					op,
 					left: Box::new(left),
 					right: Box::new(right),
-					location: location.clone(),
+					value_type,
 				})
 			}
 			Expression::Unary {
@@ -426,31 +310,35 @@ impl Analyzable for Expression
 				location,
 			} =>
 			{
-				let expr = expression
-					.analyze(analyzer)
-					.with_context(|| location.format())?;
-				analyze_unary_expression_operand_type(*op, &expr)
+				let _value_type = resolve_unary_op_type(op, &expression)
 					.with_context(|| location.format())
 					.with_context(|| {
 						"failed to infer valid operand type for unary operator"
 					})?;
-				Ok(Expression::Unary {
-					op: *op,
+				let expr =
+					expression.resolve().with_context(|| location.format())?;
+				Ok(resolved::Expression::Unary {
+					op,
 					expression: Box::new(expr),
-					location: location.clone(),
 				})
 			}
-			Expression::PrimitiveLiteral(_lit) => Ok(self.clone()),
+			Expression::PrimitiveLiteral(lit) =>
+			{
+				Ok(resolved::Expression::PrimitiveLiteral(lit))
+			}
 			Expression::NakedIntegerLiteral {
-				value: _,
-				value_type: Some(_),
+				value,
+				value_type: Some(value_type),
 				location: _,
-			} => Ok(self.clone()),
+			} => Ok(resolved::Expression::NakedIntegerLiteral {
+				value,
+				value_type,
+			}),
 			Expression::NakedIntegerLiteral {
 				value,
 				value_type: None,
 				location,
-			} => match i32::try_from(*value)
+			} => match i32::try_from(value)
 			{
 				// Naked integer literals that can fit in an int should not
 				// cause type resolution errors; if they are assigned to a
@@ -460,17 +348,19 @@ impl Analyzable for Expression
 				Ok(i32::MIN) | Err(_) => Err(anyhow!("failed to infer type")
 					.context(location.format())
 					.context(format!("failed to infer integer literal type"))),
-				Ok(_) => Ok(Expression::NakedIntegerLiteral {
-					value: *value,
-					value_type: Some(ValueType::Int32),
-					location: location.clone(),
+				Ok(_) => Ok(resolved::Expression::NakedIntegerLiteral {
+					value,
+					value_type: ValueType::Int32,
 				}),
 			},
 			Expression::BitIntegerLiteral {
-				value: _,
-				value_type: Some(_),
+				value,
+				value_type: Some(value_type),
 				location: _,
-			} => Ok(self.clone()),
+			} => Ok(resolved::Expression::BitIntegerLiteral {
+				value,
+				value_type,
+			}),
 			Expression::BitIntegerLiteral {
 				value: _,
 				value_type: None,
@@ -479,37 +369,49 @@ impl Analyzable for Expression
 				.context(location.format())
 				.context(format!("failed to infer integer literal type"))),
 			Expression::ArrayLiteral {
-				array,
+				array:
+					Array {
+						elements,
+						location,
+						resolution_id: _,
+					},
 				element_type,
 			} =>
 			{
-				let array = array.analyze(analyzer)?;
-				if element_type.is_some()
+				if let Some(element_type) = element_type
 				{
-					Ok(Expression::ArrayLiteral {
-						array,
-						element_type: element_type.clone(),
+					Ok(resolved::Expression::ArrayLiteral {
+						elements: elements.resolve()?,
+						element_type,
 					})
 				}
 				else
 				{
 					Err(anyhow!("failed to infer type")
-						.context(array.location.format())
+						.context(location.format())
 						.context(format!(
 							"failed to infer array literal element type"
 						)))
 				}
 			}
 			Expression::StringLiteral {
-				bytes: _,
-				value_type: Some(ValueType::String),
-				location: _,
-			} => Ok(self.clone()),
-			Expression::StringLiteral {
-				bytes: _,
-				value_type: Some(ValueType::Slice { .. }),
-				location: _,
-			} => Ok(self.clone()),
+				bytes,
+				value_type: Some(value_type),
+				location,
+			} => match value_type
+			{
+				ValueType::String =>
+				{
+					Ok(resolved::Expression::StringLiteral { bytes })
+				}
+				ValueType::Slice { .. } =>
+				{
+					Ok(resolved::Expression::ByteStringLiteral { bytes })
+				}
+				_ => Err(anyhow!("unexpected type")
+					.context(location.format())
+					.context(format!("failed to infer string literal type"))),
+			},
 			Expression::StringLiteral {
 				bytes: _,
 				value_type: _,
@@ -522,12 +424,11 @@ impl Analyzable for Expression
 				deref_type,
 			} =>
 			{
-				let reference = reference.analyze(analyzer)?;
-				if deref_type.is_some()
+				if let Some(deref_type) = deref_type
 				{
-					Ok(Expression::Deref {
-						reference,
-						deref_type: deref_type.clone(),
+					Ok(resolved::Expression::Deref {
+						reference: reference.resolve()?,
+						deref_type,
 					})
 				}
 				else
@@ -542,10 +443,10 @@ impl Analyzable for Expression
 				coerced_type,
 			} =>
 			{
-				let expression = expression.analyze(analyzer)?;
 				if expression.value_type().is_some()
 				{
-					Ok(Expression::Autocoerce {
+					let expression = expression.resolve()?;
+					Ok(resolved::Expression::Autocoerce {
 						expression: Box::new(expression),
 						coerced_type: coerced_type.clone(),
 					})
@@ -562,22 +463,24 @@ impl Analyzable for Expression
 				location,
 			} =>
 			{
-				let expression = expression.analyze(analyzer)?;
-				analyze_primitive_cast(&expression, coerced_type.clone())
-					.with_context(|| location.format())
-					.with_context(|| {
-						"failed to infer valid expression type for cast"
-					})?;
-				Ok(Expression::PrimitiveCast {
+				let expression_type =
+					analyze_primitive_cast(&expression, coerced_type.clone())
+						.with_context(|| location.format())
+						.with_context(|| {
+							"failed to infer valid expression type for cast"
+						})?;
+				let expression = expression.resolve()?;
+				Ok(resolved::Expression::PrimitiveCast {
 					expression: Box::new(expression),
-					coerced_type: coerced_type.clone(),
-					location: location.clone(),
+					expression_type,
+					coerced_type: coerced_type,
 				})
 			}
 			Expression::LengthOfArray { reference } =>
 			{
-				let reference = reference.analyze(analyzer)?;
-				Ok(Expression::LengthOfArray { reference })
+				Ok(resolved::Expression::LengthOfArray {
+					reference: reference.resolve()?,
+				})
 			}
 			Expression::FunctionCall {
 				name,
@@ -585,94 +488,97 @@ impl Analyzable for Expression
 				return_type,
 			} =>
 			{
-				let arguments: Result<Vec<Expression>, anyhow::Error> =
-					arguments.iter().map(|a| a.analyze(analyzer)).collect();
-				let arguments = arguments?;
-
-				if name.resolution_id > 0
+				if let Some(return_type) = return_type
 				{
-					Ok(Expression::FunctionCall {
-						name: name.clone(),
-						arguments,
-						return_type: return_type.clone(),
+					Ok(resolved::Expression::FunctionCall {
+						name: name.resolve()?,
+						arguments: arguments.resolve()?,
+						return_type,
 					})
 				}
 				else
 				{
-					Err(anyhow!("failed to resolve function call")
+					Err(anyhow!("failed to infer return type")
 						.context(name.location.format())
-						.context(format!("failed to resolve '{}'", name.name)))
+						.context(format!("failed to infer return type")))
 				}
 			}
 		}
 	}
 }
 
-impl Analyzable for Reference
+impl Resolvable for Reference
 {
-	type Item = Reference;
+	type Item = resolved::Reference;
 
-	fn analyze(
-		&self,
-		analyzer: &mut Analyzer,
-	) -> Result<Self::Item, anyhow::Error>
+	fn resolve(self) -> Result<Self::Item, anyhow::Error>
 	{
-		let steps: Result<Vec<ReferenceStep>, anyhow::Error> = self
-			.steps
-			.iter()
-			.map(|step| step.analyze(analyzer))
-			.collect();
-		let steps = steps?;
+		Ok(resolved::Reference {
+			base: self.base.resolve()?,
+			steps: self.steps.resolve()?,
+			take_address: self.address_depth > 0,
+		})
+	}
+}
 
-		if self.base.resolution_id > 0
+impl Resolvable for ReferenceStep
+{
+	type Item = resolved::ReferenceStep;
+
+	fn resolve(self) -> Result<Self::Item, anyhow::Error>
+	{
+		match self
 		{
-			Ok(Reference {
-				base: self.base.clone(),
-				steps,
-				address_depth: self.address_depth,
-				location: self.location.clone(),
+			ReferenceStep::Element { argument } =>
+			{
+				let argument = argument.resolve()?;
+				Ok(resolved::ReferenceStep::Element {
+					argument: Box::new(argument),
+				})
+			}
+			ReferenceStep::Member { member } =>
+			{
+				Ok(resolved::ReferenceStep::Member {
+					member: member.resolve()?,
+				})
+			}
+			ReferenceStep::Autodeslice { offset } =>
+			{
+				Ok(resolved::ReferenceStep::Autodeslice { offset })
+			}
+			ReferenceStep::Autoderef => Ok(resolved::ReferenceStep::Autoderef),
+			ReferenceStep::Autoview => Ok(resolved::ReferenceStep::Autoview),
+		}
+	}
+}
+
+impl Resolvable for Identifier
+{
+	type Item = resolved::Identifier;
+
+	fn resolve(self) -> Result<Self::Item, anyhow::Error>
+	{
+		if self.resolution_id > 0
+		{
+			Ok(resolved::Identifier {
+				name: self.name,
+				resolution_id: self.resolution_id,
 			})
 		}
 		else
 		{
-			Err(anyhow!("failed to resolve reference")
+			Err(anyhow!("failed to resolve identifier")
 				.context(self.location.format())
-				.context(format!("failed to resolve '{}'", self.base.name)))
+				.context(format!("failed to resolve '{}'", self.name)))
 		}
 	}
 }
 
-impl Analyzable for ReferenceStep
-{
-	type Item = ReferenceStep;
-
-	fn analyze(
-		&self,
-		analyzer: &mut Analyzer,
-	) -> Result<Self::Item, anyhow::Error>
-	{
-		match &self
-		{
-			ReferenceStep::Element { argument } =>
-			{
-				let argument = argument.analyze(analyzer)?;
-				Ok(ReferenceStep::Element {
-					argument: Box::new(argument),
-				})
-			}
-			ReferenceStep::Member { member: _ } => Ok(self.clone()),
-			ReferenceStep::Autodeslice { .. } => Ok(self.clone()),
-			ReferenceStep::Autoderef => Ok(ReferenceStep::Autoderef),
-			ReferenceStep::Autoview => Ok(ReferenceStep::Autoview),
-		}
-	}
-}
-
-fn analyze_comparison_operand_types(
+fn resolve_compared_type(
 	op: ComparisonOp,
 	left: &Expression,
 	right: &Expression,
-) -> Result<(), anyhow::Error>
+) -> Result<ValueType, anyhow::Error>
 {
 	let vt = if let Some(vt) = left.value_type()
 	{
@@ -696,20 +602,20 @@ fn analyze_comparison_operand_types(
 	{
 		ComparisonOp::Equals | ComparisonOp::DoesNotEqual => match vt
 		{
-			ValueType::Int8 => Ok(()),
-			ValueType::Int16 => Ok(()),
-			ValueType::Int32 => Ok(()),
-			ValueType::Int64 => Ok(()),
-			ValueType::Int128 => Ok(()),
-			ValueType::Uint8 => Ok(()),
-			ValueType::Uint16 => Ok(()),
-			ValueType::Uint32 => Ok(()),
-			ValueType::Uint64 => Ok(()),
-			ValueType::Uint128 => Ok(()),
-			ValueType::Usize => Ok(()),
-			ValueType::Bool => Ok(()),
-			ValueType::Char => Ok(()),
-			ValueType::Pointer { deref_type: _ } => Ok(()),
+			ValueType::Int8 => Ok(vt),
+			ValueType::Int16 => Ok(vt),
+			ValueType::Int32 => Ok(vt),
+			ValueType::Int64 => Ok(vt),
+			ValueType::Int128 => Ok(vt),
+			ValueType::Uint8 => Ok(vt),
+			ValueType::Uint16 => Ok(vt),
+			ValueType::Uint32 => Ok(vt),
+			ValueType::Uint64 => Ok(vt),
+			ValueType::Uint128 => Ok(vt),
+			ValueType::Usize => Ok(vt),
+			ValueType::Bool => Ok(vt),
+			ValueType::Char => Ok(vt),
+			ValueType::Pointer { deref_type: _ } => Ok(vt),
 			vt => Err(anyhow!("invalid operand types").context(format!(
 				"expected number, bool, char, pointer, got {:?}",
 				vt
@@ -720,30 +626,30 @@ fn analyze_comparison_operand_types(
 		| ComparisonOp::IsGE
 		| ComparisonOp::IsLE => match vt
 		{
-			ValueType::Int8 => Ok(()),
-			ValueType::Int16 => Ok(()),
-			ValueType::Int32 => Ok(()),
-			ValueType::Int64 => Ok(()),
-			ValueType::Int128 => Ok(()),
-			ValueType::Uint8 => Ok(()),
-			ValueType::Uint16 => Ok(()),
-			ValueType::Uint32 => Ok(()),
-			ValueType::Uint64 => Ok(()),
-			ValueType::Uint128 => Ok(()),
-			ValueType::Usize => Ok(()),
-			ValueType::Bool => Ok(()),
-			ValueType::Char => Ok(()),
+			ValueType::Int8 => Ok(vt),
+			ValueType::Int16 => Ok(vt),
+			ValueType::Int32 => Ok(vt),
+			ValueType::Int64 => Ok(vt),
+			ValueType::Int128 => Ok(vt),
+			ValueType::Uint8 => Ok(vt),
+			ValueType::Uint16 => Ok(vt),
+			ValueType::Uint32 => Ok(vt),
+			ValueType::Uint64 => Ok(vt),
+			ValueType::Uint128 => Ok(vt),
+			ValueType::Usize => Ok(vt),
+			ValueType::Bool => Ok(vt),
+			ValueType::Char => Ok(vt),
 			vt => Err(anyhow!("invalid operand types")
 				.context(format!("expected number, bool, char, got {:?}", vt))),
 		},
 	}
 }
 
-fn analyze_binary_expression_operand_types(
+fn resolve_binary_op_type(
 	op: BinaryOp,
 	left: &Expression,
 	right: &Expression,
-) -> Result<(), anyhow::Error>
+) -> Result<ValueType, anyhow::Error>
 {
 	let vt = if let Some(vt) = left.value_type()
 	{
@@ -771,17 +677,17 @@ fn analyze_binary_expression_operand_types(
 		| BinaryOp::Divide
 		| BinaryOp::Modulo => match vt
 		{
-			ValueType::Int8 => Ok(()),
-			ValueType::Int16 => Ok(()),
-			ValueType::Int32 => Ok(()),
-			ValueType::Int64 => Ok(()),
-			ValueType::Int128 => Ok(()),
-			ValueType::Uint8 => Ok(()),
-			ValueType::Uint16 => Ok(()),
-			ValueType::Uint32 => Ok(()),
-			ValueType::Uint64 => Ok(()),
-			ValueType::Uint128 => Ok(()),
-			ValueType::Usize => Ok(()),
+			ValueType::Int8 => Ok(vt),
+			ValueType::Int16 => Ok(vt),
+			ValueType::Int32 => Ok(vt),
+			ValueType::Int64 => Ok(vt),
+			ValueType::Int128 => Ok(vt),
+			ValueType::Uint8 => Ok(vt),
+			ValueType::Uint16 => Ok(vt),
+			ValueType::Uint32 => Ok(vt),
+			ValueType::Uint64 => Ok(vt),
+			ValueType::Uint128 => Ok(vt),
+			ValueType::Usize => Ok(vt),
 			vt => Err(anyhow!("invalid operand types").context(format!(
 				"expected i8, i16, ..., u8, u16, ..., usize, got {:?}",
 				vt
@@ -791,32 +697,32 @@ fn analyze_binary_expression_operand_types(
 		{
 			match vt
 			{
-				ValueType::Uint8 => Ok(()),
-				ValueType::Uint16 => Ok(()),
-				ValueType::Uint32 => Ok(()),
-				ValueType::Uint64 => Ok(()),
-				ValueType::Uint128 => Ok(()),
+				ValueType::Uint8 => Ok(vt),
+				ValueType::Uint16 => Ok(vt),
+				ValueType::Uint32 => Ok(vt),
+				ValueType::Uint64 => Ok(vt),
+				ValueType::Uint128 => Ok(vt),
 				vt => Err(anyhow!("invalid operand types")
 					.context(format!("expected u8, u16, ..., got {:?}", vt))),
 			}
 		}
 		BinaryOp::ShiftLeft | BinaryOp::ShiftRight => match vt
 		{
-			ValueType::Uint8 => Ok(()),
-			ValueType::Uint16 => Ok(()),
-			ValueType::Uint32 => Ok(()),
-			ValueType::Uint64 => Ok(()),
-			ValueType::Uint128 => Ok(()),
+			ValueType::Uint8 => Ok(vt),
+			ValueType::Uint16 => Ok(vt),
+			ValueType::Uint32 => Ok(vt),
+			ValueType::Uint64 => Ok(vt),
+			ValueType::Uint128 => Ok(vt),
 			vt => Err(anyhow!("invalid operand types")
 				.context(format!("expected u8, u16, ..., got {:?}", vt))),
 		},
 	}
 }
 
-fn analyze_unary_expression_operand_type(
+fn resolve_unary_op_type(
 	op: UnaryOp,
 	operand: &Expression,
-) -> Result<(), anyhow::Error>
+) -> Result<ValueType, anyhow::Error>
 {
 	let vt = if let Some(vt) = operand.value_type()
 	{
@@ -830,22 +736,22 @@ fn analyze_unary_expression_operand_type(
 	{
 		UnaryOp::Negative => match vt
 		{
-			ValueType::Int8 => Ok(()),
-			ValueType::Int16 => Ok(()),
-			ValueType::Int32 => Ok(()),
-			ValueType::Int64 => Ok(()),
-			ValueType::Int128 => Ok(()),
+			ValueType::Int8 => Ok(vt),
+			ValueType::Int16 => Ok(vt),
+			ValueType::Int32 => Ok(vt),
+			ValueType::Int64 => Ok(vt),
+			ValueType::Int128 => Ok(vt),
 			vt => Err(anyhow!("invalid operand type")
 				.context(format!("expected i8, i16, ..., got {:?}", vt))),
 		},
 		UnaryOp::BitwiseComplement => match vt
 		{
-			ValueType::Bool => Ok(()),
-			ValueType::Uint8 => Ok(()),
-			ValueType::Uint16 => Ok(()),
-			ValueType::Uint32 => Ok(()),
-			ValueType::Uint64 => Ok(()),
-			ValueType::Uint128 => Ok(()),
+			ValueType::Bool => Ok(vt),
+			ValueType::Uint8 => Ok(vt),
+			ValueType::Uint16 => Ok(vt),
+			ValueType::Uint32 => Ok(vt),
+			ValueType::Uint64 => Ok(vt),
+			ValueType::Uint128 => Ok(vt),
 			vt => Err(anyhow!("invalid operand type")
 				.context(format!("expected bool, u8, u16, ..., got {:?}", vt))),
 		},
@@ -855,9 +761,9 @@ fn analyze_unary_expression_operand_type(
 fn analyze_primitive_cast(
 	expression: &Expression,
 	coerced_type: ValueType,
-) -> Result<(), anyhow::Error>
+) -> Result<ValueType, anyhow::Error>
 {
-	let vt = if let Some(vt) = expression.value_type()
+	let value_type = if let Some(vt) = expression.value_type()
 	{
 		vt
 	}
@@ -865,16 +771,16 @@ fn analyze_primitive_cast(
 	{
 		return Err(anyhow!("failed to infer type"));
 	};
-	match (vt, coerced_type)
+	match (&value_type, &coerced_type)
 	{
-		(x, y) if x == y => Ok(()),
-		(vt, ct) if vt.is_integral() && ct.is_integral() => Ok(()),
-		(ValueType::Bool, ct) if ct.is_integral() => Ok(()),
-		(vt, ValueType::Bool) if vt.is_integral() => Ok(()),
-		(ValueType::Char, ValueType::Uint8) => Ok(()),
-		(ValueType::Char, ValueType::Uint32) => Ok(()),
-		(ValueType::Uint8, ValueType::Char) => Ok(()),
-		(ValueType::Uint32, ValueType::Char) => Ok(()),
+		(x, y) if x == y => Ok(value_type),
+		(vt, ct) if vt.is_integral() && ct.is_integral() => Ok(value_type),
+		(ValueType::Bool, ct) if ct.is_integral() => Ok(value_type),
+		(vt, ValueType::Bool) if vt.is_integral() => Ok(value_type),
+		(ValueType::Char, ValueType::Uint8) => Ok(value_type),
+		(ValueType::Char, ValueType::Uint32) => Ok(value_type),
+		(ValueType::Uint8, ValueType::Char) => Ok(value_type),
+		(ValueType::Uint32, ValueType::Char) => Ok(value_type),
 		(vt, _) => Err(anyhow!("invalid expression type")
 			.context(format!("expected primitive, got {:?}", vt))),
 	}

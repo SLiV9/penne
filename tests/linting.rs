@@ -4,6 +4,7 @@
 // License: MIT
 //
 
+use penne::analyzer;
 use penne::lexer;
 use penne::linter;
 use penne::parser;
@@ -19,6 +20,7 @@ fn lint(filename: &str) -> Result<Vec<anyhow::Error>, anyhow::Error>
 	let declarations = parser::parse(tokens)?;
 	let declarations = scoper::analyze(declarations)?;
 	let declarations = typer::analyze(declarations)?;
+	analyzer::analyze(&declarations)?;
 	Ok(linter::lint(&declarations))
 }
 

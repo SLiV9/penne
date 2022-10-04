@@ -1,9 +1,7 @@
 fn main() -> u8
 {
 	var result = 0;
-	var x: []u8 = [2, 3];
-	var y: []u8 = [2, 3];
-	if x == y
+	if [2, 3] == [2, 3]
 	{
 		result = 23;
 	}
