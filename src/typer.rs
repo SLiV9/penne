@@ -1,4 +1,8 @@
-/**/
+//
+// Part of penne
+// Copyright (c) 2020 Sander in 't Veld
+// License: MIT
+//
 
 use crate::common::*;
 use crate::parser::{MAX_ADDRESS_DEPTH, MAX_REFERENCE_DEPTH};

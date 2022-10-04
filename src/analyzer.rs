@@ -1,4 +1,8 @@
-/**/
+//
+// Part of penne
+// Copyright (c) 2020 Sander in 't Veld
+// License: MIT
+//
 
 mod function_calls;
 mod mutability;
