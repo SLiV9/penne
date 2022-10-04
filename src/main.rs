@@ -78,9 +78,6 @@ fn main() -> Result<(), anyhow::Error>
 
 fn do_main(args: Args) -> Result<(), anyhow::Error>
 {
-	#[cfg(feature = "logging")]
-	env_logger::init();
-
 	let Args {
 		filepaths,
 		backend: arg_backend,

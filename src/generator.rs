@@ -16,8 +16,6 @@ use llvm_sys::target_machine::LLVMGetDefaultTargetTriple;
 use llvm_sys::*;
 use llvm_sys::{LLVMBuilder, LLVMContext, LLVMModule};
 
-use log::*;
-
 pub const DEFAULT_DATA_LAYOUT: &str = "e-m:e-p:64:64-i64:64-n8:16:32:64-S128";
 
 pub fn generate(
@@ -1772,10 +1770,10 @@ fn generate_cast(
 }
 
 #[allow(unused)]
-fn debug_log_value_and_type(name: &str, value: LLVMValueRef)
+fn debug_print_value_and_type(name: &str, value: LLVMValueRef)
 {
 	unsafe {
-		debug!(
+		println!(
 			"{} = {:?}",
 			name,
 			CStr::from_ptr(LLVMPrintValueToString(value))
@@ -1783,7 +1781,7 @@ fn debug_log_value_and_type(name: &str, value: LLVMValueRef)
 	}
 	let value_type = unsafe { LLVMTypeOf(value) };
 	unsafe {
-		debug!(
+		println!(
 			"type of {} = {:?}",
 			name,
 			CStr::from_ptr(LLVMPrintTypeToString(value_type))
