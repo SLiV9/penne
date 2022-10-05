@@ -33,9 +33,9 @@ impl From<anyhow::Error> for Errors
 	}
 }
 
-impl Into<anyhow::Error> for Errors
+impl Errors
 {
-	fn into(self) -> anyhow::Error
+	pub fn first(self) -> anyhow::Error
 	{
 		self.errors
 			.into_iter()

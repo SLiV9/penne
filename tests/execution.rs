@@ -292,7 +292,8 @@ fn execute_calculation(filename: &str) -> Result<i32, anyhow::Error>
 	let declarations = scoper::analyze(declarations)?;
 	let declarations = typer::analyze(declarations)?;
 	analyzer::analyze(&declarations)?;
-	let declarations = resolver::resolve(declarations)?;
+	let declarations =
+		resolver::resolve(declarations).map_err(|e| e.first())?;
 	let ir = generator::generate(&declarations, filename, false)?;
 	let llistr: std::borrow::Cow<str> = match std::env::var("PENNE_LLI")
 	{
