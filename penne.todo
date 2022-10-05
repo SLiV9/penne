@@ -73,9 +73,6 @@ Linting errors:
 	☐	Warn that array length indicators in extern fn is not enforced
 
 Usability:
-	☐	Standardized build folder
-	☐	Specify path to clang and lli (in e.g. .pennec.toml or PENNEC_CLANG)
-		☐	Specify extra parameters to pass to clang
 	☐	Error recovery
 	✔	Errors with line numbers @done (2020-09-26 21:26)
 		✔	Also for analysis errors and linting warnings @done (2021-01-10 14:32)

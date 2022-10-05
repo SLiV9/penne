@@ -10,6 +10,8 @@ enumset = "1.0"
 anyhow = "^1.0"
 thiserror = "^1.0"
 termcolor = "1.1"
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.5"
 clap = { version = "4.0", features = ["derive"] }
 llvm-sys = "60"
 

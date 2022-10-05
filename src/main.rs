@@ -22,12 +22,14 @@ use std::io::Write;
 use anyhow::anyhow;
 use anyhow::Context;
 use clap::Parser;
+use serde::Deserialize;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 #[cfg(feature = "logging")]
 use env_logger;
 
-#[derive(clap::Parser)]
+#[derive(Debug, Default, Deserialize, clap::Parser)]
+#[serde(default, deny_unknown_fields)]
 #[command(version)]
 struct Args
 {
@@ -40,10 +42,16 @@ struct Args
 
 	/// Pass one or more arguments, separated by spaces, to the backend
 	#[clap(long, value_delimiter(' '))]
+	#[serde(deserialize_with = "deserialize_space_separated_string")]
 	backend_args: Option<Vec<String>>,
+
+	/// Load additional configurations from TOML file
+	#[clap(long)]
+	config: Option<std::path::PathBuf>,
 
 	/// Pass one or more arguments, separated by spaces, to the linker
 	#[clap(long, value_delimiter(' '))]
+	#[serde(deserialize_with = "deserialize_space_separated_string")]
 	link_args: Option<Vec<String>>,
 
 	/// Write binary output to this file
@@ -96,19 +104,32 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 	let Args {
 		filepaths,
 		backend: arg_backend,
-		backend_args,
-		link_args,
+		backend_args: arg_backend_args,
+		config,
+		link_args: arg_link_args,
 		output_filepath,
 		out_dir: arg_out_dir,
 		print_exitcode,
 		skip_backend,
 		verbose,
-		wasm,
+		wasm: arg_wasm,
 	} = args;
-	let config_backend = None;
-	let config_out_dir = None;
-	let backend = get_backend(arg_backend, config_backend)?;
-	let out_dir = arg_out_dir.or(config_out_dir);
+	let config: Args = if let Some(filename) = config
+	{
+		let raw = std::fs::read_to_string(&filename)?;
+		toml::from_str(&raw).with_context(|| {
+			format!("failed to parse '{}'", filename.to_string_lossy())
+		})?
+	}
+	else
+	{
+		Default::default()
+	};
+	let backend = get_backend(arg_backend, config.backend)?;
+	let out_dir = arg_out_dir.or(config.out_dir);
+	let backend_args = arg_backend_args.or(config.backend_args);
+	let link_args = arg_link_args.or(config.link_args);
+	let wasm = arg_wasm || config.wasm;
 
 	let output_filepath = output_filepath.or_else(|| {
 		filepaths
@@ -553,5 +574,23 @@ fn get_exe_extension() -> &'static str
 	else
 	{
 		std::env::consts::ARCH
+	}
+}
+
+fn deserialize_space_separated_string<'de, D>(
+	deserializer: D,
+) -> Result<Option<Vec<String>>, D::Error>
+where
+	D: serde::Deserializer<'de>,
+{
+	let buffer = Option::<String>::deserialize(deserializer)?;
+	if let Some(buffer) = buffer
+	{
+		let parts = buffer.split(" ").map(|x| x.to_string()).collect();
+		Ok(Some(parts))
+	}
+	else
+	{
+		Ok(None)
 	}
 }
