@@ -50,6 +50,10 @@ struct Args
 	#[clap(long)]
 	print_exitcode: bool,
 
+	/// Do not create any binary output
+	#[clap(long, conflicts_with_all(["backend", "output_filepath"]))]
+	skip_backend: bool,
+
 	/// Show a lot of intermediate output
 	#[clap(short, long)]
 	verbose: bool,
@@ -84,9 +88,10 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 		backend: arg_backend,
 		output_filepath,
 		out_dir: arg_out_dir,
-		wasm,
-		verbose,
 		print_exitcode,
+		skip_backend,
+		verbose,
+		wasm,
 	} = args;
 	let config_backend = None;
 	let config_out_dir = None;
@@ -316,7 +321,7 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 		modules.insert(filepath, forward_declarations);
 	}
 
-	if let Some(output_filepath) = output_filepath
+	if let Some(output_filepath) = output_filepath.filter(|_x| !skip_backend)
 	{
 		if verbose
 		{
