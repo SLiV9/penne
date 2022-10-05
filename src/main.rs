@@ -38,6 +38,14 @@ struct Args
 	#[clap(short, long)]
 	backend: Option<std::path::PathBuf>,
 
+	/// Pass one or more arguments, separated by spaces, to the backend
+	#[clap(long, value_delimiter(' '))]
+	backend_args: Option<Vec<String>>,
+
+	/// Pass one or more arguments, separated by spaces, to the linker
+	#[clap(long, value_delimiter(' '))]
+	link_args: Option<Vec<String>>,
+
 	/// Write binary output to this file
 	#[clap(short)]
 	output_filepath: Option<std::path::PathBuf>,
@@ -51,7 +59,9 @@ struct Args
 	print_exitcode: bool,
 
 	/// Do not create any binary output
-	#[clap(long, conflicts_with_all(["backend", "output_filepath"]))]
+	#[clap(long)]
+	#[clap(conflicts_with_all(["backend", "backend_args", "link_args"]))]
+	#[clap(conflicts_with_all(["output_filepath"]))]
 	skip_backend: bool,
 
 	/// Show a lot of intermediate output
@@ -86,6 +96,8 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 	let Args {
 		filepaths,
 		backend: arg_backend,
+		backend_args,
+		link_args,
 		output_filepath,
 		out_dir: arg_out_dir,
 		print_exitcode,
@@ -332,6 +344,20 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 		writeln!(stdout)?;
 
 		let mut cmd = std::process::Command::new(&backend);
+		if let Some(backend_args) = backend_args
+		{
+			for arg in backend_args
+			{
+				cmd.arg(arg);
+			}
+		}
+		if let Some(link_args) = link_args
+		{
+			for arg in link_args
+			{
+				cmd.arg(format!("-Wl,{}", arg));
+			}
+		}
 		match &backend_source
 		{
 			BackendSource::File(filepath) =>

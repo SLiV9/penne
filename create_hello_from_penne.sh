@@ -3,6 +3,6 @@
 	-Wl,--allow-undefined -Wl,--import-memory \
 	-Wl,--initial-memory=65536 -Wl,--max-memory=65536 \
 	-Wl,-z,stack-size=14752 -Wl,--stack-first \
-	-Wl,--no-entry -Wl,--export=update \
+	-Wl,--no-entry -Wl,--export=start -Wl,--export=update \
 	bin/examples/wasm4/hello_from_penne.pn.ll \
 	-o bin/hello_from_penne.wasm
