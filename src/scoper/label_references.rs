@@ -251,8 +251,13 @@ impl Analyzable for Statement
 				{
 					Some(else_branch) =>
 					{
-						let branch = else_branch.analyze(analyzer)?;
-						Some(Box::new(branch))
+						let branch = else_branch.branch.analyze(analyzer)?;
+						Some(Else {
+							branch: Box::new(branch),
+							location_of_else: else_branch
+								.location_of_else
+								.clone(),
+						})
 					}
 					None => None,
 				};

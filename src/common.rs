@@ -115,7 +115,7 @@ pub enum Statement
 	{
 		condition: Comparison,
 		then_branch: Box<Statement>,
-		else_branch: Option<Box<Statement>>,
+		else_branch: Option<Else>,
 		location: Location,
 	},
 	Block(Block),
@@ -141,12 +141,21 @@ impl Statement
 
 #[must_use]
 #[derive(Debug, Clone)]
+pub struct Else
+{
+	pub branch: Box<Statement>,
+	pub location_of_else: Location,
+}
+
+#[must_use]
+#[derive(Debug, Clone)]
 pub struct Comparison
 {
 	pub op: ComparisonOp,
 	pub left: Expression,
 	pub right: Expression,
 	pub location: Location,
+	pub location_of_op: Location,
 }
 
 #[must_use]
@@ -192,14 +201,20 @@ pub enum Expression
 		left: Box<Expression>,
 		right: Box<Expression>,
 		location: Location,
+		location_of_op: Location,
 	},
 	Unary
 	{
 		op: UnaryOp,
 		expression: Box<Expression>,
 		location: Location,
+		location_of_op: Location,
 	},
-	PrimitiveLiteral(PrimitiveLiteral),
+	PrimitiveLiteral
+	{
+		literal: PrimitiveLiteral,
+		location: Location,
+	},
 	NakedIntegerLiteral
 	{
 		value: i128,
@@ -238,10 +253,11 @@ pub enum Expression
 		expression: Box<Expression>,
 		coerced_type: ValueType,
 		location: Location,
+		location_of_type: Location,
 	},
 	LengthOfArray
 	{
-		reference: Reference,
+		reference: Reference
 	},
 	FunctionCall
 	{
@@ -249,6 +265,28 @@ pub enum Expression
 		arguments: Vec<Expression>,
 		return_type: Option<ValueType>,
 	},
+}
+
+impl Expression
+{
+	pub fn location(&self) -> &Location
+	{
+		match self
+		{
+			Expression::Binary { location, .. } => location,
+			Expression::Unary { location, .. } => location,
+			Expression::PrimitiveLiteral { location, .. } => location,
+			Expression::NakedIntegerLiteral { location, .. } => location,
+			Expression::BitIntegerLiteral { location, .. } => location,
+			Expression::StringLiteral { location, .. } => location,
+			Expression::ArrayLiteral { array, .. } => &array.location,
+			Expression::Deref { reference, .. } => &reference.location,
+			Expression::Autocoerce { expression, .. } => expression.location(),
+			Expression::PrimitiveCast { location, .. } => location,
+			Expression::LengthOfArray { reference, .. } => &reference.location,
+			Expression::FunctionCall { name, .. } => &name.location,
+		}
+	}
 }
 
 #[must_use]

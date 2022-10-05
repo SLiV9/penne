@@ -204,7 +204,7 @@ impl Analyzable for Statement
 				if let Some(else_branch) = else_branch
 				{
 					analyzer.is_naked_else_branch = true;
-					else_branch.analyze(analyzer)?;
+					else_branch.branch.analyze(analyzer)?;
 					analyzer.is_naked_else_branch = false;
 				}
 

@@ -378,7 +378,7 @@ impl Rebuildable for Statement
 				condition.rebuild(&indentation.increased())?,
 				then_branch.rebuild(&indentation.increased())?,
 				indentation,
-				else_branch.rebuild(&indentation.increased())?
+				else_branch.branch.rebuild(&indentation.increased())?
 			)),
 			Statement::If {
 				condition,
@@ -449,6 +449,7 @@ impl Rebuildable for Expression
 				left,
 				right,
 				location: _,
+				location_of_op: _,
 			} => Ok(format!(
 				"{} {} {}",
 				left.rebuild(&indentation.increased())?,
@@ -459,15 +460,16 @@ impl Rebuildable for Expression
 				op,
 				expression,
 				location: _,
+				location_of_op: _,
 			} => Ok(format!(
 				"{}{}",
 				op,
 				expression.rebuild(&indentation.increased())?,
 			)),
-			Expression::PrimitiveLiteral(literal) =>
-			{
-				literal.rebuild(indentation)
-			}
+			Expression::PrimitiveLiteral {
+				literal,
+				location: _,
+			} => literal.rebuild(indentation),
 			Expression::NakedIntegerLiteral {
 				value,
 				value_type: _,
@@ -529,6 +531,7 @@ impl Rebuildable for Expression
 				expression,
 				coerced_type,
 				location: _,
+				location_of_type: _,
 			} => Ok(format!(
 				"{} as {}",
 				expression.rebuild(indentation)?,

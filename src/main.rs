@@ -159,13 +159,10 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 		.set_fg(Some(Color::Red))
 		.set_bold(true)
 		.to_owned();
-	let colorspec_warning = ColorSpec::new()
-		.set_fg(Some(Color::Yellow))
-		.set_bold(true)
-		.to_owned();
 	let colorspec_success =
 		ColorSpec::new().set_fg(Some(Color::Green)).to_owned();
 
+	let mut sources = Vec::new();
 	let mut modules = HashMap::new();
 	let mut backend_source = BackendSource::None;
 
@@ -196,6 +193,7 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			writeln!(stdout)?;
 			writeln!(stdout)?;
 		}
+		sources.push((filename.clone(), program));
 		if verbose
 		{
 			stdout.set_color(&colorspec_header)?;
@@ -290,10 +288,10 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 		let lints = linter::lint(&declarations);
 		if !lints.is_empty()
 		{
-			stdout.set_color(&colorspec_warning)?;
 			for lint in lints
 			{
-				writeln!(stdout, "Warning: {:?}", lint)?;
+				writeln!(stdout)?;
+				lint.report().eprint(ariadne::sources(sources.clone()))?;
 			}
 			writeln!(stdout)?;
 		}

@@ -350,6 +350,16 @@ impl Resolvable for Statement
 	}
 }
 
+impl Resolvable for Else
+{
+	type Item = Box<resolved::Statement>;
+
+	fn resolve(self) -> Result<Self::Item, Errors>
+	{
+		self.branch.resolve()
+	}
+}
+
 impl Resolvable for Comparison
 {
 	type Item = resolved::Comparison;
@@ -387,6 +397,7 @@ impl Resolvable for Expression
 				left,
 				right,
 				location,
+				location_of_op,
 			} =>
 			{
 				let value_type = resolve_binary_op_type(op, &left, &right);
@@ -409,6 +420,7 @@ impl Resolvable for Expression
 				op,
 				expression,
 				location,
+				location_of_op,
 			} =>
 			{
 				let value_type = resolve_unary_op_type(op, &expression);
@@ -418,9 +430,9 @@ impl Resolvable for Expression
 				let _ = value_type?;
 				Ok(resolved::Expression::Unary { op, expression })
 			}
-			Expression::PrimitiveLiteral(lit) =>
+			Expression::PrimitiveLiteral { literal, location } =>
 			{
-				Ok(resolved::Expression::PrimitiveLiteral(lit))
+				Ok(resolved::Expression::PrimitiveLiteral(literal))
 			}
 			Expression::NakedIntegerLiteral {
 				value,
@@ -566,6 +578,7 @@ impl Resolvable for Expression
 				expression,
 				coerced_type,
 				location,
+				location_of_type,
 			} =>
 			{
 				let expression_type =

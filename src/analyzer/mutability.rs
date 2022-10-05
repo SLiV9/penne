@@ -283,7 +283,7 @@ impl Analyzable for Statement
 				then_branch.analyze(analyzer)?;
 				if let Some(else_branch) = else_branch
 				{
-					else_branch.analyze(analyzer)?;
+					else_branch.branch.analyze(analyzer)?;
 				}
 				Ok(())
 			}
@@ -329,6 +329,7 @@ impl Analyzable for Expression
 				left,
 				right,
 				location,
+				location_of_op: _,
 			} =>
 			{
 				left.analyze(analyzer).with_context(|| location.format())?;
@@ -339,6 +340,7 @@ impl Analyzable for Expression
 				op: _,
 				expression,
 				location,
+				location_of_op: _,
 			} =>
 			{
 				expression
@@ -346,7 +348,7 @@ impl Analyzable for Expression
 					.with_context(|| location.format())?;
 				Ok(())
 			}
-			Expression::PrimitiveLiteral(_lit) => Ok(()),
+			Expression::PrimitiveLiteral { .. } => Ok(()),
 			Expression::NakedIntegerLiteral { .. } => Ok(()),
 			Expression::BitIntegerLiteral { .. } => Ok(()),
 			Expression::ArrayLiteral {
@@ -362,6 +364,7 @@ impl Analyzable for Expression
 				expression,
 				coerced_type: _,
 				location: _,
+				location_of_type: _,
 			} => expression.analyze(analyzer),
 			Expression::Deref {
 				reference,

@@ -637,8 +637,11 @@ impl Analyzable for Statement
 				};
 				let else_branch = if let Some(else_branch) = else_branch
 				{
-					let branch = else_branch.analyze(typer)?;
-					Some(Box::new(branch))
+					let branch = else_branch.branch.analyze(typer)?;
+					Some(Else {
+						branch: Box::new(branch),
+						location_of_else: else_branch.location_of_else.clone(),
+					})
 				}
 				else
 				{
@@ -678,6 +681,7 @@ impl Analyzable for Comparison
 			left,
 			right,
 			location: self.location.clone(),
+			location_of_op: self.location_of_op.clone(),
 		};
 		Ok(expr)
 	}
@@ -719,7 +723,10 @@ impl Typed for Expression
 		{
 			Expression::Binary { left, .. } => left.value_type(),
 			Expression::Unary { expression, .. } => expression.value_type(),
-			Expression::PrimitiveLiteral(literal) => literal.value_type(),
+			Expression::PrimitiveLiteral { literal, .. } =>
+			{
+				literal.value_type()
+			}
 			Expression::NakedIntegerLiteral { value_type, .. } =>
 			{
 				value_type.clone()
@@ -771,6 +778,7 @@ impl Analyzable for Expression
 				left,
 				right,
 				location,
+				location_of_op,
 			} =>
 			{
 				let contextual_type = typer.contextual_type.take();
@@ -784,6 +792,7 @@ impl Analyzable for Expression
 					left: Box::new(left),
 					right: Box::new(right),
 					location: location.clone(),
+					location_of_op: location_of_op.clone(),
 				};
 				Ok(expr)
 			}
@@ -791,6 +800,7 @@ impl Analyzable for Expression
 				op,
 				expression,
 				location,
+				location_of_op,
 			} =>
 			{
 				let expr = expression.analyze(typer)?;
@@ -798,13 +808,11 @@ impl Analyzable for Expression
 					op: *op,
 					expression: Box::new(expr),
 					location: location.clone(),
+					location_of_op: location_of_op.clone(),
 				};
 				Ok(expr)
 			}
-			Expression::PrimitiveLiteral(lit) =>
-			{
-				Ok(Expression::PrimitiveLiteral(lit.clone()))
-			}
+			Expression::PrimitiveLiteral { .. } => Ok(self.clone()),
 			Expression::NakedIntegerLiteral {
 				value,
 				value_type,
@@ -939,6 +947,7 @@ impl Analyzable for Expression
 				expression,
 				coerced_type,
 				location,
+				location_of_type,
 			} =>
 			{
 				let expr = expression.analyze(typer)?;
@@ -946,6 +955,7 @@ impl Analyzable for Expression
 					expression: Box::new(expr),
 					coerced_type: coerced_type.clone(),
 					location: location.clone(),
+					location_of_type: location_of_type.clone(),
 				};
 				Ok(expr)
 			}

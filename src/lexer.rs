@@ -4,6 +4,7 @@
 // License: MIT
 //
 
+use ariadne::Label;
 use thiserror::Error;
 
 use crate::common::*;
@@ -115,10 +116,12 @@ pub enum Error
 #[derive(Debug, Clone)]
 pub struct Location
 {
-	source_filename: String,
-	line: String,
-	line_number: usize,
-	line_offset: usize,
+	pub source_filename: String,
+	pub source_offset: usize,
+	pub span: std::ops::Range<usize>,
+	pub line: String,
+	pub line_number: usize,
+	pub line_offset: usize,
 }
 
 impl Location
@@ -129,6 +132,19 @@ impl Location
 			"at {}:{}:{} ('{}')",
 			self.source_filename, self.line_number, self.line_offset, self.line
 		)
+	}
+
+	pub fn label(&self) -> Label<(String, std::ops::Range<usize>)>
+	{
+		Label::new((self.source_filename.to_string(), self.span.clone()))
+	}
+
+	pub fn combined_with(self, other: &Location) -> Location
+	{
+		Location {
+			span: self.span.start..other.span.end,
+			..self
+		}
 	}
 }
 
@@ -143,10 +159,12 @@ pub struct LexedToken
 pub fn lex(source: &str, source_filename: &str) -> Vec<LexedToken>
 {
 	let mut tokens = Vec::new();
+	let mut offset = 0;
 	for (line_number, line) in source.lines().enumerate()
 	{
 		// Syntax should remain such that each line can be lexed independently.
-		lex_line(line, source_filename, line_number, &mut tokens);
+		lex_line(line, source_filename, offset, line_number, &mut tokens);
+		offset += line.len() + 1;
 	}
 	tokens
 }
@@ -154,15 +172,20 @@ pub fn lex(source: &str, source_filename: &str) -> Vec<LexedToken>
 fn lex_line(
 	line: &str,
 	source_filename: &str,
+	source_offset_of_line: usize,
 	line_number: usize,
 	tokens: &mut Vec<LexedToken>,
 )
 {
 	let mut iter = line.chars().enumerate().peekable();
+	let mut source_offset_start = source_offset_of_line;
 	while let Some((line_offset, x)) = iter.next()
 	{
+		let mut source_offset_end = source_offset_start + 1;
 		let location = Location {
 			source_filename: source_filename.to_string(),
+			source_offset: source_offset_start,
+			span: source_offset_start..source_offset_end,
 			line: line.to_string(),
 			line_number,
 			line_offset,
@@ -180,11 +203,13 @@ fn lex_line(
 				Some((_, '<')) =>
 				{
 					iter.next();
+					source_offset_end += 1;
 					Ok(Token::ShiftLeft)
 				}
 				Some((_, '=')) =>
 				{
 					iter.next();
+					source_offset_end += 1;
 					Ok(Token::IsLE)
 				}
 				_ => Ok(Token::AngleLeft),
@@ -194,11 +219,13 @@ fn lex_line(
 				Some((_, '>')) =>
 				{
 					iter.next();
+					source_offset_end += 1;
 					Ok(Token::ShiftRight)
 				}
 				Some((_, '=')) =>
 				{
 					iter.next();
+					source_offset_end += 1;
 					Ok(Token::IsGE)
 				}
 				_ => Ok(Token::AngleRight),
@@ -212,6 +239,7 @@ fn lex_line(
 				Some((_, '=')) =>
 				{
 					iter.next();
+					source_offset_end += 1;
 					Ok(Token::DoesNotEqual)
 				}
 				_ => Ok(Token::Exclamation),
@@ -227,6 +255,7 @@ fn lex_line(
 				Some((_, '=')) =>
 				{
 					iter.next();
+					source_offset_end += 1;
 					Ok(Token::Equals)
 				}
 				_ => Ok(Token::Assignment),
@@ -236,6 +265,7 @@ fn lex_line(
 				Some((_, '>')) =>
 				{
 					iter.next();
+					source_offset_end += 1;
 					Ok(Token::Arrow)
 				}
 				_ => Ok(Token::Minus),
@@ -257,6 +287,7 @@ fn lex_line(
 					{
 						identifier.push(y);
 						iter.next();
+						source_offset_end += 1;
 					}
 					else
 					{
@@ -299,6 +330,7 @@ fn lex_line(
 				Some((_i, 'x')) =>
 				{
 					iter.next();
+					source_offset_end += 1;
 					let mut literal = x.to_string();
 					while let Some(&(_, y)) = iter.peek()
 					{
@@ -306,6 +338,7 @@ fn lex_line(
 						{
 							literal.push(y);
 							iter.next();
+							source_offset_end += 1;
 						}
 						else
 						{
@@ -319,6 +352,7 @@ fn lex_line(
 				Some((_i, 'b')) =>
 				{
 					iter.next();
+					source_offset_end += 1;
 					let mut literal = x.to_string();
 					while let Some(&(_, y)) = iter.peek()
 					{
@@ -326,6 +360,7 @@ fn lex_line(
 						{
 							literal.push(y);
 							iter.next();
+							source_offset_end += 1;
 						}
 						else
 						{
@@ -345,6 +380,7 @@ fn lex_line(
 						{
 							suffix.push(y);
 							iter.next();
+							source_offset_end += 1;
 						}
 						else
 						{
@@ -380,6 +416,7 @@ fn lex_line(
 					{
 						literal.push(y);
 						iter.next();
+						source_offset_end += 1;
 					}
 					else
 					{
@@ -393,6 +430,7 @@ fn lex_line(
 					{
 						suffix.push(y);
 						iter.next();
+						source_offset_end += 1;
 					}
 					else
 					{
@@ -477,9 +515,11 @@ fn lex_line(
 
 				while let Some((inner_line_offset, x)) = iter.next()
 				{
+					source_offset_end += 1;
 					end_of_line_offset = inner_line_offset + 1;
 					if x == '\\'
 					{
+						source_offset_end += 1;
 						match iter.next()
 						{
 							Some((_, 'n')) => bytes.push(b'\n'),
@@ -500,6 +540,7 @@ fn lex_line(
 									{
 										digits.push(y);
 										iter.next();
+										source_offset_end += 1;
 									}
 									else
 									{
@@ -635,10 +676,19 @@ fn lex_line(
 				}
 			}
 			'$' => Ok(Token::DebugDollar),
-			' ' | '\t' => continue,
+			' ' | '\t' =>
+			{
+				source_offset_start = source_offset_end;
+				continue;
+			}
 			_ => Err(Error::UnexpectedCharacter { character: x }),
 		};
+		let location = Location {
+			span: source_offset_start..source_offset_end,
+			..location
+		};
 		tokens.push(LexedToken { result, location });
+		source_offset_start = source_offset_end;
 	}
 }
 

@@ -471,8 +471,13 @@ impl Analyzable for Statement
 				{
 					Some(else_branch) =>
 					{
-						let branch = else_branch.analyze(analyzer)?;
-						Some(Box::new(branch))
+						let branch = else_branch.branch.analyze(analyzer)?;
+						Some(Else {
+							branch: Box::new(branch),
+							location_of_else: else_branch
+								.location_of_else
+								.clone(),
+						})
 					}
 					None => None,
 				};
@@ -514,6 +519,7 @@ impl Analyzable for Comparison
 			left,
 			right,
 			location: self.location.clone(),
+			location_of_op: self.location_of_op.clone(),
 		})
 	}
 }
@@ -557,6 +563,7 @@ impl Analyzable for Expression
 				left,
 				right,
 				location,
+				location_of_op,
 			} =>
 			{
 				let left = left
@@ -570,12 +577,14 @@ impl Analyzable for Expression
 					left: Box::new(left),
 					right: Box::new(right),
 					location: location.clone(),
+					location_of_op: location_of_op.clone(),
 				})
 			}
 			Expression::Unary {
 				op,
 				expression,
 				location,
+				location_of_op,
 			} =>
 			{
 				let expr = expression
@@ -585,9 +594,10 @@ impl Analyzable for Expression
 					op: *op,
 					expression: Box::new(expr),
 					location: location.clone(),
+					location_of_op: location_of_op.clone(),
 				})
 			}
-			Expression::PrimitiveLiteral(_lit) => Ok(self.clone()),
+			Expression::PrimitiveLiteral { .. } => Ok(self.clone()),
 			Expression::NakedIntegerLiteral { .. } => Ok(self.clone()),
 			Expression::BitIntegerLiteral { .. } => Ok(self.clone()),
 			Expression::ArrayLiteral {
@@ -628,6 +638,7 @@ impl Analyzable for Expression
 				expression,
 				coerced_type,
 				location,
+				location_of_type,
 			} =>
 			{
 				let expression = expression.analyze(analyzer)?;
@@ -635,6 +646,7 @@ impl Analyzable for Expression
 					expression: Box::new(expression),
 					coerced_type: coerced_type.clone(),
 					location: location.clone(),
+					location_of_type: location_of_type.clone(),
 				})
 			}
 			Expression::LengthOfArray { reference } =>

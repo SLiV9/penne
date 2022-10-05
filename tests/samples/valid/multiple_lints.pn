@@ -1,0 +1,17 @@
+fn main() -> i32
+{
+	var x = 33;
+
+	if x == 50
+	{
+		loop;
+	}
+
+	if x == 100
+	{
+		loop;
+	}
+
+	return:
+	x
+}

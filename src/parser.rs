@@ -438,8 +438,8 @@ fn parse_rest_of_block(
 	{
 		if let Some(Token::BraceRight) = peek(tokens)
 		{
-			let _ = extract(tokens)?;
-
+			let (_, end_location) = extract(tokens)?;
+			block.location = block.location.combined_with(&end_location);
 			return Ok(block);
 		}
 
@@ -474,10 +474,13 @@ fn parse_statement(
 
 			if let Some(Token::Else) = peek(tokens)
 			{
-				tokens.pop_front();
+				let (_, location_of_else) = extract(tokens).unwrap();
 
 				let else_stmt = parse_statement(tokens)?;
-				let else_branch = Some(Box::new(else_stmt));
+				let else_branch = Some(Else {
+					branch: Box::new(else_stmt),
+					location_of_else,
+				});
 				let statement = Statement::If {
 					condition,
 					then_branch,
@@ -622,7 +625,7 @@ fn parse_comparison(
 {
 	let left = parse_expression(tokens)?;
 
-	let (token, location) =
+	let (token, location_of_op) =
 		extract(tokens).context("expected comparison operator")?;
 	let op = match token
 	{
@@ -635,18 +638,20 @@ fn parse_comparison(
 		token =>
 		{
 			return Err(anyhow!("got {:?}", token))
-				.context(location.format())
+				.context(location_of_op.format())
 				.context("expected comparison operator")
 		}
 	};
 
 	let right = parse_expression(tokens)?;
+	let location = left.location().clone().combined_with(right.location());
 
 	Ok(Comparison {
 		op,
 		left,
 		right,
 		location,
+		location_of_op,
 	})
 }
 
@@ -662,6 +667,7 @@ fn parse_addition(
 ) -> Result<Expression, anyhow::Error>
 {
 	let mut expression = parse_multiplication(tokens)?;
+	let mut location = expression.location().clone();
 
 	loop
 	{
@@ -682,15 +688,17 @@ fn parse_addition(
 				return Ok(expression);
 			}
 		};
-		let (_, location) = extract(tokens).unwrap();
+		let (_, location_of_op) = extract(tokens).unwrap();
 
 		let right = parse_multiplication(tokens)?;
+		location = location.combined_with(right.location());
 
 		expression = Expression::Binary {
 			op,
 			left: Box::new(expression),
 			right: Box::new(right),
-			location,
+			location: location.clone(),
+			location_of_op,
 		};
 	}
 }
@@ -700,7 +708,7 @@ fn parse_rest_of_bitwise_expression(
 	tokens: &mut VecDeque<LexedToken>,
 ) -> Result<Expression, anyhow::Error>
 {
-	let (op_token, location) = extract(tokens)?;
+	let (op_token, location_of_op) = extract(tokens)?;
 	let op = match op_token
 	{
 		Token::Ampersand => BinaryOp::BitwiseAnd,
@@ -710,7 +718,7 @@ fn parse_rest_of_bitwise_expression(
 		other =>
 		{
 			return Err(anyhow!("got {:?}", other))
-				.context(location.format())
+				.context(location_of_op.format())
 				.context("expected bitwise operator")
 		}
 	};
@@ -721,22 +729,25 @@ fn parse_rest_of_bitwise_expression(
 		Expression::Binary { .. } =>
 		{
 			return Err(anyhow!("got {:?}", expression))
-				.context(location.format())
+				.context(location_of_op.format())
 				.context("expected left operand of bitwise operator")
 		}
 		_ => (),
 	}
 
-	let mut location = location;
+	let mut location = expression.location().clone();
+	let mut location_of_op = location_of_op;
 	loop
 	{
 		let right = parse_unary_expression(tokens)?;
+		location = location.combined_with(right.location());
 
 		expression = Expression::Binary {
 			op,
 			left: Box::new(expression),
 			right: Box::new(right),
-			location,
+			location: location.clone(),
+			location_of_op,
 		};
 
 		match peek(tokens)
@@ -744,7 +755,7 @@ fn parse_rest_of_bitwise_expression(
 			Some(token) if token == &op_token =>
 			{
 				let (_, loc) = extract(tokens)?;
-				location = loc;
+				location_of_op = loc;
 			}
 			_ =>
 			{
@@ -759,7 +770,7 @@ fn parse_rest_of_bitshift_operation(
 	tokens: &mut VecDeque<LexedToken>,
 ) -> Result<Expression, anyhow::Error>
 {
-	let (op_token, location) = extract(tokens)?;
+	let (op_token, location_of_op) = extract(tokens)?;
 	let op = match op_token
 	{
 		Token::ShiftLeft => BinaryOp::ShiftLeft,
@@ -768,7 +779,7 @@ fn parse_rest_of_bitshift_operation(
 		other =>
 		{
 			return Err(anyhow!("got {:?}", other))
-				.context(location.format())
+				.context(location_of_op.format())
 				.context("expected bitshift operator")
 		}
 	};
@@ -779,19 +790,24 @@ fn parse_rest_of_bitshift_operation(
 		Expression::Binary { .. } =>
 		{
 			return Err(anyhow!("got {:?}", expression))
-				.context(location.format())
+				.context(location_of_op.format())
 				.context("expected left operand of bitshift operator")
 		}
 		_ => (),
 	}
 
 	let right = parse_unary_expression(tokens)?;
+	let location = expression
+		.location()
+		.clone()
+		.combined_with(right.location());
 
 	expression = Expression::Binary {
 		op,
 		left: Box::new(expression),
 		right: Box::new(right),
 		location,
+		location_of_op,
 	};
 	Ok(expression)
 }
@@ -801,6 +817,7 @@ fn parse_multiplication(
 ) -> Result<Expression, anyhow::Error>
 {
 	let mut expression = parse_singular_expression(tokens)?;
+	let mut location = expression.location().clone();
 
 	loop
 	{
@@ -814,15 +831,17 @@ fn parse_multiplication(
 				return Ok(expression);
 			}
 		};
-		let (_, location) = extract(tokens).unwrap();
+		let (_, location_of_op) = extract(tokens).unwrap();
 
 		let right = parse_singular_expression(tokens)?;
+		location = location.combined_with(right.location());
 
 		expression = Expression::Binary {
 			op,
 			left: Box::new(expression),
 			right: Box::new(right),
-			location,
+			location: location.clone(),
+			location_of_op,
 		};
 	}
 }
@@ -832,6 +851,7 @@ fn parse_singular_expression(
 ) -> Result<Expression, anyhow::Error>
 {
 	let mut expression = parse_unary_expression(tokens)?;
+	let mut location = expression.location().clone();
 
 	loop
 	{
@@ -843,14 +863,19 @@ fn parse_singular_expression(
 				return Ok(expression);
 			}
 		};
-		let (_, location) = extract(tokens).unwrap();
+		let (_, location_of_as) = extract(tokens).unwrap();
 
 		let coerced_type = parse_type(tokens)?;
+
+		// TODO location_of_type
+		let location_of_type = location_of_as;
+		location = location.combined_with(&location_of_type);
 
 		expression = Expression::PrimitiveCast {
 			expression: Box::new(expression),
 			coerced_type,
-			location,
+			location: location.clone(),
+			location_of_type,
 		};
 	}
 }
@@ -871,19 +896,24 @@ fn parse_unary_expression(
 		}
 		Some(Token::Exclamation) =>
 		{
-			let (_, location) = extract(tokens).unwrap();
+			let (_, location_of_op) = extract(tokens).unwrap();
 			let expr = parse_primary_expression(tokens)?;
+			let location =
+				location_of_op.clone().combined_with(expr.location());
 			let expression = Expression::Unary {
 				op: UnaryOp::BitwiseComplement,
 				expression: Box::new(expr),
 				location,
+				location_of_op,
 			};
 			Ok(expression)
 		}
 		Some(Token::Minus) =>
 		{
-			let (_, location) = extract(tokens).unwrap();
+			let (_, location_of_op) = extract(tokens).unwrap();
 			let expr = parse_primary_expression(tokens)?;
+			let location =
+				location_of_op.clone().combined_with(expr.location());
 			match expr
 			{
 				Expression::NakedIntegerLiteral {
@@ -895,38 +925,48 @@ fn parse_unary_expression(
 					value_type,
 					location,
 				}),
-				Expression::PrimitiveLiteral(PrimitiveLiteral::Int8(value)) =>
-				{
-					Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Int8(
-						-value,
-					)))
-				}
-				Expression::PrimitiveLiteral(PrimitiveLiteral::Int16(
-					value,
-				)) => Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Int16(
-					-value,
-				))),
-				Expression::PrimitiveLiteral(PrimitiveLiteral::Int32(
-					value,
-				)) => Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Int32(
-					-value,
-				))),
-				Expression::PrimitiveLiteral(PrimitiveLiteral::Int64(
-					value,
-				)) => Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Int64(
-					-value,
-				))),
-				Expression::PrimitiveLiteral(PrimitiveLiteral::Int128(
-					value,
-				)) => Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Int128(
-					-value,
-				))),
+				Expression::PrimitiveLiteral {
+					literal: PrimitiveLiteral::Int8(value),
+					location: _,
+				} => Ok(Expression::PrimitiveLiteral {
+					literal: PrimitiveLiteral::Int8(-value),
+					location,
+				}),
+				Expression::PrimitiveLiteral {
+					literal: PrimitiveLiteral::Int16(value),
+					location: _,
+				} => Ok(Expression::PrimitiveLiteral {
+					literal: PrimitiveLiteral::Int16(-value),
+					location,
+				}),
+				Expression::PrimitiveLiteral {
+					literal: PrimitiveLiteral::Int32(value),
+					location: _,
+				} => Ok(Expression::PrimitiveLiteral {
+					literal: PrimitiveLiteral::Int32(-value),
+					location,
+				}),
+				Expression::PrimitiveLiteral {
+					literal: PrimitiveLiteral::Int64(value),
+					location: _,
+				} => Ok(Expression::PrimitiveLiteral {
+					literal: PrimitiveLiteral::Int64(-value),
+					location,
+				}),
+				Expression::PrimitiveLiteral {
+					literal: PrimitiveLiteral::Int128(value),
+					location: _,
+				} => Ok(Expression::PrimitiveLiteral {
+					literal: PrimitiveLiteral::Int128(-value),
+					location,
+				}),
 				expr =>
 				{
 					let expression = Expression::Unary {
 						op: UnaryOp::Negative,
 						expression: Box::new(expr),
 						location,
+						location_of_op,
 					};
 					Ok(expression)
 				}
@@ -956,46 +996,63 @@ fn parse_primary_expression(
 		}),
 		Token::Int8(value) =>
 		{
-			Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Int8(value)))
+			let literal = PrimitiveLiteral::Int8(value);
+			Ok(Expression::PrimitiveLiteral { literal, location })
 		}
 		Token::Int16(value) =>
 		{
-			Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Int16(value)))
+			let literal = PrimitiveLiteral::Int16(value);
+			Ok(Expression::PrimitiveLiteral { literal, location })
 		}
 		Token::Int32(value) =>
 		{
-			Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Int32(value)))
+			let literal = PrimitiveLiteral::Int32(value);
+			Ok(Expression::PrimitiveLiteral { literal, location })
 		}
 		Token::Int64(value) =>
 		{
-			Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Int64(value)))
+			let literal = PrimitiveLiteral::Int64(value);
+			Ok(Expression::PrimitiveLiteral { literal, location })
 		}
-		Token::Int128(value) => Ok(Expression::PrimitiveLiteral(
-			PrimitiveLiteral::Int128(value),
-		)),
+		Token::Int128(value) =>
+		{
+			let literal = PrimitiveLiteral::Int128(value);
+			Ok(Expression::PrimitiveLiteral { literal, location })
+		}
 		Token::Uint8(value) =>
 		{
-			Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Uint8(value)))
+			let literal = PrimitiveLiteral::Uint8(value);
+			Ok(Expression::PrimitiveLiteral { literal, location })
 		}
-		Token::Uint16(value) => Ok(Expression::PrimitiveLiteral(
-			PrimitiveLiteral::Uint16(value),
-		)),
-		Token::Uint32(value) => Ok(Expression::PrimitiveLiteral(
-			PrimitiveLiteral::Uint32(value),
-		)),
-		Token::Uint64(value) => Ok(Expression::PrimitiveLiteral(
-			PrimitiveLiteral::Uint64(value),
-		)),
-		Token::Uint128(value) => Ok(Expression::PrimitiveLiteral(
-			PrimitiveLiteral::Uint128(value),
-		)),
+		Token::Uint16(value) =>
+		{
+			let literal = PrimitiveLiteral::Uint16(value);
+			Ok(Expression::PrimitiveLiteral { literal, location })
+		}
+		Token::Uint32(value) =>
+		{
+			let literal = PrimitiveLiteral::Uint32(value);
+			Ok(Expression::PrimitiveLiteral { literal, location })
+		}
+		Token::Uint64(value) =>
+		{
+			let literal = PrimitiveLiteral::Uint64(value);
+			Ok(Expression::PrimitiveLiteral { literal, location })
+		}
+		Token::Uint128(value) =>
+		{
+			let literal = PrimitiveLiteral::Uint128(value);
+			Ok(Expression::PrimitiveLiteral { literal, location })
+		}
 		Token::Usize(value) =>
 		{
-			Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Usize(value)))
+			let literal = PrimitiveLiteral::Usize(value);
+			Ok(Expression::PrimitiveLiteral { literal, location })
 		}
 		Token::Bool(value) =>
 		{
-			Ok(Expression::PrimitiveLiteral(PrimitiveLiteral::Bool(value)))
+			let literal = PrimitiveLiteral::Bool(value);
+			Ok(Expression::PrimitiveLiteral { literal, location })
 		}
 		Token::StringLiteral { bytes, value_type } =>
 		{
