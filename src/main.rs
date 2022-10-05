@@ -260,10 +260,7 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			writeln!(stdout, "Analysis complete.")?;
 			writeln!(stdout)?;
 		}
-		let forward_declarations = declarations
-			.iter()
-			.flat_map(|x| create_forward_declaration(x))
-			.collect();
+		let stored_declarations = declarations.clone();
 		if verbose
 		{
 			stdout.set_color(&colorspec_header)?;
@@ -330,7 +327,7 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			backend_source = BackendSource::Stdin(ir);
 		}
 		// Store the declarations for later use.
-		modules.insert(filepath, forward_declarations);
+		modules.insert(filepath, stored_declarations);
 	}
 
 	if let Some(output_filepath) = output_filepath.filter(|_x| !skip_backend)
