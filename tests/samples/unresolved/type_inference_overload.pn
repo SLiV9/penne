@@ -1,0 +1,10 @@
+fn main()
+{
+	var a: i32;
+	var b;
+	var c;
+	var d;
+	b = c;
+	a = b;
+	c = d;
+}

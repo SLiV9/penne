@@ -10,20 +10,56 @@ use crate::resolved;
 use crate::typer::Typed;
 
 use anyhow::anyhow;
-use anyhow::Context;
 
 pub fn resolve(
 	program: Vec<common::Declaration>,
-) -> Result<Vec<resolved::Declaration>, anyhow::Error>
+) -> Result<Vec<resolved::Declaration>, Errors>
 {
 	program.resolve()
+}
+
+pub struct Errors
+{
+	errors: Vec<anyhow::Error>,
+}
+
+impl From<anyhow::Error> for Errors
+{
+	fn from(error: anyhow::Error) -> Self
+	{
+		Self {
+			errors: vec![error],
+		}
+	}
+}
+
+impl Into<anyhow::Error> for Errors
+{
+	fn into(self) -> anyhow::Error
+	{
+		self.errors
+			.into_iter()
+			.next()
+			.unwrap_or_else(|| anyhow!("empty errors"))
+	}
+}
+
+impl IntoIterator for Errors
+{
+	type Item = anyhow::Error;
+	type IntoIter = <Vec<anyhow::Error> as IntoIterator>::IntoIter;
+
+	fn into_iter(self) -> Self::IntoIter
+	{
+		self.errors.into_iter()
+	}
 }
 
 trait Resolvable
 {
 	type Item;
 
-	fn resolve(self) -> Result<Self::Item, anyhow::Error>;
+	fn resolve(self) -> Result<Self::Item, Errors>;
 }
 
 impl<T> Resolvable for Vec<T>
@@ -32,9 +68,94 @@ where
 {
 	type Item = Vec<T::Item>;
 
-	fn resolve(self) -> Result<Self::Item, anyhow::Error>
+	fn resolve(self) -> Result<Self::Item, Errors>
 	{
-		self.into_iter().map(|x| x.resolve()).collect()
+		self.into_iter().map(|x| x.resolve()).fold(
+			Ok(Vec::new()),
+			|accum, result| match (accum, result)
+			{
+				(Ok(mut items), Ok(item)) =>
+				{
+					items.push(item);
+					Ok(items)
+				}
+				(Ok(_), Err(errors)) => Err(errors),
+				(Err(errors), Ok(_)) => Err(errors),
+				(
+					Err(Errors { mut errors }),
+					Err(Errors { errors: mut more }),
+				) =>
+				{
+					errors.append(&mut more);
+					Err(Errors { errors })
+				}
+			},
+		)
+	}
+}
+
+impl<T1, T2> Resolvable for (T1, T2)
+where
+	T1: Resolvable,
+	T2: Resolvable,
+{
+	type Item = (T1::Item, T2::Item);
+
+	fn resolve(self) -> Result<Self::Item, Errors>
+	{
+		let (a, b) = self;
+		match (a.resolve(), b.resolve())
+		{
+			(Ok(x), Ok(y)) => Ok((x, y)),
+			(Ok(_), Err(errors)) => Err(errors),
+			(Err(errors), Ok(_)) => Err(errors),
+			(Err(Errors { mut errors }), Err(Errors { errors: mut more })) =>
+			{
+				errors.append(&mut more);
+				Err(Errors { errors })
+			}
+		}
+	}
+}
+
+impl<T1, T2, T3> Resolvable for (T1, T2, T3)
+where
+	T1: Resolvable,
+	T2: Resolvable,
+	T3: Resolvable,
+{
+	type Item = (T1::Item, T2::Item, T3::Item);
+
+	fn resolve(self) -> Result<Self::Item, Errors>
+	{
+		let (a, b, c) = self;
+		let ((a, b), c) = ((a, b), c).resolve()?;
+		Ok((a, b, c))
+	}
+}
+
+impl<T> Resolvable for Option<T>
+where
+	T: Resolvable,
+{
+	type Item = Option<T::Item>;
+
+	fn resolve(self) -> Result<Self::Item, Errors>
+	{
+		self.map(|x| x.resolve()).transpose()
+	}
+}
+
+impl<T> Resolvable for Box<T>
+where
+	T: Resolvable,
+{
+	type Item = Box<T::Item>;
+
+	fn resolve(self) -> Result<Self::Item, Errors>
+	{
+		let x = (*self).resolve()?;
+		Ok(Box::new(x))
 	}
 }
 
@@ -42,7 +163,7 @@ impl Resolvable for Declaration
 {
 	type Item = resolved::Declaration;
 
-	fn resolve(self) -> Result<Self::Item, anyhow::Error>
+	fn resolve(self) -> Result<Self::Item, Errors>
 	{
 		match self
 		{
@@ -90,7 +211,7 @@ impl Resolvable for Parameter
 {
 	type Item = resolved::Parameter;
 
-	fn resolve(self) -> Result<Self::Item, anyhow::Error>
+	fn resolve(self) -> Result<Self::Item, Errors>
 	{
 		if let Some(value_type) = self.value_type
 		{
@@ -106,7 +227,8 @@ impl Resolvable for Parameter
 				.context(format!(
 					"failed to infer type for '{}'",
 					self.name.name
-				)))
+				))
+				.into())
 		}
 	}
 }
@@ -115,7 +237,7 @@ impl Resolvable for FunctionBody
 {
 	type Item = resolved::FunctionBody;
 
-	fn resolve(self) -> Result<Self::Item, anyhow::Error>
+	fn resolve(self) -> Result<Self::Item, Errors>
 	{
 		Ok(resolved::FunctionBody {
 			statements: self.statements.resolve()?,
@@ -128,7 +250,7 @@ impl Resolvable for Statement
 {
 	type Item = resolved::Statement;
 
-	fn resolve(self) -> Result<Self::Item, anyhow::Error>
+	fn resolve(self) -> Result<Self::Item, Errors>
 	{
 		match self
 		{
@@ -139,8 +261,7 @@ impl Resolvable for Statement
 				location,
 			} =>
 			{
-				let value =
-					value.resolve().with_context(|| location.format())?;
+				let value = value.resolve()?;
 				Ok(resolved::Statement::Declaration {
 					name: name.resolve()?,
 					value: Some(value),
@@ -164,17 +285,15 @@ impl Resolvable for Statement
 				location,
 			} => Err(anyhow!("failed to infer type")
 				.context(location.format())
-				.context(format!("failed to infer type for '{}'", name.name))),
+				.context(format!("failed to infer type for '{}'", name.name))
+				.into()),
 			Statement::Assignment {
 				reference,
 				value,
 				location,
 			} if value.value_type().is_some() =>
 			{
-				let value =
-					value.resolve().with_context(|| location.format())?;
-				let reference =
-					reference.resolve().with_context(|| location.format())?;
+				let (reference, value) = (reference, value).resolve()?;
 				Ok(resolved::Statement::Assignment { reference, value })
 			}
 			Statement::Assignment {
@@ -186,13 +305,12 @@ impl Resolvable for Statement
 				.context(format!(
 					"failed to infer type for '{}'",
 					reference.base.name
-				))),
+				))
+				.into()),
 			Statement::MethodCall { name, arguments } =>
 			{
-				Ok(resolved::Statement::MethodCall {
-					name: name.resolve()?,
-					arguments: arguments.resolve()?,
-				})
+				let (name, arguments) = (name, arguments).resolve()?;
+				Ok(resolved::Statement::MethodCall { name, arguments })
 			}
 			Statement::Loop { .. } => Ok(resolved::Statement::Loop),
 			Statement::Goto { label, location: _ } =>
@@ -214,21 +332,8 @@ impl Resolvable for Statement
 				location,
 			} =>
 			{
-				let condition =
-					condition.resolve().with_context(|| location.format())?;
-				let then_branch = {
-					let branch = then_branch.resolve()?;
-					Box::new(branch)
-				};
-				let else_branch = match else_branch
-				{
-					Some(else_branch) =>
-					{
-						let branch = else_branch.resolve()?;
-						Some(Box::new(branch))
-					}
-					None => None,
-				};
+				let (condition, then_branch, else_branch) =
+					(condition, then_branch, else_branch).resolve()?;
 				Ok(resolved::Statement::If {
 					condition,
 					then_branch,
@@ -249,22 +354,17 @@ impl Resolvable for Comparison
 {
 	type Item = resolved::Comparison;
 
-	fn resolve(self) -> Result<Self::Item, anyhow::Error>
+	fn resolve(self) -> Result<Self::Item, Errors>
 	{
 		let compared_type =
-			resolve_compared_type(self.op, &self.left, &self.right)
-				.with_context(|| self.location.format())
-				.with_context(|| {
-					"failed to infer valid operand types for comparison operator"
-				})?;
-		let left = self
-			.left
-			.resolve()
-			.with_context(|| self.location.format())?;
-		let right = self
-			.right
-			.resolve()
-			.with_context(|| self.location.format())?;
+			resolve_compared_type(self.op, &self.left, &self.right);
+		// If the left hand size contains errors, there is not much point in
+		// reporting errors about the right side because type inference failed.
+		let left = self.left.resolve()?;
+		let right = self.right.resolve()?;
+		// If either side contains errors, type inference will probably fail,
+		// but there is not much point in reporting that.
+		let compared_type = compared_type?;
 		Ok(resolved::Comparison {
 			op: self.op,
 			left,
@@ -278,7 +378,7 @@ impl Resolvable for Expression
 {
 	type Item = resolved::Expression;
 
-	fn resolve(self) -> Result<Self::Item, anyhow::Error>
+	fn resolve(self) -> Result<Self::Item, Errors>
 	{
 		match self
 		{
@@ -289,18 +389,19 @@ impl Resolvable for Expression
 				location,
 			} =>
 			{
-				let value_type = resolve_binary_op_type(op, &left, &right)
-					.with_context(|| location.format())
-					.with_context(|| {
-						"failed to infer valid types for binary operator"
-					})?;
-				let left = left.resolve().with_context(|| location.format())?;
-				let right =
-					right.resolve().with_context(|| location.format())?;
+				let value_type = resolve_binary_op_type(op, &left, &right);
+				// If the left hand size contains errors, there is not much
+				// point in reporting errors about the right side because
+				// type inference failed.
+				let left = left.resolve()?;
+				let right = right.resolve()?;
+				// If either side contains errors, type inference will probably
+				// fail, but there is not much point in reporting that.
+				let value_type = value_type?;
 				Ok(resolved::Expression::Binary {
 					op,
-					left: Box::new(left),
-					right: Box::new(right),
+					left,
+					right,
 					value_type,
 				})
 			}
@@ -310,17 +411,12 @@ impl Resolvable for Expression
 				location,
 			} =>
 			{
-				let _value_type = resolve_unary_op_type(op, &expression)
-					.with_context(|| location.format())
-					.with_context(|| {
-						"failed to infer valid operand type for unary operator"
-					})?;
-				let expr =
-					expression.resolve().with_context(|| location.format())?;
-				Ok(resolved::Expression::Unary {
-					op,
-					expression: Box::new(expr),
-				})
+				let value_type = resolve_unary_op_type(op, &expression);
+				let expression = expression.resolve()?;
+				// If the expression contains errors, type inference will
+				// fail, but there is not much point in reporting that.
+				let _ = value_type?;
+				Ok(resolved::Expression::Unary { op, expression })
 			}
 			Expression::PrimitiveLiteral(lit) =>
 			{
@@ -347,7 +443,8 @@ impl Resolvable for Expression
 				// Disallow i32::MIN because ValueType::Int is symmetric.
 				Ok(i32::MIN) | Err(_) => Err(anyhow!("failed to infer type")
 					.context(location.format())
-					.context(format!("failed to infer integer literal type"))),
+					.context(format!("failed to infer integer literal type"))
+					.into()),
 				Ok(_) => Ok(resolved::Expression::NakedIntegerLiteral {
 					value,
 					value_type: ValueType::Int32,
@@ -367,7 +464,8 @@ impl Resolvable for Expression
 				location,
 			} => Err(anyhow!("failed to infer type")
 				.context(location.format())
-				.context(format!("failed to infer integer literal type"))),
+				.context(format!("failed to infer integer literal type"))
+				.into()),
 			Expression::ArrayLiteral {
 				array:
 					Array {
@@ -391,7 +489,8 @@ impl Resolvable for Expression
 						.context(location.format())
 						.context(format!(
 							"failed to infer array literal element type"
-						)))
+						))
+						.into())
 				}
 			}
 			Expression::StringLiteral {
@@ -410,7 +509,8 @@ impl Resolvable for Expression
 				}
 				_ => Err(anyhow!("unexpected type")
 					.context(location.format())
-					.context(format!("failed to infer string literal type"))),
+					.context(format!("failed to infer string literal type"))
+					.into()),
 			},
 			Expression::StringLiteral {
 				bytes: _,
@@ -418,24 +518,30 @@ impl Resolvable for Expression
 				location,
 			} => Err(anyhow!("failed to infer type")
 				.context(location.format())
-				.context(format!("failed to infer string literal type"))),
+				.context(format!("failed to infer string literal type"))
+				.into()),
 			Expression::Deref {
 				reference,
 				deref_type,
 			} =>
 			{
+				// If the reference fails to resolve, there is no point in
+				// reporting about type inference.
+				let reference_location = reference.location.clone();
+				let reference = reference.resolve()?;
 				if let Some(deref_type) = deref_type
 				{
 					Ok(resolved::Expression::Deref {
-						reference: reference.resolve()?,
+						reference,
 						deref_type,
 					})
 				}
 				else
 				{
 					Err(anyhow!("failed to infer type")
-						.context(reference.location.format())
-						.context(format!("failed to infer type of reference")))
+						.context(reference_location.format())
+						.context(format!("failed to infer type of reference"))
+						.into())
 				}
 			}
 			Expression::Autocoerce {
@@ -447,14 +553,13 @@ impl Resolvable for Expression
 				{
 					let expression = expression.resolve()?;
 					Ok(resolved::Expression::Autocoerce {
-						expression: Box::new(expression),
+						expression,
 						coerced_type: coerced_type.clone(),
 					})
 				}
 				else
 				{
-					Err(anyhow!("failed to infer type in coercion")
-						.context(format!("failed to infer type in coercion")))
+					Err(anyhow!("failed to infer type in coercion").into())
 				}
 			}
 			Expression::PrimitiveCast {
@@ -464,14 +569,13 @@ impl Resolvable for Expression
 			} =>
 			{
 				let expression_type =
-					analyze_primitive_cast(&expression, coerced_type.clone())
-						.with_context(|| location.format())
-						.with_context(|| {
-							"failed to infer valid expression type for cast"
-						})?;
+					analyze_primitive_cast(&expression, coerced_type.clone());
 				let expression = expression.resolve()?;
+				// If the expression contains errors, type inference will
+				// fail, but there is not much point in reporting that.
+				let expression_type = expression_type?;
 				Ok(resolved::Expression::PrimitiveCast {
-					expression: Box::new(expression),
+					expression,
 					expression_type,
 					coerced_type: coerced_type,
 				})
@@ -488,19 +592,22 @@ impl Resolvable for Expression
 				return_type,
 			} =>
 			{
+				let location = name.location.clone();
+				let (name, arguments) = (name, arguments).resolve()?;
 				if let Some(return_type) = return_type
 				{
 					Ok(resolved::Expression::FunctionCall {
-						name: name.resolve()?,
-						arguments: arguments.resolve()?,
+						name,
+						arguments,
 						return_type,
 					})
 				}
 				else
 				{
 					Err(anyhow!("failed to infer return type")
-						.context(name.location.format())
-						.context(format!("failed to infer return type")))
+						.context(location.format())
+						.context(format!("failed to infer return type"))
+						.into())
 				}
 			}
 		}
@@ -511,11 +618,12 @@ impl Resolvable for Reference
 {
 	type Item = resolved::Reference;
 
-	fn resolve(self) -> Result<Self::Item, anyhow::Error>
+	fn resolve(self) -> Result<Self::Item, Errors>
 	{
+		let (base, steps) = (self.base, self.steps).resolve()?;
 		Ok(resolved::Reference {
-			base: self.base.resolve()?,
-			steps: self.steps.resolve()?,
+			base,
+			steps,
 			take_address: self.address_depth > 0,
 		})
 	}
@@ -525,16 +633,14 @@ impl Resolvable for ReferenceStep
 {
 	type Item = resolved::ReferenceStep;
 
-	fn resolve(self) -> Result<Self::Item, anyhow::Error>
+	fn resolve(self) -> Result<Self::Item, Errors>
 	{
 		match self
 		{
 			ReferenceStep::Element { argument } =>
 			{
 				let argument = argument.resolve()?;
-				Ok(resolved::ReferenceStep::Element {
-					argument: Box::new(argument),
-				})
+				Ok(resolved::ReferenceStep::Element { argument })
 			}
 			ReferenceStep::Member { member } =>
 			{
@@ -556,7 +662,7 @@ impl Resolvable for Identifier
 {
 	type Item = resolved::Identifier;
 
-	fn resolve(self) -> Result<Self::Item, anyhow::Error>
+	fn resolve(self) -> Result<Self::Item, Errors>
 	{
 		if self.resolution_id > 0
 		{
@@ -569,7 +675,8 @@ impl Resolvable for Identifier
 		{
 			Err(anyhow!("failed to resolve identifier")
 				.context(self.location.format())
-				.context(format!("failed to resolve '{}'", self.name)))
+				.context(format!("failed to resolve '{}'", self.name))
+				.into())
 		}
 	}
 }

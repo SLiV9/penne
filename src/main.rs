@@ -308,7 +308,24 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			stdout.set_color(&colorspec_header)?;
 			writeln!(stdout, "Resolving {}...", filename)?;
 		}
-		let declarations = resolver::resolve(declarations)?;
+		let declarations = match resolver::resolve(declarations)
+		{
+			Ok(declarations) => declarations,
+			Err(errors) =>
+			{
+				stdout.set_color(&colorspec_error)?;
+				for error in errors.into_iter()
+				{
+					writeln!(stdout)?;
+					writeln!(stdout, "Error: {:?}", error)?;
+					writeln!(stdout)?;
+				}
+				writeln!(stdout)?;
+				// TODO another way to stop
+				Err(anyhow!("errors during resolution"))?;
+				Vec::new()
+			}
+		};
 		if verbose
 		{
 			stdout.set_color(&colorspec_dump)?;

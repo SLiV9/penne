@@ -16,7 +16,7 @@ use anyhow::anyhow;
 
 fn resolve(
 	filename: &str,
-) -> Result<Result<Vec<resolved::Declaration>, anyhow::Error>, anyhow::Error>
+) -> Result<Result<Vec<resolved::Declaration>, resolver::Errors>, anyhow::Error>
 {
 	let source = std::fs::read_to_string(filename)?;
 	let tokens = lexer::lex(&source, filename);

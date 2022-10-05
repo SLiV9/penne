@@ -1,0 +1,5 @@
+fn main()
+{
+	var a;
+	var b = a;
+}
