@@ -6,6 +6,7 @@
 
 use enumset::{EnumSet, EnumSetType};
 
+pub use crate::error::{Poison, Poisonable};
 pub use crate::lexer::Location;
 pub use crate::value_type::ValueType;
 
@@ -17,14 +18,14 @@ pub enum Declaration
 	{
 		name: Identifier,
 		value: Expression,
-		value_type: ValueType,
+		value_type: Poisonable<ValueType>,
 		flags: EnumSet<DeclarationFlag>,
 	},
 	Function
 	{
 		name: Identifier,
 		parameters: Vec<Parameter>,
-		body: FunctionBody,
+		body: Poisonable<FunctionBody>,
 		return_type: Option<ValueType>,
 		flags: EnumSet<DeclarationFlag>,
 	},
@@ -40,6 +41,7 @@ pub enum Declaration
 		directive: String,
 		location: Location,
 	},
+	Poison(Poison<Box<Declaration>>),
 }
 
 #[must_use]
@@ -55,7 +57,7 @@ pub enum DeclarationFlag
 pub struct Parameter
 {
 	pub name: Identifier,
-	pub value_type: Option<ValueType>,
+	pub value_type: Poisonable<ValueType>,
 }
 
 #[must_use]
@@ -83,7 +85,7 @@ pub enum Statement
 	{
 		name: Identifier,
 		value: Option<Expression>,
-		value_type: Option<ValueType>,
+		value_type: Option<Poisonable<ValueType>>,
 		location: Location,
 	},
 	Assignment
@@ -119,6 +121,7 @@ pub enum Statement
 		location: Location,
 	},
 	Block(Block),
+	Poison(Poison<Box<Statement>>),
 }
 
 impl Statement
@@ -257,7 +260,7 @@ pub enum Expression
 	},
 	LengthOfArray
 	{
-		reference: Reference
+		reference: Reference,
 	},
 	FunctionCall
 	{
@@ -265,6 +268,7 @@ pub enum Expression
 		arguments: Vec<Expression>,
 		return_type: Option<ValueType>,
 	},
+	Poison(Poison<Box<Expression>>),
 }
 
 impl Expression

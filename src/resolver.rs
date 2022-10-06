@@ -6,6 +6,8 @@
 
 use crate::common;
 use crate::common::*;
+use crate::error;
+use crate::error::{Poison, Poisonable};
 use crate::resolved;
 use crate::typer::Typed;
 
@@ -29,6 +31,17 @@ impl From<anyhow::Error> for Errors
 	{
 		Self {
 			errors: vec![error],
+		}
+	}
+}
+
+impl From<error::Error> for Errors
+{
+	fn from(error: error::Error) -> Self
+	{
+		// TODO print pretty error
+		Self {
+			errors: vec![anyhow!("print pretty error")],
 		}
 	}
 }
@@ -159,6 +172,28 @@ where
 	}
 }
 
+impl<T> Resolvable for Poisonable<T>
+where
+	T: Resolvable,
+{
+	type Item = T::Item;
+
+	fn resolve(self) -> Result<Self::Item, Errors>
+	{
+		match self
+		{
+			Ok(x) => x.resolve(),
+			Err(Poison::Error { error, partial }) => Err(error.into()),
+			Err(Poison::Poisoned) =>
+			{
+				// Do not show any errors because this thing was poisoned by
+				// a different error, and cascading errors are unreliable.
+				Err(Errors { errors: Vec::new() })
+			}
+		}
+	}
+}
+
 impl Resolvable for Declaration
 {
 	type Item = resolved::Declaration;
@@ -175,7 +210,7 @@ impl Resolvable for Declaration
 			} => Ok(resolved::Declaration::Constant {
 				name: name.resolve()?,
 				value: value.resolve()?,
-				value_type,
+				value_type: value_type.resolve()?,
 				flags,
 			}),
 			Declaration::Function {
@@ -213,23 +248,10 @@ impl Resolvable for Parameter
 
 	fn resolve(self) -> Result<Self::Item, Errors>
 	{
-		if let Some(value_type) = self.value_type
-		{
-			Ok(resolved::Parameter {
-				name: self.name.resolve()?,
-				value_type,
-			})
-		}
-		else
-		{
-			Err(anyhow!("failed to infer type")
-				.context(self.name.location.format())
-				.context(format!(
-					"failed to infer type for '{}'",
-					self.name.name
-				))
-				.into())
-		}
+		Ok(resolved::Parameter {
+			name: self.name.resolve()?,
+			value_type: self.value_type.resolve()?,
+		})
 	}
 }
 
@@ -261,9 +283,9 @@ impl Resolvable for Statement
 				location,
 			} =>
 			{
-				let value = value.resolve()?;
+				let (name, value, vt) = (name, value, vt).resolve()?;
 				Ok(resolved::Statement::Declaration {
-					name: name.resolve()?,
+					name,
 					value: Some(value),
 					value_type: vt,
 				})
@@ -273,11 +295,15 @@ impl Resolvable for Statement
 				value: None,
 				value_type: Some(vt),
 				location: _,
-			} => Ok(resolved::Statement::Declaration {
-				name: name.resolve()?,
-				value: None,
-				value_type: vt,
-			}),
+			} =>
+			{
+				let (name, vt) = (name, vt).resolve()?;
+				Ok(resolved::Statement::Declaration {
+					name,
+					value: None,
+					value_type: vt,
+				})
+			}
 			Statement::Declaration {
 				name,
 				value: _,
@@ -694,28 +720,37 @@ impl Resolvable for Identifier
 	}
 }
 
+impl Resolvable for ValueType
+{
+	type Item = Self;
+
+	fn resolve(self) -> Result<Self::Item, Errors>
+	{
+		Ok(self)
+	}
+}
+
 fn resolve_compared_type(
 	op: ComparisonOp,
 	left: &Expression,
 	right: &Expression,
-) -> Result<ValueType, anyhow::Error>
+) -> Result<ValueType, Errors>
 {
-	let vt = if let Some(vt) = left.value_type()
+	let vt = match left.value_type()
 	{
-		vt
-	}
-	else
-	{
-		return Err(anyhow!("failed to infer type"));
+		Some(Ok(vt)) => vt,
+		Some(Err(error)) => return Err(error.into()),
+		None => return Err(anyhow!("failed to infer type")),
 	};
 	match right.value_type()
 	{
-		Some(rvt) if rvt == vt => (),
-		Some(rvt) =>
+		Some(Ok(rvt)) if rvt == vt => (),
+		Some(Ok(rvt)) =>
 		{
 			return Err(anyhow!("type mismatch")
 				.context(format!("got {:?} and {:?}", vt, rvt)))
 		}
+		Some(Err(error)) => return Err(error.into()),
 		None => return Err(anyhow!("failed to infer type")),
 	}
 	match op

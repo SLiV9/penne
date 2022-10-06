@@ -264,7 +264,11 @@ impl Analyzable for Declaration
 				let parameters: Result<Vec<Parameter>, anyhow::Error> =
 					parameters.iter().map(|x| x.analyze(analyzer)).collect();
 				let parameters = parameters?;
-				let body = body.analyze(analyzer)?;
+				let body = match body
+				{
+					Ok(body) => Ok(body.analyze(analyzer)?),
+					Err(poison) => Err(poison.clone()),
+				};
 				analyzer.pop_scope();
 
 				let function = Declaration::Function {

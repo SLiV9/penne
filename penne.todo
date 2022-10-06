@@ -69,6 +69,7 @@ Linting errors:
 	✔	Loop as only statement in an if-branch @done (2021-01-09 12:45)
 	☐	Functions with side effects in if-statement conditions
 	☐	Var declaration with undefined value in some/all branches
+	☐	Non-extern function without body
 	☐	Returning pointer, slice or view of temporary
 	☐	Warn that array length indicators in extern fn is not enforced
 
@@ -84,6 +85,9 @@ Usability:
 	☐ Match expected error codes in tests
 	✔	Color default terminal output differently from LLVM errors @done (2022-09-07 15:22)
 	☐	Allow goto to skip var declaration if short-lived (skip_shortlived_var.pn)
+
+Development:
+	☐	Analyzable should not be &self
 
 Documentation:
 	✔ Move tests from lib.rs to *tests/* @done (2022-10-04 16:44)

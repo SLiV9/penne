@@ -5,7 +5,6 @@
 //
 
 use ariadne::Label;
-use thiserror::Error;
 
 use crate::common::*;
 
@@ -83,33 +82,16 @@ pub enum Token
 	Type(ValueType),
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Clone)]
 pub enum Error
 {
-	#[error("unexpected character {character:?}")]
-	UnexpectedCharacter
-	{
-		character: char
-	},
-	#[error("invalid integer literal")]
-	InvalidIntegerLiteral(#[from] std::num::ParseIntError),
-	#[error("large integer literal without type suffix")]
+	UnexpectedCharacter,
+	InvalidIntegerLiteral(std::num::ParseIntError),
 	InvalidNakedIntegerLiteral,
-	#[error("invalid integer type suffix '{sequence:?}'")]
-	InvalidIntegerTypeSuffix
-	{
-		sequence: String
-	},
-	#[error("invalid escape sequence '\\{sequence:?}'")]
-	InvalidEscapeSequence
-	{
-		sequence: String
-	},
-	#[error("unexpected trailing backslash")]
+	InvalidIntegerTypeSuffix,
+	InvalidEscapeSequence,
 	UnexpectedTrailingBackslash,
-	#[error("missing closing quote")]
 	MissingClosingQuote,
-	#[error("invalid mixed string")]
 	InvalidMixedString,
 }
 
@@ -117,7 +99,6 @@ pub enum Error
 pub struct Location
 {
 	pub source_filename: String,
-	pub source_offset: usize,
 	pub span: std::ops::Range<usize>,
 	pub line: String,
 	pub line_number: usize,
@@ -137,6 +118,15 @@ impl Location
 	pub fn label(&self) -> Label<(String, std::ops::Range<usize>)>
 	{
 		Label::new((self.source_filename.to_string(), self.span.clone()))
+	}
+
+	pub fn label_after_end(&self) -> Label<(String, std::ops::Range<usize>)>
+	{
+		let location = Location {
+			span: self.span.end..self.span.end,
+			..self.clone()
+		};
+		location.label()
 	}
 
 	pub fn combined_with(self, other: &Location) -> Location
@@ -184,7 +174,6 @@ fn lex_line(
 		let mut source_offset_end = source_offset_start + 1;
 		let location = Location {
 			source_filename: source_filename.to_string(),
-			source_offset: source_offset_start,
 			span: source_offset_start..source_offset_end,
 			line: line.to_string(),
 			line_number,
@@ -347,7 +336,7 @@ fn lex_line(
 					}
 					u64::from_str_radix(&literal, 16)
 						.map(|value| Token::BitInteger(value))
-						.map_err(|e| e.into())
+						.map_err(|e| Error::InvalidIntegerLiteral(e))
 				}
 				Some((_i, 'b')) =>
 				{
@@ -369,7 +358,7 @@ fn lex_line(
 					}
 					u64::from_str_radix(&literal, 2)
 						.map(|value| Token::BitInteger(value))
-						.map_err(|e| e.into())
+						.map_err(|e| Error::InvalidIntegerLiteral(e))
 				}
 				_ =>
 				{
@@ -401,9 +390,7 @@ fn lex_line(
 						"u64" => Ok(Token::Uint64(0)),
 						"u128" => Ok(Token::Uint128(0)),
 						"usize" => Ok(Token::Usize(0)),
-						_ => Err(Error::InvalidIntegerTypeSuffix {
-							sequence: suffix,
-						}),
+						_ => Err(Error::InvalidIntegerTypeSuffix),
 					}
 				}
 			},
@@ -448,7 +435,7 @@ fn lex_line(
 							Ok(Token::NakedInteger(value))
 						}
 						Ok(_) => Err(Error::InvalidNakedIntegerLiteral),
-						Err(error) => Err(error.into()),
+						Err(error) => Err(Error::InvalidIntegerLiteral(error)),
 					}
 				}
 				else
@@ -458,50 +445,48 @@ fn lex_line(
 						"i8" => literal
 							.parse()
 							.map(|value| Token::Int8(value))
-							.map_err(|e| e.into()),
+							.map_err(|e| Error::InvalidIntegerLiteral(e)),
 						"i16" => literal
 							.parse()
 							.map(|value| Token::Int16(value))
-							.map_err(|e| e.into()),
+							.map_err(|e| Error::InvalidIntegerLiteral(e)),
 						"i32" => literal
 							.parse()
 							.map(|value| Token::Int32(value))
-							.map_err(|e| e.into()),
+							.map_err(|e| Error::InvalidIntegerLiteral(e)),
 						"i64" => literal
 							.parse()
 							.map(|value| Token::Int64(value))
-							.map_err(|e| e.into()),
+							.map_err(|e| Error::InvalidIntegerLiteral(e)),
 						"i128" => literal
 							.parse()
 							.map(|value| Token::Int128(value))
-							.map_err(|e| e.into()),
+							.map_err(|e| Error::InvalidIntegerLiteral(e)),
 						"u8" => literal
 							.parse()
 							.map(|value| Token::Uint8(value))
-							.map_err(|e| e.into()),
+							.map_err(|e| Error::InvalidIntegerLiteral(e)),
 						"u16" => literal
 							.parse()
 							.map(|value| Token::Uint16(value))
-							.map_err(|e| e.into()),
+							.map_err(|e| Error::InvalidIntegerLiteral(e)),
 						"u32" => literal
 							.parse()
 							.map(|value| Token::Uint32(value))
-							.map_err(|e| e.into()),
+							.map_err(|e| Error::InvalidIntegerLiteral(e)),
 						"u64" => literal
 							.parse()
 							.map(|value| Token::Uint64(value))
-							.map_err(|e| e.into()),
+							.map_err(|e| Error::InvalidIntegerLiteral(e)),
 						"u128" => literal
 							.parse()
 							.map(|value| Token::Uint128(value))
-							.map_err(|e| e.into()),
+							.map_err(|e| Error::InvalidIntegerLiteral(e)),
 						"usize" => literal
 							.parse()
 							.map(|value| Token::Usize(value))
-							.map_err(|e| e.into()),
-						_ => Err(Error::InvalidIntegerTypeSuffix {
-							sequence: suffix,
-						}),
+							.map_err(|e| Error::InvalidIntegerLiteral(e)),
+						_ => Err(Error::InvalidIntegerTypeSuffix),
 					}
 				}
 			}
@@ -564,12 +549,12 @@ fn lex_line(
 								}
 								else
 								{
-									let error = Error::InvalidEscapeSequence {
-										sequence: format!("x{}", digits),
-									};
+									let error = Error::InvalidEscapeSequence;
 									let warning = LexedToken {
 										result: Err(error),
 										location: Location {
+											span: source_offset_start
+												..source_offset_end,
 											line_offset: end_of_line_offset,
 											..location.clone()
 										},
@@ -577,13 +562,13 @@ fn lex_line(
 									tokens.push(warning);
 								}
 							}
-							Some((_, y)) =>
+							Some((_, _y)) =>
 							{
 								let warning = LexedToken {
-									result: Err(Error::InvalidEscapeSequence {
-										sequence: y.to_string(),
-									}),
+									result: Err(Error::InvalidEscapeSequence),
 									location: Location {
+										span: source_offset_start
+											..source_offset_end,
 										line_offset: end_of_line_offset,
 										..location.clone()
 									},
@@ -597,6 +582,8 @@ fn lex_line(
 										Error::UnexpectedTrailingBackslash,
 									),
 									location: Location {
+										span: source_offset_start
+											..source_offset_end,
 										line_offset: end_of_line_offset,
 										..location.clone()
 									},
@@ -624,10 +611,9 @@ fn lex_line(
 					else if x.is_ascii()
 					{
 						let warning = LexedToken {
-							result: Err(Error::UnexpectedCharacter {
-								character: x,
-							}),
+							result: Err(Error::UnexpectedCharacter),
 							location: Location {
+								span: source_offset_start..source_offset_end,
 								line_offset: end_of_line_offset,
 								..location.clone()
 							},
@@ -648,6 +634,7 @@ fn lex_line(
 					let warning = LexedToken {
 						result: Err(Error::MissingClosingQuote),
 						location: Location {
+							span: source_offset_start..source_offset_end,
 							line_offset: end_of_line_offset,
 							..location.clone()
 						},
@@ -681,7 +668,7 @@ fn lex_line(
 				source_offset_start = source_offset_end;
 				continue;
 			}
-			_ => Err(Error::UnexpectedCharacter { character: x }),
+			_ => Err(Error::UnexpectedCharacter),
 		};
 		let location = Location {
 			span: source_offset_start..source_offset_end,

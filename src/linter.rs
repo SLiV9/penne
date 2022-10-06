@@ -6,7 +6,7 @@
 
 use crate::common::*;
 
-use ariadne::{Color, Fmt, Report, ReportKind};
+use ariadne::{Fmt, Report, ReportKind};
 
 pub fn lint(program: &Vec<Declaration>) -> Vec<Lint>
 {
@@ -55,10 +55,9 @@ impl Lint
 			} => Report::build(
 				ReportKind::Warning,
 				&location_of_condition.source_filename,
-				location_of_condition.source_offset,
+				location_of_condition.span.start,
 			)
-			.with_code(1020)
-			.with_message("Conditional Loop")
+			.with_message("Conditional infinite loop")
 			.with_label(
 				location_of_loop
 					.label()
@@ -89,10 +88,9 @@ impl Lint
 			Lint::UnreachableCode { location } => Report::build(
 				ReportKind::Advice,
 				&location.source_filename,
-				location.source_offset,
+				location.span.start,
 			)
-			.with_code(1010)
-			.with_message("Unreachable Code")
+			.with_message("Unreachable code")
 			.with_label(
 				location
 					.label()
