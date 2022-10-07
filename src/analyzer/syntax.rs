@@ -143,6 +143,7 @@ impl Analyzable for Statement
 				Statement::Goto { .. } => (),
 				Statement::Block(..) => (),
 				Statement::If { .. } if analyzer.is_naked_else_branch => (),
+				Statement::Poison(_poison) => (),
 				statement =>
 				{
 					return Err(anyhow!("missing braces")

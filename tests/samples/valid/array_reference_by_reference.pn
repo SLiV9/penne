@@ -10,7 +10,7 @@ fn outer(x: []i32) -> usize
 	return: y
 }
 
-fn main()
+fn main() -> usize
 {
 	var x: []i32 = [55, 66];
 	var y = outer(x);

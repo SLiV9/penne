@@ -3,7 +3,7 @@ fn foo(x: &&u8, y: &u8)
 	&x = &y;
 }
 
-fn main()
+fn main() -> u8
 {
 	var a: u8 = 17;
 	var b: u8 = 200;

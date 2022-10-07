@@ -4,21 +4,23 @@
 // License: MIT
 //
 
-use penne::common;
 use penne::lexer;
 use penne::parser;
+use penne::resolved;
+use penne::resolver;
 use penne::scoper;
 
 use anyhow::anyhow;
 
 fn do_scope(
 	filename: &str,
-) -> Result<Result<Vec<common::Declaration>, anyhow::Error>, anyhow::Error>
+) -> Result<Result<Vec<resolved::Declaration>, resolver::Errors>, anyhow::Error>
 {
 	let source = std::fs::read_to_string(filename)?;
 	let tokens = lexer::lex(&source, filename);
 	let declarations = parser::parse(tokens);
-	Ok(scoper::analyze(declarations))
+	let declarations = scoper::analyze(declarations);
+	Ok(resolver::resolve(declarations))
 }
 
 #[test]

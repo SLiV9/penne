@@ -234,7 +234,7 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			stdout.set_color(&colorspec_header)?;
 			writeln!(stdout, "Scoping {}...", filename)?;
 		}
-		let declarations = scoper::analyze(declarations)?;
+		let declarations = scoper::analyze(declarations);
 		if verbose
 		{
 			stdout.set_color(&colorspec_dump)?;

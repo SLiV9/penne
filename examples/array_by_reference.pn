@@ -12,7 +12,7 @@ fn sum(x: []i32) -> i32
 	return: total
 }
 
-fn main()
+fn main() -> i32
 {
 	var x: []i32 = [50, 150];
 	var y = sum(x);

@@ -56,7 +56,7 @@ pub enum DeclarationFlag
 #[derive(Debug, Clone)]
 pub struct Parameter
 {
-	pub name: Identifier,
+	pub name: Poisonable<Identifier>,
 	pub value_type: Poisonable<ValueType>,
 }
 
@@ -377,7 +377,7 @@ pub enum ReferenceStep
 #[derive(Debug, Clone)]
 pub struct Reference
 {
-	pub base: Identifier,
+	pub base: Poisonable<Identifier>,
 	pub steps: Vec<ReferenceStep>,
 	pub address_depth: u8,
 	pub location: Location,

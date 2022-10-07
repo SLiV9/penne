@@ -19,7 +19,7 @@ fn do_type(
 	let source = std::fs::read_to_string(filename)?;
 	let tokens = lexer::lex(&source, filename);
 	let declarations = parser::parse(tokens);
-	let declarations = scoper::analyze(declarations)?;
+	let declarations = scoper::analyze(declarations);
 	Ok(typer::analyze(declarations))
 }
 

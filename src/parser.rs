@@ -482,7 +482,10 @@ fn parse_parameter(
 	let value_type =
 		parse_colon_and_type(flags, location_of_declaration, tokens);
 
-	Ok(Parameter { name, value_type })
+	Ok(Parameter {
+		name: Ok(name),
+		value_type,
+	})
 }
 
 fn skip_rest_of_parameters(tokens: &mut Tokens)
@@ -1594,7 +1597,7 @@ fn parse_rest_of_reference(
 		}
 	}
 	Ok(Reference {
-		base,
+		base: Ok(base),
 		steps,
 		address_depth: 0,
 		location,

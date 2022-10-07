@@ -8,7 +8,7 @@ extern fn bar(x: []i32) -> i32
 	return: x[1]
 }
 
-fn main()
+fn main() -> i32
 {
 	var x: []i32 = [50, 150];
 	foo(&x);

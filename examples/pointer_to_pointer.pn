@@ -1,4 +1,4 @@
-fn main()
+fn main() -> i32
 {
 	var i: i32 = 17;
 	var x: &i32 = &i;

@@ -3,7 +3,7 @@ fn foo(x: []i32)
 	x[0] = 400;
 }
 
-fn main()
+fn main() -> i32
 {
 	var x: []i32 = [17, 50];
 	foo(x);

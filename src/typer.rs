@@ -153,12 +153,30 @@ impl Typer
 		}
 	}
 
+	fn get_type_of_base(
+		&self,
+		base: &Poisonable<Identifier>,
+	) -> Option<Poisonable<ValueType>>
+	{
+		match base
+		{
+			Ok(base) => self.get_symbol(&base),
+			Err(_poison) => Some(Err(Poison::Poisoned)),
+		}
+	}
+
 	fn get_type_of_reference(
 		&self,
 		reference: &Reference,
 	) -> Result<Option<Poisonable<ValueType>>, anyhow::Error>
 	{
-		if let Some(symbol) = self.symbols.get(&reference.base.resolution_id)
+		let resolution_id = match &reference.base
+		{
+			Ok(base) => base.resolution_id,
+			Err(_poison) => return Ok(Some(Err(Poison::Poisoned))),
+		};
+
+		if let Some(symbol) = self.symbols.get(&resolution_id)
 		{
 			let Symbol {
 				identifier: old_identifier,
@@ -188,10 +206,7 @@ impl Typer
 									old_identifier.location.format()
 								)
 								.context(reference.location.format())
-								.context(format!(
-									"conflicting types for '{}'",
-									reference.base.name,
-								)));
+								.context(format!("conflicting types",)));
 							}
 						}
 					}
@@ -446,6 +461,15 @@ impl Analyzable for Declaration
 							name.name
 						)));
 				}
+				else if body.return_value.is_some() && return_type.is_none()
+				{
+					return Err(anyhow!("missing return type")
+						.context(name.location.format())
+						.context(format!(
+							"missing return type for '{}'",
+							name.name
+						)));
+				}
 
 				// Pre-analyze the function body because it might contain
 				// untyped declarations, e.g. "var x;", whose types won't be
@@ -465,9 +489,8 @@ impl Analyzable for Declaration
 
 				typer.contextual_type = return_type.clone().map(|x| Ok(x));
 				let body = body.analyze(typer)?;
-				let return_type = body.value_type();
 
-				if body.return_value.is_some() && return_type.is_none()
+				if body.return_value.is_some() && body.value_type().is_none()
 				{
 					return Err(anyhow!("failed to infer type")
 						.context(name.location.format())
@@ -477,16 +500,8 @@ impl Analyzable for Declaration
 						)));
 				}
 
-				let rt_identifier = body.return_value_identifier.return_value();
-				typer.put_symbol(&rt_identifier, return_type.clone())?;
-
-				// TODO use this error
-				let return_type = match return_type
-				{
-					Some(Ok(rt)) => Some(rt),
-					Some(Err(error)) => None,
-					None => None,
-				};
+				let rt_identifier = name.return_value();
+				typer.put_symbol(&rt_identifier, body.value_type())?;
 
 				let function = Declaration::Function {
 					name,
@@ -543,9 +558,16 @@ impl Analyzable for Parameter
 
 	fn analyze(self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
 	{
-		typer.put_symbol(&self.name, Some(self.value_type.clone()))?;
-		let value_type = typer.get_symbol_back(&self.name);
-		let value_type = value_type.unwrap_or_else(|| self.value_type.clone());
+		let value_type = match &self.name
+		{
+			Ok(name) =>
+			{
+				typer.put_symbol(name, Some(self.value_type.clone()))?;
+				let value_type = typer.get_symbol_back(name);
+				value_type.unwrap_or(self.value_type)
+			}
+			Err(_) => self.value_type,
+		};
 		Ok(Parameter {
 			name: self.name,
 			value_type,
@@ -1119,7 +1141,7 @@ impl Analyzable for Expression
 			}
 			Expression::LengthOfArray { reference } =>
 			{
-				let base_type = typer.get_symbol(&reference.base);
+				let base_type = typer.get_type_of_base(&reference.base);
 				let array_type = typer.get_type_of_reference(&reference)?;
 				match array_type
 				{
@@ -1334,7 +1356,21 @@ impl Reference
 			.collect();
 		let steps: Vec<ReferenceStep> = steps?;
 
-		let base_type = typer.get_symbol(&self.base);
+		let base = match &self.base
+		{
+			Ok(base) => base,
+			Err(_poison) =>
+			{
+				return Ok(Reference {
+					base: self.base,
+					steps,
+					address_depth: self.address_depth,
+					location: self.location,
+				})
+			}
+		};
+
+		let base_type = typer.get_symbol(base);
 
 		let (steps, address_depth) = match base_type
 		{
@@ -1350,7 +1386,7 @@ impl Reference
 
 		let full_type =
 			build_type_of_reference(value_type, &steps, address_depth);
-		typer.put_symbol(&self.base, full_type)?;
+		typer.put_symbol(base, full_type)?;
 
 		Ok(Reference {
 			base: self.base,
@@ -1366,7 +1402,6 @@ impl Reference
 	) -> Result<Expression, anyhow::Error>
 	{
 		let known_type = typer.get_type_of_reference(&self)?;
-		let ref_type = typer.get_symbol(&self.base);
 		let contextual_type = typer.contextual_type.take();
 
 		self.steps = {
@@ -1378,6 +1413,19 @@ impl Reference
 			steps?
 		};
 
+		let base = match &self.base
+		{
+			Ok(base) => base,
+			Err(_poison) =>
+			{
+				return Ok(Expression::Deref {
+					reference: self,
+					deref_type: known_type,
+				});
+			}
+		};
+
+		let ref_type = typer.get_symbol(base);
 		match (known_type, contextual_type, ref_type)
 		{
 			(Some(Ok(x)), Some(Ok(y)), Some(Ok(ref_type))) if x == y =>
@@ -1393,7 +1441,7 @@ impl Reference
 					&self.steps,
 					self.address_depth,
 				);
-				typer.put_symbol(&self.base, full_type.clone())?;
+				typer.put_symbol(base, full_type.clone())?;
 				Ok(Expression::Deref {
 					reference: self,
 					deref_type,
@@ -1417,7 +1465,7 @@ impl Reference
 					&self.steps,
 					self.address_depth,
 				);
-				typer.put_symbol(&self.base, full_type.clone())?;
+				typer.put_symbol(base, full_type.clone())?;
 				Ok(Expression::Deref {
 					reference: self,
 					deref_type,
@@ -1431,7 +1479,7 @@ impl Reference
 					&self.steps,
 					self.address_depth,
 				);
-				typer.put_symbol(&self.base, full_type.clone())?;
+				typer.put_symbol(base, full_type.clone())?;
 				Ok(Expression::Deref {
 					reference: self,
 					deref_type,
@@ -1447,6 +1495,18 @@ impl Reference
 		typer: &mut Typer,
 	) -> Result<Expression, anyhow::Error>
 	{
+		let base = match &self.base
+		{
+			Ok(base) => base,
+			Err(_poison) =>
+			{
+				return Ok(Expression::Deref {
+					reference: self,
+					deref_type: Some(Ok(known_ref_type)),
+				});
+			}
+		};
+
 		let mut available_steps = self.steps.into_iter().peekable();
 		let mut taken_steps = Vec::new();
 		let mut current_type = known_ref_type;
@@ -1584,7 +1644,7 @@ impl Reference
 						&taken_steps,
 						self.address_depth,
 					);
-					typer.put_symbol(&self.base, full_type)?;
+					typer.put_symbol(base, full_type)?;
 					let expr = Expression::Deref {
 						reference: Reference {
 							base: self.base,
@@ -1619,7 +1679,7 @@ impl Reference
 		let base_type = deref_type.clone();
 		let full_type =
 			build_type_of_reference(base_type, &taken_steps, address_depth);
-		typer.put_symbol(&self.base, full_type.clone())?;
+		typer.put_symbol(base, full_type.clone())?;
 		let expr = Expression::Deref {
 			reference: Reference {
 				base: self.base,

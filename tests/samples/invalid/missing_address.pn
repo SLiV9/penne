@@ -3,7 +3,7 @@ fn foo(x: &u8) -> u8
 	return: x
 }
 
-fn main()
+fn main() -> u8
 {
 	var x: u8 = 10;
 	var y = foo(x);

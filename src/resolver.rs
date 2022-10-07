@@ -349,10 +349,7 @@ impl Resolvable for Statement
 				location: _,
 			} => Err(anyhow!("failed to infer type")
 				.context(reference.location.format())
-				.context(format!(
-					"failed to infer type for '{}'",
-					reference.base.name
-				))
+				.context(format!("failed to infer type",))
 				.into()),
 			Statement::MethodCall { name, arguments } =>
 			{

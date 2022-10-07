@@ -55,24 +55,31 @@ impl Analyzer
 
 	fn use_variable(
 		&self,
-		identifier: &Identifier,
+		identifier: &Poisonable<Identifier>,
 		is_mutated: bool,
 	) -> Result<(), anyhow::Error>
 	{
-		if let Some((previous_identifier, is_mutable)) =
-			self.variables.get(&identifier.resolution_id)
+		if let Ok(identifier) = identifier
 		{
-			if is_mutated && !is_mutable
+			if let Some((previous_identifier, is_mutable)) =
+				self.variables.get(&identifier.resolution_id)
 			{
-				return Err(anyhow!(
-					"previous declaration {}",
-					previous_identifier.location.format()
-				)
-				.context(identifier.location.format())
-				.context(format!(
-					"the variable '{}' is not mutable",
-					identifier.name
-				)));
+				if is_mutated && !is_mutable
+				{
+					return Err(anyhow!(
+						"previous declaration {}",
+						previous_identifier.location.format()
+					)
+					.context(identifier.location.format())
+					.context(format!(
+						"the variable '{}' is not mutable",
+						identifier.name
+					)));
+				}
+				else
+				{
+					Ok(())
+				}
 			}
 			else
 			{
@@ -81,12 +88,7 @@ impl Analyzer
 		}
 		else
 		{
-			Err(anyhow!("undefined reference")
-				.context(identifier.location.format())
-				.context(format!(
-					"reference to undefined variable named '{}'",
-					identifier.name
-				)))
+			Ok(())
 		}
 	}
 }
@@ -163,7 +165,14 @@ impl Analyzable for Parameter
 {
 	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
 	{
-		analyzer.declare_variable(&self.name, false)?;
+		match &self.name
+		{
+			Ok(name) =>
+			{
+				analyzer.declare_variable(name, false)?;
+			}
+			Err(_poison) => (),
+		}
 		Ok(())
 	}
 }
@@ -392,8 +401,7 @@ impl Analyzable for Expression
 						return Err(anyhow!("address depth too high")
 							.context(reference.location.format())
 							.context(format!(
-							"cannot take address of temporary address of '{}'",
-							reference.base.name
+							"cannot take address of temporary address of ''",
 						)));
 					}
 				};

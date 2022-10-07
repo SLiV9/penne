@@ -1,5 +1,5 @@
 
-fn main()
+fn main() -> i32
 {
 	var y = 400;
 	{

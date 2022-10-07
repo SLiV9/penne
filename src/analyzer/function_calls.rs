@@ -121,8 +121,8 @@ impl Analyzer
 								))
 								.context(identifier.location.format())
 								.context(format!(
-									"type mismatch of parameter '{}' of function '{}'",
-									parameter.name.name, identifier.name,
+									"type mismatch of parameter '{:?}' of function '{}'",
+									parameter.name, identifier.name,
 								)))
 						}
 						(_, _) => (),
@@ -259,11 +259,7 @@ impl Analyzable for Parameter
 			Ok(ValueType::Array { .. }) =>
 			{
 				Err(anyhow!("non-slice array parameter")
-					.context(self.name.location.format())
-					.context(format!(
-						"parameter '{}' is not a slice",
-						self.name.name
-					)))
+					.context(format!("parameter '' is not a slice",)))
 			}
 			_ => Ok(()),
 		}
@@ -588,8 +584,7 @@ impl Analyzable for Reference
 								.context(format!("expected usize"))
 								.context(self.location.format())
 								.context(format!(
-									"type mismatch of index into array '{}'",
-									self.base.name,
+									"type mismatch of index into array ''",
 								)));
 						}
 						Some(Err(_poison)) =>
@@ -602,8 +597,7 @@ impl Analyzable for Reference
 								.context(format!("expected usize"))
 								.context(self.location.format())
 								.context(format!(
-									"type mismatch of index into array '{}'",
-									self.base.name,
+									"type mismatch of index into array ''",
 								)));
 						}
 					}

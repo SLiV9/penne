@@ -289,10 +289,11 @@ impl Rebuildable for Parameter
 		indentation: &Indentation,
 	) -> Result<String, anyhow::Error>
 	{
-		let mut buffer = identify(&self.name);
+		let mut buffer = String::new();
 		write!(
 			&mut buffer,
-			": {}",
+			"{}: {}",
+			self.name.rebuild(&indentation)?,
 			self.value_type.rebuild(&indentation.increased())?
 		)?;
 		Ok(buffer)
@@ -750,7 +751,7 @@ impl Rebuildable for Reference
 		{
 			write!(&mut buffer, "&")?;
 		}
-		write!(&mut buffer, "{}", identify(&self.base))?;
+		write!(&mut buffer, "{}", self.base.rebuild(indentation)?)?;
 		for step in self.steps.iter()
 		{
 			match step
@@ -773,6 +774,17 @@ impl Rebuildable for Reference
 			}
 		}
 		Ok(buffer)
+	}
+}
+
+impl Rebuildable for Identifier
+{
+	fn rebuild(
+		&self,
+		_indentation: &Indentation,
+	) -> Result<String, anyhow::Error>
+	{
+		Ok(identify(self))
 	}
 }
 

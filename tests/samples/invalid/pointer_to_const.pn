@@ -7,7 +7,7 @@ fn foo(x: &&u8)
 	&x = &C;
 }
 
-fn main()
+fn main() -> u8
 {
 	var a: u8 = 17;
 	var x: &u8 = &a;

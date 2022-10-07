@@ -10,6 +10,16 @@ pub use crate::value_type::ValueType;
 
 use ariadne::{Fmt, Report, ReportKind};
 
+pub type Partiable<T> = Result<T, Partial<T>>;
+
+#[must_use]
+#[derive(Debug)]
+pub struct Partial<T>
+{
+	pub error: Error,
+	pub partial: T,
+}
+
 pub type Poisonable<T> = Result<T, Poison<T>>;
 
 #[derive(Debug, Clone)]
@@ -34,6 +44,19 @@ impl<T> From<Error> for Poison<T>
 	}
 }
 
+impl<T> From<Partial<T>> for Poison<T>
+{
+	fn from(partial: Partial<T>) -> Self
+	{
+		let Partial { error, partial } = partial;
+		Poison::Error {
+			error,
+			partial: Some(partial),
+		}
+	}
+}
+
+#[must_use]
 #[derive(Debug, Clone)]
 pub enum Error
 {
@@ -66,6 +89,42 @@ pub enum Error
 	MissingReturnValueAfterStatement
 	{
 		location: Location, after: Location
+	},
+	DuplicateDeclarationVariable
+	{
+		name: String,
+		location: Location,
+		previous: Location,
+	},
+	DuplicateDeclarationConstant
+	{
+		name: String,
+		location: Location,
+		previous: Location,
+	},
+	DuplicateDeclarationFunction
+	{
+		name: String,
+		location: Location,
+		previous: Location,
+	},
+	DuplicateDeclarationLabel
+	{
+		name: String,
+		location: Location,
+		previous: Location,
+	},
+	UndefinedVariable
+	{
+		name: String, location: Location
+	},
+	UndefinedFunction
+	{
+		name: String, location: Location
+	},
+	UndefinedLabel
+	{
+		name: String, location: Location
 	},
 }
 
@@ -116,7 +175,7 @@ impl Error
 			.with_message("Unexpected character")
 			.with_label(
 				location
-					.label_after_end()
+					.label()
 					.with_message(expectation)
 					.with_color(a),
 			)
@@ -134,7 +193,7 @@ impl Error
 			.with_message("Invalid integer literal")
 			.with_label(
 				location
-					.label_after_end()
+					.label()
 					.with_message(expectation)
 					.with_color(a),
 			)
@@ -153,7 +212,7 @@ impl Error
 			.with_message("Invalid untyped integer literal")
 			.with_label(
 				location
-					.label_after_end()
+					.label()
 					.with_message(expectation)
 					.with_color(a),
 			)
@@ -173,7 +232,7 @@ impl Error
 			.with_message("Invalid integer literal type suffix")
 			.with_label(
 				location
-					.label_after_end()
+					.label()
 					.with_message(expectation)
 					.with_color(a),
 			)
@@ -191,7 +250,7 @@ impl Error
 			.with_message("Invalid escape sequence")
 			.with_label(
 				location
-					.label_after_end()
+					.label()
 					.with_message(expectation)
 					.with_color(a),
 			)
@@ -209,7 +268,7 @@ impl Error
 			.with_message("Unexpected trailing backslash")
 			.with_label(
 				location
-					.label_after_end()
+					.label()
 					.with_message(expectation)
 					.with_color(a),
 			)
@@ -228,7 +287,7 @@ impl Error
 			.with_message("Missing closing quote")
 			.with_label(
 				location
-					.label_after_end()
+					.label()
 					.with_message(expectation)
 					.with_color(a),
 			)
@@ -247,7 +306,7 @@ impl Error
 			.with_message("Invalid mixed string")
 			.with_label(
 				location
-					.label_after_end()
+					.label()
 					.with_message(expectation)
 					.with_color(a),
 			)
@@ -265,7 +324,7 @@ impl Error
 			.with_message("Unexpected token")
 			.with_label(
 				location
-					.label_after_end()
+					.label()
 					.with_message(expectation)
 					.with_color(a),
 			)
@@ -279,7 +338,7 @@ impl Error
 			.with_message("Maximum parse depth exceeded")
 			.with_label(
 				location
-					.label_after_end()
+					.label()
 					.with_message("This is too complex to parse.")
 					.with_color(a),
 			)
@@ -297,7 +356,7 @@ impl Error
 			.with_message("Invalid external type")
 			.with_label(
 				location_of_type
-					.label_after_end()
+					.label()
 					.with_message(
 						"This type is not allowed in external declarations.",
 					)
@@ -305,7 +364,7 @@ impl Error
 			)
 			.with_label(
 				location_of_declaration
-					.label_after_end()
+					.label()
 					.with_message("Declaration marked external here.")
 					.with_color(a),
 			)
@@ -321,9 +380,8 @@ impl Error
 				.with_message("Missing return value")
 				.with_label(
 					location
-						.label_after_end()
+						.label()
 						.with_message("Expected return value...")
-						.with_order(1)
 						.with_color(a),
 				)
 				.with_label(
@@ -333,8 +391,158 @@ impl Error
 							"...after this {} statement.",
 							"`return`".fg(b)
 						))
-						.with_order(2)
+						.with_priority(-10)
 						.with_color(b),
+				)
+				.finish()
+			}
+
+			Error::DuplicateDeclarationVariable { name, location, previous } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location.source_filename,
+					location.span.start,
+				)
+				.with_message("Duplicate variable")
+				.with_label(
+					location
+						.label()
+						.with_message(format!("A variable named '{}' is already defined in this scope.",
+							name.fg(a)))
+						.with_color(a),
+				)
+				.with_label(
+					previous
+						.label()
+						.with_message("Previously defined here.")
+						.with_color(b),
+				)
+				.finish()
+			}
+
+			Error::DuplicateDeclarationConstant { name, location, previous } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location.source_filename,
+					location.span.start,
+				)
+				.with_message("Duplicate constant")
+				.with_label(
+					location
+						.label()
+						.with_message(format!("The constant '{}' is already defined.",
+							name.fg(a)))
+						.with_color(a),
+				)
+				.with_label(
+					previous
+						.label()
+						.with_message("Previously defined here.")
+						.with_color(b),
+				)
+				.finish()
+			}
+
+			Error::DuplicateDeclarationFunction { name, location, previous } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location.source_filename,
+					location.span.start,
+				)
+				.with_message("Duplicate function")
+				.with_label(
+					location
+						.label()
+						.with_message(format!("A function named '{}' is already defined.",
+							name.fg(a)))
+						.with_color(a),
+				)
+				.with_label(
+					previous
+						.label()
+						.with_message("Previously defined here.")
+						.with_color(b),
+				)
+				.finish()
+			}
+
+			Error::DuplicateDeclarationLabel { name, location, previous } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location.source_filename,
+					location.span.start,
+				)
+				.with_message("Duplicate label")
+				.with_label(
+					location
+						.label()
+						.with_message(format!("The label '{}' is already defined in this scope.",
+							name.fg(a)))
+						.with_color(a),
+				)
+				.with_label(
+					previous
+						.label()
+						.with_message("Previously defined here.")
+						.with_color(b),
+				)
+				.finish()
+			}
+
+			Error::UndefinedVariable { name, location } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location.source_filename,
+					location.span.start,
+				)
+				.with_message("Undefined reference")
+				.with_label(
+					location
+						.label()
+						.with_message(format!("Reference to undefined variable named '{}'.",
+							name.fg(a)))
+						.with_color(a),
+				)
+				.finish()
+			}
+
+			Error::UndefinedFunction { name, location } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location.source_filename,
+					location.span.start,
+				)
+				.with_message("Undefined reference")
+				.with_label(
+					location
+						.label()
+						.with_message(format!("Reference to undefined function named '{}'.",
+							name.fg(a)))
+						.with_color(a),
+				)
+				.finish()
+			}
+
+			Error::UndefinedLabel { name, location } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location.source_filename,
+					location.span.start,
+				)
+				.with_message("Undefined label")
+				.with_label(
+					location
+						.label()
+						.with_message(format!("Reference to undefined label '{}'.",
+							name.fg(a)))
+						.with_color(a),
 				)
 				.finish()
 			}
