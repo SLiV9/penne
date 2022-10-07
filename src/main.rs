@@ -246,7 +246,7 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			stdout.set_color(&colorspec_header)?;
 			writeln!(stdout, "Typing {}...", filename)?;
 		}
-		let declarations = typer::analyze(declarations)?;
+		let declarations = typer::analyze(declarations);
 		if verbose
 		{
 			stdout.set_color(&colorspec_dump)?;

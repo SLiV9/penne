@@ -22,7 +22,7 @@ fn resolve(
 	let tokens = lexer::lex(&source, filename);
 	let declarations = parser::parse(tokens);
 	let declarations = scoper::analyze(declarations);
-	let declarations = typer::analyze(declarations)?;
+	let declarations = typer::analyze(declarations);
 	analyzer::analyze(&declarations)?;
 	Ok(resolver::resolve(declarations))
 }

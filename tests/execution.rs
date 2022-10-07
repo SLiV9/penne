@@ -290,7 +290,7 @@ fn execute_calculation(filename: &str) -> Result<i32, anyhow::Error>
 	let tokens = lexer::lex(&source, filename);
 	let declarations = parser::parse(tokens);
 	let declarations = scoper::analyze(declarations);
-	let declarations = typer::analyze(declarations)?;
+	let declarations = typer::analyze(declarations);
 	analyzer::analyze(&declarations)?;
 	let declarations =
 		resolver::resolve(declarations).map_err(|e| e.first())?;

@@ -86,6 +86,36 @@ pub enum Error
 		location_of_type: Location,
 		location_of_declaration: Location,
 	},
+	MissingReturnType
+	{
+		inferred_type: ValueType,
+		location_of_return_value: Location,
+		location_of_declaration: Location,
+	},
+	MissingAmbiguousReturnType
+	{
+		location_of_return_value: Location,
+		location_of_declaration: Location,
+	},
+	AmbiguousReturnValue
+	{
+		declared_type: ValueType,
+		location_of_return_value: Location,
+		location_of_declaration: Location,
+	},
+	ConflictingReturnValue
+	{
+		inferred_type: ValueType,
+		declared_type: ValueType,
+		location_of_return_value: Location,
+		location_of_declaration: Location,
+	},
+	MissingReturnValue
+	{
+		declared_type: ValueType,
+		location: Location,
+		location_of_declaration: Location,
+	},
 	MissingReturnValueAfterStatement
 	{
 		location: Location, after: Location
@@ -125,6 +155,26 @@ pub enum Error
 	UndefinedLabel
 	{
 		name: String, location: Location
+	},
+	ConflictingTypes
+	{
+		name: String,
+		current_type: ValueType,
+		previous_type: ValueType,
+		location: Location,
+		previous: Location,
+	},
+	NotAnArray
+	{
+		current_type: ValueType,
+		location: Location,
+		previous: Location,
+	},
+	NotAnArrayWithLength
+	{
+		current_type: ValueType,
+		location: Location,
+		previous: Location,
 	},
 }
 
@@ -370,6 +420,138 @@ impl Error
 			)
 			.finish(),
 
+			Error::MissingReturnType { inferred_type,
+				location_of_return_value, location_of_declaration } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location_of_return_value.source_filename,
+					location_of_return_value.span.start,
+				)
+				.with_message("Missing return type")
+				.with_label(
+					location_of_return_value
+						.label()
+						.with_message(format!("Value of type {} returned here.",
+							show_type(inferred_type).fg(a)))
+						.with_color(a),
+				)
+				.with_label(
+					location_of_declaration
+						.label()
+						.with_message(
+							"Function declared here.",
+						)
+						.with_color(b),
+				)
+				.finish()
+			}
+
+			Error::MissingAmbiguousReturnType {
+				location_of_return_value, location_of_declaration } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location_of_return_value.source_filename,
+					location_of_return_value.span.start,
+				)
+				.with_message("Missing return type")
+				.with_label(
+					location_of_return_value
+						.label()
+						.with_message("Value of indiscernible type returned here.")
+						.with_color(a),
+				)
+				.with_label(
+					location_of_declaration
+						.label()
+						.with_message(
+							"Function declared here.",
+						)
+						.with_color(b),
+				)
+				.finish()
+			}
+
+			Error::AmbiguousReturnValue { declared_type, location_of_return_value, location_of_declaration } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location_of_return_value.source_filename,
+					location_of_return_value.span.start,
+				)
+				.with_message("Ambiguous return value")
+				.with_label(
+					location_of_return_value
+						.label()
+						.with_message("Failed to infer the type of this value.")
+						.with_color(a),
+				)
+				.with_label(
+					location_of_declaration
+						.label()
+						.with_message(format!(
+							"Expected {} based on this declaration.",
+							show_type(declared_type).fg(b)
+						))
+						.with_color(b),
+				)
+				.finish()
+			}
+
+			Error::ConflictingReturnValue { inferred_type, declared_type, location_of_return_value, location_of_declaration } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location_of_return_value.source_filename,
+					location_of_return_value.span.start,
+				)
+				.with_message("Conflicting return value")
+				.with_label(
+					location_of_return_value
+						.label()
+						.with_message(format!("Value of type {} returned here.",
+							show_type(inferred_type).fg(a)))
+						.with_color(a),
+				)
+				.with_label(
+					location_of_declaration
+						.label()
+						.with_message(format!(
+							"Expected {} based on this declaration.",
+							show_type(declared_type).fg(b)
+						))
+						.with_color(b),
+				)
+				.finish()
+			}
+
+			Error::MissingReturnValue { declared_type, location, location_of_declaration } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location.source_filename,
+					location.span.start,
+				)
+				.with_message("Missing return value")
+				.with_label(
+					location
+						.label()
+						.with_message("No return value.")
+						.with_color(a),
+				)
+				.with_label(
+					location_of_declaration
+						.label()
+						.with_message(format!(
+							"Expected {} based on this declaration.",
+							show_type(declared_type).fg(b)
+						))
+						.with_color(b),
+				)
+				.finish()
+			}
+
 			Error::MissingReturnValueAfterStatement { location, after } =>
 			{
 				Report::build(
@@ -546,6 +728,127 @@ impl Error
 				)
 				.finish()
 			}
+
+			Error::ConflictingTypes { name, current_type, previous_type, location, previous } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location.source_filename,
+					location.span.start,
+				)
+				.with_message("Conflicting types")
+				.with_label(
+					location
+						.label()
+						.with_message(format!("'{}' has type {}.",
+							name.fg(a),
+							show_type(current_type).fg(a)))
+						.with_color(a),
+				)
+				.with_label(
+					previous
+						.label()
+						.with_message(format!("Previously determined to be {}.",
+							show_type(previous_type).fg(b)))
+						.with_color(b),
+				)
+				.finish()
+			}
+
+			Error::NotAnArray { current_type, location, previous } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location.source_filename,
+					location.span.start,
+				)
+				.with_message("Conflicting types")
+				.with_label(
+					location
+						.label()
+						.with_message(format!("Cannot index into value of non-array type {}.",
+							show_type(current_type).fg(a)))
+						.with_color(a),
+				)
+				.with_label(
+					previous
+						.label()
+						.with_message("Type previously determined here.")
+						.with_color(b),
+				)
+				.finish()
+			}
+
+			Error::NotAnArrayWithLength { current_type, location, previous } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location.source_filename,
+					location.span.start,
+				)
+				.with_message("Conflicting types")
+				.with_label(
+					location
+						.label()
+						.with_message(format!("Cannot take length of value of non-array type {}.",
+							show_type(current_type).fg(a)))
+						.with_color(a),
+				)
+				.with_label(
+					previous
+						.label()
+						.with_message("Type previously determined here.")
+						.with_color(b),
+				)
+				.finish()
+			}
+
+		}
+	}
+}
+
+fn show_type(value_type: &ValueType) -> String
+{
+	format!("`{}`", show_type_inner(value_type))
+}
+
+fn show_type_inner(value_type: &ValueType) -> String
+{
+	match value_type
+	{
+		ValueType::Int8 => "i8".to_string(),
+		ValueType::Int16 => "i16".to_string(),
+		ValueType::Int32 => "i32".to_string(),
+		ValueType::Int64 => "i64".to_string(),
+		ValueType::Int128 => "i128".to_string(),
+		ValueType::Uint8 => "u8".to_string(),
+		ValueType::Uint16 => "u16".to_string(),
+		ValueType::Uint32 => "u32".to_string(),
+		ValueType::Uint64 => "u64".to_string(),
+		ValueType::Uint128 => "u128".to_string(),
+		ValueType::Usize => "usize".to_string(),
+		ValueType::Bool => "bool".to_string(),
+		ValueType::Char => "char".to_string(),
+		ValueType::String => "STRING".to_string(),
+		ValueType::Array {
+			element_type,
+			length,
+		} => format!("[{}]{}", length, show_type_inner(&element_type)),
+		ValueType::Slice { element_type } =>
+		{
+			format!("[]{}", show_type_inner(&element_type))
+		}
+		ValueType::ExtArray { element_type } =>
+		{
+			format!("[]{}", show_type_inner(&element_type))
+		}
+		ValueType::Pointer { deref_type } =>
+		{
+			format!("&{}", show_type_inner(&deref_type))
+		}
+		ValueType::View { deref_type } =>
+		{
+			format!("({})", show_type_inner(&deref_type))
 		}
 	}
 }
