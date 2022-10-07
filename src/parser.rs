@@ -341,6 +341,10 @@ fn parse_function_declaration(
 			location_of_declaration,
 			tokens,
 		);
+	if recoverable_error.is_some()
+	{
+		skip_rest_of_function_signature(tokens);
+	}
 
 	let declaration = if peek(tokens) == Some(&Token::Semicolon)
 	{
@@ -452,7 +456,7 @@ fn parse_rest_of_function_signature(
 	(parameters, return_type, recoverable_error)
 }
 
-fn skip_rest_of_function_head(tokens: &mut Tokens)
+fn skip_rest_of_function_signature(tokens: &mut Tokens)
 {
 	while let Some(token) = peek(tokens)
 	{
@@ -461,7 +465,6 @@ fn skip_rest_of_function_head(tokens: &mut Tokens)
 			token if can_start_declaration(token) => return,
 			Token::BraceLeft => return,
 			Token::BraceRight => return,
-			Token::Arrow => return,
 			Token::Semicolon => return,
 			_ => (),
 		}

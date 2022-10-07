@@ -6,7 +6,6 @@
 
 use penne::analyzer;
 use penne::common::Declaration;
-use penne::common::DeclarationFlag;
 use penne::generator;
 use penne::lexer;
 use penne::linter;

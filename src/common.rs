@@ -394,11 +394,11 @@ pub struct Identifier
 
 impl Identifier
 {
-	pub fn return_value(self) -> Self
+	pub fn return_value(&self) -> Self
 	{
 		Identifier {
 			name: format!("(return value of '{}')", self.name),
-			..self
+			..self.clone()
 		}
 	}
 }

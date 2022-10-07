@@ -86,9 +86,6 @@ Usability:
 	✔	Color default terminal output differently from LLVM errors @done (2022-09-07 15:22)
 	☐	Allow goto to skip var declaration if short-lived (skip_shortlived_var.pn)
 
-Development:
-	☐	Analyzable should not be &self
-
 Documentation:
 	✔ Move tests from lib.rs to *tests/* @done (2022-10-04 16:44)
 

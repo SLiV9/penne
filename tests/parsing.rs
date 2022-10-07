@@ -4,7 +4,6 @@
 // License: MIT
 //
 
-use penne::common::Declaration;
 use penne::lexer;
 use penne::parser;
 use penne::resolved;

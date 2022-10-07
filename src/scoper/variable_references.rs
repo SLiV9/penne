@@ -22,7 +22,10 @@ pub fn analyze(
 	{
 		declare(declaration, &mut analyzer)?;
 	}
-	program.iter().map(|x| x.analyze(&mut analyzer)).collect()
+	program
+		.into_iter()
+		.map(|x| x.analyze(&mut analyzer))
+		.collect()
 }
 
 struct Analyzer
@@ -36,7 +39,7 @@ impl Analyzer
 {
 	fn declare_variable(
 		&mut self,
-		identifier: &Identifier,
+		identifier: Identifier,
 	) -> Result<Identifier, anyhow::Error>
 	{
 		for scope in &self.variable_stack
@@ -57,9 +60,8 @@ impl Analyzer
 		}
 
 		let identifier = Identifier {
-			name: identifier.name.clone(),
-			location: identifier.location.clone(),
 			resolution_id: self.resolution_id,
+			..identifier
 		};
 		self.resolution_id += 1;
 
@@ -76,7 +78,7 @@ impl Analyzer
 
 	fn use_variable(
 		&self,
-		identifier: &Identifier,
+		identifier: Identifier,
 	) -> Result<Identifier, anyhow::Error>
 	{
 		for scope in &self.variable_stack
@@ -86,7 +88,7 @@ impl Analyzer
 			{
 				return Ok(Identifier {
 					resolution_id: previous_identifier.resolution_id,
-					..identifier.clone()
+					..identifier
 				});
 			}
 		}
@@ -101,7 +103,7 @@ impl Analyzer
 
 	fn declare_function(
 		&mut self,
-		identifier: &Identifier,
+		identifier: Identifier,
 	) -> Result<Identifier, anyhow::Error>
 	{
 		if let Some(previous_identifier) = self
@@ -121,9 +123,8 @@ impl Analyzer
 		}
 
 		let identifier = Identifier {
-			name: identifier.name.clone(),
-			location: identifier.location.clone(),
 			resolution_id: self.resolution_id,
+			..identifier
 		};
 		self.resolution_id += 1;
 
@@ -133,7 +134,7 @@ impl Analyzer
 
 	fn use_function(
 		&self,
-		identifier: &Identifier,
+		identifier: Identifier,
 	) -> Result<Identifier, anyhow::Error>
 	{
 		if let Some(declaration_identifier) = self
@@ -143,7 +144,7 @@ impl Analyzer
 		{
 			Ok(Identifier {
 				resolution_id: declaration_identifier.resolution_id,
-				..identifier.clone()
+				..identifier
 			})
 		}
 		else
@@ -201,7 +202,8 @@ fn declare(
 			flags: _,
 		} =>
 		{
-			let _unused: Identifier = analyzer.declare_function(name)?;
+			let _unused: Identifier =
+				analyzer.declare_function(name.clone())?;
 			Ok(())
 		}
 		Declaration::FunctionHead {
@@ -211,7 +213,8 @@ fn declare(
 			flags: _,
 		} =>
 		{
-			let _unused: Identifier = analyzer.declare_function(name)?;
+			let _unused: Identifier =
+				analyzer.declare_function(name.clone())?;
 			Ok(())
 		}
 		Declaration::PreprocessorDirective { .. } => unreachable!(),
@@ -232,7 +235,7 @@ trait Analyzable
 	type Item;
 
 	fn analyze(
-		&self,
+		self,
 		analyzer: &mut Analyzer,
 	) -> Result<Self::Item, anyhow::Error>;
 }
@@ -242,7 +245,7 @@ impl Analyzable for Declaration
 	type Item = Declaration;
 
 	fn analyze(
-		&self,
+		self,
 		analyzer: &mut Analyzer,
 	) -> Result<Self::Item, anyhow::Error>
 	{
@@ -262,8 +265,8 @@ impl Analyzable for Declaration
 				let declaration = Declaration::Constant {
 					name,
 					value,
-					value_type: value_type.clone(),
-					flags: *flags,
+					value_type,
+					flags,
 				};
 				Ok(declaration)
 			}
@@ -279,12 +282,15 @@ impl Analyzable for Declaration
 
 				analyzer.push_scope();
 				let parameters: Result<Vec<Parameter>, anyhow::Error> =
-					parameters.iter().map(|x| x.analyze(analyzer)).collect();
+					parameters
+						.into_iter()
+						.map(|x| x.analyze(analyzer))
+						.collect();
 				let parameters = parameters?;
 				let body = match body
 				{
 					Ok(body) => Ok(body.analyze(analyzer)?),
-					Err(poison) => Err(poison.clone()),
+					Err(poison) => Err(poison),
 				};
 				analyzer.pop_scope();
 
@@ -292,8 +298,8 @@ impl Analyzable for Declaration
 					name,
 					parameters,
 					body,
-					return_type: return_type.clone(),
-					flags: *flags,
+					return_type,
+					flags,
 				};
 				Ok(function)
 			}
@@ -308,20 +314,38 @@ impl Analyzable for Declaration
 
 				analyzer.push_scope();
 				let parameters: Result<Vec<Parameter>, anyhow::Error> =
-					parameters.iter().map(|x| x.analyze(analyzer)).collect();
+					parameters
+						.into_iter()
+						.map(|x| x.analyze(analyzer))
+						.collect();
 				let parameters = parameters?;
 				analyzer.pop_scope();
 
 				let function = Declaration::FunctionHead {
 					name,
 					parameters,
-					return_type: return_type.clone(),
-					flags: *flags,
+					return_type,
+					flags,
 				};
 				Ok(function)
 			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
-			Declaration::Poison(_) => Ok(self.clone()),
+			Declaration::Poison(Poison::Error {
+				error,
+				partial: Some(declaration),
+			}) =>
+			{
+				let declaration = declaration.analyze(analyzer)?;
+				Ok(Declaration::Poison(Poison::Error {
+					error,
+					partial: Some(Box::new(declaration)),
+				}))
+			}
+			Declaration::Poison(Poison::Error {
+				error: _,
+				partial: None,
+			}) => Ok(self),
+			Declaration::Poison(Poison::Poisoned) => Ok(self),
 		}
 	}
 }
@@ -331,14 +355,14 @@ impl Analyzable for Parameter
 	type Item = Parameter;
 
 	fn analyze(
-		&self,
+		self,
 		analyzer: &mut Analyzer,
 	) -> Result<Self::Item, anyhow::Error>
 	{
-		let name = analyzer.declare_variable(&self.name)?;
+		let name = analyzer.declare_variable(self.name)?;
 		Ok(Parameter {
 			name,
-			value_type: self.value_type.clone(),
+			value_type: self.value_type,
 		})
 	}
 }
@@ -348,26 +372,23 @@ impl Analyzable for FunctionBody
 	type Item = FunctionBody;
 
 	fn analyze(
-		&self,
+		self,
 		analyzer: &mut Analyzer,
 	) -> Result<Self::Item, anyhow::Error>
 	{
 		analyzer.push_scope();
 		let statements: Result<Vec<Statement>, anyhow::Error> = self
 			.statements
-			.iter()
+			.into_iter()
 			.map(|x| x.analyze(analyzer))
 			.collect();
 		let statements = statements?;
-		let return_value = self
-			.return_value
-			.as_ref()
-			.map(|v| v.analyze(analyzer))
-			.transpose()?;
+		let return_value =
+			self.return_value.map(|v| v.analyze(analyzer)).transpose()?;
 		analyzer.pop_scope();
 
 		let return_value_identifier =
-			analyzer.use_function(&self.return_value_identifier)?;
+			analyzer.use_function(self.return_value_identifier)?;
 
 		Ok(FunctionBody {
 			statements,
@@ -382,14 +403,14 @@ impl Analyzable for Block
 	type Item = Block;
 
 	fn analyze(
-		&self,
+		self,
 		analyzer: &mut Analyzer,
 	) -> Result<Self::Item, anyhow::Error>
 	{
 		analyzer.push_scope();
 		let statements: Result<Vec<Statement>, anyhow::Error> = self
 			.statements
-			.iter()
+			.into_iter()
 			.map(|x| x.analyze(analyzer))
 			.collect();
 		let statements = statements?;
@@ -397,7 +418,7 @@ impl Analyzable for Block
 
 		Ok(Block {
 			statements,
-			location: self.location.clone(),
+			location: self.location,
 		})
 	}
 }
@@ -407,7 +428,7 @@ impl Analyzable for Statement
 	type Item = Statement;
 
 	fn analyze(
-		&self,
+		self,
 		analyzer: &mut Analyzer,
 	) -> Result<Statement, anyhow::Error>
 	{
@@ -427,8 +448,8 @@ impl Analyzable for Statement
 				Ok(Statement::Declaration {
 					name,
 					value: Some(value),
-					value_type: value_type.clone(),
-					location: location.clone(),
+					value_type,
+					location,
 				})
 			}
 			Statement::Declaration {
@@ -442,8 +463,8 @@ impl Analyzable for Statement
 				Ok(Statement::Declaration {
 					name,
 					value: None,
-					value_type: value_type.clone(),
-					location: location.clone(),
+					value_type,
+					location,
 				})
 			}
 			Statement::Assignment {
@@ -461,20 +482,23 @@ impl Analyzable for Statement
 				Ok(Statement::Assignment {
 					reference,
 					value,
-					location: location.clone(),
+					location,
 				})
 			}
 			Statement::MethodCall { name, arguments } =>
 			{
 				let name = analyzer.use_function(name)?;
 				let arguments: Result<Vec<Expression>, anyhow::Error> =
-					arguments.iter().map(|a| a.analyze(analyzer)).collect();
+					arguments
+						.into_iter()
+						.map(|a| a.analyze(analyzer))
+						.collect();
 				let arguments = arguments?;
 				Ok(Statement::MethodCall { name, arguments })
 			}
-			Statement::Loop { .. } => Ok(self.clone()),
-			Statement::Goto { .. } => Ok(self.clone()),
-			Statement::Label { .. } => Ok(self.clone()),
+			Statement::Loop { .. } => Ok(self),
+			Statement::Goto { .. } => Ok(self),
+			Statement::Label { .. } => Ok(self),
 			Statement::If {
 				condition,
 				then_branch,
@@ -496,9 +520,7 @@ impl Analyzable for Statement
 						let branch = else_branch.branch.analyze(analyzer)?;
 						Some(Else {
 							branch: Box::new(branch),
-							location_of_else: else_branch
-								.location_of_else
-								.clone(),
+							location_of_else: else_branch.location_of_else,
 						})
 					}
 					None => None,
@@ -507,7 +529,7 @@ impl Analyzable for Statement
 					condition,
 					then_branch,
 					else_branch,
-					location: location.clone(),
+					location,
 				})
 			}
 			Statement::Block(block) =>
@@ -515,7 +537,22 @@ impl Analyzable for Statement
 				let block = block.analyze(analyzer)?;
 				Ok(Statement::Block(block))
 			}
-			Statement::Poison(_) => Ok(self.clone()),
+			Statement::Poison(Poison::Error {
+				error,
+				partial: Some(statement),
+			}) =>
+			{
+				let statement = statement.analyze(analyzer)?;
+				Ok(Statement::Poison(Poison::Error {
+					error,
+					partial: Some(Box::new(statement)),
+				}))
+			}
+			Statement::Poison(Poison::Error {
+				error: _,
+				partial: None,
+			}) => Ok(self),
+			Statement::Poison(Poison::Poisoned) => Ok(self),
 		}
 	}
 }
@@ -525,7 +562,7 @@ impl Analyzable for Comparison
 	type Item = Comparison;
 
 	fn analyze(
-		&self,
+		self,
 		analyzer: &mut Analyzer,
 	) -> Result<Comparison, anyhow::Error>
 	{
@@ -541,8 +578,8 @@ impl Analyzable for Comparison
 			op: self.op,
 			left,
 			right,
-			location: self.location.clone(),
-			location_of_op: self.location_of_op.clone(),
+			location: self.location,
+			location_of_op: self.location_of_op,
 		})
 	}
 }
@@ -551,11 +588,14 @@ impl Analyzable for Array
 {
 	type Item = Array;
 
-	fn analyze(&self, analyzer: &mut Analyzer) -> Result<Array, anyhow::Error>
+	fn analyze(self, analyzer: &mut Analyzer) -> Result<Array, anyhow::Error>
 	{
 		analyzer.push_scope();
-		let elements: Result<Vec<Expression>, anyhow::Error> =
-			self.elements.iter().map(|x| x.analyze(analyzer)).collect();
+		let elements: Result<Vec<Expression>, anyhow::Error> = self
+			.elements
+			.into_iter()
+			.map(|x| x.analyze(analyzer))
+			.collect();
 		let elements = elements?;
 		analyzer.pop_scope();
 
@@ -564,7 +604,7 @@ impl Analyzable for Array
 
 		Ok(Array {
 			elements,
-			location: self.location.clone(),
+			location: self.location,
 			resolution_id,
 		})
 	}
@@ -575,7 +615,7 @@ impl Analyzable for Expression
 	type Item = Expression;
 
 	fn analyze(
-		&self,
+		self,
 		analyzer: &mut Analyzer,
 	) -> Result<Expression, anyhow::Error>
 	{
@@ -596,11 +636,11 @@ impl Analyzable for Expression
 					.analyze(analyzer)
 					.with_context(|| location.format())?;
 				Ok(Expression::Binary {
-					op: *op,
+					op,
 					left: Box::new(left),
 					right: Box::new(right),
-					location: location.clone(),
-					location_of_op: location_of_op.clone(),
+					location,
+					location_of_op,
 				})
 			}
 			Expression::Unary {
@@ -614,15 +654,15 @@ impl Analyzable for Expression
 					.analyze(analyzer)
 					.with_context(|| location.format())?;
 				Ok(Expression::Unary {
-					op: *op,
+					op,
 					expression: Box::new(expr),
-					location: location.clone(),
-					location_of_op: location_of_op.clone(),
+					location,
+					location_of_op,
 				})
 			}
-			Expression::PrimitiveLiteral { .. } => Ok(self.clone()),
-			Expression::NakedIntegerLiteral { .. } => Ok(self.clone()),
-			Expression::BitIntegerLiteral { .. } => Ok(self.clone()),
+			Expression::PrimitiveLiteral { .. } => Ok(self),
+			Expression::NakedIntegerLiteral { .. } => Ok(self),
+			Expression::BitIntegerLiteral { .. } => Ok(self),
 			Expression::ArrayLiteral {
 				array,
 				element_type,
@@ -631,10 +671,10 @@ impl Analyzable for Expression
 				let array = array.analyze(analyzer)?;
 				Ok(Expression::ArrayLiteral {
 					array,
-					element_type: element_type.clone(),
+					element_type,
 				})
 			}
-			Expression::StringLiteral { .. } => Ok(self.clone()),
+			Expression::StringLiteral { .. } => Ok(self),
 			Expression::Deref {
 				reference,
 				deref_type,
@@ -643,7 +683,7 @@ impl Analyzable for Expression
 				let reference = reference.analyze(analyzer)?;
 				Ok(Expression::Deref {
 					reference,
-					deref_type: deref_type.clone(),
+					deref_type,
 				})
 			}
 			Expression::Autocoerce {
@@ -654,7 +694,7 @@ impl Analyzable for Expression
 				let expression = expression.analyze(analyzer)?;
 				Ok(Expression::Autocoerce {
 					expression: Box::new(expression),
-					coerced_type: coerced_type.clone(),
+					coerced_type,
 				})
 			}
 			Expression::PrimitiveCast {
@@ -667,9 +707,9 @@ impl Analyzable for Expression
 				let expression = expression.analyze(analyzer)?;
 				Ok(Expression::PrimitiveCast {
 					expression: Box::new(expression),
-					coerced_type: coerced_type.clone(),
-					location: location.clone(),
-					location_of_type: location_of_type.clone(),
+					coerced_type,
+					location,
+					location_of_type,
 				})
 			}
 			Expression::LengthOfArray { reference } =>
@@ -685,15 +725,18 @@ impl Analyzable for Expression
 			{
 				let name = analyzer.use_function(name)?;
 				let arguments: Result<Vec<Expression>, anyhow::Error> =
-					arguments.iter().map(|a| a.analyze(analyzer)).collect();
+					arguments
+						.into_iter()
+						.map(|a| a.analyze(analyzer))
+						.collect();
 				let arguments = arguments?;
 				Ok(Expression::FunctionCall {
 					name,
 					arguments,
-					return_type: return_type.clone(),
+					return_type,
 				})
 			}
-			Expression::Poison(_) => Ok(self.clone()),
+			Expression::Poison(_) => Ok(self),
 		}
 	}
 }
@@ -703,14 +746,14 @@ impl Analyzable for Reference
 	type Item = Reference;
 
 	fn analyze(
-		&self,
+		self,
 		analyzer: &mut Analyzer,
 	) -> Result<Self::Item, anyhow::Error>
 	{
-		let base = analyzer.use_variable(&self.base)?;
+		let base = analyzer.use_variable(self.base)?;
 		let steps: Result<Vec<ReferenceStep>, anyhow::Error> = self
 			.steps
-			.iter()
+			.into_iter()
 			.map(|step| step.analyze(analyzer))
 			.collect();
 		let steps = steps?;
@@ -718,7 +761,7 @@ impl Analyzable for Reference
 			base,
 			steps,
 			address_depth: self.address_depth,
-			location: self.location.clone(),
+			location: self.location,
 		})
 	}
 }
@@ -728,11 +771,11 @@ impl Analyzable for ReferenceStep
 	type Item = ReferenceStep;
 
 	fn analyze(
-		&self,
+		self,
 		analyzer: &mut Analyzer,
 	) -> Result<Self::Item, anyhow::Error>
 	{
-		match &self
+		match self
 		{
 			ReferenceStep::Element { argument } =>
 			{
@@ -747,11 +790,11 @@ impl Analyzable for ReferenceStep
 				let offset = 0;
 				let member = Identifier {
 					resolution_id: offset,
-					..member.clone()
+					..member
 				};
 				Ok(ReferenceStep::Member { member })
 			}
-			ReferenceStep::Autodeslice { .. } => Ok(self.clone()),
+			ReferenceStep::Autodeslice { .. } => Ok(self),
 			ReferenceStep::Autoderef => Ok(ReferenceStep::Autoderef),
 			ReferenceStep::Autoview => Ok(ReferenceStep::Autoview),
 		}

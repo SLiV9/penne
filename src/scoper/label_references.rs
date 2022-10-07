@@ -16,7 +16,10 @@ pub fn analyze(
 		label_stack: Vec::new(),
 		resolution_id: 1,
 	};
-	program.iter().map(|x| x.analyze(&mut analyzer)).collect()
+	program
+		.into_iter()
+		.map(|x| x.analyze(&mut analyzer))
+		.collect()
 }
 
 struct Analyzer
@@ -29,7 +32,7 @@ impl Analyzer
 {
 	fn declare_label(
 		&mut self,
-		identifier: &Identifier,
+		identifier: Identifier,
 	) -> Result<Identifier, anyhow::Error>
 	{
 		for scope in &self.label_stack
@@ -50,9 +53,8 @@ impl Analyzer
 		}
 
 		let identifier = Identifier {
-			name: identifier.name.clone(),
-			location: identifier.location.clone(),
 			resolution_id: self.resolution_id,
+			..identifier
 		};
 		self.resolution_id += 1;
 
@@ -69,7 +71,7 @@ impl Analyzer
 
 	fn use_label(
 		&self,
-		identifier: &Identifier,
+		identifier: Identifier,
 	) -> Result<Identifier, anyhow::Error>
 	{
 		for scope in &self.label_stack
@@ -79,7 +81,7 @@ impl Analyzer
 			{
 				return Ok(Identifier {
 					resolution_id: previous_identifier.resolution_id,
-					..identifier.clone()
+					..identifier
 				});
 			}
 		}
@@ -108,7 +110,7 @@ trait Analyzable
 	type Item;
 
 	fn analyze(
-		&self,
+		self,
 		analyzer: &mut Analyzer,
 	) -> Result<Self::Item, anyhow::Error>;
 }
@@ -118,13 +120,13 @@ impl Analyzable for Declaration
 	type Item = Declaration;
 
 	fn analyze(
-		&self,
+		self,
 		analyzer: &mut Analyzer,
 	) -> Result<Declaration, anyhow::Error>
 	{
 		match self
 		{
-			Declaration::Constant { .. } => Ok(self.clone()),
+			Declaration::Constant { .. } => Ok(self),
 			Declaration::Function {
 				name,
 				parameters,
@@ -136,28 +138,35 @@ impl Analyzable for Declaration
 				let body = match body
 				{
 					Ok(body) => Ok(body.analyze(analyzer)?),
-					Err(poison) => Err(poison.clone()),
+					Err(poison) => Err(poison),
 				};
 				let function = Declaration::Function {
-					name: name.clone(),
-					parameters: parameters.clone(),
+					name,
+					parameters,
 					body,
-					return_type: return_type.clone(),
-					flags: *flags,
+					return_type,
+					flags,
 				};
 				Ok(function)
 			}
-			Declaration::FunctionHead { .. } => Ok(self.clone()),
+			Declaration::FunctionHead { .. } => Ok(self),
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
 			Declaration::Poison(Poison::Error {
-				error: _,
+				error,
 				partial: Some(declaration),
-			}) => declaration.analyze(analyzer),
+			}) =>
+			{
+				let declaration = declaration.analyze(analyzer)?;
+				Ok(Declaration::Poison(Poison::Error {
+					error,
+					partial: Some(Box::new(declaration)),
+				}))
+			}
 			Declaration::Poison(Poison::Error {
 				error: _,
 				partial: None,
-			}) => Ok(self.clone()),
-			Declaration::Poison(Poison::Poisoned) => Ok(self.clone()),
+			}) => Ok(self),
+			Declaration::Poison(Poison::Poisoned) => Ok(self),
 		}
 	}
 }
@@ -167,14 +176,14 @@ impl Analyzable for FunctionBody
 	type Item = FunctionBody;
 
 	fn analyze(
-		&self,
+		self,
 		analyzer: &mut Analyzer,
 	) -> Result<FunctionBody, anyhow::Error>
 	{
 		analyzer.push_scope();
 		let statements: Result<Vec<Statement>, anyhow::Error> = self
 			.statements
-			.iter()
+			.into_iter()
 			.rev()
 			.map(|x| x.analyze(analyzer))
 			.collect();
@@ -184,8 +193,8 @@ impl Analyzable for FunctionBody
 
 		Ok(FunctionBody {
 			statements,
-			return_value: self.return_value.clone(),
-			return_value_identifier: self.return_value_identifier.clone(),
+			return_value: self.return_value,
+			return_value_identifier: self.return_value_identifier,
 		})
 	}
 }
@@ -195,14 +204,14 @@ impl Analyzable for Block
 	type Item = Block;
 
 	fn analyze(
-		&self,
+		self,
 		analyzer: &mut Analyzer,
 	) -> Result<Self::Item, anyhow::Error>
 	{
 		analyzer.push_scope();
 		let statements: Result<Vec<Statement>, anyhow::Error> = self
 			.statements
-			.iter()
+			.into_iter()
 			.rev()
 			.map(|x| x.analyze(analyzer))
 			.collect();
@@ -212,7 +221,7 @@ impl Analyzable for Block
 
 		Ok(Block {
 			statements,
-			location: self.location.clone(),
+			location: self.location,
 		})
 	}
 }
@@ -222,31 +231,25 @@ impl Analyzable for Statement
 	type Item = Statement;
 
 	fn analyze(
-		&self,
+		self,
 		analyzer: &mut Analyzer,
 	) -> Result<Statement, anyhow::Error>
 	{
 		match self
 		{
-			Statement::Declaration { .. } => Ok(self.clone()),
-			Statement::Assignment { .. } => Ok(self.clone()),
-			Statement::MethodCall { .. } => Ok(self.clone()),
-			Statement::Loop { location: _ } => Ok(self.clone()),
+			Statement::Declaration { .. } => Ok(self),
+			Statement::Assignment { .. } => Ok(self),
+			Statement::MethodCall { .. } => Ok(self),
+			Statement::Loop { location: _ } => Ok(self),
 			Statement::Goto { label, location } =>
 			{
 				let label = analyzer.use_label(label)?;
-				Ok(Statement::Goto {
-					label,
-					location: location.clone(),
-				})
+				Ok(Statement::Goto { label, location })
 			}
 			Statement::Label { label, location } =>
 			{
 				let label = analyzer.declare_label(label)?;
-				Ok(Statement::Label {
-					label,
-					location: location.clone(),
-				})
+				Ok(Statement::Label { label, location })
 			}
 			Statement::If {
 				condition,
@@ -266,18 +269,16 @@ impl Analyzable for Statement
 						let branch = else_branch.branch.analyze(analyzer)?;
 						Some(Else {
 							branch: Box::new(branch),
-							location_of_else: else_branch
-								.location_of_else
-								.clone(),
+							location_of_else: else_branch.location_of_else,
 						})
 					}
 					None => None,
 				};
 				Ok(Statement::If {
-					condition: condition.clone(),
+					condition,
 					then_branch,
 					else_branch,
-					location: location.clone(),
+					location,
 				})
 			}
 			Statement::Block(block) =>
@@ -286,14 +287,21 @@ impl Analyzable for Statement
 				Ok(Statement::Block(block))
 			}
 			Statement::Poison(Poison::Error {
-				error: _,
+				error,
 				partial: Some(statement),
-			}) => statement.analyze(analyzer),
+			}) =>
+			{
+				let statement = statement.analyze(analyzer)?;
+				Ok(Statement::Poison(Poison::Error {
+					error,
+					partial: Some(Box::new(statement)),
+				}))
+			}
 			Statement::Poison(Poison::Error {
 				error: _,
 				partial: None,
-			}) => Ok(self.clone()),
-			Statement::Poison(Poison::Poisoned) => Ok(self.clone()),
+			}) => Ok(self),
+			Statement::Poison(Poison::Poisoned) => Ok(self),
 		}
 	}
 }
