@@ -46,6 +46,35 @@ struct Function
 	parameter_types: Vec<Poisonable<ValueType>>,
 }
 
+fn do_update_symbol(
+	symbol: &mut Symbol,
+	new_identifier: &Identifier,
+	vt: ValueType,
+) -> Result<(), anyhow::Error>
+{
+	match &symbol.value_type
+	{
+		Ok(ot) if ot == &vt => Ok(()),
+		Ok(ot) if ot.can_autoderef_into(&vt) => Ok(()),
+		Ok(ot) if vt.can_autoderef_into(ot) =>
+		{
+			symbol.identifier = new_identifier.clone();
+			symbol.value_type = Ok(vt);
+			Ok(())
+		}
+		Ok(ot) => Err(anyhow!(
+			"first occurrence {}",
+			symbol.identifier.location.format()
+		)
+		.context(new_identifier.location.format())
+		.context(format!(
+			"conflicting types for '{}', first {:?} and now {:?}",
+			symbol.identifier.name, ot, vt
+		))),
+		Err(_poison) => Ok(()),
+	}
+}
+
 impl Typer
 {
 	fn put_symbol(
@@ -61,7 +90,7 @@ impl Typer
 				if let Some(symbol) =
 					self.symbols.get_mut(&identifier.resolution_id)
 				{
-					self.do_update_symbol(&mut symbol, identifier, vt)
+					do_update_symbol(symbol, identifier, vt)
 				}
 				else
 				{
@@ -99,36 +128,6 @@ impl Typer
 		}
 	}
 
-	fn do_update_symbol(
-		&self,
-		symbol: &mut Symbol,
-		new_identifier: &Identifier,
-		vt: ValueType,
-	) -> Result<(), anyhow::Error>
-	{
-		match &symbol.value_type
-		{
-			Ok(ot) if ot == &vt => Ok(()),
-			Ok(ot) if ot.can_autoderef_into(&vt) => Ok(()),
-			Ok(ot) if vt.can_autoderef_into(ot) =>
-			{
-				symbol.identifier = new_identifier.clone();
-				symbol.value_type = Ok(vt);
-				Ok(())
-			}
-			Ok(ot) => Err(anyhow!(
-				"first occurrence {}",
-				symbol.identifier.location.format()
-			)
-			.context(new_identifier.location.format())
-			.context(format!(
-				"conflicting types for '{}', first {:?} and now {:?}",
-				symbol.identifier.name, ot, vt
-			))),
-			Err(poison) => Ok(()),
-		}
-	}
-
 	fn get_symbol(&self, name: &Identifier) -> Option<Poisonable<ValueType>>
 	{
 		match self.symbols.get(&name.resolution_id)
@@ -136,7 +135,7 @@ impl Typer
 			Some(symbol) => match &symbol.value_type
 			{
 				Ok(vt) => Some(Ok(vt.clone())),
-				Err(poison) => Some(Err(Poison::Poisoned)),
+				Err(_poison) => Some(Err(Poison::Poisoned)),
 			},
 			None => None,
 		}
@@ -168,7 +167,7 @@ impl Typer
 			let mut x = match base_type
 			{
 				Ok(base_type) => base_type.fully_dereferenced(),
-				Err(poison) => return Ok(Some(Err(Poison::Poisoned))),
+				Err(_poison) => return Ok(Some(Err(Poison::Poisoned))),
 			};
 			for step in reference.steps.iter()
 			{
@@ -327,8 +326,8 @@ fn declare(
 		} =>
 		{
 			let rt_identifier = name.clone().return_value();
-			let return_type = return_type.map(|x| Ok(x.clone()));
-			typer.put_symbol(&rt_identifier, return_type)?;
+			let return_type = return_type.clone().map(|x| Ok(x));
+			typer.put_symbol(&rt_identifier, return_type.into())?;
 
 			let parameters: Result<Vec<Parameter>, anyhow::Error> =
 				parameters.iter().map(|x| x.analyze(typer)).collect();
@@ -338,6 +337,15 @@ fn declare(
 			Ok(())
 		}
 		Declaration::PreprocessorDirective { .. } => unreachable!(),
+		Declaration::Poison(Poison::Error {
+			error: _,
+			partial: Some(declaration),
+		}) => declare(declaration, typer),
+		Declaration::Poison(Poison::Error {
+			error: _,
+			partial: None,
+		}) => Ok(()),
+		Declaration::Poison(Poison::Poisoned) => Ok(()),
 	}
 }
 
@@ -361,7 +369,7 @@ impl Typed for Declaration
 			Declaration::Function { return_type, .. }
 			| Declaration::FunctionHead { return_type, .. } =>
 			{
-				return_type.map(|x| Ok(x.clone()))
+				return_type.clone().map(|x| Ok(x))
 			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
 			Declaration::Poison(_) => Some(Err(Poison::Poisoned)),
@@ -440,21 +448,21 @@ impl Analyzable for Declaration
 				// Pre-analyze the function body because it might contain
 				// untyped declarations, e.g. "var x;", whose types won't be
 				// determined in the first pass.
-				typer.contextual_type = return_type.map(|x| Ok(x.clone()));
+				typer.contextual_type = return_type.clone().map(|x| Ok(x));
 				let prebody: FunctionBody = body.analyze(typer)?;
 				// Pre-analyze the statements in reverse, because there might
 				// be chains of untyped declarations, e.g.
 				//   var x = 1;
 				//   var y = x;
 				// whose types won't be determined in the forward pass.
-				typer.contextual_type = return_type.map(|x| Ok(x.clone()));
+				typer.contextual_type = return_type.clone().map(|x| Ok(x));
 				for statement in prebody.statements.iter().rev()
 				{
 					let _unused: Statement = statement.analyze(typer)?;
 				}
 				let _unused = prebody;
 
-				typer.contextual_type = return_type.map(|x| Ok(x.clone()));
+				typer.contextual_type = return_type.clone().map(|x| Ok(x));
 				let body = body.analyze(typer)?;
 				let return_type = body.value_type();
 
@@ -509,6 +517,7 @@ impl Analyzable for Declaration
 				Ok(function)
 			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Poison(_) => Ok(self.clone()),
 		}
 	}
 }
@@ -603,27 +612,28 @@ impl Analyzable for Statement
 				location,
 			} =>
 			{
-				typer.put_symbol(name, Some(Ok(declared_type.clone())))?;
-				typer.contextual_type = Some(Ok(declared_type.clone()));
+				typer.put_symbol(name, Some(declared_type.clone()))?;
+				typer.contextual_type = Some(declared_type.clone());
 				let value = value.analyze(typer)?;
 				typer.contextual_type = None;
 				let value_type = if let Some(inferred_type) = value.value_type()
 				{
 					typer.put_symbol(name, Some(inferred_type.clone()))?;
-					match inferred_type
+					match (inferred_type, declared_type.clone())
 					{
-						Ok(inferred_type) =>
+						(Ok(inferred_type), Ok(declared_type)) =>
 						{
-							if inferred_type.can_be_declared_as(declared_type)
+							if inferred_type.can_be_declared_as(&declared_type)
 							{
 								Some(Ok(inferred_type))
 							}
 							else
 							{
-								Some(Ok(declared_type.clone()))
+								Some(Ok(declared_type))
 							}
 						}
-						Err(poison) => Some(Err(poison)),
+						(_, Err(poison)) => Some(Err(poison)),
+						(Err(poison), Ok(_)) => Some(Err(poison)),
 					}
 				}
 				else
@@ -771,6 +781,7 @@ impl Analyzable for Statement
 				let block = block.analyze(typer)?;
 				Ok(Statement::Block(block))
 			}
+			Statement::Poison(_) => Ok(self.clone()),
 		}
 	}
 }
@@ -851,10 +862,11 @@ impl Typed for Expression
 				array: Array { elements, .. },
 			} => match element_type
 			{
-				Some(element_type) => Some(ValueType::Array {
+				Some(Ok(element_type)) => Some(Ok(ValueType::Array {
 					element_type: Box::new(element_type.clone()),
 					length: elements.len(),
-				}),
+				})),
+				Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
 				None => None,
 			},
 			Expression::StringLiteral { value_type, .. } => value_type.clone(),
@@ -864,13 +876,13 @@ impl Typed for Expression
 			} => deref_type.clone(),
 			Expression::Autocoerce { coerced_type, .. } =>
 			{
-				Some(coerced_type.clone())
+				Some(Ok(coerced_type.clone()))
 			}
 			Expression::PrimitiveCast { coerced_type, .. } =>
 			{
-				Some(coerced_type.clone())
+				Some(Ok(coerced_type.clone()))
 			}
-			Expression::LengthOfArray { .. } => Some(ValueType::Usize),
+			Expression::LengthOfArray { .. } => Some(Ok(ValueType::Usize)),
 			Expression::FunctionCall { return_type, .. } => return_type.clone(),
 			Expression::Poison(_) => Some(Err(Poison::Poisoned)),
 		}
@@ -933,7 +945,8 @@ impl Analyzable for Expression
 			{
 				let value_type = match value_type
 				{
-					Some(vt) => Some(vt.clone()),
+					Some(Ok(vt)) => Some(Ok(vt.clone())),
+					Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
 					None =>
 					{
 						let contextual_type = typer.contextual_type.take();
@@ -954,7 +967,8 @@ impl Analyzable for Expression
 			{
 				let value_type = match value_type
 				{
-					Some(vt) => Some(vt.clone()),
+					Some(Ok(vt)) => Some(Ok(vt.clone())),
+					Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
 					None =>
 					{
 						let contextual_type = typer.contextual_type.take();
@@ -981,9 +995,17 @@ impl Analyzable for Expression
 				else
 				{
 					let array_type = typer.contextual_type.take();
-					typer.contextual_type =
-						array_type.map(|x| x.get_element_type()).flatten();
-				};
+					typer.contextual_type = match array_type
+					{
+						Some(Ok(x)) => match x.get_element_type()
+						{
+							Some(y) => Some(Ok(y)),
+							None => None,
+						},
+						Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
+						None => None,
+					};
+				}
 				let array = array.analyze(typer)?;
 				let element_type = typer.get_symbol(&name);
 				Ok(Expression::ArrayLiteral {
@@ -992,14 +1014,14 @@ impl Analyzable for Expression
 				})
 			}
 			Expression::StringLiteral {
-				value_type: Some(vt),
+				value_type: Some(Ok(vt)),
 				..
 			} =>
 			{
 				let contextual_type = typer.contextual_type.take();
-				if let Some(ct) = contextual_type
+				match contextual_type
 				{
-					if vt.can_coerce_into(&ct)
+					Some(Ok(ct)) if vt.can_coerce_into(&ct) =>
 					{
 						let expr = self.clone();
 						Ok(Expression::Autocoerce {
@@ -1007,16 +1029,15 @@ impl Analyzable for Expression
 							coerced_type: ct,
 						})
 					}
-					else
-					{
-						Ok(self.clone())
-					}
-				}
-				else
-				{
-					Ok(self.clone())
+					Some(Ok(_)) => Ok(self.clone()),
+					Some(Err(_poison)) => Ok(self.clone()),
+					None => Ok(self.clone()),
 				}
 			}
+			Expression::StringLiteral {
+				value_type: Some(Err(_poison)),
+				..
+			} => Ok(self.clone()),
 			Expression::StringLiteral {
 				bytes,
 				value_type: None,
@@ -1077,43 +1098,32 @@ impl Analyzable for Expression
 				let array_type = typer.get_type_of_reference(reference)?;
 				match array_type
 				{
-					Some(ValueType::Array { .. }) =>
+					Some(Ok(ValueType::Array { .. })) =>
 					{
-						let reference = if base_type == array_type
-						{
-							reference.clone()
-						}
-						else
-						{
-							reference.analyze_length(array_type, typer)?
-						};
+						let reference = reference
+							.analyze_length(base_type, array_type, typer)?;
 						Ok(Expression::LengthOfArray { reference })
 					}
-					Some(ValueType::Slice { .. }) =>
+					Some(Ok(ValueType::Slice { .. })) =>
 					{
-						let mut reference = if base_type == array_type
-						{
-							reference.clone()
-						}
-						else
-						{
-							reference.analyze_length(array_type, typer)?
-						};
+						let mut reference = reference
+							.analyze_length(base_type, array_type, typer)?;
 						let autostep = ReferenceStep::Autodeslice { offset: 1 };
 						reference.steps.push(autostep);
 						let expr = Expression::Deref {
 							reference,
-							deref_type: Some(ValueType::Usize),
+							deref_type: Some(Ok(ValueType::Usize)),
 						};
 						Ok(expr)
 					}
-					Some(_) =>
+					Some(Ok(_)) =>
 					{
 						let error = anyhow!("can only take length of array")
 							.context(reference.location.format())
 							.context("this variable does not have a length");
 						Err(error)
 					}
+					Some(Err(_poison)) => Ok(self.clone()),
 					None => Ok(self.clone()),
 				}
 			}
@@ -1135,6 +1145,7 @@ impl Analyzable for Expression
 				};
 				Ok(expr)
 			}
+			Expression::Poison(_) => Ok(self.clone()),
 		}
 	}
 }
@@ -1149,7 +1160,7 @@ impl Analyzable for ReferenceStep
 		{
 			ReferenceStep::Element { argument } =>
 			{
-				typer.contextual_type = Some(ValueType::Usize);
+				typer.contextual_type = Some(Ok(ValueType::Usize));
 				let argument = argument.analyze(typer)?;
 				typer.contextual_type = None;
 				Ok(ReferenceStep::Element {
@@ -1164,20 +1175,127 @@ impl Analyzable for ReferenceStep
 	}
 }
 
+fn analyze_assignment_steps(
+	base_type: ValueType,
+	previous_steps: Vec<ReferenceStep>,
+	value_type: &Option<Poisonable<ValueType>>,
+	address_depth: u8,
+) -> (Vec<ReferenceStep>, u8)
+{
+	let mut steps = Vec::new();
+	let mut current_type = base_type;
+	for step in previous_steps.into_iter()
+	{
+		match step
+		{
+			ReferenceStep::Element { argument: _ } =>
+			{
+				for _i in 0..MAX_AUTODEREF_DEPTH
+				{
+					match current_type
+					{
+						ValueType::Pointer { deref_type } =>
+						{
+							let step = ReferenceStep::Autoderef;
+							steps.push(step);
+							current_type = *deref_type;
+						}
+						ValueType::View { deref_type } =>
+						{
+							let step = ReferenceStep::Autoview;
+							steps.push(step);
+							current_type = *deref_type;
+						}
+						_ => break,
+					}
+				}
+				match current_type
+				{
+					ValueType::Slice { .. } =>
+					{
+						let autostep = ReferenceStep::Autodeslice { offset: 0 };
+						steps.push(autostep);
+					}
+					_ => (),
+				}
+				match current_type.get_element_type()
+				{
+					Some(element_type) =>
+					{
+						current_type = element_type;
+					}
+					None => unreachable!(),
+				}
+			}
+			ReferenceStep::Member { member: _ } => unimplemented!(),
+			ReferenceStep::Autoderef => match current_type
+			{
+				ValueType::Pointer { deref_type } =>
+				{
+					current_type = *deref_type;
+				}
+				_ => unreachable!(),
+			},
+			ReferenceStep::Autoview => match current_type
+			{
+				ValueType::View { deref_type } =>
+				{
+					current_type = *deref_type;
+				}
+				_ => unreachable!(),
+			},
+			ReferenceStep::Autodeslice { offset: 0 } => (),
+			ReferenceStep::Autodeslice { offset: 1 } =>
+			{
+				current_type = ValueType::Usize;
+			}
+			ReferenceStep::Autodeslice { offset: _ } => unreachable!(),
+		}
+		steps.push(step);
+	}
+	for _i in 0..MAX_AUTODEREF_DEPTH
+	{
+		match value_type
+		{
+			Some(Ok(vt)) if vt == &current_type =>
+			{
+				return (steps, 0);
+			}
+			_ => (),
+		}
+		match current_type
+		{
+			ValueType::Pointer { deref_type } =>
+			{
+				let step = ReferenceStep::Autoderef;
+				steps.push(step);
+				current_type = *deref_type;
+			}
+			_ => break,
+		}
+	}
+	(steps, address_depth)
+}
+
 impl Reference
 {
 	fn analyze_length(
 		&self,
-		value_type: Option<ValueType>,
+		base_type: Option<Poisonable<ValueType>>,
+		array_type: Option<Poisonable<ValueType>>,
 		typer: &mut Typer,
 	) -> Result<Self, anyhow::Error>
 	{
-		self.analyze_assignment(value_type, typer)
+		match (base_type, array_type)
+		{
+			(Some(Ok(x)), Some(Ok(y))) if x == y => Ok(self.clone()),
+			(_, array_type) => self.analyze_assignment(array_type, typer),
+		}
 	}
 
 	fn analyze_assignment(
 		&self,
-		value_type: Option<ValueType>,
+		value_type: Option<Poisonable<ValueType>>,
 		typer: &mut Typer,
 	) -> Result<Self, anyhow::Error>
 	{
@@ -1187,106 +1305,16 @@ impl Reference
 
 		let base_type = typer.get_symbol(&self.base);
 
-		let mut address_depth = self.address_depth;
-		let steps = if let Some(base_type) = base_type
+		let (steps, address_depth) = match base_type
 		{
-			let previous_steps = steps;
-			let mut steps = Vec::new();
-
-			let mut current_type = base_type;
-			for step in previous_steps.into_iter()
-			{
-				match step
-				{
-					ReferenceStep::Element { argument: _ } =>
-					{
-						for _i in 0..MAX_AUTODEREF_DEPTH
-						{
-							match current_type
-							{
-								ValueType::Pointer { deref_type } =>
-								{
-									let step = ReferenceStep::Autoderef;
-									steps.push(step);
-									current_type = *deref_type;
-								}
-								ValueType::View { deref_type } =>
-								{
-									let step = ReferenceStep::Autoview;
-									steps.push(step);
-									current_type = *deref_type;
-								}
-								_ => break,
-							}
-						}
-						match current_type
-						{
-							ValueType::Slice { .. } =>
-							{
-								let autostep =
-									ReferenceStep::Autodeslice { offset: 0 };
-								steps.push(autostep);
-							}
-							_ => (),
-						}
-						match current_type.get_element_type()
-						{
-							Some(element_type) =>
-							{
-								current_type = element_type;
-							}
-							None => unreachable!(),
-						}
-					}
-					ReferenceStep::Member { member: _ } => unimplemented!(),
-					ReferenceStep::Autoderef => match current_type
-					{
-						ValueType::Pointer { deref_type } =>
-						{
-							current_type = *deref_type;
-						}
-						_ => unreachable!(),
-					},
-					ReferenceStep::Autoview => match current_type
-					{
-						ValueType::View { deref_type } =>
-						{
-							current_type = *deref_type;
-						}
-						_ => unreachable!(),
-					},
-					ReferenceStep::Autodeslice { offset: 0 } => (),
-					ReferenceStep::Autodeslice { offset: 1 } =>
-					{
-						current_type = ValueType::Usize;
-					}
-					ReferenceStep::Autodeslice { offset: _ } => unreachable!(),
-				}
-				steps.push(step);
-			}
-			for _i in 0..MAX_AUTODEREF_DEPTH
-			{
-				match current_type
-				{
-					ct if value_type.as_ref() == Some(&ct) =>
-					{
-						address_depth = 0;
-						break;
-					}
-					ValueType::Pointer { deref_type } =>
-					{
-						let step = ReferenceStep::Autoderef;
-						steps.push(step);
-						current_type = *deref_type;
-					}
-					_ => break,
-				}
-			}
-			steps
-		}
-		else
-		{
-			steps
+			Some(Ok(base_type)) => analyze_assignment_steps(
+				base_type,
+				steps,
+				&value_type,
+				self.address_depth,
+			),
+			Some(Err(_poison)) => (steps, self.address_depth),
+			None => (steps, self.address_depth),
 		};
 
 		let full_type =
@@ -1316,14 +1344,14 @@ impl Reference
 
 		match (known_type, contextual_type, ref_type)
 		{
-			(Some(x), Some(y), Some(ref_type)) if x == y =>
+			(Some(Ok(x)), Some(Ok(y)), Some(Ok(ref_type))) if x == y =>
 			{
 				self.autoderef(ref_type, y, steps, typer)
 			}
-			(Some(x), Some(y), _) if x == y =>
+			(Some(Ok(x)), Some(Ok(y)), None) if x == y =>
 			{
-				let base_type = Some(x);
-				let deref_type = Some(y);
+				let base_type = Some(Ok(x));
+				let deref_type = Some(Ok(y));
 				let full_type = build_type_of_reference(
 					base_type,
 					&steps,
@@ -1340,17 +1368,18 @@ impl Reference
 					deref_type,
 				})
 			}
-			(Some(x), Some(y), Some(ref_type)) if x.can_autoderef_into(&y) =>
+			(Some(Ok(x)), Some(Ok(y)), Some(Ok(ref_type)))
+				if x.can_autoderef_into(&y) =>
 			{
 				self.autoderef(ref_type, y, steps, typer)
 			}
-			(Some(def), None, Some(ref_type)) =>
+			(Some(Ok(def)), None, Some(Ok(ref_type))) =>
 			{
 				self.autoderef(ref_type, def, steps, typer)
 			}
-			(Some(def), _, _) =>
+			(Some(default_type_or_poison), _, _) =>
 			{
-				let base_type = Some(def);
+				let base_type = Some(default_type_or_poison);
 				let deref_type = base_type.clone();
 				let full_type = build_type_of_reference(
 					base_type,
@@ -1529,13 +1558,13 @@ impl Reference
 				{
 					// This is invalid, but we want a proper error, not an
 					// autoderef failure, so just skip the autoderef.
-					let base_type = Some(target_type.clone());
+					let base_type = Some(Ok(target_type.clone()));
 					let full_type = build_type_of_reference(
 						base_type,
 						&taken_steps,
 						self.address_depth,
 					);
-					typer.put_symbol(&self.base, full_type.clone())?;
+					typer.put_symbol(&self.base, full_type)?;
 					let expr = Expression::Deref {
 						reference: Reference {
 							base: self.base.clone(),
@@ -1543,7 +1572,7 @@ impl Reference
 							address_depth: self.address_depth,
 							location: self.location.clone(),
 						},
-						deref_type: Some(target_type),
+						deref_type: Some(Ok(target_type)),
 					};
 					return Ok(expr);
 				}
@@ -1564,8 +1593,8 @@ impl Reference
 		let address_depth = if take_address { 1 } else { 0 };
 		let (deref_type, coerced_type) = match coercion
 		{
-			Some((x, y)) => (Some(x), Some(y)),
-			None => (Some(target_type), None),
+			Some((x, y)) => (Some(Ok(x)), Some(y)),
+			None => (Some(Ok(target_type)), None),
 		};
 		let base_type = deref_type.clone();
 		let full_type =
@@ -1595,57 +1624,69 @@ impl Reference
 }
 
 fn build_type_of_reference(
-	base_type: Option<ValueType>,
+	base_type: Option<Poisonable<ValueType>>,
 	steps: &[ReferenceStep],
 	address_depth: u8,
-) -> Option<ValueType>
+) -> Option<Poisonable<ValueType>>
 {
-	if let Some(base_type) = base_type
+	match base_type
 	{
-		let mut full_type = base_type;
-		for step in steps.iter().rev()
+		Some(Ok(base_type)) =>
 		{
-			match step
-			{
-				ReferenceStep::Element { argument: _ } =>
-				{
-					full_type = ValueType::ExtArray {
-						element_type: Box::new(full_type),
-					};
-				}
-				ReferenceStep::Member { member: _ } => unimplemented!(),
-				ReferenceStep::Autoderef =>
-				{
-					full_type = ValueType::Pointer {
-						deref_type: Box::new(full_type),
-					};
-				}
-				ReferenceStep::Autoview =>
-				{
-					full_type = ValueType::View {
-						deref_type: Box::new(full_type),
-					};
-				}
-				ReferenceStep::Autodeslice { offset: _ } => (),
-			}
+			let full_type = build_type_of_ref1(base_type, steps, address_depth);
+			Some(Ok(full_type))
 		}
-		for _i in 0..address_depth
-		{
-			match full_type
-			{
-				ValueType::Pointer { deref_type } =>
-				{
-					full_type = *deref_type;
-				}
-				_ => break,
-			}
-		}
-		Some(full_type)
+		Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
+		None => None,
 	}
-	else
+}
+
+fn build_type_of_ref1(
+	base_type: ValueType,
+	steps: &[ReferenceStep],
+	address_depth: u8,
+) -> ValueType
+{
+	let mut full_type = base_type;
+
+	for step in steps.iter().rev()
 	{
-		None
+		match step
+		{
+			ReferenceStep::Element { argument: _ } =>
+			{
+				full_type = ValueType::ExtArray {
+					element_type: Box::new(full_type),
+				};
+			}
+			ReferenceStep::Member { member: _ } => unimplemented!(),
+			ReferenceStep::Autoderef =>
+			{
+				full_type = ValueType::Pointer {
+					deref_type: Box::new(full_type),
+				};
+			}
+			ReferenceStep::Autoview =>
+			{
+				full_type = ValueType::View {
+					deref_type: Box::new(full_type),
+				};
+			}
+			ReferenceStep::Autodeslice { offset: _ } => (),
+		}
 	}
+	for _i in 0..address_depth
+	{
+		match full_type
+		{
+			ValueType::Pointer { deref_type } =>
+			{
+				full_type = *deref_type;
+			}
+			_ => break,
+		}
+	}
+	full_type
 }
 
 fn infer_for_declaration(
@@ -1655,64 +1696,71 @@ fn infer_for_declaration(
 	match value_type
 	{
 		Some(Ok(ValueType::Pointer { .. })) => None,
-		Some(x) => Some(x),
+		Some(Ok(x)) => Some(Ok(x)),
+		Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
 		None => None,
 	}
 }
 
-fn filter_for_naked_integer(value_type: Option<ValueType>)
-	-> Option<ValueType>
+fn filter_for_naked_integer(
+	value_type: Option<Poisonable<ValueType>>,
+) -> Option<Poisonable<ValueType>>
 {
 	match value_type
 	{
-		Some(ValueType::Int8) => value_type,
-		Some(ValueType::Int16) => value_type,
-		Some(ValueType::Int32) => value_type,
-		Some(ValueType::Int64) => value_type,
-		Some(ValueType::Int128) => value_type,
-		Some(ValueType::Uint8) => value_type,
-		Some(ValueType::Uint16) => value_type,
-		Some(ValueType::Uint32) => value_type,
-		Some(ValueType::Uint64) => value_type,
-		Some(ValueType::Uint128) => value_type,
-		Some(ValueType::Usize) => value_type,
-		Some(_) => Some(ValueType::Int32),
+		Some(Ok(ValueType::Int8)) => value_type,
+		Some(Ok(ValueType::Int16)) => value_type,
+		Some(Ok(ValueType::Int32)) => value_type,
+		Some(Ok(ValueType::Int64)) => value_type,
+		Some(Ok(ValueType::Int128)) => value_type,
+		Some(Ok(ValueType::Uint8)) => value_type,
+		Some(Ok(ValueType::Uint16)) => value_type,
+		Some(Ok(ValueType::Uint32)) => value_type,
+		Some(Ok(ValueType::Uint64)) => value_type,
+		Some(Ok(ValueType::Uint128)) => value_type,
+		Some(Ok(ValueType::Usize)) => value_type,
+		Some(Ok(_)) => Some(Ok(ValueType::Int32)),
+		Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
 		None => None,
 	}
 }
 
-fn filter_for_bit_integer(value_type: Option<ValueType>) -> Option<ValueType>
+fn filter_for_bit_integer(
+	value_type: Option<Poisonable<ValueType>>,
+) -> Option<Poisonable<ValueType>>
 {
 	match value_type
 	{
-		Some(ValueType::Uint8) => value_type,
-		Some(ValueType::Uint16) => value_type,
-		Some(ValueType::Uint32) => value_type,
-		Some(ValueType::Uint64) => value_type,
-		Some(ValueType::Usize) => value_type,
-		Some(ValueType::Pointer { .. }) => value_type,
-		Some(ValueType::View { .. }) => value_type,
-		Some(..) => Some(ValueType::Uint64),
+		Some(Ok(ValueType::Uint8)) => value_type,
+		Some(Ok(ValueType::Uint16)) => value_type,
+		Some(Ok(ValueType::Uint32)) => value_type,
+		Some(Ok(ValueType::Uint64)) => value_type,
+		Some(Ok(ValueType::Usize)) => value_type,
+		Some(Ok(ValueType::Pointer { .. })) => value_type,
+		Some(Ok(ValueType::View { .. })) => value_type,
+		Some(Ok(_)) => Some(Ok(ValueType::Uint64)),
+		Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
 		None => None,
 	}
 }
 
 fn coerce_for_string_literal(
-	value_type: Option<ValueType>,
-) -> (Option<ValueType>, Option<ValueType>)
+	value_type: Option<Poisonable<ValueType>>,
+) -> (Option<Poisonable<ValueType>>, Option<ValueType>)
 {
 	match value_type
 	{
-		Some(ValueType::String) => (value_type, None),
-		Some(vt) if vt == ValueType::for_byte_string() =>
+		Some(Ok(ValueType::String)) => (value_type, None),
+		Some(Ok(vt)) if vt == ValueType::for_byte_string() =>
 		{
-			(Some(vt.clone()), Some(vt))
+			(Some(Ok(vt.clone())), Some(vt))
 		}
-		Some(vt) if ValueType::for_byte_string().can_coerce_into(&vt) =>
+		Some(Ok(vt)) if ValueType::for_byte_string().can_coerce_into(&vt) =>
 		{
-			(Some(ValueType::for_byte_string()), Some(vt))
+			(Some(Ok(ValueType::for_byte_string())), Some(vt))
 		}
-		Some(_) => (Some(ValueType::String), None),
+		Some(Ok(_)) => (Some(Ok(ValueType::String)), None),
+		Some(Err(_poison)) => (Some(Err(Poison::Poisoned)), None),
 		None => (None, None),
 	}
 }

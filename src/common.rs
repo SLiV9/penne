@@ -138,6 +138,15 @@ impl Statement
 			Statement::Label { location, .. } => location,
 			Statement::If { location, .. } => location,
 			Statement::Block(block) => &block.location,
+			Statement::Poison(Poison::Error {
+				error: _,
+				partial: Some(statement),
+			}) => statement.location(),
+			Statement::Poison(Poison::Error {
+				error: _,
+				partial: None,
+			}) => unreachable!(),
+			Statement::Poison(Poison::Poisoned) => unreachable!(),
 		}
 	}
 }
@@ -221,30 +230,30 @@ pub enum Expression
 	NakedIntegerLiteral
 	{
 		value: i128,
-		value_type: Option<ValueType>,
+		value_type: Option<Poisonable<ValueType>>,
 		location: Location,
 	},
 	BitIntegerLiteral
 	{
 		value: u64,
-		value_type: Option<ValueType>,
+		value_type: Option<Poisonable<ValueType>>,
 		location: Location,
 	},
 	StringLiteral
 	{
 		bytes: Vec<u8>,
-		value_type: Option<ValueType>,
+		value_type: Option<Poisonable<ValueType>>,
 		location: Location,
 	},
 	ArrayLiteral
 	{
 		array: Array,
-		element_type: Option<ValueType>,
+		element_type: Option<Poisonable<ValueType>>,
 	},
 	Deref
 	{
 		reference: Reference,
-		deref_type: Option<ValueType>,
+		deref_type: Option<Poisonable<ValueType>>,
 	},
 	Autocoerce
 	{
@@ -266,7 +275,7 @@ pub enum Expression
 	{
 		name: Identifier,
 		arguments: Vec<Expression>,
-		return_type: Option<ValueType>,
+		return_type: Option<Poisonable<ValueType>>,
 	},
 	Poison(Poison<Box<Expression>>),
 }
@@ -289,6 +298,15 @@ impl Expression
 			Expression::PrimitiveCast { location, .. } => location,
 			Expression::LengthOfArray { reference, .. } => &reference.location,
 			Expression::FunctionCall { name, .. } => &name.location,
+			Expression::Poison(Poison::Error {
+				error: _,
+				partial: Some(expression),
+			}) => expression.location(),
+			Expression::Poison(Poison::Error {
+				error: _,
+				partial: None,
+			}) => unreachable!(),
+			Expression::Poison(Poison::Poisoned) => unreachable!(),
 		}
 	}
 }

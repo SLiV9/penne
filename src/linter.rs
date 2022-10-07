@@ -54,8 +54,8 @@ impl Lint
 				location_of_block,
 			} => Report::build(
 				ReportKind::Warning,
-				&location_of_condition.source_filename,
-				location_of_condition.span.start,
+				&location_of_loop.source_filename,
+				location_of_loop.span.start,
 			)
 			.with_message("Conditional infinite loop")
 			.with_label(
@@ -85,6 +85,7 @@ impl Lint
 				"`goto`".fg(a)
 			))
 			.finish(),
+
 			Lint::UnreachableCode { location } => Report::build(
 				ReportKind::Advice,
 				&location.source_filename,
@@ -140,10 +141,17 @@ impl Lintable for Declaration
 			Declaration::Function {
 				name: _,
 				parameters: _,
-				body,
+				body: Ok(body),
 				return_type: _,
 				flags: _,
 			} => body.lint(linter),
+			Declaration::Function {
+				name: _,
+				parameters: _,
+				body: Err(_poison),
+				return_type: _,
+				flags: _,
+			} => (),
 			Declaration::FunctionHead {
 				name: _,
 				parameters: _,
@@ -151,6 +159,7 @@ impl Lintable for Declaration
 				flags: _,
 			} => (),
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Poison(_) => (),
 		}
 	}
 }
@@ -247,6 +256,7 @@ impl Lintable for Statement
 				linter.is_naked_branch = None;
 			}
 			Statement::Block(block) => block.lint(linter),
+			Statement::Poison(_) => (),
 		}
 	}
 }

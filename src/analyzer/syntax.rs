@@ -67,10 +67,17 @@ impl Analyzable for Declaration
 			Declaration::Function {
 				name: _,
 				parameters: _,
-				body,
+				body: Ok(body),
 				return_type: _,
 				flags: _,
 			} => body.analyze(analyzer),
+			Declaration::Function {
+				name: _,
+				parameters: _,
+				body: Err(_poison),
+				return_type: _,
+				flags: _,
+			} => Ok(()),
 			Declaration::FunctionHead {
 				name: _,
 				parameters: _,
@@ -78,6 +85,15 @@ impl Analyzable for Declaration
 				flags: _,
 			} => Ok(()),
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Poison(Poison::Error {
+				error: _,
+				partial: Some(declaration),
+			}) => declaration.analyze(analyzer),
+			Declaration::Poison(Poison::Error {
+				error: _,
+				partial: None,
+			}) => Ok(()),
+			Declaration::Poison(Poison::Poisoned) => Ok(()),
 		}
 	}
 }
@@ -216,6 +232,15 @@ impl Analyzable for Statement
 				analyzer.is_naked_else_branch = false;
 				block.analyze(analyzer)
 			}
+			Statement::Poison(Poison::Error {
+				error: _,
+				partial: Some(statement),
+			}) => statement.analyze(analyzer),
+			Statement::Poison(Poison::Error {
+				error: _,
+				partial: None,
+			}) => Ok(()),
+			Statement::Poison(Poison::Poisoned) => Ok(()),
 		}
 	}
 }

@@ -7,16 +7,19 @@
 use penne::common::Declaration;
 use penne::lexer;
 use penne::parser;
+use penne::resolved;
+use penne::resolver;
 
 use anyhow::anyhow;
 
 fn parse(
 	filename: &str,
-) -> Result<Result<Vec<Declaration>, anyhow::Error>, anyhow::Error>
+) -> Result<Result<Vec<resolved::Declaration>, resolver::Errors>, anyhow::Error>
 {
 	let source = std::fs::read_to_string(filename)?;
 	let tokens = lexer::lex(&source, filename);
-	Ok(parser::parse(tokens))
+	let declarations = parser::parse(tokens);
+	Ok(resolver::resolve(declarations))
 }
 
 #[test]

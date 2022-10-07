@@ -67,7 +67,7 @@ impl Analyzer
 	fn use_function(
 		&self,
 		identifier: &Identifier,
-		arguments: Vec<Option<ValueType>>,
+		arguments: Vec<Option<Poisonable<ValueType>>>,
 	) -> Result<(), anyhow::Error>
 	{
 		if let Some((declaration_identifier, parameters)) = self
@@ -101,25 +101,33 @@ impl Analyzer
 						identifier.name
 					)))
 			}
-			else if let Some((parameter, argument)) = parameters
-				.iter()
-				.zip(arguments.iter())
-				.find(|(p, a)| **a != p.value_type)
-			{
-				Err(anyhow!("got {:?}", argument)
-					.context(format!("expected {:?}", parameter.value_type))
-					.context(format!(
-						"function was declared {}",
-						declaration_identifier.location.format()
-					))
-					.context(identifier.location.format())
-					.context(format!(
-						"type mismatch of parameter '{}' of function '{}'",
-						parameter.name.name, identifier.name,
-					)))
-			}
 			else
 			{
+				for (parameter, argument) in
+					parameters.iter().zip(arguments.iter())
+				{
+					match (&parameter.value_type, argument)
+					{
+						(Ok(p), Some(Ok(a))) if p != a =>
+						{
+							return Err(anyhow!("got {:?}", argument)
+								.context(format!(
+									"expected {:?}",
+									parameter.value_type
+								))
+								.context(format!(
+									"function was declared {}",
+									declaration_identifier.location.format()
+								))
+								.context(identifier.location.format())
+								.context(format!(
+									"type mismatch of parameter '{}' of function '{}'",
+									parameter.name.name, identifier.name,
+								)))
+						}
+						(_, _) => (),
+					}
+				}
 				Ok(())
 			}
 		}
@@ -157,6 +165,15 @@ fn declare(
 			flags: _,
 		} => analyzer.declare_function(name, parameters),
 		Declaration::PreprocessorDirective { .. } => unreachable!(),
+		Declaration::Poison(Poison::Error {
+			error: _,
+			partial: Some(declaration),
+		}) => declare(declaration, analyzer),
+		Declaration::Poison(Poison::Error {
+			error: _,
+			partial: None,
+		}) => Ok(()),
+		Declaration::Poison(Poison::Poisoned) => Ok(()),
 	}
 }
 
@@ -198,7 +215,11 @@ impl Analyzable for Declaration
 				{
 					parameter.analyze(analyzer)?;
 				}
-				body.analyze(analyzer)?;
+				match body
+				{
+					Ok(body) => body.analyze(analyzer)?,
+					Err(_poison) => (),
+				}
 				Ok(())
 			}
 			Declaration::FunctionHead {
@@ -215,6 +236,15 @@ impl Analyzable for Declaration
 				Ok(())
 			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Poison(Poison::Error {
+				error: _,
+				partial: Some(declaration),
+			}) => declaration.analyze(analyzer),
+			Declaration::Poison(Poison::Error {
+				error: _,
+				partial: None,
+			}) => Ok(()),
+			Declaration::Poison(Poison::Poisoned) => Ok(()),
 		}
 	}
 }
@@ -226,7 +256,7 @@ impl Analyzable for Parameter
 		analyzer.is_immediate_function_argument = false;
 		match &self.value_type
 		{
-			Some(ValueType::Array { .. }) =>
+			Ok(ValueType::Array { .. }) =>
 			{
 				Err(anyhow!("non-slice array parameter")
 					.context(self.name.location.format())
@@ -279,15 +309,15 @@ impl Analyzable for Statement
 		{
 			Statement::Declaration {
 				name,
-				value: Some(value),
+				value,
 				value_type,
 				location,
 			} =>
 			{
 				match value_type
 				{
-					Some(ValueType::Array { .. }) => (),
-					Some(ValueType::Slice { .. }) =>
+					Some(Ok(ValueType::Array { .. })) => (),
+					Some(Ok(ValueType::Slice { .. })) =>
 					{
 						return Err(anyhow!("slice variable")
 							.context(location.format())
@@ -296,7 +326,7 @@ impl Analyzable for Statement
 								name.name
 							)));
 					}
-					Some(ValueType::ExtArray { .. }) =>
+					Some(Ok(ValueType::ExtArray { .. })) =>
 					{
 						return Err(anyhow!("extarray variable")
 							.context(location.format())
@@ -307,38 +337,11 @@ impl Analyzable for Statement
 					}
 					_ => (),
 				}
-				value.analyze(analyzer).with_context(|| location.format())?;
-				Ok(())
-			}
-			Statement::Declaration {
-				name,
-				value: None,
-				value_type,
-				location,
-			} =>
-			{
-				match value_type
+				if let Some(value) = value
 				{
-					Some(ValueType::Array { .. }) => (),
-					Some(ValueType::Slice { .. }) =>
-					{
-						return Err(anyhow!("slice variable")
-							.context(location.format())
-							.context(format!(
-								"variable '{}' may not be a slice",
-								name.name
-							)));
-					}
-					Some(ValueType::ExtArray { .. }) =>
-					{
-						return Err(anyhow!("extarray variable")
-							.context(location.format())
-							.context(format!(
-								"variable '{}' may not be an external array",
-								name.name
-							)));
-					}
-					_ => (),
+					value
+						.analyze(analyzer)
+						.with_context(|| location.format())?;
 				}
 				Ok(())
 			}
@@ -403,6 +406,15 @@ impl Analyzable for Statement
 				Ok(())
 			}
 			Statement::Block(block) => block.analyze(analyzer),
+			Statement::Poison(Poison::Error {
+				error: _,
+				partial: Some(statement),
+			}) => statement.analyze(analyzer),
+			Statement::Poison(Poison::Error {
+				error: _,
+				partial: None,
+			}) => Ok(()),
+			Statement::Poison(Poison::Poisoned) => Ok(()),
 		}
 	}
 }
@@ -486,7 +498,7 @@ impl Analyzable for Expression
 			{
 				match deref_type
 				{
-					Some(ValueType::Array { .. }) =>
+					Some(Ok(ValueType::Array { .. })) =>
 					{
 						if !analyzer.is_immediate_function_argument
 						{
@@ -496,8 +508,8 @@ impl Analyzable for Expression
 							return Err(error);
 						}
 					}
-					Some(ValueType::Slice { .. })
-					| Some(ValueType::ExtArray { .. }) =>
+					Some(Ok(ValueType::Slice { .. }))
+					| Some(Ok(ValueType::ExtArray { .. })) =>
 					{
 						if !analyzer.is_immediate_function_argument
 						{
@@ -551,6 +563,7 @@ impl Analyzable for Expression
 
 				Ok(())
 			}
+			Expression::Poison(_) => Ok(()),
 		}
 	}
 }
@@ -568,8 +581,8 @@ impl Analyzable for Reference
 					let argument_type = argument.value_type();
 					match argument_type
 					{
-						Some(ValueType::Usize) => (),
-						Some(other_type) =>
+						Some(Ok(ValueType::Usize)) => (),
+						Some(Ok(other_type)) =>
 						{
 							return Err(anyhow!("got {:?}", other_type)
 								.context(format!("expected usize"))
@@ -578,6 +591,10 @@ impl Analyzable for Reference
 									"type mismatch of index into array '{}'",
 									self.base.name,
 								)));
+						}
+						Some(Err(_poison)) =>
+						{
+							// The analyze below will raise the error if needed.
 						}
 						None =>
 						{

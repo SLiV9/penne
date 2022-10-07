@@ -199,7 +199,7 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			stdout.set_color(&colorspec_header)?;
 			writeln!(stdout, "Parsing {}...", filename)?;
 		}
-		let declarations = parser::parse(tokens)?;
+		let declarations = parser::parse(tokens);
 		if verbose
 		{
 			stdout.set_color(&colorspec_dump)?;
@@ -491,64 +491,6 @@ fn is_directive(declaration: &Declaration) -> bool
 	{
 		Declaration::PreprocessorDirective { .. } => true,
 		_ => false,
-	}
-}
-
-fn create_forward_declaration(declaration: &Declaration)
-	-> Option<Declaration>
-{
-	match declaration
-	{
-		Declaration::Constant {
-			name,
-			value,
-			value_type,
-			flags,
-		} =>
-		{
-			if flags.contains(DeclarationFlag::Public)
-			{
-				Some(Declaration::Constant {
-					name: name.clone(),
-					value: value.clone(),
-					value_type: value_type.clone(),
-					flags: *flags,
-				})
-			}
-			else
-			{
-				None
-			}
-		}
-		Declaration::Function {
-			name,
-			parameters,
-			body: _,
-			return_type,
-			flags,
-		}
-		| Declaration::FunctionHead {
-			name,
-			parameters,
-			return_type,
-			flags,
-		} =>
-		{
-			if flags.contains(DeclarationFlag::Public)
-			{
-				Some(Declaration::FunctionHead {
-					name: name.clone(),
-					parameters: parameters.clone(),
-					return_type: return_type.clone(),
-					flags: *flags,
-				})
-			}
-			else
-			{
-				None
-			}
-		}
-		Declaration::PreprocessorDirective { .. } => unreachable!(),
 	}
 }
 

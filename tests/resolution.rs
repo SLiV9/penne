@@ -20,7 +20,7 @@ fn resolve(
 {
 	let source = std::fs::read_to_string(filename)?;
 	let tokens = lexer::lex(&source, filename);
-	let declarations = parser::parse(tokens)?;
+	let declarations = parser::parse(tokens);
 	let declarations = scoper::analyze(declarations)?;
 	let declarations = typer::analyze(declarations)?;
 	analyzer::analyze(&declarations)?;

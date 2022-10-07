@@ -133,8 +133,11 @@ impl Analyzable for Declaration
 				flags,
 			} =>
 			{
-				let body = body.analyze(analyzer)?;
-
+				let body = match body
+				{
+					Ok(body) => Ok(body.analyze(analyzer)?),
+					Err(poison) => Err(poison.clone()),
+				};
 				let function = Declaration::Function {
 					name: name.clone(),
 					parameters: parameters.clone(),
@@ -146,6 +149,15 @@ impl Analyzable for Declaration
 			}
 			Declaration::FunctionHead { .. } => Ok(self.clone()),
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Poison(Poison::Error {
+				error: _,
+				partial: Some(declaration),
+			}) => declaration.analyze(analyzer),
+			Declaration::Poison(Poison::Error {
+				error: _,
+				partial: None,
+			}) => Ok(self.clone()),
+			Declaration::Poison(Poison::Poisoned) => Ok(self.clone()),
 		}
 	}
 }
@@ -273,6 +285,15 @@ impl Analyzable for Statement
 				let block = block.analyze(analyzer)?;
 				Ok(Statement::Block(block))
 			}
+			Statement::Poison(Poison::Error {
+				error: _,
+				partial: Some(statement),
+			}) => statement.analyze(analyzer),
+			Statement::Poison(Poison::Error {
+				error: _,
+				partial: None,
+			}) => Ok(self.clone()),
+			Statement::Poison(Poison::Poisoned) => Ok(self.clone()),
 		}
 	}
 }

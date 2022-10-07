@@ -183,8 +183,24 @@ where
 		match self
 		{
 			Ok(x) => x.resolve(),
-			Err(Poison::Error { error, partial }) => Err(error.into()),
-			Err(Poison::Poisoned) =>
+			Err(y) => y.resolve(),
+		}
+	}
+}
+
+impl<T> Resolvable for Poison<T>
+where
+	T: Resolvable,
+{
+	type Item = T::Item;
+
+	fn resolve(self) -> Result<Self::Item, Errors>
+	{
+		// TODO use partial?
+		match self
+		{
+			Poison::Error { error, partial } => Err(error.into()),
+			Poison::Poisoned =>
 			{
 				// Do not show any errors because this thing was poisoned by
 				// a different error, and cascading errors are unreliable.
@@ -238,6 +254,11 @@ impl Resolvable for Declaration
 				flags,
 			}),
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Poison(poison) => match poison.resolve()
+			{
+				Ok(_) => unreachable!(),
+				Err(e) => Err(e),
+			},
 		}
 	}
 }
@@ -372,6 +393,11 @@ impl Resolvable for Statement
 			}) => Ok(resolved::Statement::Block(resolved::Block {
 				statements: statements.resolve()?,
 			})),
+			Statement::Poison(poison) => match poison.resolve()
+			{
+				Ok(_) => unreachable!(),
+				Err(e) => Err(e),
+			},
 		}
 	}
 }
@@ -466,7 +492,7 @@ impl Resolvable for Expression
 				location: _,
 			} => Ok(resolved::Expression::NakedIntegerLiteral {
 				value,
-				value_type,
+				value_type: value_type.resolve()?,
 			}),
 			Expression::NakedIntegerLiteral {
 				value,
@@ -494,7 +520,7 @@ impl Resolvable for Expression
 				location: _,
 			} => Ok(resolved::Expression::BitIntegerLiteral {
 				value,
-				value_type,
+				value_type: value_type.resolve()?,
 			}),
 			Expression::BitIntegerLiteral {
 				value: _,
@@ -516,8 +542,10 @@ impl Resolvable for Expression
 			{
 				if let Some(element_type) = element_type
 				{
+					let (elements, element_type) =
+						(elements, element_type).resolve()?;
 					Ok(resolved::Expression::ArrayLiteral {
-						elements: elements.resolve()?,
+						elements,
 						element_type,
 					})
 				}
@@ -535,7 +563,7 @@ impl Resolvable for Expression
 				bytes,
 				value_type: Some(value_type),
 				location,
-			} => match value_type
+			} => match value_type.resolve()?
 			{
 				ValueType::String =>
 				{
@@ -571,7 +599,7 @@ impl Resolvable for Expression
 				{
 					Ok(resolved::Expression::Deref {
 						reference,
-						deref_type,
+						deref_type: deref_type.resolve()?,
 					})
 				}
 				else
@@ -631,6 +659,8 @@ impl Resolvable for Expression
 				return_type,
 			} =>
 			{
+				// If the reference fails to resolve, there is no point in
+				// reporting about type inference.
 				let location = name.location.clone();
 				let (name, arguments) = (name, arguments).resolve()?;
 				if let Some(return_type) = return_type
@@ -638,7 +668,7 @@ impl Resolvable for Expression
 					Ok(resolved::Expression::FunctionCall {
 						name,
 						arguments,
-						return_type,
+						return_type: return_type.resolve()?,
 					})
 				}
 				else
@@ -649,6 +679,11 @@ impl Resolvable for Expression
 						.into())
 				}
 			}
+			Expression::Poison(poison) => match poison.resolve()
+			{
+				Ok(_) => unreachable!(),
+				Err(e) => Err(e),
+			},
 		}
 	}
 }
@@ -739,8 +774,8 @@ fn resolve_compared_type(
 	let vt = match left.value_type()
 	{
 		Some(Ok(vt)) => vt,
-		Some(Err(error)) => return Err(error.into()),
-		None => return Err(anyhow!("failed to infer type")),
+		Some(Err(poison)) => return poison.resolve(),
+		None => return Err(anyhow!("failed to infer type").into()),
 	};
 	match right.value_type()
 	{
@@ -748,10 +783,11 @@ fn resolve_compared_type(
 		Some(Ok(rvt)) =>
 		{
 			return Err(anyhow!("type mismatch")
-				.context(format!("got {:?} and {:?}", vt, rvt)))
+				.context(format!("got {:?} and {:?}", vt, rvt))
+				.into())
 		}
-		Some(Err(error)) => return Err(error.into()),
-		None => return Err(anyhow!("failed to infer type")),
+		Some(Err(poison)) => return poison.resolve(),
+		None => return Err(anyhow!("failed to infer type").into()),
 	}
 	match op
 	{
@@ -771,10 +807,12 @@ fn resolve_compared_type(
 			ValueType::Bool => Ok(vt),
 			ValueType::Char => Ok(vt),
 			ValueType::Pointer { deref_type: _ } => Ok(vt),
-			vt => Err(anyhow!("invalid operand types").context(format!(
-				"expected number, bool, char, pointer, got {:?}",
-				vt
-			))),
+			vt => Err(anyhow!("invalid operand types")
+				.context(format!(
+					"expected number, bool, char, pointer, got {:?}",
+					vt
+				))
+				.into()),
 		},
 		ComparisonOp::IsGreater
 		| ComparisonOp::IsLess
@@ -795,7 +833,8 @@ fn resolve_compared_type(
 			ValueType::Bool => Ok(vt),
 			ValueType::Char => Ok(vt),
 			vt => Err(anyhow!("invalid operand types")
-				.context(format!("expected number, bool, char, got {:?}", vt))),
+				.context(format!("expected number, bool, char, got {:?}", vt))
+				.into()),
 		},
 	}
 }
@@ -804,25 +843,25 @@ fn resolve_binary_op_type(
 	op: BinaryOp,
 	left: &Expression,
 	right: &Expression,
-) -> Result<ValueType, anyhow::Error>
+) -> Result<ValueType, Errors>
 {
-	let vt = if let Some(vt) = left.value_type()
+	let vt = match left.value_type()
 	{
-		vt
-	}
-	else
-	{
-		return Err(anyhow!("failed to infer type"));
+		Some(Ok(vt)) => vt,
+		Some(Err(poison)) => return poison.resolve(),
+		None => return Err(anyhow!("failed to infer type").into()),
 	};
 	match right.value_type()
 	{
-		Some(rvt) if rvt == vt => (),
-		Some(rvt) =>
+		Some(Ok(rvt)) if rvt == vt => (),
+		Some(Ok(rvt)) =>
 		{
 			return Err(anyhow!("type mismatch")
-				.context(format!("got {:?} and {:?}", vt, rvt)))
+				.context(format!("got {:?} and {:?}", vt, rvt))
+				.into())
 		}
-		None => return Err(anyhow!("failed to infer type")),
+		Some(Err(poison)) => return poison.resolve(),
+		None => return Err(anyhow!("failed to infer type").into()),
 	}
 	match op
 	{
@@ -843,10 +882,12 @@ fn resolve_binary_op_type(
 			ValueType::Uint64 => Ok(vt),
 			ValueType::Uint128 => Ok(vt),
 			ValueType::Usize => Ok(vt),
-			vt => Err(anyhow!("invalid operand types").context(format!(
-				"expected i8, i16, ..., u8, u16, ..., usize, got {:?}",
-				vt
-			))),
+			vt => Err(anyhow!("invalid operand types")
+				.context(format!(
+					"expected i8, i16, ..., u8, u16, ..., usize, got {:?}",
+					vt
+				))
+				.into()),
 		},
 		BinaryOp::BitwiseAnd | BinaryOp::BitwiseOr | BinaryOp::BitwiseXor =>
 		{
@@ -858,7 +899,8 @@ fn resolve_binary_op_type(
 				ValueType::Uint64 => Ok(vt),
 				ValueType::Uint128 => Ok(vt),
 				vt => Err(anyhow!("invalid operand types")
-					.context(format!("expected u8, u16, ..., got {:?}", vt))),
+					.context(format!("expected u8, u16, ..., got {:?}", vt))
+					.into()),
 			}
 		}
 		BinaryOp::ShiftLeft | BinaryOp::ShiftRight => match vt
@@ -869,7 +911,8 @@ fn resolve_binary_op_type(
 			ValueType::Uint64 => Ok(vt),
 			ValueType::Uint128 => Ok(vt),
 			vt => Err(anyhow!("invalid operand types")
-				.context(format!("expected u8, u16, ..., got {:?}", vt))),
+				.context(format!("expected u8, u16, ..., got {:?}", vt))
+				.into()),
 		},
 	}
 }
@@ -877,15 +920,13 @@ fn resolve_binary_op_type(
 fn resolve_unary_op_type(
 	op: UnaryOp,
 	operand: &Expression,
-) -> Result<ValueType, anyhow::Error>
+) -> Result<ValueType, Errors>
 {
-	let vt = if let Some(vt) = operand.value_type()
+	let vt = match operand.value_type()
 	{
-		vt
-	}
-	else
-	{
-		return Err(anyhow!("failed to infer type"));
+		Some(Ok(vt)) => vt,
+		Some(Err(poison)) => return poison.resolve(),
+		None => return Err(anyhow!("failed to infer type").into()),
 	};
 	match op
 	{
@@ -897,7 +938,8 @@ fn resolve_unary_op_type(
 			ValueType::Int64 => Ok(vt),
 			ValueType::Int128 => Ok(vt),
 			vt => Err(anyhow!("invalid operand type")
-				.context(format!("expected i8, i16, ..., got {:?}", vt))),
+				.context(format!("expected i8, i16, ..., got {:?}", vt))
+				.into()),
 		},
 		UnaryOp::BitwiseComplement => match vt
 		{
@@ -908,7 +950,8 @@ fn resolve_unary_op_type(
 			ValueType::Uint64 => Ok(vt),
 			ValueType::Uint128 => Ok(vt),
 			vt => Err(anyhow!("invalid operand type")
-				.context(format!("expected bool, u8, u16, ..., got {:?}", vt))),
+				.context(format!("expected bool, u8, u16, ..., got {:?}", vt))
+				.into()),
 		},
 	}
 }
@@ -916,15 +959,13 @@ fn resolve_unary_op_type(
 fn analyze_primitive_cast(
 	expression: &Expression,
 	coerced_type: ValueType,
-) -> Result<ValueType, anyhow::Error>
+) -> Result<ValueType, Errors>
 {
-	let value_type = if let Some(vt) = expression.value_type()
+	let value_type = match expression.value_type()
 	{
-		vt
-	}
-	else
-	{
-		return Err(anyhow!("failed to infer type"));
+		Some(Ok(vt)) => vt,
+		Some(Err(poison)) => return poison.resolve(),
+		None => return Err(anyhow!("failed to infer type").into()),
 	};
 	match (&value_type, &coerced_type)
 	{
@@ -937,6 +978,7 @@ fn analyze_primitive_cast(
 		(ValueType::Uint8, ValueType::Char) => Ok(value_type),
 		(ValueType::Uint32, ValueType::Char) => Ok(value_type),
 		(vt, _) => Err(anyhow!("invalid expression type")
-			.context(format!("expected primitive, got {:?}", vt))),
+			.context(format!("expected primitive, got {:?}", vt))
+			.into()),
 	}
 }

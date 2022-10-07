@@ -645,7 +645,7 @@ fn parse_function_body(
 				statements.push(statement);
 				let return_value = Expression::Poison(Poison::Error {
 					error: Error::MissingReturnValueAfterStatement {
-						location: return_value_location,
+						location: return_value_location.clone(),
 						after: return_statement_location,
 					},
 					partial: None,
@@ -1368,7 +1368,7 @@ fn parse_primary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 			}
 			Ok(Expression::StringLiteral {
 				bytes,
-				value_type,
+				value_type: value_type.map(|x| Ok(x)),
 				location,
 			})
 		}
@@ -1699,7 +1699,7 @@ fn externalize_type(
 		ValueType::Bool => Ok(value_type),
 		_ => Err(Poison::Error {
 			error: Error::TypeNotAllowedInExtern {
-				value_type,
+				value_type: value_type.clone(),
 				location_of_type: location_of_type.clone(),
 				location_of_declaration: location_of_declaration.clone(),
 			},

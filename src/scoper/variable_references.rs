@@ -20,7 +20,7 @@ pub fn analyze(
 	};
 	for declaration in &program
 	{
-		let _unused: Identifier = declare(declaration, &mut analyzer)?;
+		declare(declaration, &mut analyzer)?;
 	}
 	program.iter().map(|x| x.analyze(&mut analyzer)).collect()
 }
@@ -178,12 +178,12 @@ impl Analyzer
 fn declare(
 	declaration: &Declaration,
 	analyzer: &mut Analyzer,
-) -> Result<Identifier, anyhow::Error>
+) -> Result<(), anyhow::Error>
 {
 	match declaration
 	{
 		Declaration::Constant {
-			name,
+			name: _,
 			value: _,
 			value_type: _,
 			flags: _,
@@ -191,7 +191,7 @@ fn declare(
 		{
 			// Constants have to be declared from top to bottom, just to avoid
 			// having to deal with cyclical definitions.
-			Ok(name.clone())
+			Ok(())
 		}
 		Declaration::Function {
 			name,
@@ -199,14 +199,31 @@ fn declare(
 			body: _,
 			return_type: _,
 			flags: _,
-		} => analyzer.declare_function(name),
+		} =>
+		{
+			let _unused: Identifier = analyzer.declare_function(name)?;
+			Ok(())
+		}
 		Declaration::FunctionHead {
 			name,
 			parameters: _,
 			return_type: _,
 			flags: _,
-		} => analyzer.declare_function(name),
+		} =>
+		{
+			let _unused: Identifier = analyzer.declare_function(name)?;
+			Ok(())
+		}
 		Declaration::PreprocessorDirective { .. } => unreachable!(),
+		Declaration::Poison(Poison::Error {
+			error: _,
+			partial: Some(declaration),
+		}) => declare(declaration, analyzer),
+		Declaration::Poison(Poison::Error {
+			error: _,
+			partial: None,
+		}) => Ok(()),
+		Declaration::Poison(Poison::Poisoned) => Ok(()),
 	}
 }
 
@@ -304,6 +321,7 @@ impl Analyzable for Declaration
 				Ok(function)
 			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Poison(_) => Ok(self.clone()),
 		}
 	}
 }
@@ -497,6 +515,7 @@ impl Analyzable for Statement
 				let block = block.analyze(analyzer)?;
 				Ok(Statement::Block(block))
 			}
+			Statement::Poison(_) => Ok(self.clone()),
 		}
 	}
 }
@@ -674,6 +693,7 @@ impl Analyzable for Expression
 					return_type: return_type.clone(),
 				})
 			}
+			Expression::Poison(_) => Ok(self.clone()),
 		}
 	}
 }

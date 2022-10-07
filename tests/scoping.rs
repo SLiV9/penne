@@ -17,7 +17,7 @@ fn do_scope(
 {
 	let source = std::fs::read_to_string(filename)?;
 	let tokens = lexer::lex(&source, filename);
-	let declarations = parser::parse(tokens)?;
+	let declarations = parser::parse(tokens);
 	Ok(scoper::analyze(declarations))
 }
 

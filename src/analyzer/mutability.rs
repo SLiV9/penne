@@ -125,7 +125,11 @@ impl Analyzable for Declaration
 				{
 					parameter.analyze(analyzer)?;
 				}
-				body.analyze(analyzer)?;
+				match body
+				{
+					Ok(body) => body.analyze(analyzer)?,
+					Err(_poison) => (),
+				}
 				Ok(())
 			}
 			Declaration::FunctionHead {
@@ -142,6 +146,15 @@ impl Analyzable for Declaration
 				Ok(())
 			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Poison(Poison::Error {
+				error: _,
+				partial: Some(declaration),
+			}) => declaration.analyze(analyzer),
+			Declaration::Poison(Poison::Error {
+				error: _,
+				partial: None,
+			}) => Ok(()),
+			Declaration::Poison(Poison::Poisoned) => Ok(()),
 		}
 	}
 }
@@ -191,32 +204,22 @@ impl Analyzable for Statement
 		{
 			Statement::Declaration {
 				name,
-				value: Some(value),
+				value,
 				value_type,
 				location,
 			} =>
 			{
-				value.analyze(analyzer).with_context(|| location.format())?;
+				if let Some(value) = value
+				{
+					value
+						.analyze(analyzer)
+						.with_context(|| location.format())?;
+				}
 				let is_mutable = match value_type
 				{
-					Some(ValueType::View { .. }) => false,
-					Some(_) => true,
-					None => true,
-				};
-				analyzer.declare_variable(name, is_mutable)?;
-				Ok(())
-			}
-			Statement::Declaration {
-				name,
-				value: None,
-				value_type,
-				location: _,
-			} =>
-			{
-				let is_mutable = match value_type
-				{
-					Some(ValueType::View { .. }) => false,
-					Some(_) => true,
+					Some(Ok(ValueType::View { .. })) => false,
+					Some(Ok(_)) => true,
+					Some(Err(_)) => true,
 					None => true,
 				};
 				analyzer.declare_variable(name, is_mutable)?;
@@ -288,6 +291,15 @@ impl Analyzable for Statement
 				Ok(())
 			}
 			Statement::Block(block) => block.analyze(analyzer),
+			Statement::Poison(Poison::Error {
+				error: _,
+				partial: Some(statement),
+			}) => statement.analyze(analyzer),
+			Statement::Poison(Poison::Error {
+				error: _,
+				partial: None,
+			}) => Ok(()),
+			Statement::Poison(Poison::Poisoned) => Ok(()),
 		}
 	}
 }
@@ -433,6 +445,7 @@ impl Analyzable for Expression
 				}
 				Ok(())
 			}
+			Expression::Poison(_) => Ok(()),
 		}
 	}
 }
