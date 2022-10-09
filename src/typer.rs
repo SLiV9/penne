@@ -483,6 +483,13 @@ impl Analyzable for Declaration
 			{
 				typer.contextual_type = Some(value_type.clone());
 				let value = value.analyze(typer);
+				let recoverable_error =
+					typer.put_symbol(&name, value.value_type());
+				let value_type = match recoverable_error
+				{
+					Ok(()) => value_type,
+					Err(error) => Err(error.into()),
+				};
 				Declaration::Constant {
 					name,
 					value,
@@ -759,6 +766,8 @@ impl Analyzable for Statement
 			{
 				let recoverable_error =
 					typer.put_symbol(&name, Some(declared_type.clone()));
+				let declared_type =
+					typer.get_symbol_back(&name).unwrap_or(declared_type);
 				typer.contextual_type = Some(declared_type.clone());
 				let value = value.analyze(typer);
 				typer.contextual_type = None;
@@ -770,7 +779,7 @@ impl Analyzable for Statement
 				{
 					let result =
 						typer.put_symbol(&name, Some(inferred_type.clone()));
-					match (result, inferred_type, declared_type.clone())
+					match (result, inferred_type, declared_type)
 					{
 						(Err(error), _, _) => Some(Err(error.into())),
 						(Ok(()), Ok(inferred_type), Ok(declared_type)) =>

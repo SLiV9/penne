@@ -73,6 +73,18 @@ fn fail_to_type_missing_return() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn fail_to_type_mismatched_variable_type() -> Result<(), anyhow::Error>
+{
+	let analysis_result =
+		do_type("tests/samples/invalid/mismatched_variable_type.pn")?;
+	match analysis_result
+	{
+		Ok(_) => Err(anyhow!("broken test")),
+		Err(_) => Ok(()),
+	}
+}
+
+#[test]
 fn fail_to_type_mismatched_assign() -> Result<(), anyhow::Error>
 {
 	let analysis_result =
