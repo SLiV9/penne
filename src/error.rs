@@ -6,6 +6,7 @@
 
 pub use crate::lexer;
 pub use crate::lexer::Location;
+pub use crate::value_type::OperandValueType;
 pub use crate::value_type::ValueType;
 
 use ariadne::{Fmt, Report, ReportKind};
@@ -249,6 +250,51 @@ pub enum Error
 		location: Location,
 		location_of_goto: Location,
 		location_of_label: Location,
+	},
+	AmbiguousType
+	{
+		location: Location
+	},
+	AmbiguousTypeOfDeclaration
+	{
+		location: Location
+	},
+	AmbiguousTypeOfNakedIntegerLiteral
+	{
+		suggested_type: ValueType,
+		location: Location,
+	},
+	AmbiguousTypeOfArrayLiteral
+	{
+		location: Location
+	},
+	AmbiguousTypeOfStringLiteral
+	{
+		location: Location
+	},
+	MismatchedOperandTypes
+	{
+		type_of_left: ValueType,
+		type_of_right: ValueType,
+		location_of_op: Location,
+		location_of_left: Location,
+		location_of_right: Location,
+	},
+	InvalidOperandType
+	{
+		value_type: ValueType,
+		possible_types: Vec<OperandValueType>,
+		location_of_op: Location,
+		location_of_operand: Location,
+	},
+	InvalidPrimitiveCast
+	{
+		value_type: ValueType,
+		coerced_type: ValueType,
+		possible_value_types: Vec<OperandValueType>,
+		possible_coerced_types: Vec<OperandValueType>,
+		location_of_operand: Location,
+		location_of_type: Location,
 	},
 }
 
@@ -1224,7 +1270,249 @@ impl Error
 			)
 			.finish(),
 
+			Error::AmbiguousType {
+				location,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_message("Ambiguous type")
+			.with_label(
+				location
+					.label()
+					.with_message(
+						"Failed to infer type of expression."
+					)
+					.with_color(a),
+			)
+			.finish(),
+
+			Error::AmbiguousTypeOfDeclaration {
+				location,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_message("Ambiguous type")
+			.with_label(
+				location
+					.label()
+					.with_message(
+						"Failed to infer type of variable."
+					)
+					.with_color(a),
+			)
+			.with_note("Consider adding a type to this declaration.")
+			.finish(),
+
+			Error::AmbiguousTypeOfNakedIntegerLiteral {
+				suggested_type,
+				location,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_message("Ambiguous type")
+			.with_label(
+				location
+					.label()
+					.with_message(
+						"Failed to infer type of integer literal."
+					)
+					.with_color(a),
+			)
+			.with_label(
+				location
+					.label_after_end()
+					.with_message(format!(
+						"Consider adding a type suffix like {}.",
+						show_type(suggested_type).fg(a)
+					))
+					.with_color(a),
+			)
+			.finish(),
+
+			Error::AmbiguousTypeOfArrayLiteral {
+				location,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_message("Ambiguous type")
+			.with_label(
+				location
+					.label()
+					.with_message(
+						"Failed to infer element type of array literal."
+					)
+					.with_color(a),
+			)
+			.finish(),
+
+			Error::AmbiguousTypeOfStringLiteral {
+				location,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_message("Ambiguous type")
+			.with_label(
+				location
+					.label()
+					.with_message(
+						"Failed to infer type of string literal."
+					)
+					.with_color(a),
+			)
+			.finish(),
+
+			Error::MismatchedOperandTypes { type_of_left, type_of_right, location_of_op, location_of_left, location_of_right } =>
+				Report::build(
+					ReportKind::Error,
+					&location_of_op.source_filename,
+					location_of_op.span.start,
+				)
+				.with_message("Mismatched operand types")
+				.with_label(
+					location_of_left
+						.label()
+						.with_message(format!("This has type {}.",
+							show_type(type_of_left).fg(a)))
+						.with_color(a),
+				)
+				.with_label(
+					location_of_right
+						.label()
+						.with_message(format!("This has type {}.",
+							show_type(type_of_right).fg(b)))
+						.with_color(b),
+				)
+				.with_label(
+					location_of_op
+						.label()
+						.with_message("This operator expects operands with equal types.")
+						.with_color(c),
+				)
+				.finish(),
+
+			Error::InvalidOperandType { value_type, possible_types, location_of_op, location_of_operand } =>
+				Report::build(
+					ReportKind::Error,
+					&location_of_op.source_filename,
+					location_of_op.span.start,
+				)
+				.with_message("Invalid operand type")
+				.with_label(
+					location_of_operand
+						.label()
+						.with_message(format!("This has type {}.",
+							show_type(value_type).fg(a)))
+						.with_color(a),
+				)
+				.with_label(
+					location_of_op
+						.label()
+						.with_message(format!(
+							"Expected {}.",
+							show_possible_types(&possible_types, b)))
+						.with_color(b),
+				)
+				.finish(),
+
+			Error::InvalidPrimitiveCast { value_type, coerced_type,
+					possible_value_types, possible_coerced_types,
+					location_of_operand, location_of_type } =>
+				Report::build(
+					ReportKind::Error,
+					&location_of_operand.source_filename,
+					location_of_operand.span.start,
+				)
+				.with_message("Invalid primitive cast")
+				.with_label(
+					location_of_operand
+						.label()
+						.with_message(format!("This has type {}.",
+							show_type(value_type).fg(a)))
+						.with_color(a),
+				)
+				.with_label(
+					location_of_type
+						.label()
+						.with_message(format!(
+							"Cannot cast {} into {}.",
+							show_type(value_type).fg(a),
+							show_type(coerced_type).fg(b),
+						))
+						.with_color(b),
+				)
+				.with_note(note_for_possible_casts(value_type, coerced_type,
+					&possible_value_types, &possible_coerced_types,
+					a, b))
+				.finish(),
+
 		}
+	}
+}
+
+fn note_for_possible_casts(
+	value_type: &ValueType,
+	coerced_type: &ValueType,
+	possible_value_types: &[OperandValueType],
+	possible_coerced_types: &[OperandValueType],
+	a: ariadne::Color,
+	b: ariadne::Color,
+) -> String
+{
+	if possible_coerced_types.is_empty()
+	{
+		"Can only cast between primitive types.".to_string()
+	}
+	else if possible_value_types.is_empty()
+	{
+		format!(
+			"Can cast {} into {}.",
+			show_type(value_type).fg(a),
+			show_possible_types(possible_coerced_types, b),
+		)
+	}
+	else
+	{
+		format!(
+			"Can cast {} into {}, or {} into {}.",
+			show_possible_types(possible_value_types, a),
+			show_type(coerced_type).fg(b),
+			show_type(value_type).fg(a),
+			show_possible_types(possible_coerced_types, b),
+		)
+	}
+}
+
+fn show_possible_types(
+	possible_types: &[OperandValueType],
+	color: ariadne::Color,
+) -> String
+{
+	let list: Vec<String> = possible_types
+		.iter()
+		.map(|x| match x
+		{
+			OperandValueType::ValueType(value_type) =>
+			{
+				format!("{}", show_type(value_type).fg(color))
+			}
+			OperandValueType::Pointer => format!("{}", "`&_`".fg(color)),
+		})
+		.collect();
+	match list.len()
+	{
+		0 => "something else".to_string(),
+		1 => list.into_iter().next().unwrap(),
+		_ => format!("one of {}", list.join(", ")),
 	}
 }
 

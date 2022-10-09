@@ -318,12 +318,10 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 				for error in errors.into_iter()
 				{
 					writeln!(stdout)?;
-					writeln!(stdout, "Error: {:?}", error)?;
+					error.report().eprint(ariadne::sources(sources.clone()))?;
 					writeln!(stdout)?;
 				}
-				writeln!(stdout)?;
-				// TODO another way to stop
-				Err(anyhow!("errors during resolution"))?;
+				Err(anyhow!("compilation failed",))?;
 				Vec::new()
 			}
 		};

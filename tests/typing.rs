@@ -33,7 +33,8 @@ fn allow_differing_local_variable_types() -> Result<(), anyhow::Error>
 	match analysis_result
 	{
 		Ok(_) => Ok(()),
-		Err(errors) => Err(errors.first()),
+		#[allow(unreachable_code)]
+		Err(errors) => match errors.panic() {},
 	}
 }
 

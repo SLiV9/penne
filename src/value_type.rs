@@ -45,6 +45,13 @@ pub enum ValueType
 	},
 }
 
+#[derive(Debug, Clone)]
+pub enum OperandValueType
+{
+	ValueType(ValueType),
+	Pointer,
+}
+
 impl ValueType
 {
 	pub fn for_byte_string() -> ValueType
