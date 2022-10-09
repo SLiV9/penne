@@ -5,18 +5,19 @@
 //
 
 use crate::common::*;
+use crate::error::Error;
+use crate::error::{Partiable, Partial};
 
-use anyhow::anyhow;
-
-pub fn analyze(
-	program: Vec<Declaration>,
-) -> Result<Vec<Declaration>, anyhow::Error>
+pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 {
 	let mut analyzer = Analyzer {
 		label_stack: Vec::new(),
 		resolution_id: 1,
 	};
-	program.iter().map(|x| x.analyze(&mut analyzer)).collect()
+	program
+		.into_iter()
+		.map(|x| x.analyze(&mut analyzer))
+		.collect()
 }
 
 struct Analyzer
@@ -27,32 +28,29 @@ struct Analyzer
 
 impl Analyzer
 {
-	fn declare_label(
-		&mut self,
-		identifier: &Identifier,
-	) -> Result<Identifier, anyhow::Error>
+	fn declare_label(&mut self, identifier: Identifier)
+		-> Partiable<Identifier>
 	{
+		let mut recoverable_error = None;
 		for scope in &self.label_stack
 		{
 			if let Some(previous_identifier) =
 				scope.iter().find(|x| x.name == identifier.name)
 			{
-				return Err(anyhow!(
-					"previous declaration {}",
-					previous_identifier.location.format()
-				)
-				.context(identifier.location.format())
-				.context(format!(
-					"a label named '{}' is already defined in this scope",
-					identifier.name
-				)));
+				// Because we analyze labels backwards, the previous label is
+				// the one that should be marked as a duplicate.
+				recoverable_error = Some(Error::DuplicateDeclarationLabel {
+					name: identifier.name.clone(),
+					location: previous_identifier.location.clone(),
+					previous: identifier.location.clone(),
+				});
+				break;
 			}
 		}
 
 		let identifier = Identifier {
-			name: identifier.name.clone(),
-			location: identifier.location.clone(),
 			resolution_id: self.resolution_id,
+			..identifier
 		};
 		self.resolution_id += 1;
 
@@ -64,13 +62,21 @@ impl Analyzer
 		{
 			self.label_stack.push(vec![identifier.clone()]);
 		}
-		Ok(identifier)
+
+		if let Some(error) = recoverable_error
+		{
+			Err(Partial {
+				error,
+				partial: identifier,
+			})
+		}
+		else
+		{
+			Ok(identifier)
+		}
 	}
 
-	fn use_label(
-		&self,
-		identifier: &Identifier,
-	) -> Result<Identifier, anyhow::Error>
+	fn use_label(&self, identifier: Identifier) -> Partiable<Identifier>
 	{
 		for scope in &self.label_stack
 		{
@@ -79,17 +85,18 @@ impl Analyzer
 			{
 				return Ok(Identifier {
 					resolution_id: previous_identifier.resolution_id,
-					..identifier.clone()
+					..identifier
 				});
 			}
 		}
 
-		Err(anyhow!("undefined label '{}'", identifier.name)
-			.context(identifier.location.format())
-			.context(format!(
-				"reference to undefined label '{}'",
-				identifier.name
-			)))
+		Err(Partial {
+			error: Error::UndefinedLabel {
+				name: identifier.name.clone(),
+				location: identifier.location.clone(),
+			},
+			partial: identifier,
+		})
 	}
 
 	fn push_scope(&mut self)
@@ -105,26 +112,16 @@ impl Analyzer
 
 trait Analyzable
 {
-	type Item;
-
-	fn analyze(
-		&self,
-		analyzer: &mut Analyzer,
-	) -> Result<Self::Item, anyhow::Error>;
+	fn analyze(self, analyzer: &mut Analyzer) -> Self;
 }
 
 impl Analyzable for Declaration
 {
-	type Item = Declaration;
-
-	fn analyze(
-		&self,
-		analyzer: &mut Analyzer,
-	) -> Result<Declaration, anyhow::Error>
+	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
 		match self
 		{
-			Declaration::Constant { .. } => Ok(self.clone()),
+			Declaration::Constant { .. } => self,
 			Declaration::Function {
 				name,
 				parameters,
@@ -133,108 +130,131 @@ impl Analyzable for Declaration
 				flags,
 			} =>
 			{
-				let body = body.analyze(analyzer)?;
-
-				let function = Declaration::Function {
-					name: name.clone(),
-					parameters: parameters.clone(),
-					body,
-					return_type: return_type.clone(),
-					flags: *flags,
+				let body = match body
+				{
+					Ok(body) => Ok(body.analyze(analyzer)),
+					Err(poison) => Err(poison),
 				};
-				Ok(function)
+				Declaration::Function {
+					name,
+					parameters,
+					body,
+					return_type,
+					flags,
+				}
 			}
-			Declaration::FunctionHead { .. } => Ok(self.clone()),
+			Declaration::FunctionHead { .. } => self,
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Poison(Poison::Error {
+				error,
+				partial: Some(declaration),
+			}) =>
+			{
+				let declaration = declaration.analyze(analyzer);
+				Declaration::Poison(Poison::Error {
+					error,
+					partial: Some(Box::new(declaration)),
+				})
+			}
+			Declaration::Poison(Poison::Error {
+				error: _,
+				partial: None,
+			}) => self,
+			Declaration::Poison(Poison::Poisoned) => self,
 		}
 	}
 }
 
 impl Analyzable for FunctionBody
 {
-	type Item = FunctionBody;
-
-	fn analyze(
-		&self,
-		analyzer: &mut Analyzer,
-	) -> Result<FunctionBody, anyhow::Error>
+	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
 		analyzer.push_scope();
-		let statements: Result<Vec<Statement>, anyhow::Error> = self
+		let mut statements: Vec<Statement> = self
 			.statements
-			.iter()
+			.into_iter()
 			.rev()
 			.map(|x| x.analyze(analyzer))
 			.collect();
-		let mut statements = statements?;
+		// We need to collect the statements before reversing them again,
+		// because .rev().rev() will just iterate in normal order.
 		statements.reverse();
 		analyzer.pop_scope();
 
-		Ok(FunctionBody {
+		FunctionBody {
 			statements,
-			return_value: self.return_value.clone(),
-			return_value_identifier: self.return_value_identifier.clone(),
-		})
+			return_value: self.return_value,
+			return_value_identifier: self.return_value_identifier,
+		}
 	}
 }
 
 impl Analyzable for Block
 {
-	type Item = Block;
-
-	fn analyze(
-		&self,
-		analyzer: &mut Analyzer,
-	) -> Result<Self::Item, anyhow::Error>
+	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
 		analyzer.push_scope();
-		let statements: Result<Vec<Statement>, anyhow::Error> = self
+		let mut statements: Vec<Statement> = self
 			.statements
-			.iter()
+			.into_iter()
 			.rev()
 			.map(|x| x.analyze(analyzer))
 			.collect();
-		let mut statements = statements?;
+		// We need to collect the statements before reversing them again,
+		// because .rev().rev() will just iterate in normal order.
 		statements.reverse();
 		analyzer.pop_scope();
 
-		Ok(Block {
+		Block {
 			statements,
-			location: self.location.clone(),
-		})
+			location: self.location,
+		}
 	}
 }
 
 impl Analyzable for Statement
 {
-	type Item = Statement;
-
-	fn analyze(
-		&self,
-		analyzer: &mut Analyzer,
-	) -> Result<Statement, anyhow::Error>
+	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
 		match self
 		{
-			Statement::Declaration { .. } => Ok(self.clone()),
-			Statement::Assignment { .. } => Ok(self.clone()),
-			Statement::MethodCall { .. } => Ok(self.clone()),
-			Statement::Loop { location: _ } => Ok(self.clone()),
+			Statement::Declaration { .. } => self,
+			Statement::Assignment { .. } => self,
+			Statement::MethodCall { .. } => self,
+			Statement::Loop { location: _ } => self,
 			Statement::Goto { label, location } =>
 			{
-				let label = analyzer.use_label(label)?;
-				Ok(Statement::Goto {
-					label,
-					location: location.clone(),
-				})
+				match analyzer.use_label(label)
+				{
+					Ok(label) => Statement::Goto { label, location },
+					Err(Partial {
+						error,
+						partial: label,
+					}) => Statement::Poison(Poison::Error {
+						error,
+						partial: Some(Box::new(Statement::Goto {
+							label,
+							location,
+						})),
+					}),
+				}
 			}
 			Statement::Label { label, location } =>
 			{
-				let label = analyzer.declare_label(label)?;
-				Ok(Statement::Label {
-					label,
-					location: location.clone(),
-				})
+				match analyzer.declare_label(label)
+				{
+					Ok(label) => Statement::Label { label, location },
+					Err(Partial {
+						error,
+						partial: label,
+					}) => Statement::Poison(Poison::Error {
+						error,
+						partial: Some(Box::new(Statement::Label {
+							label,
+							location,
+						})),
+					}),
+				}
 			}
 			Statement::If {
 				condition,
@@ -244,35 +264,49 @@ impl Analyzable for Statement
 			} =>
 			{
 				let then_branch = {
-					let branch = then_branch.analyze(analyzer)?;
+					let branch = then_branch.analyze(analyzer);
 					Box::new(branch)
 				};
 				let else_branch = match else_branch
 				{
 					Some(else_branch) =>
 					{
-						let branch = else_branch.branch.analyze(analyzer)?;
+						let branch = else_branch.branch.analyze(analyzer);
 						Some(Else {
 							branch: Box::new(branch),
-							location_of_else: else_branch
-								.location_of_else
-								.clone(),
+							location_of_else: else_branch.location_of_else,
 						})
 					}
 					None => None,
 				};
-				Ok(Statement::If {
-					condition: condition.clone(),
+				Statement::If {
+					condition,
 					then_branch,
 					else_branch,
-					location: location.clone(),
-				})
+					location,
+				}
 			}
 			Statement::Block(block) =>
 			{
-				let block = block.analyze(analyzer)?;
-				Ok(Statement::Block(block))
+				let block = block.analyze(analyzer);
+				Statement::Block(block)
 			}
+			Statement::Poison(Poison::Error {
+				error,
+				partial: Some(statement),
+			}) =>
+			{
+				let statement = statement.analyze(analyzer);
+				Statement::Poison(Poison::Error {
+					error,
+					partial: Some(Box::new(statement)),
+				})
+			}
+			Statement::Poison(Poison::Error {
+				error: _,
+				partial: None,
+			}) => self,
+			Statement::Poison(Poison::Poisoned) => self,
 		}
 	}
 }

@@ -4,13 +4,7 @@
 // License: MIT
 //
 
-use penne::analyzer;
-use penne::generator;
-use penne::lexer;
-use penne::parser;
-use penne::resolver;
-use penne::scoper;
-use penne::typer;
+use penne::*;
 
 use pretty_assertions::assert_eq;
 use std::io::Write;
@@ -287,13 +281,12 @@ fn execute_integer_casting() -> Result<(), anyhow::Error>
 fn execute_calculation(filename: &str) -> Result<i32, anyhow::Error>
 {
 	let source = std::fs::read_to_string(&filename)?;
-	let tokens = lexer::lex(&source, filename);
-	let declarations = parser::parse(tokens)?;
-	let declarations = scoper::analyze(declarations)?;
-	let declarations = typer::analyze(declarations)?;
-	analyzer::analyze(&declarations)?;
-	let declarations =
-		resolver::resolve(declarations).map_err(|e| e.first())?;
+	let declarations = match penne::compile_source(&source, &filename)
+	{
+		Ok(declarations) => declarations,
+		#[allow(unreachable_code)]
+		Err(errors) => match errors.panic() {},
+	};
 	let ir = generator::generate(&declarations, filename, false)?;
 	let llistr: std::borrow::Cow<str> = match std::env::var("PENNE_LLI")
 	{

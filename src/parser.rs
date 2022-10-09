@@ -5,35 +5,116 @@
 //
 
 use crate::common::*;
+use crate::error::Error;
 use crate::lexer::{LexedToken, Token};
 
 use std::collections::VecDeque;
 
-use anyhow::anyhow;
-use anyhow::Context;
 use enumset::EnumSet;
 
 pub const MAX_ADDRESS_DEPTH: u8 = 127;
 pub const MAX_REFERENCE_DEPTH: usize = 127;
 
-pub fn parse(tokens: Vec<LexedToken>)
-	-> Result<Vec<Declaration>, anyhow::Error>
+pub fn parse(tokens: Vec<LexedToken>) -> Vec<Declaration>
 {
 	let mut declarations = Vec::new();
 
-	let mut tokens = VecDeque::from(tokens);
+	let mut tokens = Tokens::from(tokens);
 	while !tokens.is_empty()
 	{
-		let declaration = parse_declaration(&mut tokens)?;
-		declarations.push(declaration);
+		match parse_declaration(&mut tokens)
+		{
+			Ok(declaration) =>
+			{
+				declarations.push(declaration);
+			}
+			Err(error) =>
+			{
+				let poison = Poison::Error {
+					error,
+					partial: None,
+				};
+				let declaration = Declaration::Poison(poison);
+				declarations.push(declaration);
+				skip_until_next_declaration(&mut tokens);
+			}
+		}
 	}
 
-	Ok(declarations)
+	declarations
 }
 
-fn peek(tokens: &mut VecDeque<LexedToken>) -> Option<&Token>
+struct Tokens
 {
-	match tokens.front()
+	tokens: VecDeque<LexedToken>,
+	last_location: Location,
+}
+
+impl From<Vec<LexedToken>> for Tokens
+{
+	fn from(tokens: Vec<LexedToken>) -> Tokens
+	{
+		let last_location = match tokens.iter().next()
+		{
+			Some(LexedToken {
+				result: _,
+				location,
+			}) => location.clone(),
+			None => Location {
+				source_filename: "unreachable".to_string(),
+				span: 0..0,
+				line: "".to_string(),
+				line_number: 0,
+				line_offset: 0,
+			},
+		};
+		Tokens {
+			tokens: VecDeque::from(tokens),
+			last_location,
+		}
+	}
+}
+
+impl Tokens
+{
+	fn is_empty(&self) -> bool
+	{
+		self.tokens.is_empty()
+	}
+
+	fn pop_front(&mut self) -> Option<LexedToken>
+	{
+		let popped = self.tokens.pop_front();
+		match &popped
+		{
+			Some(LexedToken {
+				result: _,
+				location,
+			}) =>
+			{
+				self.last_location = location.clone();
+			}
+			None => (),
+		}
+		popped
+	}
+
+	fn get_next_location(&self) -> Option<Location>
+	{
+		match self.tokens.front()
+		{
+			Some(LexedToken {
+				result: _,
+				location,
+			}) => Some(location.clone()),
+			None => None,
+		}
+	}
+}
+
+fn peek(tokens: &mut Tokens) -> Option<&Token>
+{
+	match tokens.tokens.front()
 	{
 		Some(LexedToken {
 			result: Ok(token),
@@ -47,24 +128,11 @@ fn peek(tokens: &mut VecDeque<LexedToken>) -> Option<&Token>
 	}
 }
 
-fn peek_location(
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Location, anyhow::Error>
-{
-	match tokens.front()
-	{
-		Some(LexedToken {
-			result: _,
-			location,
-		}) => Ok(location.clone()),
-		None => Err(anyhow!("unexpected end of file")),
-	}
-}
-
 fn consume(
 	expected_token: Token,
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<(), anyhow::Error>
+	expectation: &str,
+	tokens: &mut Tokens,
+) -> Result<(), Error>
 {
 	match tokens.pop_front()
 	{
@@ -73,20 +141,31 @@ fn consume(
 			location: _,
 		}) if token == expected_token => Ok(()),
 		Some(LexedToken {
-			result: Ok(token),
+			result: Ok(_),
 			location,
-		}) => Err(anyhow!("got {:?}", token)).context(location.format()),
+		}) => Err(Error::UnexpectedToken {
+			expectation: expectation.to_string(),
+			location,
+		}),
 		Some(LexedToken {
 			result: Err(error),
 			location,
-		}) => Err(error).context(location.format()),
-		None => Err(anyhow!("unexpected end of file")),
+		}) => Err(Error::Lexical {
+			error,
+			expectation: expectation.to_string(),
+			location,
+		}),
+		None => Err(Error::UnexpectedEndOfFile {
+			expectation: expectation.to_string(),
+			last_location: tokens.last_location.clone(),
+		}),
 	}
 }
 
 fn extract_identifier(
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Identifier, anyhow::Error>
+	expectation: &str,
+	tokens: &mut Tokens,
+) -> Result<Identifier, Error>
 {
 	match tokens.pop_front()
 	{
@@ -99,20 +178,31 @@ fn extract_identifier(
 			resolution_id: 0,
 		}),
 		Some(LexedToken {
-			result: Ok(token),
+			result: Ok(_),
 			location,
-		}) => Err(anyhow!("got {:?}", token)).context(location.format()),
+		}) => Err(Error::UnexpectedToken {
+			expectation: expectation.to_string(),
+			location,
+		}),
 		Some(LexedToken {
 			result: Err(error),
 			location,
-		}) => Err(error).context(location.format()),
-		None => Err(anyhow!("unexpected end of file")),
+		}) => Err(Error::Lexical {
+			error,
+			expectation: expectation.to_string(),
+			location,
+		}),
+		None => Err(Error::UnexpectedEndOfFile {
+			expectation: expectation.to_string(),
+			last_location: tokens.last_location.clone(),
+		}),
 	}
 }
 
 fn extract(
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<(Token, Location), anyhow::Error>
+	expectation: &str,
+	tokens: &mut Tokens,
+) -> Result<(Token, Location), Error>
 {
 	match tokens.pop_front()
 	{
@@ -123,60 +213,76 @@ fn extract(
 		Some(LexedToken {
 			result: Err(error),
 			location,
-		}) => Err(error).context(location.format()),
-		None => Err(anyhow!("unexpected end of file")),
+		}) => Err(Error::Lexical {
+			error,
+			expectation: expectation.to_string(),
+			location,
+		}),
+		None => Err(Error::UnexpectedEndOfFile {
+			expectation: expectation.to_string(),
+			last_location: tokens.last_location.clone(),
+		}),
 	}
 }
 
-fn parse_declaration(
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Declaration, anyhow::Error>
+fn can_start_declaration(token: &Token) -> bool
+{
+	match token
+	{
+		Token::Pub => true,
+		Token::Extern => true,
+		Token::Const => true,
+		Token::Fn => true,
+		Token::DebugDollar => true,
+		_ => false,
+	}
+}
+
+fn skip_until_next_declaration(tokens: &mut Tokens)
+{
+	while let Some(token) = peek(tokens)
+	{
+		if can_start_declaration(token)
+		{
+			return;
+		}
+		tokens.pop_front();
+	}
+}
+
+fn parse_declaration(tokens: &mut Tokens) -> Result<Declaration, Error>
 {
 	let mut flags = EnumSet::new();
+	let mut location_of_declaration = None;
 	if let Some(Token::Pub) = peek(tokens)
 	{
 		tokens.pop_front();
+		location_of_declaration = Some(tokens.last_location.clone());
 		flags.insert(DeclarationFlag::Public);
 	}
 	if let Some(Token::Extern) = peek(tokens)
 	{
 		tokens.pop_front();
+		location_of_declaration = Some(tokens.last_location.clone());
 		flags.insert(DeclarationFlag::External);
 	}
 
-	let (token, location) =
-		extract(tokens).context("expected top-level declaration")?;
+	let (token, location) = extract("expected top-level declaration", tokens)?;
+	let location_of_declaration =
+		location_of_declaration.unwrap_or_else(|| location.clone());
 	match token
 	{
 		Token::Const =>
 		{
-			let name =
-				extract_identifier(tokens).context("expected constant name")?;
-
-			consume(Token::Colon, tokens).context("expected colon")?;
-			let value_type = parse_type(tokens)?;
-			let value_type = fix_type_for_flags(value_type, &flags)
-				.with_context(|| location.format())
-				.with_context(|| "malformed constant declaration")?;
-
-			consume(Token::Assignment, tokens)
-				.context("expected assignment")?;
-			let expression = parse_expression(tokens)?;
-
-			consume(Token::Semicolon, tokens).context("expected semicolon")?;
-
-			let declaration = Declaration::Constant {
-				name,
-				value: expression,
-				value_type,
-				flags,
-			};
-			Ok(declaration)
+			parse_constant_declaration(flags, location_of_declaration, tokens)
 		}
-		Token::Fn => parse_function_declaration(flags, tokens),
+		Token::Fn =>
+		{
+			parse_function_declaration(flags, location_of_declaration, tokens)
+		}
 		Token::DebugDollar =>
 		{
-			let (token, location) = extract(tokens).context("expected path")?;
+			let (token, location) = extract("expected path", tokens)?;
 			match token
 			{
 				Token::StringLiteral { bytes, value_type } => match value_type
@@ -190,29 +296,114 @@ fn parse_declaration(
 							location,
 						})
 					}
-					Some(vt) => Err(anyhow!("got {:?}", vt))
-						.context(location.format())
-						.context("expected UTF8-encoded string"),
+					Some(_) => Err(Error::UnexpectedToken {
+						location,
+						expectation: "expected UTF-8 encoded include path"
+							.to_string(),
+					}),
 				},
-				other => Err(anyhow!("got {:?}", other))
-					.context(location.format())
-					.context("expected path"),
+				_ => Err(Error::UnexpectedToken {
+					location,
+					expectation: "expected include path".to_string(),
+				}),
 			}
 		}
-		token => Err(anyhow!("got {:?}", token))
-			.context(location.format())
-			.context("expected top-level declaration"),
+		_ => Err(Error::UnexpectedToken {
+			location,
+			expectation: "expected top-level declaration".to_string(),
+		}),
 	}
+}
+
+fn parse_constant_declaration(
+	flags: EnumSet<DeclarationFlag>,
+	location_of_declaration: Location,
+	tokens: &mut Tokens,
+) -> Result<Declaration, Error>
+{
+	let name = extract_identifier("expected constant name", tokens)?;
+	let location_of_declaration =
+		location_of_declaration.combined_with(&tokens.last_location);
+	let value_type =
+		parse_colon_and_type(&flags, &location_of_declaration, tokens);
+	let expression = parse_assignment_and_expression(tokens);
+
+	consume(Token::Semicolon, "expected semicolon", tokens)?;
+
+	let declaration = Declaration::Constant {
+		name,
+		value: expression,
+		value_type,
+		flags,
+	};
+	Ok(declaration)
 }
 
 fn parse_function_declaration(
 	flags: EnumSet<DeclarationFlag>,
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Declaration, anyhow::Error>
+	location_of_declaration: Location,
+	tokens: &mut Tokens,
+) -> Result<Declaration, Error>
 {
-	let name = extract_identifier(tokens).context("expected function name")?;
+	let name = extract_identifier("expected function name", tokens)?;
+	consume(Token::ParenLeft, "expected left parenthesis", tokens)?;
+	let (parameters, return_type, recoverable_error) =
+		parse_rest_of_function_signature(
+			&flags,
+			location_of_declaration,
+			tokens,
+		);
+	if recoverable_error.is_some()
+	{
+		skip_rest_of_function_signature(tokens);
+	}
 
-	consume(Token::ParenLeft, tokens).context("expected left parenthesis")?;
+	let declaration = if peek(tokens) == Some(&Token::Semicolon)
+	{
+		tokens.pop_front();
+		Declaration::FunctionHead {
+			name,
+			parameters,
+			return_type,
+			flags,
+		}
+	}
+	else
+	{
+		let body = match parse_function_body(&name.name, tokens)
+		{
+			Ok(body) => Ok(body),
+			Err(poison) =>
+			{
+				skip_until_next_declaration(tokens);
+				Err(poison)
+			}
+		};
+		Declaration::Function {
+			name,
+			parameters,
+			body,
+			return_type,
+			flags,
+		}
+	};
+	match recoverable_error
+	{
+		None => Ok(declaration),
+		Some(error) => Ok(Declaration::Poison(Poison::Error {
+			error,
+			partial: Some(Box::new(declaration)),
+		})),
+	}
+}
+
+fn parse_rest_of_function_signature(
+	flags: &EnumSet<DeclarationFlag>,
+	location_of_declaration: Location,
+	tokens: &mut Tokens,
+) -> (Vec<Parameter>, Option<ValueType>, Option<Error>)
+{
+	let mut recoverable_error = None;
 
 	let mut parameters = Vec::new();
 	loop
@@ -222,89 +413,131 @@ fn parse_function_declaration(
 			break;
 		}
 
-		let parameter = parse_parameter(&flags, tokens)?;
-		parameters.push(parameter);
+		match parse_parameter(flags, &location_of_declaration, tokens)
+		{
+			Ok(parameter) =>
+			{
+				parameters.push(parameter);
 
-		if let Some(Token::Comma) = peek(tokens)
-		{
-			tokens.pop_front();
-		}
-		else
-		{
-			break;
+				if let Some(Token::Comma) = peek(tokens)
+				{
+					tokens.pop_front();
+				}
+				else
+				{
+					break;
+				}
+			}
+			Err(error) =>
+			{
+				skip_rest_of_parameters(tokens);
+				recoverable_error = Some(error);
+				break;
+			}
 		}
 	}
 
-	consume(Token::ParenRight, tokens).context("expected right parenthesis")?;
+	match consume(Token::ParenRight, "expected right parenthesis", tokens)
+	{
+		Ok(()) => (),
+		Err(error) =>
+		{
+			recoverable_error.get_or_insert(error);
+		}
+	}
 
 	let return_type = if let Some(Token::Arrow) = peek(tokens)
 	{
 		tokens.pop_front();
 
-		let value_type = parse_type(tokens)?;
-		Some(value_type)
+		match parse_type(tokens)
+		{
+			Ok(value_type) => Some(value_type),
+			Err(error) =>
+			{
+				recoverable_error.get_or_insert(error);
+				None
+			}
+		}
 	}
 	else
 	{
 		None
 	};
 
-	if flags.contains(DeclarationFlag::External)
-		&& peek(tokens) == Some(&Token::Semicolon)
-	{
-		tokens.pop_front();
+	(parameters, return_type, recoverable_error)
+}
 
-		Ok(Declaration::FunctionHead {
-			name,
-			parameters,
-			return_type,
-			flags,
-		})
-	}
-	else
+fn skip_rest_of_function_signature(tokens: &mut Tokens)
+{
+	while let Some(token) = peek(tokens)
 	{
-		let body = parse_function_body(&name.name, tokens)?;
-		let function = Declaration::Function {
-			name,
-			parameters,
-			body,
-			return_type,
-			flags,
-		};
-		Ok(function)
+		match token
+		{
+			token if can_start_declaration(token) => return,
+			Token::BraceLeft => return,
+			Token::BraceRight => return,
+			Token::Semicolon => return,
+			_ => (),
+		}
+		tokens.pop_front();
 	}
 }
 
 fn parse_parameter(
 	flags: &EnumSet<DeclarationFlag>,
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Parameter, anyhow::Error>
+	location_of_declaration: &Location,
+	tokens: &mut Tokens,
+) -> Result<Parameter, Error>
 {
-	let name = extract_identifier(tokens).context("expected parameter name")?;
+	let name = extract_identifier("expected parameter name", tokens)?;
+	let value_type =
+		parse_colon_and_type(flags, location_of_declaration, tokens);
 
-	let value_type = if let Some(Token::Colon) = peek(tokens)
-	{
-		tokens.pop_front();
-
-		let value_type = parse_type(tokens)?;
-		let value_type = fix_type_for_flags(value_type, &flags)
-			.with_context(|| name.location.format())
-			.with_context(|| "malformed function declaration")?;
-		Some(value_type)
-	}
-	else
-	{
-		None
-	};
-
-	Ok(Parameter { name, value_type })
+	Ok(Parameter {
+		name: Ok(name),
+		value_type,
+	})
 }
 
-fn parse_type(
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<ValueType, anyhow::Error>
+fn skip_rest_of_parameters(tokens: &mut Tokens)
 {
-	let (token, location) = extract(tokens).context("expected type keyword")?;
+	while let Some(token) = peek(tokens)
+	{
+		match token
+		{
+			Token::ParenRight => return,
+			token if can_start_declaration(token) => return,
+			Token::BraceLeft => return,
+			Token::BraceRight => return,
+			Token::Arrow => return,
+			Token::Semicolon => return,
+			_ => (),
+		}
+		tokens.pop_front();
+	}
+}
+
+fn parse_colon_and_type(
+	flags: &EnumSet<DeclarationFlag>,
+	location_of_declaration: &Location,
+	tokens: &mut Tokens,
+) -> Poisonable<ValueType>
+{
+	consume(Token::Colon, "expected colon", tokens)?;
+	let value_type = parse_type(tokens)?;
+	let value_type = fix_type_for_flags(
+		value_type,
+		&flags,
+		&tokens.last_location,
+		location_of_declaration,
+	)?;
+	Ok(value_type)
+}
+
+fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
+{
+	let (token, location) = extract("expected type keyword", tokens)?;
 	match token
 	{
 		Token::Type(value_type) => Ok(value_type),
@@ -318,8 +551,7 @@ fn parse_type(
 		Token::ParenLeft =>
 		{
 			let deref_type = parse_type(tokens)?;
-			consume(Token::ParenRight, tokens)
-				.context("expected right parenthesis")?;
+			consume(Token::ParenRight, "expected right parenthesis", tokens)?;
 			Ok(ValueType::View {
 				deref_type: Box::new(deref_type),
 			})
@@ -328,8 +560,7 @@ fn parse_type(
 		{
 			Some(Token::BracketRight) | None =>
 			{
-				consume(Token::BracketRight, tokens)
-					.context("expected right bracket")?;
+				consume(Token::BracketRight, "expected right bracket", tokens)?;
 				let element_type = parse_type(tokens)?;
 				Ok(ValueType::Slice {
 					element_type: Box::new(element_type),
@@ -339,8 +570,7 @@ fn parse_type(
 			{
 				let length = *x as usize;
 				tokens.pop_front();
-				consume(Token::BracketRight, tokens)
-					.context("expected right bracket")?;
+				consume(Token::BracketRight, "expected right bracket", tokens)?;
 				let element_type = parse_type(tokens)?;
 				Ok(ValueType::Array {
 					element_type: Box::new(element_type),
@@ -351,30 +581,31 @@ fn parse_type(
 			{
 				let length = *x;
 				tokens.pop_front();
-				consume(Token::BracketRight, tokens)
-					.context("expected right bracket")?;
+				consume(Token::BracketRight, "expected right bracket", tokens)?;
 				let element_type = parse_type(tokens)?;
 				Ok(ValueType::Array {
 					element_type: Box::new(element_type),
 					length,
 				})
 			}
-			Some(token) => Err(anyhow!("got {:?}", token))
-				.context(location.format())
-				.context("expected array length or right bracket"),
+			Some(_) => Err(Error::UnexpectedToken {
+				expectation: "expected right bracket".to_string(),
+				location,
+			}),
 		},
-		token => Err(anyhow!("got {:?}", token))
-			.context(location.format())
-			.context("expected type keyword"),
+		_ => Err(Error::UnexpectedToken {
+			expectation: "expected type keyword".to_string(),
+			location,
+		}),
 	}
 }
 
 fn parse_function_body(
 	function_name: &str,
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<FunctionBody, anyhow::Error>
+	tokens: &mut Tokens,
+) -> Poisonable<FunctionBody>
 {
-	consume(Token::BraceLeft, tokens).context("expected function body")?;
+	consume(Token::BraceLeft, "expected function body", tokens)?;
 
 	let mut statements = Vec::new();
 
@@ -382,64 +613,110 @@ fn parse_function_body(
 	{
 		if let Some(Token::BraceRight) = peek(tokens)
 		{
-			let (_token, location) = extract(tokens)?;
+			tokens.pop_front();
 
 			let body = FunctionBody {
 				statements,
 				return_value: None,
 				return_value_identifier: Identifier {
 					name: function_name.to_string(),
-					location,
+					location: tokens.last_location.clone(),
 					resolution_id: 0,
 				},
 			};
 			return Ok(body);
 		}
 
-		let statement = parse_statement(tokens)?;
+		let statement = match parse_statement(tokens)
+		{
+			Ok(statement) => statement,
+			Err(error) =>
+			{
+				let body = FunctionBody {
+					statements,
+					return_value: None,
+					return_value_identifier: Identifier {
+						name: function_name.to_string(),
+						location: tokens.last_location.clone(),
+						resolution_id: 0,
+					},
+				};
+				return Err(Poison::Error {
+					error,
+					partial: Some(body),
+				});
+			}
+		};
 
 		let is_return = match &statement
 		{
 			Statement::Label { label, .. } => label.name == "return",
 			_ => false,
 		};
-		statements.push(statement);
 		if is_return
 		{
-			break;
+			if let Some(Token::BraceRight) = peek(tokens)
+			{
+				tokens.pop_front();
+				let return_value_location = tokens.last_location.clone();
+				let return_statement_location = statement.location().clone();
+				statements.push(statement);
+				let return_value = Expression::Poison(Poison::Error {
+					error: Error::MissingReturnValueAfterStatement {
+						location: return_value_location.clone(),
+						after: return_statement_location,
+					},
+					partial: None,
+				});
+				let body = FunctionBody {
+					statements,
+					return_value: Some(return_value),
+					return_value_identifier: Identifier {
+						name: function_name.to_string(),
+						location: return_value_location,
+						resolution_id: 0,
+					},
+				};
+				return Ok(body);
+			}
+			else
+			{
+				statements.push(statement);
+
+				let return_value = parse_expression(tokens)?;
+				consume(Token::BraceRight, "expected closing brace", tokens)?;
+				let return_value_location = return_value.location().clone();
+				let body = FunctionBody {
+					statements,
+					return_value: Some(return_value),
+					return_value_identifier: Identifier {
+						name: function_name.to_string(),
+						location: return_value_location,
+						resolution_id: 0,
+					},
+				};
+				return Ok(body);
+			};
+		}
+		else
+		{
+			statements.push(statement);
 		}
 	}
-
-	let location = peek_location(tokens)
-		.ok()
-		.context("expected closing brace")?;
-	let return_value = parse_expression(tokens)?;
-
-	consume(Token::BraceRight, tokens).context("expected closing brace")?;
-
-	let body = FunctionBody {
-		statements,
-		return_value: Some(return_value),
-		return_value_identifier: Identifier {
-			name: function_name.to_string(),
-			location,
-			resolution_id: 0,
-		},
-	};
-	Ok(body)
 }
 
 fn parse_rest_of_block(
 	mut block: Block,
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Block, anyhow::Error>
+	tokens: &mut Tokens,
+) -> Result<Block, Error>
 {
 	loop
 	{
 		if let Some(Token::BraceRight) = peek(tokens)
 		{
-			let (_, end_location) = extract(tokens)?;
-			block.location = block.location.combined_with(&end_location);
+			tokens.pop_front();
+			block.location =
+				block.location.combined_with(&tokens.last_location);
 			return Ok(block);
 		}
 
@@ -448,11 +725,9 @@ fn parse_rest_of_block(
 	}
 }
 
-fn parse_statement(
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Statement, anyhow::Error>
+fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 {
-	let (token, location) = extract(tokens).context("expected statement")?;
+	let (token, location) = extract("expected statement", tokens)?;
 
 	match token
 	{
@@ -474,7 +749,8 @@ fn parse_statement(
 
 			if let Some(Token::Else) = peek(tokens)
 			{
-				let (_, location_of_else) = extract(tokens).unwrap();
+				tokens.pop_front();
+				let location_of_else = tokens.last_location.clone();
 
 				let else_stmt = parse_statement(tokens)?;
 				let else_branch = Some(Else {
@@ -502,26 +778,26 @@ fn parse_statement(
 		}
 		Token::Loop =>
 		{
-			consume(Token::Semicolon, tokens).context("expected semicolon")?;
-			Ok(Statement::Loop { location })
+			let statement = Statement::Loop { location };
+			consume(Token::Semicolon, "expected semicolon", tokens)?;
+			Ok(statement)
 		}
 		Token::Goto =>
 		{
-			let label = extract_identifier(tokens).context("expected label")?;
-			consume(Token::Semicolon, tokens).context("expected semicolon")?;
+			let label = extract_identifier("expected label", tokens)?;
 			let statement = Statement::Goto { label, location };
+			consume(Token::Semicolon, "expected semicolon", tokens)?;
 			Ok(statement)
 		}
 		Token::Var =>
 		{
-			let name =
-				extract_identifier(tokens).context("expected variable name")?;
+			let name = extract_identifier("expected variable name", tokens)?;
 
 			let value_type = if let Some(Token::Colon) = peek(tokens)
 			{
 				tokens.pop_front();
 				let value_type = parse_type(tokens)?;
-				Some(value_type)
+				Some(Ok(value_type))
 			}
 			else
 			{
@@ -539,14 +815,13 @@ fn parse_statement(
 				None
 			};
 
-			consume(Token::Semicolon, tokens).context("expected semicolon")?;
-
 			let statement = Statement::Declaration {
 				name,
 				value,
 				value_type,
 				location,
 			};
+			consume(Token::Semicolon, "expected semicolon", tokens)?;
 			Ok(statement)
 		}
 		Token::Identifier(x) =>
@@ -572,28 +847,24 @@ fn parse_statement(
 					resolution_id: 0,
 				};
 				let arguments = parse_arguments(tokens)?;
-				consume(Token::Semicolon, tokens)
-					.context("expected semicolon")?;
 				let statement = Statement::MethodCall {
 					name: identifier,
 					arguments,
 				};
+				consume(Token::Semicolon, "expected semicolon", tokens)?;
 				return Ok(statement);
 			}
 
 			let reference =
 				parse_rest_of_reference(x, location.clone(), tokens)?;
 
-			consume(Token::Assignment, tokens)
-				.context("expected assignment")?;
-			let expression = parse_expression(tokens)?;
-			consume(Token::Semicolon, tokens).context("expected semicolon")?;
-
+			let expression = parse_assignment_and_expression(tokens);
 			let statement = Statement::Assignment {
 				reference,
 				value: expression,
 				location,
 			};
+			consume(Token::Semicolon, "expected semicolon", tokens)?;
 			Ok(statement)
 		}
 		Token::Ampersand =>
@@ -601,32 +872,29 @@ fn parse_statement(
 			let assignment_location = location.clone();
 			let reference = parse_addressed_reference(location, tokens)?;
 
-			consume(Token::Assignment, tokens)
-				.context("expected assignment")?;
-			let expression = parse_expression(tokens)?;
-			consume(Token::Semicolon, tokens).context("expected semicolon")?;
-
+			let expression = parse_assignment_and_expression(tokens);
 			let statement = Statement::Assignment {
 				reference,
 				value: expression,
 				location: assignment_location,
 			};
+			consume(Token::Semicolon, "expected semicolon", tokens)?;
 			Ok(statement)
 		}
-		other => Err(anyhow!("got {:?}", other))
-			.context(location.format())
-			.context("expected keyword, identifier or opening brace"),
+		_ => Err(Error::UnexpectedToken {
+			location,
+			expectation: "expected keyword, identifier or opening brace"
+				.to_string(),
+		}),
 	}
 }
 
-fn parse_comparison(
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Comparison, anyhow::Error>
+fn parse_comparison(tokens: &mut Tokens) -> Result<Comparison, Error>
 {
 	let left = parse_expression(tokens)?;
 
 	let (token, location_of_op) =
-		extract(tokens).context("expected comparison operator")?;
+		extract("expected comparison operator", tokens)?;
 	let op = match token
 	{
 		Token::Equals => ComparisonOp::Equals,
@@ -635,11 +903,12 @@ fn parse_comparison(
 		Token::AngleRight => ComparisonOp::IsGreater,
 		Token::IsGE => ComparisonOp::IsGE,
 		Token::IsLE => ComparisonOp::IsLE,
-		token =>
+		_ =>
 		{
-			return Err(anyhow!("got {:?}", token))
-				.context(location_of_op.format())
-				.context("expected comparison operator")
+			return Err(Error::UnexpectedToken {
+				location: location_of_op,
+				expectation: "expected comparison operator".to_string(),
+			});
 		}
 	};
 
@@ -655,16 +924,37 @@ fn parse_comparison(
 	})
 }
 
-fn parse_expression(
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Expression, anyhow::Error>
+fn parse_assignment_and_expression(tokens: &mut Tokens) -> Expression
+{
+	match parse_assignment_and_expression_or_poison(tokens)
+	{
+		Ok(expression) => expression,
+		Err(Poison::Error { error, partial }) =>
+		{
+			Expression::Poison(Poison::Error {
+				error,
+				partial: partial.map(|x| Box::new(x)),
+			})
+		}
+		Err(Poison::Poisoned) => Expression::Poison(Poison::Poisoned),
+	}
+}
+
+fn parse_assignment_and_expression_or_poison(
+	tokens: &mut Tokens,
+) -> Poisonable<Expression>
+{
+	consume(Token::Assignment, "expected assignment", tokens)?;
+	let expression = parse_expression(tokens)?;
+	Ok(expression)
+}
+
+fn parse_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 {
 	parse_addition(tokens)
 }
 
-fn parse_addition(
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Expression, anyhow::Error>
+fn parse_addition(tokens: &mut Tokens) -> Result<Expression, Error>
 {
 	let mut expression = parse_multiplication(tokens)?;
 	let mut location = expression.location().clone();
@@ -688,7 +978,8 @@ fn parse_addition(
 				return Ok(expression);
 			}
 		};
-		let (_, location_of_op) = extract(tokens).unwrap();
+		tokens.pop_front();
+		let location_of_op = tokens.last_location.clone();
 
 		let right = parse_multiplication(tokens)?;
 		location = location.combined_with(right.location());
@@ -705,21 +996,22 @@ fn parse_addition(
 
 fn parse_rest_of_bitwise_expression(
 	mut expression: Expression,
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Expression, anyhow::Error>
+	tokens: &mut Tokens,
+) -> Result<Expression, Error>
 {
-	let (op_token, location_of_op) = extract(tokens)?;
+	let (op_token, location_of_op) =
+		extract("expected bitwise operator", tokens)?;
 	let op = match op_token
 	{
 		Token::Ampersand => BinaryOp::BitwiseAnd,
 		Token::Pipe => BinaryOp::BitwiseOr,
 		Token::Caret => BinaryOp::BitwiseXor,
-
-		other =>
+		_ =>
 		{
-			return Err(anyhow!("got {:?}", other))
-				.context(location_of_op.format())
-				.context("expected bitwise operator")
+			return Err(Error::UnexpectedToken {
+				location: location_of_op,
+				expectation: "expected bitwise operator".to_string(),
+			});
 		}
 	};
 
@@ -728,9 +1020,10 @@ fn parse_rest_of_bitwise_expression(
 	{
 		Expression::Binary { .. } =>
 		{
-			return Err(anyhow!("got {:?}", expression))
-				.context(location_of_op.format())
-				.context("expected left operand of bitwise operator")
+			return Err(Error::UnexpectedToken {
+				location: location_of_op,
+				expectation: "bitwise operator is not allowed here".to_string(),
+			});
 		}
 		_ => (),
 	}
@@ -754,8 +1047,8 @@ fn parse_rest_of_bitwise_expression(
 		{
 			Some(token) if token == &op_token =>
 			{
-				let (_, loc) = extract(tokens)?;
-				location_of_op = loc;
+				tokens.pop_front();
+				location_of_op = tokens.last_location.clone();
 			}
 			_ =>
 			{
@@ -767,20 +1060,21 @@ fn parse_rest_of_bitwise_expression(
 
 fn parse_rest_of_bitshift_operation(
 	mut expression: Expression,
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Expression, anyhow::Error>
+	tokens: &mut Tokens,
+) -> Result<Expression, Error>
 {
-	let (op_token, location_of_op) = extract(tokens)?;
+	let (op_token, location_of_op) =
+		extract("expected bitshift operator", tokens)?;
 	let op = match op_token
 	{
 		Token::ShiftLeft => BinaryOp::ShiftLeft,
 		Token::ShiftRight => BinaryOp::ShiftRight,
-
-		other =>
+		_ =>
 		{
-			return Err(anyhow!("got {:?}", other))
-				.context(location_of_op.format())
-				.context("expected bitshift operator")
+			return Err(Error::UnexpectedToken {
+				location: location_of_op,
+				expectation: "expected bitshift operator".to_string(),
+			});
 		}
 	};
 
@@ -789,9 +1083,11 @@ fn parse_rest_of_bitshift_operation(
 	{
 		Expression::Binary { .. } =>
 		{
-			return Err(anyhow!("got {:?}", expression))
-				.context(location_of_op.format())
-				.context("expected left operand of bitshift operator")
+			return Err(Error::UnexpectedToken {
+				location: location_of_op,
+				expectation: "bitshift operator is not allowed here"
+					.to_string(),
+			});
 		}
 		_ => (),
 	}
@@ -812,9 +1108,7 @@ fn parse_rest_of_bitshift_operation(
 	Ok(expression)
 }
 
-fn parse_multiplication(
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Expression, anyhow::Error>
+fn parse_multiplication(tokens: &mut Tokens) -> Result<Expression, Error>
 {
 	let mut expression = parse_singular_expression(tokens)?;
 	let mut location = expression.location().clone();
@@ -831,7 +1125,8 @@ fn parse_multiplication(
 				return Ok(expression);
 			}
 		};
-		let (_, location_of_op) = extract(tokens).unwrap();
+		tokens.pop_front();
+		let location_of_op = tokens.last_location.clone();
 
 		let right = parse_singular_expression(tokens)?;
 		location = location.combined_with(right.location());
@@ -846,9 +1141,7 @@ fn parse_multiplication(
 	}
 }
 
-fn parse_singular_expression(
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Expression, anyhow::Error>
+fn parse_singular_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 {
 	let mut expression = parse_unary_expression(tokens)?;
 	let mut location = expression.location().clone();
@@ -863,12 +1156,16 @@ fn parse_singular_expression(
 				return Ok(expression);
 			}
 		};
-		let (_, location_of_as) = extract(tokens).unwrap();
+		tokens.pop_front();
 
+		let location_of_type = tokens.get_next_location();
 		let coerced_type = parse_type(tokens)?;
 
-		// TODO location_of_type
-		let location_of_type = location_of_as;
+		let location_of_type = match location_of_type
+		{
+			Some(location) => location.combined_with(&tokens.last_location),
+			None => tokens.last_location.clone(),
+		};
 		location = location.combined_with(&location_of_type);
 
 		expression = Expression::PrimitiveCast {
@@ -880,9 +1177,7 @@ fn parse_singular_expression(
 	}
 }
 
-fn parse_unary_expression(
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Expression, anyhow::Error>
+fn parse_unary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 {
 	match peek(tokens)
 	{
@@ -890,13 +1185,14 @@ fn parse_unary_expression(
 		{
 			tokens.pop_front();
 			let reference = parse_reference(tokens)?;
-			consume(Token::Pipe, tokens).context("expected pipe")?;
+			consume(Token::Pipe, "expected pipe", tokens)?;
 			let expression = Expression::LengthOfArray { reference };
 			Ok(expression)
 		}
 		Some(Token::Exclamation) =>
 		{
-			let (_, location_of_op) = extract(tokens).unwrap();
+			tokens.pop_front();
+			let location_of_op = tokens.last_location.clone();
 			let expr = parse_primary_expression(tokens)?;
 			let location =
 				location_of_op.clone().combined_with(expr.location());
@@ -910,7 +1206,8 @@ fn parse_unary_expression(
 		}
 		Some(Token::Minus) =>
 		{
-			let (_, location_of_op) = extract(tokens).unwrap();
+			tokens.pop_front();
+			let location_of_op = tokens.last_location.clone();
 			let expr = parse_primary_expression(tokens)?;
 			let location =
 				location_of_op.clone().combined_with(expr.location());
@@ -976,12 +1273,9 @@ fn parse_unary_expression(
 	}
 }
 
-fn parse_primary_expression(
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Expression, anyhow::Error>
+fn parse_primary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 {
-	let (token, location) =
-		extract(tokens).context("expected literal or identifier")?;
+	let (token, location) = extract("expected literal or identifier", tokens)?;
 	match token
 	{
 		Token::NakedInteger(value) => Ok(Expression::NakedIntegerLiteral {
@@ -1058,6 +1352,7 @@ fn parse_primary_expression(
 		{
 			let mut bytes = bytes;
 			let mut value_type = value_type;
+			let mut location = location;
 			while let Some(next_token) = peek(tokens)
 			{
 				match next_token
@@ -1067,7 +1362,7 @@ fn parse_primary_expression(
 					_ => break,
 				}
 
-				let (token, _location) = extract(tokens)?;
+				let (token, extra_location) = extract("", tokens)?;
 				match token
 				{
 					Token::StringLiteral {
@@ -1090,10 +1385,11 @@ fn parse_primary_expression(
 					}
 					_ => unreachable!(),
 				}
+				location = location.combined_with(&extra_location);
 			}
 			Ok(Expression::StringLiteral {
 				bytes,
-				value_type,
+				value_type: value_type.map(|x| Ok(x)),
 				location,
 			})
 		}
@@ -1145,21 +1441,20 @@ fn parse_primary_expression(
 			};
 			Ok(expression)
 		}
-		other => Err(anyhow!("got {:?}", other))
-			.context(location.format())
-			.context("expected literal or identifier"),
+		_ => Err(Error::UnexpectedToken {
+			location,
+			expectation: "expected literal or identifier".to_string(),
+		}),
 	}
 }
 
-fn parse_arguments(
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Vec<Expression>, anyhow::Error>
+fn parse_arguments(tokens: &mut Tokens) -> Result<Vec<Expression>, Error>
 {
-	consume(Token::ParenLeft, tokens).context("expected argument list")?;
+	consume(Token::ParenLeft, "expected argument list", tokens)?;
 
 	if let Some(Token::ParenRight) = peek(tokens)
 	{
-		let _ = extract(tokens)?;
+		tokens.pop_front();
 		return Ok(Vec::new());
 	}
 
@@ -1170,21 +1465,29 @@ fn parse_arguments(
 		let expression = parse_expression(tokens)?;
 		arguments.push(expression);
 
-		if let Some(Token::ParenRight) = peek(tokens)
+		if let Some(Token::Comma) = peek(tokens)
 		{
-			let _ = extract(tokens)?;
-			return Ok(arguments);
+			tokens.pop_front();
 		}
-
-		consume(Token::Comma, tokens)
-			.context("expected comma or right parenthesis")?;
+		else
+		{
+			break;
+		}
 	}
+
+	consume(
+		Token::ParenRight,
+		"expect comma or right parenthesis",
+		tokens,
+	)?;
+
+	Ok(arguments)
 }
 
 fn parse_rest_of_array(
 	mut array: Array,
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Array, anyhow::Error>
+	tokens: &mut Tokens,
+) -> Result<Array, Error>
 {
 	loop
 	{
@@ -1206,15 +1509,20 @@ fn parse_rest_of_array(
 		}
 	}
 
-	consume(Token::BracketRight, tokens).context("expected right bracket")?;
+	consume(
+		Token::BracketRight,
+		"expected comma or right bracket",
+		tokens,
+	)?;
+	array.location = array.location.combined_with(&tokens.last_location);
 
-	return Ok(array);
+	Ok(array)
 }
 
 fn parse_addressed_reference(
 	location: Location,
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Reference, anyhow::Error>
+	tokens: &mut Tokens,
+) -> Result<Reference, Error>
 {
 	let Reference {
 		base,
@@ -1224,9 +1532,9 @@ fn parse_addressed_reference(
 	} = parse_reference(tokens)?;
 	if address_depth + 1 > MAX_ADDRESS_DEPTH
 	{
-		return Err(anyhow!("max address depth exceeded"))
-			.context(location.format())
-			.context("too many & operators");
+		return Err(Error::MaximumParseDepthExceeded {
+			location: location.combined_with(&tokens.last_location),
+		});
 	}
 	let reference = Reference {
 		base,
@@ -1237,11 +1545,9 @@ fn parse_addressed_reference(
 	Ok(reference)
 }
 
-fn parse_reference(
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Reference, anyhow::Error>
+fn parse_reference(tokens: &mut Tokens) -> Result<Reference, Error>
 {
-	let (token, location) = extract(tokens).context("expected identifier")?;
+	let (token, location) = extract("expected identifier", tokens)?;
 	match token
 	{
 		Token::Ampersand =>
@@ -1250,12 +1556,13 @@ fn parse_reference(
 			while let Some(Token::Ampersand) = peek(tokens)
 			{
 				tokens.pop_front();
+				let location_of_address = tokens.last_location.clone();
 				address_depth += 1;
 				if address_depth > MAX_ADDRESS_DEPTH
 				{
-					return Err(anyhow!("max address depth exceeded"))
-						.context(location.format())
-						.context("too many & operators");
+					return Err(Error::MaximumParseDepthExceeded {
+						location: location.combined_with(&location_of_address),
+					});
 				}
 			}
 			let reference = parse_reference(tokens)?;
@@ -1270,17 +1577,18 @@ fn parse_reference(
 		{
 			parse_rest_of_reference(name, location, tokens)
 		}
-		other => Err(anyhow!("got {:?}", other))
-			.context(location.format())
-			.context("expected identifier"),
+		_ => Err(Error::UnexpectedToken {
+			location,
+			expectation: "expected identifier".to_string(),
+		}),
 	}
 }
 
 fn parse_rest_of_reference(
 	name: String,
 	location: Location,
-	tokens: &mut VecDeque<LexedToken>,
-) -> Result<Reference, anyhow::Error>
+	tokens: &mut Tokens,
+) -> Result<Reference, Error>
 {
 	let base = Identifier {
 		name,
@@ -1290,23 +1598,22 @@ fn parse_rest_of_reference(
 	let mut steps = Vec::new();
 	while let Some(Token::BracketLeft) = peek(tokens)
 	{
-		let _ = extract(tokens)?;
+		tokens.pop_front();
 		let argument = parse_expression(tokens)?;
-		consume(Token::BracketRight, tokens)
-			.context("expected right bracket")?;
+		consume(Token::BracketRight, "expected right bracket", tokens)?;
 		let step = ReferenceStep::Element {
 			argument: Box::new(argument),
 		};
 		steps.push(step);
 		if steps.len() > MAX_REFERENCE_DEPTH
 		{
-			return Err(anyhow!("max reference depth exceeded"))
-				.context(location.format())
-				.context("too many index operators");
+			return Err(Error::MaximumParseDepthExceeded {
+				location: location.combined_with(&tokens.last_location),
+			});
 		}
 	}
 	Ok(Reference {
-		base,
+		base: Ok(base),
 		steps,
 		address_depth: 0,
 		location,
@@ -1316,7 +1623,9 @@ fn parse_rest_of_reference(
 fn fix_type_for_flags(
 	value_type: ValueType,
 	flags: &EnumSet<DeclarationFlag>,
-) -> Result<ValueType, anyhow::Error>
+	location_of_type: &Location,
+	location_of_declaration: &Location,
+) -> Poisonable<ValueType>
 {
 	if flags.contains(DeclarationFlag::External)
 	{
@@ -1328,14 +1637,22 @@ fn fix_type_for_flags(
 			}
 			| ValueType::Slice { element_type } =>
 			{
-				let element_type = externalize_type(*element_type)?;
+				let element_type = externalize_type(
+					*element_type,
+					location_of_type,
+					location_of_declaration,
+				)?;
 				Ok(ValueType::View {
 					deref_type: Box::new(ValueType::ExtArray {
 						element_type: Box::new(element_type),
 					}),
 				})
 			}
-			_ => externalize_type(value_type),
+			_ => externalize_type(
+				value_type,
+				location_of_type,
+				location_of_declaration,
+			),
 		}
 	}
 	else
@@ -1344,7 +1661,11 @@ fn fix_type_for_flags(
 	}
 }
 
-fn externalize_type(value_type: ValueType) -> Result<ValueType, anyhow::Error>
+fn externalize_type(
+	value_type: ValueType,
+	location_of_type: &Location,
+	location_of_declaration: &Location,
+) -> Poisonable<ValueType>
 {
 	match value_type
 	{
@@ -1355,21 +1676,33 @@ fn externalize_type(value_type: ValueType) -> Result<ValueType, anyhow::Error>
 		| ValueType::Slice { element_type }
 		| ValueType::ExtArray { element_type } =>
 		{
-			let element_type = externalize_type(*element_type)?;
+			let element_type = externalize_type(
+				*element_type,
+				location_of_type,
+				location_of_declaration,
+			)?;
 			Ok(ValueType::ExtArray {
 				element_type: Box::new(element_type),
 			})
 		}
 		ValueType::Pointer { deref_type } =>
 		{
-			let deref_type = externalize_type(*deref_type)?;
+			let deref_type = externalize_type(
+				*deref_type,
+				location_of_type,
+				location_of_declaration,
+			)?;
 			Ok(ValueType::Pointer {
 				deref_type: Box::new(deref_type),
 			})
 		}
 		ValueType::View { deref_type } =>
 		{
-			let deref_type = externalize_type(*deref_type)?;
+			let deref_type = externalize_type(
+				*deref_type,
+				location_of_type,
+				location_of_declaration,
+			)?;
 			Ok(ValueType::View {
 				deref_type: Box::new(deref_type),
 			})
@@ -1386,6 +1719,13 @@ fn externalize_type(value_type: ValueType) -> Result<ValueType, anyhow::Error>
 		ValueType::Uint128 => Ok(value_type),
 		ValueType::Usize => Ok(value_type),
 		ValueType::Bool => Ok(value_type),
-		_ => Err(anyhow!("type {:?} not allowed in extern", value_type)),
+		_ => Err(Poison::Error {
+			error: Error::TypeNotAllowedInExtern {
+				value_type: value_type.clone(),
+				location_of_type: location_of_type.clone(),
+				location_of_declaration: location_of_declaration.clone(),
+			},
+			partial: Some(value_type),
+		}),
 	}
 }

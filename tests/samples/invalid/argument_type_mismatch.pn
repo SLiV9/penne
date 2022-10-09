@@ -1,11 +1,11 @@
 
-fn foo(x: i32)
+fn foo(x: i32) -> i32
 {
 	return:
 	x
 }
 
-fn main()
+fn main() -> i32
 {
 	return:
 	foo(true)

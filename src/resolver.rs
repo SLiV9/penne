@@ -6,53 +6,18 @@
 
 use crate::common;
 use crate::common::*;
+use crate::error::Error;
+use crate::error::Errors;
+use crate::error::{Poison, Poisonable};
 use crate::resolved;
 use crate::typer::Typed;
-
-use anyhow::anyhow;
+use crate::value_type::OperandValueType;
 
 pub fn resolve(
 	program: Vec<common::Declaration>,
 ) -> Result<Vec<resolved::Declaration>, Errors>
 {
 	program.resolve()
-}
-
-pub struct Errors
-{
-	errors: Vec<anyhow::Error>,
-}
-
-impl From<anyhow::Error> for Errors
-{
-	fn from(error: anyhow::Error) -> Self
-	{
-		Self {
-			errors: vec![error],
-		}
-	}
-}
-
-impl Errors
-{
-	pub fn first(self) -> anyhow::Error
-	{
-		self.errors
-			.into_iter()
-			.next()
-			.unwrap_or_else(|| anyhow!("empty errors"))
-	}
-}
-
-impl IntoIterator for Errors
-{
-	type Item = anyhow::Error;
-	type IntoIter = <Vec<anyhow::Error> as IntoIterator>::IntoIter;
-
-	fn into_iter(self) -> Self::IntoIter
-	{
-		self.errors.into_iter()
-	}
 }
 
 trait Resolvable
@@ -159,6 +124,43 @@ where
 	}
 }
 
+impl<T> Resolvable for Poisonable<T>
+where
+	T: Resolvable,
+{
+	type Item = T::Item;
+
+	fn resolve(self) -> Result<Self::Item, Errors>
+	{
+		match self
+		{
+			Ok(x) => x.resolve(),
+			Err(y) => y.resolve(),
+		}
+	}
+}
+
+impl<T> Resolvable for Poison<T>
+where
+	T: Resolvable,
+{
+	type Item = T::Item;
+
+	fn resolve(self) -> Result<Self::Item, Errors>
+	{
+		match self
+		{
+			Poison::Error { error, partial: _ } => Err(error.into()),
+			Poison::Poisoned =>
+			{
+				// Do not show any errors because this thing was poisoned by
+				// a different error, and cascading errors are unreliable.
+				Err(Errors { errors: Vec::new() })
+			}
+		}
+	}
+}
+
 impl Resolvable for Declaration
 {
 	type Item = resolved::Declaration;
@@ -175,7 +177,7 @@ impl Resolvable for Declaration
 			} => Ok(resolved::Declaration::Constant {
 				name: name.resolve()?,
 				value: value.resolve()?,
-				value_type,
+				value_type: value_type.resolve()?,
 				flags,
 			}),
 			Declaration::Function {
@@ -203,6 +205,11 @@ impl Resolvable for Declaration
 				flags,
 			}),
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Poison(poison) => match poison.resolve()
+			{
+				Ok(_) => unreachable!(),
+				Err(e) => Err(e),
+			},
 		}
 	}
 }
@@ -213,23 +220,10 @@ impl Resolvable for Parameter
 
 	fn resolve(self) -> Result<Self::Item, Errors>
 	{
-		if let Some(value_type) = self.value_type
-		{
-			Ok(resolved::Parameter {
-				name: self.name.resolve()?,
-				value_type,
-			})
-		}
-		else
-		{
-			Err(anyhow!("failed to infer type")
-				.context(self.name.location.format())
-				.context(format!(
-					"failed to infer type for '{}'",
-					self.name.name
-				))
-				.into())
-		}
+		Ok(resolved::Parameter {
+			name: self.name.resolve()?,
+			value_type: self.value_type.resolve()?,
+		})
 	}
 }
 
@@ -258,12 +252,12 @@ impl Resolvable for Statement
 				name,
 				value: Some(value),
 				value_type: Some(vt),
-				location,
+				location: _,
 			} =>
 			{
-				let value = value.resolve()?;
+				let (name, value, vt) = (name, value, vt).resolve()?;
 				Ok(resolved::Statement::Declaration {
-					name: name.resolve()?,
+					name,
 					value: Some(value),
 					value_type: vt,
 				})
@@ -273,40 +267,37 @@ impl Resolvable for Statement
 				value: None,
 				value_type: Some(vt),
 				location: _,
-			} => Ok(resolved::Statement::Declaration {
-				name: name.resolve()?,
-				value: None,
-				value_type: vt,
-			}),
+			} =>
+			{
+				let (name, vt) = (name, vt).resolve()?;
+				Ok(resolved::Statement::Declaration {
+					name,
+					value: None,
+					value_type: vt,
+				})
+			}
 			Statement::Declaration {
-				name,
+				name: _,
 				value: _,
 				value_type: None,
 				location,
-			} => Err(anyhow!("failed to infer type")
-				.context(location.format())
-				.context(format!("failed to infer type for '{}'", name.name))
-				.into()),
+			} => Err(Error::AmbiguousTypeOfDeclaration { location })?,
 			Statement::Assignment {
 				reference,
 				value,
-				location,
+				location: _,
 			} if value.value_type().is_some() =>
 			{
 				let (reference, value) = (reference, value).resolve()?;
 				Ok(resolved::Statement::Assignment { reference, value })
 			}
 			Statement::Assignment {
-				reference,
-				value: _,
+				reference: _,
+				value,
 				location: _,
-			} => Err(anyhow!("failed to infer type")
-				.context(reference.location.format())
-				.context(format!(
-					"failed to infer type for '{}'",
-					reference.base.name
-				))
-				.into()),
+			} => Err(Error::AmbiguousType {
+				location: value.location().clone(),
+			})?,
 			Statement::MethodCall { name, arguments } =>
 			{
 				let (name, arguments) = (name, arguments).resolve()?;
@@ -329,7 +320,7 @@ impl Resolvable for Statement
 				condition,
 				then_branch,
 				else_branch,
-				location,
+				location: _,
 			} =>
 			{
 				let (condition, then_branch, else_branch) =
@@ -346,6 +337,11 @@ impl Resolvable for Statement
 			}) => Ok(resolved::Statement::Block(resolved::Block {
 				statements: statements.resolve()?,
 			})),
+			Statement::Poison(poison) => match poison.resolve()
+			{
+				Ok(_) => unreachable!(),
+				Err(e) => Err(e),
+			},
 		}
 	}
 }
@@ -366,8 +362,12 @@ impl Resolvable for Comparison
 
 	fn resolve(self) -> Result<Self::Item, Errors>
 	{
-		let compared_type =
-			resolve_compared_type(self.op, &self.left, &self.right);
+		let compared_type = resolve_compared_type(
+			self.op,
+			&self.left,
+			&self.right,
+			&self.location,
+		);
 		// If the left hand size contains errors, there is not much point in
 		// reporting errors about the right side because type inference failed.
 		let left = self.left.resolve()?;
@@ -396,11 +396,12 @@ impl Resolvable for Expression
 				op,
 				left,
 				right,
-				location,
+				location: _,
 				location_of_op,
 			} =>
 			{
-				let value_type = resolve_binary_op_type(op, &left, &right);
+				let value_type =
+					resolve_binary_op_type(op, &left, &right, &location_of_op);
 				// If the left hand size contains errors, there is not much
 				// point in reporting errors about the right side because
 				// type inference failed.
@@ -419,65 +420,63 @@ impl Resolvable for Expression
 			Expression::Unary {
 				op,
 				expression,
-				location,
+				location: _,
 				location_of_op,
 			} =>
 			{
-				let value_type = resolve_unary_op_type(op, &expression);
+				let value_type =
+					resolve_unary_op_type(op, &expression, &location_of_op);
 				let expression = expression.resolve()?;
 				// If the expression contains errors, type inference will
 				// fail, but there is not much point in reporting that.
 				let _ = value_type?;
 				Ok(resolved::Expression::Unary { op, expression })
 			}
-			Expression::PrimitiveLiteral { literal, location } =>
-			{
-				Ok(resolved::Expression::PrimitiveLiteral(literal))
-			}
+			Expression::PrimitiveLiteral {
+				literal,
+				location: _,
+			} => Ok(resolved::Expression::PrimitiveLiteral(literal)),
 			Expression::NakedIntegerLiteral {
 				value,
 				value_type: Some(value_type),
 				location: _,
 			} => Ok(resolved::Expression::NakedIntegerLiteral {
 				value,
-				value_type,
+				value_type: value_type.resolve()?,
 			}),
 			Expression::NakedIntegerLiteral {
-				value,
+				value: _,
 				value_type: None,
 				location,
-			} => match i32::try_from(value)
+			} =>
 			{
 				// Naked integer literals that can fit in an int should not
 				// cause type resolution errors; if they are assigned to a
 				// variable that that variable will error, if they are unused
 				// (e.g. excess function argument) then that is more relevant.
-				// Disallow i32::MIN because ValueType::Int is symmetric.
-				Ok(i32::MIN) | Err(_) => Err(anyhow!("failed to infer type")
-					.context(location.format())
-					.context(format!("failed to infer integer literal type"))
-					.into()),
-				Ok(_) => Ok(resolved::Expression::NakedIntegerLiteral {
-					value,
-					value_type: ValueType::Int32,
-				}),
-			},
+				// But if we are here, no other error was raised, and we cannot
+				// continue to generation with a value of unknown (bit)size.
+				Err(Error::AmbiguousTypeOfNakedIntegerLiteral {
+					suggested_type: ValueType::Int32,
+					location,
+				})?
+			}
 			Expression::BitIntegerLiteral {
 				value,
 				value_type: Some(value_type),
 				location: _,
 			} => Ok(resolved::Expression::BitIntegerLiteral {
 				value,
-				value_type,
+				value_type: value_type.resolve()?,
 			}),
 			Expression::BitIntegerLiteral {
 				value: _,
 				value_type: None,
 				location,
-			} => Err(anyhow!("failed to infer type")
-				.context(location.format())
-				.context(format!("failed to infer integer literal type"))
-				.into()),
+			} => Err(Error::AmbiguousTypeOfNakedIntegerLiteral {
+				suggested_type: ValueType::Uint64,
+				location,
+			})?,
 			Expression::ArrayLiteral {
 				array:
 					Array {
@@ -490,26 +489,23 @@ impl Resolvable for Expression
 			{
 				if let Some(element_type) = element_type
 				{
+					let (elements, element_type) =
+						(elements, element_type).resolve()?;
 					Ok(resolved::Expression::ArrayLiteral {
-						elements: elements.resolve()?,
+						elements,
 						element_type,
 					})
 				}
 				else
 				{
-					Err(anyhow!("failed to infer type")
-						.context(location.format())
-						.context(format!(
-							"failed to infer array literal element type"
-						))
-						.into())
+					Err(Error::AmbiguousTypeOfArrayLiteral { location })?
 				}
 			}
 			Expression::StringLiteral {
 				bytes,
 				value_type: Some(value_type),
-				location,
-			} => match value_type
+				location: _,
+			} => match value_type.resolve()?
 			{
 				ValueType::String =>
 				{
@@ -519,19 +515,13 @@ impl Resolvable for Expression
 				{
 					Ok(resolved::Expression::ByteStringLiteral { bytes })
 				}
-				_ => Err(anyhow!("unexpected type")
-					.context(location.format())
-					.context(format!("failed to infer string literal type"))
-					.into()),
+				_ => unreachable!(),
 			},
 			Expression::StringLiteral {
 				bytes: _,
 				value_type: _,
 				location,
-			} => Err(anyhow!("failed to infer type")
-				.context(location.format())
-				.context(format!("failed to infer string literal type"))
-				.into()),
+			} => Err(Error::AmbiguousTypeOfStringLiteral { location })?,
 			Expression::Deref {
 				reference,
 				deref_type,
@@ -545,15 +535,14 @@ impl Resolvable for Expression
 				{
 					Ok(resolved::Expression::Deref {
 						reference,
-						deref_type,
+						deref_type: deref_type.resolve()?,
 					})
 				}
 				else
 				{
-					Err(anyhow!("failed to infer type")
-						.context(reference_location.format())
-						.context(format!("failed to infer type of reference"))
-						.into())
+					Err(Error::AmbiguousType {
+						location: reference_location,
+					})?
 				}
 			}
 			Expression::Autocoerce {
@@ -561,28 +550,26 @@ impl Resolvable for Expression
 				coerced_type,
 			} =>
 			{
-				if expression.value_type().is_some()
-				{
-					let expression = expression.resolve()?;
-					Ok(resolved::Expression::Autocoerce {
-						expression,
-						coerced_type: coerced_type.clone(),
-					})
-				}
-				else
-				{
-					Err(anyhow!("failed to infer type in coercion").into())
-				}
+				let from = expression.value_type();
+				let expression = expression.resolve()?;
+				assert!(from.is_some());
+				Ok(resolved::Expression::Autocoerce {
+					expression,
+					coerced_type,
+				})
 			}
 			Expression::PrimitiveCast {
 				expression,
 				coerced_type,
-				location,
+				location: _,
 				location_of_type,
 			} =>
 			{
-				let expression_type =
-					analyze_primitive_cast(&expression, coerced_type.clone());
+				let expression_type = analyze_primitive_cast(
+					&expression,
+					coerced_type.clone(),
+					&location_of_type,
+				);
 				let expression = expression.resolve()?;
 				// If the expression contains errors, type inference will
 				// fail, but there is not much point in reporting that.
@@ -605,6 +592,8 @@ impl Resolvable for Expression
 				return_type,
 			} =>
 			{
+				// If the reference fails to resolve, there is no point in
+				// reporting about type inference.
 				let location = name.location.clone();
 				let (name, arguments) = (name, arguments).resolve()?;
 				if let Some(return_type) = return_type
@@ -612,17 +601,19 @@ impl Resolvable for Expression
 					Ok(resolved::Expression::FunctionCall {
 						name,
 						arguments,
-						return_type,
+						return_type: return_type.resolve()?,
 					})
 				}
 				else
 				{
-					Err(anyhow!("failed to infer return type")
-						.context(location.format())
-						.context(format!("failed to infer return type"))
-						.into())
+					Err(Error::AmbiguousType { location })?
 				}
 			}
+			Expression::Poison(poison) => match poison.resolve()
+			{
+				Ok(_) => unreachable!(),
+				Err(e) => Err(e),
+			},
 		}
 	}
 }
@@ -677,20 +668,21 @@ impl Resolvable for Identifier
 
 	fn resolve(self) -> Result<Self::Item, Errors>
 	{
-		if self.resolution_id > 0
-		{
-			Ok(resolved::Identifier {
-				name: self.name,
-				resolution_id: self.resolution_id,
-			})
-		}
-		else
-		{
-			Err(anyhow!("failed to resolve identifier")
-				.context(self.location.format())
-				.context(format!("failed to resolve '{}'", self.name))
-				.into())
-		}
+		assert!(self.resolution_id > 0);
+		Ok(resolved::Identifier {
+			name: self.name,
+			resolution_id: self.resolution_id,
+		})
+	}
+}
+
+impl Resolvable for ValueType
+{
+	type Item = Self;
+
+	fn resolve(self) -> Result<Self::Item, Errors>
+	{
+		Ok(self)
 	}
 }
 
@@ -698,70 +690,92 @@ fn resolve_compared_type(
 	op: ComparisonOp,
 	left: &Expression,
 	right: &Expression,
-) -> Result<ValueType, anyhow::Error>
+	location_of_op: &Location,
+) -> Result<ValueType, Errors>
 {
-	let vt = if let Some(vt) = left.value_type()
+	let vt = match left.value_type()
 	{
-		vt
-	}
-	else
-	{
-		return Err(anyhow!("failed to infer type"));
+		Some(Ok(vt)) => vt,
+		Some(Err(poison)) => return poison.resolve(),
+		None => Err(Error::AmbiguousType {
+			location: left.location().clone(),
+		})?,
 	};
 	match right.value_type()
 	{
-		Some(rvt) if rvt == vt => (),
-		Some(rvt) =>
+		Some(Ok(rvt)) if rvt == vt => (),
+		Some(Ok(rvt)) =>
 		{
-			return Err(anyhow!("type mismatch")
-				.context(format!("got {:?} and {:?}", vt, rvt)))
+			return Err(Error::MismatchedOperandTypes {
+				type_of_left: vt,
+				type_of_right: rvt,
+				location_of_op: location_of_op.clone(),
+				location_of_left: left.location().clone(),
+				location_of_right: right.location().clone(),
+			}
+			.into())
 		}
-		None => return Err(anyhow!("failed to infer type")),
+		Some(Err(poison)) => return poison.resolve(),
+		None => Err(Error::AmbiguousType {
+			location: right.location().clone(),
+		})?,
 	}
-	match op
+
+	let value_type = analyze_operand_type(
+		vt,
+		op.valid_types(),
+		location_of_op,
+		left.location(),
+	)?;
+	Ok(value_type)
+}
+
+const VALID_TYPES_FOR_EQUALITY: [OperandValueType; 14] = [
+	OperandValueType::ValueType(ValueType::Int8),
+	OperandValueType::ValueType(ValueType::Int16),
+	OperandValueType::ValueType(ValueType::Int32),
+	OperandValueType::ValueType(ValueType::Int64),
+	OperandValueType::ValueType(ValueType::Int128),
+	OperandValueType::ValueType(ValueType::Uint8),
+	OperandValueType::ValueType(ValueType::Uint16),
+	OperandValueType::ValueType(ValueType::Uint32),
+	OperandValueType::ValueType(ValueType::Uint64),
+	OperandValueType::ValueType(ValueType::Uint128),
+	OperandValueType::ValueType(ValueType::Usize),
+	OperandValueType::ValueType(ValueType::Bool),
+	OperandValueType::ValueType(ValueType::Char),
+	OperandValueType::Pointer,
+];
+
+const VALID_TYPES_FOR_IS_GREATER: [OperandValueType; 13] = [
+	OperandValueType::ValueType(ValueType::Int8),
+	OperandValueType::ValueType(ValueType::Int16),
+	OperandValueType::ValueType(ValueType::Int32),
+	OperandValueType::ValueType(ValueType::Int64),
+	OperandValueType::ValueType(ValueType::Int128),
+	OperandValueType::ValueType(ValueType::Uint8),
+	OperandValueType::ValueType(ValueType::Uint16),
+	OperandValueType::ValueType(ValueType::Uint32),
+	OperandValueType::ValueType(ValueType::Uint64),
+	OperandValueType::ValueType(ValueType::Uint128),
+	OperandValueType::ValueType(ValueType::Usize),
+	OperandValueType::ValueType(ValueType::Bool),
+	OperandValueType::ValueType(ValueType::Char),
+];
+
+impl ComparisonOp
+{
+	fn valid_types(&self) -> &'static [OperandValueType]
 	{
-		ComparisonOp::Equals | ComparisonOp::DoesNotEqual => match vt
+		match self
 		{
-			ValueType::Int8 => Ok(vt),
-			ValueType::Int16 => Ok(vt),
-			ValueType::Int32 => Ok(vt),
-			ValueType::Int64 => Ok(vt),
-			ValueType::Int128 => Ok(vt),
-			ValueType::Uint8 => Ok(vt),
-			ValueType::Uint16 => Ok(vt),
-			ValueType::Uint32 => Ok(vt),
-			ValueType::Uint64 => Ok(vt),
-			ValueType::Uint128 => Ok(vt),
-			ValueType::Usize => Ok(vt),
-			ValueType::Bool => Ok(vt),
-			ValueType::Char => Ok(vt),
-			ValueType::Pointer { deref_type: _ } => Ok(vt),
-			vt => Err(anyhow!("invalid operand types").context(format!(
-				"expected number, bool, char, pointer, got {:?}",
-				vt
-			))),
-		},
-		ComparisonOp::IsGreater
-		| ComparisonOp::IsLess
-		| ComparisonOp::IsGE
-		| ComparisonOp::IsLE => match vt
-		{
-			ValueType::Int8 => Ok(vt),
-			ValueType::Int16 => Ok(vt),
-			ValueType::Int32 => Ok(vt),
-			ValueType::Int64 => Ok(vt),
-			ValueType::Int128 => Ok(vt),
-			ValueType::Uint8 => Ok(vt),
-			ValueType::Uint16 => Ok(vt),
-			ValueType::Uint32 => Ok(vt),
-			ValueType::Uint64 => Ok(vt),
-			ValueType::Uint128 => Ok(vt),
-			ValueType::Usize => Ok(vt),
-			ValueType::Bool => Ok(vt),
-			ValueType::Char => Ok(vt),
-			vt => Err(anyhow!("invalid operand types")
-				.context(format!("expected number, bool, char, got {:?}", vt))),
-		},
+			ComparisonOp::Equals => &VALID_TYPES_FOR_EQUALITY,
+			ComparisonOp::DoesNotEqual => &VALID_TYPES_FOR_EQUALITY,
+			ComparisonOp::IsGreater => &VALID_TYPES_FOR_IS_GREATER,
+			ComparisonOp::IsLess => &VALID_TYPES_FOR_IS_GREATER,
+			ComparisonOp::IsGE => &VALID_TYPES_FOR_IS_GREATER,
+			ComparisonOp::IsLE => &VALID_TYPES_FOR_IS_GREATER,
+		}
 	}
 }
 
@@ -769,139 +783,252 @@ fn resolve_binary_op_type(
 	op: BinaryOp,
 	left: &Expression,
 	right: &Expression,
-) -> Result<ValueType, anyhow::Error>
+	location_of_op: &Location,
+) -> Result<ValueType, Errors>
 {
-	let vt = if let Some(vt) = left.value_type()
+	let vt = match left.value_type()
 	{
-		vt
-	}
-	else
-	{
-		return Err(anyhow!("failed to infer type"));
+		Some(Ok(vt)) => vt,
+		Some(Err(poison)) => return poison.resolve(),
+		None => Err(Error::AmbiguousType {
+			location: left.location().clone(),
+		})?,
 	};
 	match right.value_type()
 	{
-		Some(rvt) if rvt == vt => (),
-		Some(rvt) =>
+		Some(Ok(rvt)) if rvt == vt => (),
+		Some(Ok(rvt)) =>
 		{
-			return Err(anyhow!("type mismatch")
-				.context(format!("got {:?} and {:?}", vt, rvt)))
-		}
-		None => return Err(anyhow!("failed to infer type")),
-	}
-	match op
-	{
-		BinaryOp::Add
-		| BinaryOp::Subtract
-		| BinaryOp::Multiply
-		| BinaryOp::Divide
-		| BinaryOp::Modulo => match vt
-		{
-			ValueType::Int8 => Ok(vt),
-			ValueType::Int16 => Ok(vt),
-			ValueType::Int32 => Ok(vt),
-			ValueType::Int64 => Ok(vt),
-			ValueType::Int128 => Ok(vt),
-			ValueType::Uint8 => Ok(vt),
-			ValueType::Uint16 => Ok(vt),
-			ValueType::Uint32 => Ok(vt),
-			ValueType::Uint64 => Ok(vt),
-			ValueType::Uint128 => Ok(vt),
-			ValueType::Usize => Ok(vt),
-			vt => Err(anyhow!("invalid operand types").context(format!(
-				"expected i8, i16, ..., u8, u16, ..., usize, got {:?}",
-				vt
-			))),
-		},
-		BinaryOp::BitwiseAnd | BinaryOp::BitwiseOr | BinaryOp::BitwiseXor =>
-		{
-			match vt
-			{
-				ValueType::Uint8 => Ok(vt),
-				ValueType::Uint16 => Ok(vt),
-				ValueType::Uint32 => Ok(vt),
-				ValueType::Uint64 => Ok(vt),
-				ValueType::Uint128 => Ok(vt),
-				vt => Err(anyhow!("invalid operand types")
-					.context(format!("expected u8, u16, ..., got {:?}", vt))),
+			return Err(Error::MismatchedOperandTypes {
+				type_of_left: vt,
+				type_of_right: rvt,
+				location_of_op: location_of_op.clone(),
+				location_of_left: left.location().clone(),
+				location_of_right: right.location().clone(),
 			}
+			.into())
 		}
-		BinaryOp::ShiftLeft | BinaryOp::ShiftRight => match vt
+		Some(Err(poison)) => return poison.resolve(),
+		None => Err(Error::AmbiguousType {
+			location: right.location().clone(),
+		})?,
+	}
+
+	let value_type = analyze_operand_type(
+		vt,
+		op.valid_types(),
+		location_of_op,
+		left.location(),
+	)?;
+	Ok(value_type)
+}
+
+const VALID_TYPES_FOR_ARITHMETIC: [OperandValueType; 11] = [
+	OperandValueType::ValueType(ValueType::Int8),
+	OperandValueType::ValueType(ValueType::Int16),
+	OperandValueType::ValueType(ValueType::Int32),
+	OperandValueType::ValueType(ValueType::Int64),
+	OperandValueType::ValueType(ValueType::Int128),
+	OperandValueType::ValueType(ValueType::Uint8),
+	OperandValueType::ValueType(ValueType::Uint16),
+	OperandValueType::ValueType(ValueType::Uint32),
+	OperandValueType::ValueType(ValueType::Uint64),
+	OperandValueType::ValueType(ValueType::Uint128),
+	OperandValueType::ValueType(ValueType::Usize),
+];
+const VALID_TYPES_FOR_BITWISE: [OperandValueType; 5] = [
+	OperandValueType::ValueType(ValueType::Uint8),
+	OperandValueType::ValueType(ValueType::Uint16),
+	OperandValueType::ValueType(ValueType::Uint32),
+	OperandValueType::ValueType(ValueType::Uint64),
+	OperandValueType::ValueType(ValueType::Uint128),
+];
+const VALID_TYPES_FOR_BITSHIFT: [OperandValueType; 5] = [
+	OperandValueType::ValueType(ValueType::Uint8),
+	OperandValueType::ValueType(ValueType::Uint16),
+	OperandValueType::ValueType(ValueType::Uint32),
+	OperandValueType::ValueType(ValueType::Uint64),
+	OperandValueType::ValueType(ValueType::Uint128),
+];
+
+impl BinaryOp
+{
+	fn valid_types(&self) -> &'static [OperandValueType]
+	{
+		match self
 		{
-			ValueType::Uint8 => Ok(vt),
-			ValueType::Uint16 => Ok(vt),
-			ValueType::Uint32 => Ok(vt),
-			ValueType::Uint64 => Ok(vt),
-			ValueType::Uint128 => Ok(vt),
-			vt => Err(anyhow!("invalid operand types")
-				.context(format!("expected u8, u16, ..., got {:?}", vt))),
-		},
+			BinaryOp::Add => &VALID_TYPES_FOR_ARITHMETIC,
+			BinaryOp::Subtract => &VALID_TYPES_FOR_ARITHMETIC,
+			BinaryOp::Multiply => &VALID_TYPES_FOR_ARITHMETIC,
+			BinaryOp::Divide => &VALID_TYPES_FOR_ARITHMETIC,
+			BinaryOp::Modulo => &VALID_TYPES_FOR_ARITHMETIC,
+			BinaryOp::BitwiseAnd => &VALID_TYPES_FOR_BITWISE,
+			BinaryOp::BitwiseOr => &VALID_TYPES_FOR_BITWISE,
+			BinaryOp::BitwiseXor => &VALID_TYPES_FOR_BITWISE,
+			BinaryOp::ShiftLeft => &VALID_TYPES_FOR_BITSHIFT,
+			BinaryOp::ShiftRight => &VALID_TYPES_FOR_BITSHIFT,
+		}
 	}
 }
 
 fn resolve_unary_op_type(
 	op: UnaryOp,
 	operand: &Expression,
-) -> Result<ValueType, anyhow::Error>
+	location_of_op: &Location,
+) -> Result<ValueType, Errors>
 {
-	let vt = if let Some(vt) = operand.value_type()
+	let vt = match operand.value_type()
 	{
-		vt
+		Some(Ok(vt)) => vt,
+		Some(Err(poison)) => return poison.resolve(),
+		None => Err(Error::AmbiguousType {
+			location: operand.location().clone(),
+		})?,
+	};
+
+	let value_type = analyze_operand_type(
+		vt,
+		op.valid_types(),
+		location_of_op,
+		operand.location(),
+	)?;
+	Ok(value_type)
+}
+
+const VALID_TYPES_FOR_NEGATIVE: [OperandValueType; 5] = [
+	OperandValueType::ValueType(ValueType::Int8),
+	OperandValueType::ValueType(ValueType::Int16),
+	OperandValueType::ValueType(ValueType::Int32),
+	OperandValueType::ValueType(ValueType::Int64),
+	OperandValueType::ValueType(ValueType::Int128),
+];
+const VALID_TYPES_FOR_COMPLEMENT: [OperandValueType; 6] = [
+	OperandValueType::ValueType(ValueType::Bool),
+	OperandValueType::ValueType(ValueType::Uint8),
+	OperandValueType::ValueType(ValueType::Uint16),
+	OperandValueType::ValueType(ValueType::Uint32),
+	OperandValueType::ValueType(ValueType::Uint64),
+	OperandValueType::ValueType(ValueType::Uint128),
+];
+
+impl UnaryOp
+{
+	fn valid_types(&self) -> &'static [OperandValueType]
+	{
+		match self
+		{
+			UnaryOp::Negative => &VALID_TYPES_FOR_NEGATIVE,
+			UnaryOp::BitwiseComplement => &VALID_TYPES_FOR_COMPLEMENT,
+		}
+	}
+}
+
+fn analyze_operand_type(
+	value_type: ValueType,
+	valid_types: &[OperandValueType],
+	location_of_op: &Location,
+	location_of_operand: &Location,
+) -> Result<ValueType, Error>
+{
+	let is_valid = valid_types.iter().any(|valid_type| match valid_type
+	{
+		OperandValueType::ValueType(vt) if vt == &value_type => true,
+		OperandValueType::ValueType(_) => false,
+		OperandValueType::Pointer => match &value_type
+		{
+			ValueType::Pointer { .. } => true,
+			_ => false,
+		},
+	});
+	if is_valid
+	{
+		Ok(value_type)
 	}
 	else
 	{
-		return Err(anyhow!("failed to infer type"));
-	};
-	match op
-	{
-		UnaryOp::Negative => match vt
-		{
-			ValueType::Int8 => Ok(vt),
-			ValueType::Int16 => Ok(vt),
-			ValueType::Int32 => Ok(vt),
-			ValueType::Int64 => Ok(vt),
-			ValueType::Int128 => Ok(vt),
-			vt => Err(anyhow!("invalid operand type")
-				.context(format!("expected i8, i16, ..., got {:?}", vt))),
-		},
-		UnaryOp::BitwiseComplement => match vt
-		{
-			ValueType::Bool => Ok(vt),
-			ValueType::Uint8 => Ok(vt),
-			ValueType::Uint16 => Ok(vt),
-			ValueType::Uint32 => Ok(vt),
-			ValueType::Uint64 => Ok(vt),
-			ValueType::Uint128 => Ok(vt),
-			vt => Err(anyhow!("invalid operand type")
-				.context(format!("expected bool, u8, u16, ..., got {:?}", vt))),
-		},
+		Err(Error::InvalidOperandType {
+			value_type,
+			possible_types: valid_types.to_vec(),
+			location_of_op: location_of_op.clone(),
+			location_of_operand: location_of_operand.clone(),
+		})?
 	}
 }
 
 fn analyze_primitive_cast(
 	expression: &Expression,
 	coerced_type: ValueType,
-) -> Result<ValueType, anyhow::Error>
+	location_of_type: &Location,
+) -> Result<ValueType, Errors>
 {
-	let value_type = if let Some(vt) = expression.value_type()
+	let value_type = match expression.value_type()
 	{
-		vt
+		Some(Ok(vt)) => vt,
+		Some(Err(poison)) => return poison.resolve(),
+		None => Err(Error::AmbiguousType {
+			location: expression.location().clone(),
+		})?,
+	};
+	if is_valid_primitive_cast(&value_type, &coerced_type)
+	{
+		Ok(value_type)
 	}
 	else
 	{
-		return Err(anyhow!("failed to infer type"));
-	};
-	match (&value_type, &coerced_type)
+		let possible_value_types = VALID_PRIMITIVE_TYPES
+			.iter()
+			.filter(|vt| vt != &&coerced_type)
+			.filter(|vt| is_valid_primitive_cast(vt, &coerced_type))
+			.map(|x| OperandValueType::ValueType(x.clone()))
+			.collect();
+		let possible_coerced_types = VALID_PRIMITIVE_TYPES
+			.iter()
+			.filter(|ct| ct != &&value_type)
+			.filter(|ct| is_valid_primitive_cast(&value_type, ct))
+			.map(|x| OperandValueType::ValueType(x.clone()))
+			.collect();
+		Err(Error::InvalidPrimitiveCast {
+			value_type,
+			coerced_type,
+			possible_value_types,
+			possible_coerced_types,
+			location_of_operand: expression.location().clone(),
+			location_of_type: location_of_type.clone(),
+		})?
+	}
+}
+
+const VALID_PRIMITIVE_TYPES: [ValueType; 13] = [
+	ValueType::Int8,
+	ValueType::Int16,
+	ValueType::Int32,
+	ValueType::Int64,
+	ValueType::Int128,
+	ValueType::Uint8,
+	ValueType::Uint16,
+	ValueType::Uint32,
+	ValueType::Uint64,
+	ValueType::Uint128,
+	ValueType::Usize,
+	ValueType::Bool,
+	ValueType::Char,
+];
+
+fn is_valid_primitive_cast(
+	value_type: &ValueType,
+	coerced_type: &ValueType,
+) -> bool
+{
+	match (value_type, coerced_type)
 	{
-		(x, y) if x == y => Ok(value_type),
-		(vt, ct) if vt.is_integral() && ct.is_integral() => Ok(value_type),
-		(ValueType::Bool, ct) if ct.is_integral() => Ok(value_type),
-		(vt, ValueType::Bool) if vt.is_integral() => Ok(value_type),
-		(ValueType::Char, ValueType::Uint8) => Ok(value_type),
-		(ValueType::Char, ValueType::Uint32) => Ok(value_type),
-		(ValueType::Uint8, ValueType::Char) => Ok(value_type),
-		(ValueType::Uint32, ValueType::Char) => Ok(value_type),
-		(vt, _) => Err(anyhow!("invalid expression type")
-			.context(format!("expected primitive, got {:?}", vt))),
+		(x, y) if x == y => true,
+		(vt, ct) if vt.is_integral() && ct.is_integral() => true,
+		(ValueType::Bool, ct) if ct.is_integral() => true,
+		(vt, ValueType::Bool) if vt.is_integral() => true,
+		(ValueType::Char, ValueType::Uint8) => true,
+		(ValueType::Char, ValueType::Uint32) => true,
+		(ValueType::Uint8, ValueType::Char) => true,
+		(ValueType::Uint32, ValueType::Char) => true,
+		(_, _) => false,
 	}
 }

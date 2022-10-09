@@ -4,34 +4,26 @@
 // License: MIT
 //
 
-use penne::common;
-use penne::lexer;
-use penne::parser;
-use penne::scoper;
-use penne::typer;
+use penne::*;
 
 use anyhow::anyhow;
 
-fn do_type(
-	filename: &str,
-) -> Result<Result<Vec<common::Declaration>, anyhow::Error>, anyhow::Error>
+fn compile(filename: &str) -> Result<Vec<Declaration>, Errors>
 {
-	let source = std::fs::read_to_string(filename)?;
-	let tokens = lexer::lex(&source, filename);
-	let declarations = parser::parse(tokens)?;
-	let declarations = scoper::analyze(declarations)?;
-	Ok(typer::analyze(declarations))
+	let source = std::fs::read_to_string(filename).unwrap();
+	penne::compile_source(&source, &filename)
 }
 
 #[test]
 fn allow_differing_local_variable_types() -> Result<(), anyhow::Error>
 {
 	let analysis_result =
-		do_type("tests/samples/valid/local_variable_types.pn")?;
+		compile("tests/samples/valid/local_variable_types.pn");
 	match analysis_result
 	{
 		Ok(_) => Ok(()),
-		Err(error) => Err(error),
+		#[allow(unreachable_code)]
+		Err(errors) => match errors.panic() {},
 	}
 }
 
@@ -39,7 +31,19 @@ fn allow_differing_local_variable_types() -> Result<(), anyhow::Error>
 fn fail_to_type_return_type_mismatch() -> Result<(), anyhow::Error>
 {
 	let analysis_result =
-		do_type("tests/samples/invalid/return_type_mismatch.pn")?;
+		compile("tests/samples/invalid/return_type_mismatch.pn");
+	match analysis_result
+	{
+		Ok(_) => Err(anyhow!("broken test")),
+		Err(_) => Ok(()),
+	}
+}
+
+#[test]
+fn fail_to_type_constant_type_mismatch() -> Result<(), anyhow::Error>
+{
+	let analysis_result =
+		compile("tests/samples/invalid/constant_type_mismatch.pn");
 	match analysis_result
 	{
 		Ok(_) => Err(anyhow!("broken test")),
@@ -50,7 +54,19 @@ fn fail_to_type_return_type_mismatch() -> Result<(), anyhow::Error>
 #[test]
 fn fail_to_type_missing_return() -> Result<(), anyhow::Error>
 {
-	let analysis_result = do_type("tests/samples/invalid/missing_return.pn")?;
+	let analysis_result = compile("tests/samples/invalid/missing_return.pn");
+	match analysis_result
+	{
+		Ok(_) => Err(anyhow!("broken test")),
+		Err(_) => Ok(()),
+	}
+}
+
+#[test]
+fn fail_to_type_mismatched_variable_type() -> Result<(), anyhow::Error>
+{
+	let analysis_result =
+		compile("tests/samples/invalid/mismatched_variable_type.pn");
 	match analysis_result
 	{
 		Ok(_) => Err(anyhow!("broken test")),
@@ -61,8 +77,7 @@ fn fail_to_type_missing_return() -> Result<(), anyhow::Error>
 #[test]
 fn fail_to_type_mismatched_assign() -> Result<(), anyhow::Error>
 {
-	let analysis_result =
-		do_type("tests/samples/invalid/mismatched_assign.pn")?;
+	let analysis_result = compile("tests/samples/invalid/mismatched_assign.pn");
 	match analysis_result
 	{
 		Ok(_) => Err(anyhow!("broken test")),
@@ -74,7 +89,7 @@ fn fail_to_type_mismatched_assign() -> Result<(), anyhow::Error>
 fn fail_to_type_mismatched_array_elements() -> Result<(), anyhow::Error>
 {
 	let analysis_result =
-		do_type("tests/samples/invalid/mismatched_array_elements.pn")?;
+		compile("tests/samples/invalid/mismatched_array_elements.pn");
 	match analysis_result
 	{
 		Ok(_) => Err(anyhow!("broken test")),
@@ -86,7 +101,7 @@ fn fail_to_type_mismatched_array_elements() -> Result<(), anyhow::Error>
 fn fail_to_type_mismatched_array_type() -> Result<(), anyhow::Error>
 {
 	let analysis_result =
-		do_type("tests/samples/invalid/mismatched_array_type.pn")?;
+		compile("tests/samples/invalid/mismatched_array_type.pn");
 	match analysis_result
 	{
 		Ok(_) => Err(anyhow!("broken test")),
@@ -97,7 +112,18 @@ fn fail_to_type_mismatched_array_type() -> Result<(), anyhow::Error>
 #[test]
 fn fail_to_type_length_of_int() -> Result<(), anyhow::Error>
 {
-	let analysis_result = do_type("tests/samples/invalid/length_of_int.pn")?;
+	let analysis_result = compile("tests/samples/invalid/length_of_int.pn");
+	match analysis_result
+	{
+		Ok(_) => Err(anyhow!("broken test")),
+		Err(_) => Ok(()),
+	}
+}
+
+#[test]
+fn fail_to_type_index_into_int() -> Result<(), anyhow::Error>
+{
+	let analysis_result = compile("tests/samples/invalid/index_into_int.pn");
 	match analysis_result
 	{
 		Ok(_) => Err(anyhow!("broken test")),

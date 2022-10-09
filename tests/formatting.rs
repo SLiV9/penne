@@ -16,7 +16,7 @@ fn rebuild_goto_end() -> Result<(), anyhow::Error>
 	let filename = "examples/goto_end.pn";
 	let source = std::fs::read_to_string(&filename)?;
 	let tokens = lexer::lex(&source, filename);
-	let declarations = parser::parse(tokens)?;
+	let declarations = parser::parse(tokens);
 	let indentation = rebuilder::Indentation {
 		value: "\t",
 		amount: 0,

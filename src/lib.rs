@@ -17,3 +17,20 @@ pub mod resolver;
 pub mod scoper;
 pub mod typer;
 pub mod value_type;
+
+pub use error::Error;
+pub use error::Errors;
+pub use resolved::Declaration;
+
+pub fn compile_source(
+	source: &str,
+	filename: &str,
+) -> Result<Vec<Declaration>, Errors>
+{
+	let tokens = lexer::lex(source, filename);
+	let declarations = parser::parse(tokens);
+	let declarations = scoper::analyze(declarations);
+	let declarations = typer::analyze(declarations);
+	let declarations = analyzer::analyze(declarations);
+	resolver::resolve(declarations)
+}

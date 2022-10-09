@@ -6,7 +6,7 @@
 
 use crate::common::*;
 
-use ariadne::{Color, Fmt, Report, ReportKind};
+use ariadne::{Fmt, Report, ReportKind};
 
 pub fn lint(program: &Vec<Declaration>) -> Vec<Lint>
 {
@@ -41,10 +41,9 @@ impl Lint
 {
 	pub fn report(&self) -> Report<(String, std::ops::Range<usize>)>
 	{
-		let mut colors = ariadne::ColorGenerator::new();
-		let a = colors.next();
-		let b = colors.next();
-		let c = colors.next();
+		let a = ariadne::Color::Yellow;
+		let b = ariadne::Color::Cyan;
+		let c = ariadne::Color::Magenta;
 
 		match self
 		{
@@ -54,11 +53,10 @@ impl Lint
 				location_of_block,
 			} => Report::build(
 				ReportKind::Warning,
-				&location_of_condition.source_filename,
-				location_of_condition.source_offset,
+				&location_of_loop.source_filename,
+				location_of_loop.span.start,
 			)
-			.with_code(1020)
-			.with_message("Conditional Loop")
+			.with_message("Conditional infinite loop")
 			.with_label(
 				location_of_loop
 					.label()
@@ -86,13 +84,13 @@ impl Lint
 				"`goto`".fg(a)
 			))
 			.finish(),
+
 			Lint::UnreachableCode { location } => Report::build(
 				ReportKind::Advice,
 				&location.source_filename,
-				location.source_offset,
+				location.span.start,
 			)
-			.with_code(1010)
-			.with_message("Unreachable Code")
+			.with_message("Unreachable code")
 			.with_label(
 				location
 					.label()
@@ -142,10 +140,17 @@ impl Lintable for Declaration
 			Declaration::Function {
 				name: _,
 				parameters: _,
-				body,
+				body: Ok(body),
 				return_type: _,
 				flags: _,
 			} => body.lint(linter),
+			Declaration::Function {
+				name: _,
+				parameters: _,
+				body: Err(_poison),
+				return_type: _,
+				flags: _,
+			} => (),
 			Declaration::FunctionHead {
 				name: _,
 				parameters: _,
@@ -153,6 +158,7 @@ impl Lintable for Declaration
 				flags: _,
 			} => (),
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Poison(_) => (),
 		}
 	}
 }
@@ -249,6 +255,7 @@ impl Lintable for Statement
 				linter.is_naked_branch = None;
 			}
 			Statement::Block(block) => block.lint(linter),
+			Statement::Poison(_) => (),
 		}
 	}
 }

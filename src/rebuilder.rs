@@ -59,6 +59,91 @@ trait Rebuildable
 	) -> Result<String, anyhow::Error>;
 }
 
+impl<T> Rebuildable for Box<T>
+where
+	T: Rebuildable,
+{
+	fn rebuild(
+		&self,
+		indentation: &Indentation,
+	) -> Result<String, anyhow::Error>
+	{
+		self.as_ref().rebuild(indentation)
+	}
+}
+
+impl<T> Rebuildable for Poisonable<T>
+where
+	T: Rebuildable,
+{
+	fn rebuild(
+		&self,
+		indentation: &Indentation,
+	) -> Result<String, anyhow::Error>
+	{
+		match self
+		{
+			Ok(x) => x.rebuild(indentation),
+			Err(y) => y.rebuild(indentation),
+		}
+	}
+}
+
+impl<T> Rebuildable for Result<T, Poison<()>>
+where
+	T: Rebuildable,
+{
+	fn rebuild(
+		&self,
+		indentation: &Indentation,
+	) -> Result<String, anyhow::Error>
+	{
+		match self
+		{
+			Ok(x) => x.rebuild(indentation),
+			Err(y) => y.rebuild(indentation),
+		}
+	}
+}
+
+impl<T> Rebuildable for Poison<T>
+where
+	T: Rebuildable,
+{
+	fn rebuild(
+		&self,
+		indentation: &Indentation,
+	) -> Result<String, anyhow::Error>
+	{
+		match self
+		{
+			Poison::Error {
+				error: _,
+				partial: Some(x),
+			} => x.rebuild(indentation),
+			Poison::Error {
+				error: _,
+				partial: None,
+			} => Ok("☠ERROR☠".to_string()),
+			Poison::Poisoned => Ok("☠POISONED☠".to_string()),
+		}
+	}
+}
+
+impl Rebuildable for Poison<()>
+{
+	fn rebuild(
+		&self,
+		_indentation: &Indentation,
+	) -> Result<String, anyhow::Error>
+	{
+		match self
+		{
+			Poison::Error { .. } => Ok("☠ERROR☠".to_string()),
+			Poison::Poisoned => Ok("☠POISONED☠".to_string()),
+		}
+	}
+}
 impl Rebuildable for Declaration
 {
 	fn rebuild(
@@ -192,6 +277,7 @@ impl Rebuildable for Declaration
 				Ok(buffer)
 			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Poison(poison) => poison.rebuild(indentation),
 		}
 	}
 }
@@ -203,15 +289,13 @@ impl Rebuildable for Parameter
 		indentation: &Indentation,
 	) -> Result<String, anyhow::Error>
 	{
-		let mut buffer = identify(&self.name);
-		if let Some(value_type) = &self.value_type
-		{
-			write!(
-				&mut buffer,
-				": {}",
-				value_type.rebuild(&indentation.increased())?
-			)?;
-		}
+		let mut buffer = String::new();
+		write!(
+			&mut buffer,
+			"{}: {}",
+			self.name.rebuild(&indentation)?,
+			self.value_type.rebuild(&indentation.increased())?
+		)?;
 		Ok(buffer)
 	}
 }
@@ -392,6 +476,7 @@ impl Rebuildable for Statement
 				then_branch.rebuild(&indentation.increased())?,
 			)),
 			Statement::Block(block) => block.rebuild(indentation),
+			Statement::Poison(poison) => poison.rebuild(indentation),
 		}
 	}
 }
@@ -490,12 +575,12 @@ impl Rebuildable for Expression
 				location: _,
 			} => match value_type
 			{
-				None | Some(ValueType::String) =>
+				Some(Ok(ValueType::String)) | None =>
 				{
 					let value = String::from_utf8_lossy(&bytes).to_string();
 					Ok(format!("\"{}\"", value.escape_default()))
 				}
-				Some(_) =>
+				Some(Ok(_)) | Some(Err(_)) =>
 				{
 					// Escape this bytestring as an ASCII string with \xFF.
 					let escaped_bytes: Vec<u8> = bytes
@@ -572,6 +657,7 @@ impl Rebuildable for Expression
 				write!(&mut buffer, ")")?;
 				Ok(buffer)
 			}
+			Expression::Poison(poison) => poison.rebuild(indentation),
 		}
 	}
 }
@@ -665,7 +751,7 @@ impl Rebuildable for Reference
 		{
 			write!(&mut buffer, "&")?;
 		}
-		write!(&mut buffer, "{}", identify(&self.base))?;
+		write!(&mut buffer, "{}", self.base.rebuild(indentation)?)?;
 		for step in self.steps.iter()
 		{
 			match step
@@ -688,6 +774,17 @@ impl Rebuildable for Reference
 			}
 		}
 		Ok(buffer)
+	}
+}
+
+impl Rebuildable for Identifier
+{
+	fn rebuild(
+		&self,
+		_indentation: &Indentation,
+	) -> Result<String, anyhow::Error>
+	{
+		Ok(identify(self))
 	}
 }
 

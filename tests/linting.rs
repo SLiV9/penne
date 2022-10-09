@@ -9,26 +9,34 @@ use penne::lexer;
 use penne::linter;
 use penne::linter::Lint;
 use penne::parser;
+use penne::resolver;
 use penne::scoper;
 use penne::typer;
 
 use anyhow::anyhow;
 
-fn lint(filename: &str) -> Result<Vec<Lint>, anyhow::Error>
+fn lint(filename: &str) -> Vec<Lint>
 {
-	let source = std::fs::read_to_string(filename)?;
+	let source = std::fs::read_to_string(filename).unwrap();
 	let tokens = lexer::lex(&source, filename);
-	let declarations = parser::parse(tokens)?;
-	let declarations = scoper::analyze(declarations)?;
-	let declarations = typer::analyze(declarations)?;
-	analyzer::analyze(&declarations)?;
-	Ok(linter::lint(&declarations))
+	let declarations = parser::parse(tokens);
+	let declarations = scoper::analyze(declarations);
+	let declarations = typer::analyze(declarations);
+	let declarations = analyzer::analyze(declarations);
+	let lints = linter::lint(&declarations);
+	match resolver::resolve(declarations)
+	{
+		Ok(_) => (),
+		#[allow(unreachable_code)]
+		Err(errors) => match errors.panic() {},
+	}
+	lints
 }
 
 #[test]
 fn trigger_lint_for_loop_in_branch() -> Result<(), anyhow::Error>
 {
-	let analysis_result = lint("examples/loop_in_branch.pn")?;
+	let analysis_result = lint("examples/loop_in_branch.pn");
 	let mut lints = analysis_result.iter();
 	match lints.next()
 	{
@@ -46,7 +54,7 @@ fn trigger_lint_for_loop_in_branch() -> Result<(), anyhow::Error>
 #[test]
 fn trigger_multiple_lints() -> Result<(), anyhow::Error>
 {
-	let analysis_result = lint("tests/samples/valid/multiple_lints.pn")?;
+	let analysis_result = lint("tests/samples/valid/multiple_lints.pn");
 	let mut lints = analysis_result.iter();
 	match lints.next()
 	{

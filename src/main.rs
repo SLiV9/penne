@@ -6,7 +6,6 @@
 
 use penne::analyzer;
 use penne::common::Declaration;
-use penne::common::DeclarationFlag;
 use penne::generator;
 use penne::lexer;
 use penne::linter;
@@ -159,6 +158,10 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 		.set_fg(Some(Color::Red))
 		.set_bold(true)
 		.to_owned();
+	let colorspec_warning = ColorSpec::new()
+		.set_fg(Some(Color::Yellow))
+		.set_bold(true)
+		.to_owned();
 	let colorspec_success =
 		ColorSpec::new().set_fg(Some(Color::Green)).to_owned();
 
@@ -199,7 +202,7 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			stdout.set_color(&colorspec_header)?;
 			writeln!(stdout, "Parsing {}...", filename)?;
 		}
-		let declarations = parser::parse(tokens)?;
+		let declarations = parser::parse(tokens);
 		if verbose
 		{
 			stdout.set_color(&colorspec_dump)?;
@@ -235,7 +238,7 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			stdout.set_color(&colorspec_header)?;
 			writeln!(stdout, "Scoping {}...", filename)?;
 		}
-		let declarations = scoper::analyze(declarations)?;
+		let declarations = scoper::analyze(declarations);
 		if verbose
 		{
 			stdout.set_color(&colorspec_dump)?;
@@ -247,7 +250,7 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			stdout.set_color(&colorspec_header)?;
 			writeln!(stdout, "Typing {}...", filename)?;
 		}
-		let declarations = typer::analyze(declarations)?;
+		let declarations = typer::analyze(declarations);
 		if verbose
 		{
 			stdout.set_color(&colorspec_dump)?;
@@ -272,11 +275,11 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			stdout.set_color(&colorspec_header)?;
 			writeln!(stdout, "Analyzing {}...", filename)?;
 		}
-		analyzer::analyze(&declarations)?;
+		let declarations = analyzer::analyze(declarations);
 		if verbose
 		{
-			stdout.set_color(&colorspec_success)?;
-			writeln!(stdout, "Analysis complete.")?;
+			stdout.set_color(&colorspec_dump)?;
+			writeln!(stdout, "{:?}", declarations)?;
 			writeln!(stdout)?;
 		}
 		let stored_declarations = declarations.clone();
@@ -286,19 +289,19 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			writeln!(stdout, "Linting {}...", filename)?;
 		}
 		let lints = linter::lint(&declarations);
-		if !lints.is_empty()
+		if verbose
 		{
-			for lint in lints
+			if !lints.is_empty()
 			{
-				writeln!(stdout)?;
-				lint.report().eprint(ariadne::sources(sources.clone()))?;
+				stdout.set_color(&colorspec_warning)?;
+				writeln!(stdout, "Linting raised some warnings.")?;
+			// We show them after resolution, if there are no errors.
 			}
-			writeln!(stdout)?;
-		}
-		else if verbose
-		{
-			stdout.set_color(&colorspec_success)?;
-			writeln!(stdout, "Linting complete.")?;
+			else
+			{
+				stdout.set_color(&colorspec_success)?;
+				writeln!(stdout, "Linting complete.")?;
+			}
 			writeln!(stdout)?;
 		}
 		if verbose
@@ -315,12 +318,10 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 				for error in errors.into_iter()
 				{
 					writeln!(stdout)?;
-					writeln!(stdout, "Error: {:?}", error)?;
+					error.report().eprint(ariadne::sources(sources.clone()))?;
 					writeln!(stdout)?;
 				}
-				writeln!(stdout)?;
-				// TODO another way to stop
-				Err(anyhow!("errors during resolution"))?;
+				Err(anyhow!("compilation failed",))?;
 				Vec::new()
 			}
 		};
@@ -328,6 +329,15 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 		{
 			stdout.set_color(&colorspec_dump)?;
 			writeln!(stdout, "{:?}", declarations)?;
+			writeln!(stdout)?;
+		}
+		if !lints.is_empty()
+		{
+			for lint in lints
+			{
+				writeln!(stdout)?;
+				lint.report().eprint(ariadne::sources(sources.clone()))?;
+			}
 			writeln!(stdout)?;
 		}
 		if verbose
@@ -491,64 +501,6 @@ fn is_directive(declaration: &Declaration) -> bool
 	{
 		Declaration::PreprocessorDirective { .. } => true,
 		_ => false,
-	}
-}
-
-fn create_forward_declaration(declaration: &Declaration)
-	-> Option<Declaration>
-{
-	match declaration
-	{
-		Declaration::Constant {
-			name,
-			value,
-			value_type,
-			flags,
-		} =>
-		{
-			if flags.contains(DeclarationFlag::Public)
-			{
-				Some(Declaration::Constant {
-					name: name.clone(),
-					value: value.clone(),
-					value_type: value_type.clone(),
-					flags: *flags,
-				})
-			}
-			else
-			{
-				None
-			}
-		}
-		Declaration::Function {
-			name,
-			parameters,
-			body: _,
-			return_type,
-			flags,
-		}
-		| Declaration::FunctionHead {
-			name,
-			parameters,
-			return_type,
-			flags,
-		} =>
-		{
-			if flags.contains(DeclarationFlag::Public)
-			{
-				Some(Declaration::FunctionHead {
-					name: name.clone(),
-					parameters: parameters.clone(),
-					return_type: return_type.clone(),
-					flags: *flags,
-				})
-			}
-			else
-			{
-				None
-			}
-		}
-		Declaration::PreprocessorDirective { .. } => unreachable!(),
 	}
 }
 

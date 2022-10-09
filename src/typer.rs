@@ -5,34 +5,74 @@
 //
 
 use crate::common::*;
+use crate::error::Error;
 use crate::parser::{MAX_ADDRESS_DEPTH, MAX_REFERENCE_DEPTH};
-
-use anyhow::anyhow;
 
 pub const MAX_AUTODEREF_DEPTH: usize =
 	MAX_REFERENCE_DEPTH + MAX_ADDRESS_DEPTH as usize;
 
-pub fn analyze(
-	program: Vec<Declaration>,
-) -> Result<Vec<Declaration>, anyhow::Error>
+pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 {
 	let mut typer = Typer {
 		symbols: std::collections::HashMap::new(),
 		functions: std::collections::HashMap::new(),
 		contextual_type: None,
 	};
-	for declaration in &program
-	{
-		declare(declaration, &mut typer)?;
-	}
-	program.iter().map(|x| x.analyze(&mut typer)).collect()
+	// Predeclare all functions so that they can reference each other.
+	let declarations: Vec<Declaration> = program
+		.into_iter()
+		.map(|x| predeclare(x, &mut typer))
+		.collect();
+	// After collecting all declarations, analyze the function bodies.
+	declarations
+		.into_iter()
+		.map(|x| x.analyze(&mut typer))
+		.collect()
 }
 
 struct Typer
 {
-	symbols: std::collections::HashMap<u32, (Identifier, ValueType)>,
-	functions: std::collections::HashMap<u32, Vec<Option<ValueType>>>,
-	contextual_type: Option<ValueType>,
+	symbols: std::collections::HashMap<u32, Symbol>,
+	functions: std::collections::HashMap<u32, Function>,
+	contextual_type: Option<Poisonable<ValueType>>,
+}
+
+struct Symbol
+{
+	identifier: Identifier,
+	value_type: Poisonable<ValueType>,
+}
+
+struct Function
+{
+	parameter_types: Vec<Poisonable<ValueType>>,
+}
+
+fn do_update_symbol(
+	symbol: &mut Symbol,
+	new_identifier: &Identifier,
+	vt: ValueType,
+) -> Result<(), Error>
+{
+	match &symbol.value_type
+	{
+		Ok(ot) if ot == &vt => Ok(()),
+		Ok(ot) if ot.can_autoderef_into(&vt) => Ok(()),
+		Ok(ot) if vt.can_autoderef_into(ot) =>
+		{
+			symbol.identifier = new_identifier.clone();
+			symbol.value_type = Ok(vt);
+			Ok(())
+		}
+		Ok(ot) => Err(Error::ConflictingTypes {
+			name: new_identifier.name.clone(),
+			current_type: vt,
+			previous_type: ot.clone(),
+			location: new_identifier.location.clone(),
+			previous: symbol.identifier.location.clone(),
+		}),
+		Err(_poison) => Ok(()),
+	}
 }
 
 impl Typer
@@ -40,65 +80,114 @@ impl Typer
 	fn put_symbol(
 		&mut self,
 		identifier: &Identifier,
-		value_type: Option<ValueType>,
-	) -> Result<(), anyhow::Error>
+		value_type: Option<Poisonable<ValueType>>,
+	) -> Result<(), Error>
 	{
-		if let Some(vt) = &value_type
+		match value_type
 		{
-			match self.symbols.get_mut(&identifier.resolution_id)
+			Some(Ok(vt)) =>
 			{
-				Some((_, ot)) if ot == vt => Ok(()),
-				Some((_, ot)) if ot.can_autoderef_into(vt) => Ok(()),
-				Some((storedid, storedtype))
-					if vt.can_autoderef_into(&storedtype) =>
+				if let Some(symbol) =
+					self.symbols.get_mut(&identifier.resolution_id)
 				{
-					*storedid = identifier.clone();
-					*storedtype = vt.clone();
-					Ok(())
+					do_update_symbol(symbol, identifier, vt)
 				}
-				Some((old_identifier, old_type)) => Err(anyhow!(
-					"first occurrence {}",
-					old_identifier.location.format()
-				)
-				.context(identifier.location.format())
-				.context(format!(
-					"conflicting types for '{}', first {:?} and now {:?}",
-					identifier.name, old_type, vt
-				))),
-				None =>
+				else
 				{
 					self.symbols.insert(
 						identifier.resolution_id,
-						(identifier.clone(), vt.clone()),
+						Symbol {
+							identifier: identifier.clone(),
+							value_type: Ok(vt.clone()),
+						},
 					);
 					Ok(())
 				}
 			}
-		}
-		else
-		{
-			Ok(())
+			Some(Err(poison)) =>
+			{
+				if let Some(symbol) =
+					self.symbols.get_mut(&identifier.resolution_id)
+				{
+					symbol.value_type = Err(poison);
+					Ok(())
+				}
+				else
+				{
+					self.symbols.insert(
+						identifier.resolution_id,
+						Symbol {
+							identifier: identifier.clone(),
+							value_type: Err(poison),
+						},
+					);
+					Ok(())
+				}
+			}
+			None => Ok(()),
 		}
 	}
 
-	fn get_symbol(&self, name: &Identifier) -> Option<ValueType>
+	fn get_symbol(&self, name: &Identifier) -> Option<Poisonable<ValueType>>
 	{
 		match self.symbols.get(&name.resolution_id)
 		{
-			Some((_, vt)) => Some(vt.clone()),
+			Some(symbol) => match &symbol.value_type
+			{
+				Ok(vt) => Some(Ok(vt.clone())),
+				Err(_poison) => Some(Err(Poison::Poisoned)),
+			},
 			None => None,
+		}
+	}
+
+	fn get_symbol_back(
+		&self,
+		name: &Identifier,
+	) -> Option<Poisonable<ValueType>>
+	{
+		match self.symbols.get(&name.resolution_id)
+		{
+			Some(symbol) => Some(symbol.value_type.clone()),
+			None => None,
+		}
+	}
+
+	fn get_type_of_base(
+		&self,
+		base: &Poisonable<Identifier>,
+	) -> Option<Poisonable<ValueType>>
+	{
+		match base
+		{
+			Ok(base) => self.get_symbol(&base),
+			Err(_poison) => Some(Err(Poison::Poisoned)),
 		}
 	}
 
 	fn get_type_of_reference(
 		&self,
 		reference: &Reference,
-	) -> Result<Option<ValueType>, anyhow::Error>
+	) -> Option<Poisonable<ValueType>>
 	{
-		if let Some((old_identifier, base_type)) =
-			self.symbols.get(&reference.base.resolution_id)
+		let resolution_id = match &reference.base
 		{
-			let mut x = base_type.fully_dereferenced();
+			Ok(base) => base.resolution_id,
+			Err(_poison) => return Some(Err(Poison::Poisoned)),
+		};
+
+		if let Some(symbol) = self.symbols.get(&resolution_id)
+		{
+			let Symbol {
+				identifier: old_identifier,
+				value_type: base_type,
+			} = symbol;
+			let mut x = match base_type
+			{
+				Ok(base_type) => base_type.fully_dereferenced(),
+				Err(_poison) => return Some(Err(Poison::Poisoned)),
+			};
+			let mut num_steps_taken = 0;
 			for step in reference.steps.iter()
 			{
 				match step
@@ -113,15 +202,19 @@ impl Typer
 							}
 							None =>
 							{
-								return Err(anyhow!(
-									"first occurrence {}",
-									old_identifier.location.format()
-								)
-								.context(reference.location.format())
-								.context(format!(
-									"conflicting types for '{}'",
-									reference.base.name,
-								)));
+								// TODO use num_step_taken to cut off reference
+								let _ = num_steps_taken;
+								let location = reference.location.clone();
+								return Some(Err(Poison::Error {
+									error: Error::NotAnArray {
+										current_type: x,
+										location,
+										previous: old_identifier
+											.location
+											.clone(),
+									},
+									partial: None,
+								}));
 							}
 						}
 					}
@@ -130,6 +223,7 @@ impl Typer
 					ReferenceStep::Autoderef => (),
 					ReferenceStep::Autoview => (),
 				}
+				num_steps_taken += 1;
 			}
 			for _i in 0..reference.address_depth
 			{
@@ -137,11 +231,11 @@ impl Typer
 					deref_type: Box::new(x),
 				};
 			}
-			Ok(Some(x))
+			Some(Ok(x))
 		}
 		else
 		{
-			Ok(None)
+			None
 		}
 	}
 
@@ -151,31 +245,32 @@ impl Typer
 		parameters: &[Parameter],
 	)
 	{
-		let parameter_types: Vec<Option<ValueType>> =
+		let parameter_types: Vec<Poisonable<ValueType>> =
 			parameters.iter().map(|p| p.value_type.clone()).collect();
-		self.functions
-			.insert(identifier.resolution_id, parameter_types);
+		let function = Function { parameter_types };
+		self.functions.insert(identifier.resolution_id, function);
 	}
 
 	fn analyze_function_arguments(
 		&mut self,
 		identifier: &Identifier,
-		arguments: &[Expression],
-	) -> Result<Vec<Expression>, anyhow::Error>
+		arguments: Vec<Expression>,
+	) -> Vec<Expression>
 	{
-		let parameter_types: Vec<Option<ValueType>> =
+		let parameter_types: Vec<Poisonable<ValueType>> =
 			match self.functions.get(&identifier.resolution_id)
 			{
-				Some(parameter_types) => parameter_types.clone(),
+				Some(function) => function.parameter_types.clone(),
 				None => Vec::new(),
 			};
-		let parameter_hints =
-			parameter_types.into_iter().chain(std::iter::repeat(None));
-		let arguments: Result<Vec<Expression>, anyhow::Error> = arguments
-			.iter()
+		let parameter_hints = parameter_types
+			.into_iter()
+			.chain(std::iter::repeat(Err(Poison::Poisoned)));
+		let arguments: Vec<Expression> = arguments
+			.into_iter()
 			.zip(parameter_hints)
 			.map(|(a, p)| {
-				self.contextual_type = p.clone();
+				self.contextual_type = Some(p.clone());
 				a.analyze(self)
 			})
 			.collect();
@@ -185,7 +280,7 @@ impl Typer
 
 pub trait Typed
 {
-	fn value_type(&self) -> Option<ValueType>;
+	fn value_type(&self) -> Option<Poisonable<ValueType>>;
 }
 
 pub trait StaticallyTyped
@@ -195,9 +290,9 @@ pub trait StaticallyTyped
 
 impl Typed for PrimitiveLiteral
 {
-	fn value_type(&self) -> Option<ValueType>
+	fn value_type(&self) -> Option<Poisonable<ValueType>>
 	{
-		Some(self.static_value_type())
+		Some(Ok(self.static_value_type()))
 	}
 }
 
@@ -223,61 +318,134 @@ impl StaticallyTyped for PrimitiveLiteral
 	}
 }
 
-fn declare(
-	declaration: &Declaration,
-	typer: &mut Typer,
-) -> Result<(), anyhow::Error>
+fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 {
 	match declaration
 	{
 		Declaration::Constant {
 			name,
-			value: _,
+			value,
 			value_type,
-			flags: _,
-		} =>
+			flags,
+		} => match typer.put_symbol(&name, Some(value_type.clone()))
 		{
-			typer.put_symbol(name, Some(value_type.clone()))?;
-			Ok(())
-		}
+			Ok(()) => Declaration::Constant {
+				name,
+				value,
+				value_type,
+				flags,
+			},
+			Err(error) => Declaration::Poison(Poison::Error {
+				error,
+				partial: Some(Box::new(Declaration::Constant {
+					name,
+					value,
+					value_type,
+					flags,
+				})),
+			}),
+		},
 		Declaration::Function {
 			name,
 			parameters,
-			body: _,
+			body,
 			return_type,
-			flags: _,
+			flags,
+		} =>
+		{
+			let parameters: Vec<Parameter> = parameters
+				.into_iter()
+				.map(|x| x.clone().analyze(typer))
+				.collect();
+
+			typer.declare_function_parameters(&name, &parameters);
+
+			let rv_identifier = name.return_value();
+			let rv_type = return_type.clone().map(|x| Ok(x));
+			match typer.put_symbol(&rv_identifier, rv_type)
+			{
+				Ok(()) => Declaration::Function {
+					name,
+					parameters,
+					body,
+					return_type,
+					flags,
+				},
+				Err(error) => Declaration::Poison(Poison::Error {
+					error,
+					partial: Some(Box::new(Declaration::Function {
+						name,
+						parameters,
+						body,
+						return_type,
+						flags,
+					})),
+				}),
+			}
 		}
-		| Declaration::FunctionHead {
+		Declaration::FunctionHead {
 			name,
 			parameters,
 			return_type,
-			flags: _,
+			flags,
 		} =>
 		{
-			let rt_identifier = name.clone().return_value();
-			typer.put_symbol(&rt_identifier, return_type.clone())?;
+			let parameters: Vec<Parameter> = parameters
+				.into_iter()
+				.map(|x| x.clone().analyze(typer))
+				.collect();
 
-			let parameters: Result<Vec<Parameter>, anyhow::Error> =
-				parameters.iter().map(|x| x.analyze(typer)).collect();
-			let parameters = parameters?;
+			typer.declare_function_parameters(&name, &parameters);
 
-			typer.declare_function_parameters(name, &parameters);
-			Ok(())
+			let rv_identifier = name.return_value();
+			let rv_type = return_type.clone().map(|x| Ok(x));
+			match typer.put_symbol(&rv_identifier, rv_type)
+			{
+				Ok(()) => Declaration::FunctionHead {
+					name,
+					parameters,
+					return_type,
+					flags,
+				},
+				Err(error) => Declaration::Poison(Poison::Error {
+					error,
+					partial: Some(Box::new(Declaration::FunctionHead {
+						name,
+						parameters,
+						return_type,
+						flags,
+					})),
+				}),
+			}
 		}
 		Declaration::PreprocessorDirective { .. } => unreachable!(),
+		Declaration::Poison(Poison::Error {
+			error,
+			partial: Some(declaration),
+		}) =>
+		{
+			let declaration = predeclare(*declaration, typer);
+			Declaration::Poison(Poison::Error {
+				error,
+				partial: Some(Box::new(declaration)),
+			})
+		}
+		Declaration::Poison(Poison::Error {
+			error: _,
+			partial: None,
+		}) => declaration,
+		Declaration::Poison(Poison::Poisoned) => declaration,
 	}
 }
 
 trait Analyzable
 {
-	type Item;
-
-	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>;
+	fn analyze(self, typer: &mut Typer) -> Self;
 }
 
 impl Typed for Declaration
 {
-	fn value_type(&self) -> Option<ValueType>
+	fn value_type(&self) -> Option<Poisonable<ValueType>>
 	{
 		match self
 		{
@@ -285,21 +453,20 @@ impl Typed for Declaration
 			{
 				Some(value_type.clone())
 			}
-			Declaration::Function { return_type, .. } => return_type.clone(),
-			Declaration::FunctionHead { return_type, .. } =>
+			Declaration::Function { return_type, .. }
+			| Declaration::FunctionHead { return_type, .. } =>
 			{
-				return_type.clone()
+				return_type.clone().map(|x| Ok(x))
 			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Poison(_) => Some(Err(Poison::Poisoned)),
 		}
 	}
 }
 
 impl Analyzable for Declaration
 {
-	type Item = Declaration;
-
-	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
+	fn analyze(self, typer: &mut Typer) -> Self
 	{
 		match self
 		{
@@ -311,80 +478,90 @@ impl Analyzable for Declaration
 			} =>
 			{
 				typer.contextual_type = Some(value_type.clone());
-				let value = value.analyze(typer)?;
-				let declaration = Declaration::Constant {
-					name: name.clone(),
-					value,
-					value_type: value_type.clone(),
-					flags: *flags,
+				let value = value.analyze(typer);
+				let recoverable_error =
+					typer.put_symbol(&name, value.value_type());
+				let value_type = match recoverable_error
+				{
+					Ok(()) => value_type,
+					Err(error) => Err(error.into()),
 				};
-				Ok(declaration)
+				Declaration::Constant {
+					name,
+					value,
+					value_type,
+					flags,
+				}
 			}
 			Declaration::Function {
 				name,
 				parameters,
-				body,
+				body: Err(poisoned_body),
 				return_type,
 				flags,
 			} =>
 			{
-				if body.return_value.is_none() && return_type.is_some()
-				{
-					return Err(anyhow!("missing return value")
-						.context(name.location.format())
-						.context(format!(
-							"missing return value for '{}'",
-							name.name
-						)));
-				}
+				let parameters: Vec<Parameter> =
+					parameters.into_iter().map(|x| x.analyze(typer)).collect();
 
-				let parameters: Result<Vec<Parameter>, anyhow::Error> =
-					parameters.iter().map(|x| x.analyze(typer)).collect();
-				let parameters = parameters?;
+				Declaration::Function {
+					name,
+					parameters,
+					body: Err(poisoned_body),
+					return_type,
+					flags,
+				}
+			}
+			Declaration::Function {
+				name,
+				parameters,
+				body: Ok(body),
+				return_type,
+				flags,
+			} =>
+			{
+				let parameters: Vec<Parameter> =
+					parameters.into_iter().map(|x| x.analyze(typer)).collect();
 
 				// Pre-analyze the function body because it might contain
 				// untyped declarations, e.g. "var x;", whose types won't be
 				// determined in the first pass.
-				typer.contextual_type = return_type.clone();
-				let prebody: FunctionBody = body.analyze(typer)?;
+				typer.contextual_type = return_type.clone().map(|x| Ok(x));
+				let prebody: FunctionBody = body.clone().analyze(typer);
 				// Pre-analyze the statements in reverse, because there might
 				// be chains of untyped declarations, e.g.
 				//   var x = 1;
 				//   var y = x;
 				// whose types won't be determined in the forward pass.
-				typer.contextual_type = return_type.clone();
-				for statement in prebody.statements.iter().rev()
+				typer.contextual_type = return_type.clone().map(|x| Ok(x));
+				for statement in prebody.statements.into_iter().rev()
 				{
-					let _unused: Statement = statement.analyze(typer)?;
-				}
-				let _unused = prebody;
-
-				typer.contextual_type = return_type.clone();
-				let body = body.analyze(typer)?;
-				let return_type = body.value_type();
-
-				if body.return_value.is_some() && return_type.is_none()
-				{
-					return Err(anyhow!("failed to infer type")
-						.context(name.location.format())
-						.context(format!(
-							"failed to infer return type for '{}'",
-							name.name
-						)));
+					let _unused: Statement = statement.analyze(typer);
 				}
 
-				let rt_identifier =
-					body.return_value_identifier.clone().return_value();
-				typer.put_symbol(&rt_identifier, return_type.clone())?;
+				typer.contextual_type = return_type.clone().map(|x| Ok(x));
+				let body = body.analyze(typer);
 
-				let function = Declaration::Function {
-					name: name.clone(),
-					parameters,
-					body,
-					return_type,
-					flags: *flags,
-				};
-				Ok(function)
+				match analyze_return_value(&name, &return_type, &body, typer)
+				{
+					Ok(()) => Declaration::Function {
+						name,
+						parameters,
+						body: Ok(body),
+						return_type,
+						flags,
+					},
+					Err(error) => Declaration::Poison(Poison::Error {
+						error,
+						partial: Some(Box::new(Declaration::Function {
+							name,
+							parameters,
+							body: Ok(body),
+							return_type,
+							flags,
+						})),
+					}),
+				}
 			}
 			Declaration::FunctionHead {
 				name,
@@ -393,41 +570,119 @@ impl Analyzable for Declaration
 				flags,
 			} =>
 			{
-				let parameters: Result<Vec<Parameter>, anyhow::Error> =
-					parameters.iter().map(|x| x.analyze(typer)).collect();
-				let parameters = parameters?;
+				let parameters: Vec<Parameter> =
+					parameters.into_iter().map(|x| x.analyze(typer)).collect();
 
-				let function = Declaration::FunctionHead {
-					name: name.clone(),
+				Declaration::FunctionHead {
+					name,
 					parameters,
-					return_type: return_type.clone(),
-					flags: *flags,
-				};
-				Ok(function)
+					return_type,
+					flags,
+				}
 			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Poison(Poison::Error {
+				error,
+				partial: Some(declaration),
+			}) =>
+			{
+				let declaration = declaration.analyze(typer);
+				Declaration::Poison(Poison::Error {
+					error,
+					partial: Some(Box::new(declaration)),
+				})
+			}
+			Declaration::Poison(Poison::Error {
+				error: _,
+				partial: None,
+			}) => self,
+			Declaration::Poison(Poison::Poisoned) => self,
 		}
+	}
+}
+
+fn analyze_return_value(
+	function: &Identifier,
+	return_type: &Option<ValueType>,
+	body: &FunctionBody,
+	typer: &mut Typer,
+) -> Result<(), Error>
+{
+	match (return_type, &body.return_value, body.value_type())
+	{
+		(_, _, Some(Err(_poison))) =>
+		{
+			// This error will already be thrown by the body.
+			Ok(())
+		}
+		(Some(_), Some(_), Some(Ok(vt))) =>
+		{
+			let rv_identifier = function.return_value();
+			typer.put_symbol(&rv_identifier, Some(Ok(vt)))
+		}
+		(Some(rt), Some(_), None) => Err(Error::AmbiguousReturnValue {
+			declared_type: rt.clone(),
+			location_of_return_value: body
+				.return_value_identifier
+				.location
+				.clone(),
+			location_of_declaration: function.location.clone(),
+		}),
+		(Some(rt), None, _) => Err(Error::MissingReturnValue {
+			declared_type: rt.clone(),
+			location: body.return_value_identifier.location.clone(),
+			location_of_declaration: function.location.clone(),
+		}),
+		(None, Some(_), Some(Ok(rvt))) => Err(Error::MissingReturnType {
+			inferred_type: rvt.clone(),
+			location_of_return_value: body
+				.return_value_identifier
+				.location
+				.clone(),
+			location_of_declaration: function.location.clone(),
+		}),
+		(None, Some(_), None) => Err(Error::MissingAmbiguousReturnType {
+			location_of_return_value: body
+				.return_value_identifier
+				.location
+				.clone(),
+			location_of_declaration: function.location.clone(),
+		}),
+		(None, None, Some(Ok(_))) => unreachable!(),
+		(None, None, None) => Ok(()),
 	}
 }
 
 impl Analyzable for Parameter
 {
-	type Item = Parameter;
-
-	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
+	fn analyze(self, typer: &mut Typer) -> Self
 	{
-		typer.put_symbol(&self.name, self.value_type.clone())?;
-		let value_type = typer.get_symbol(&self.name);
-		Ok(Parameter {
-			name: self.name.clone(),
+		let value_type = match &self.name
+		{
+			Ok(name) =>
+			{
+				match typer.put_symbol(name, Some(self.value_type.clone()))
+				{
+					Ok(()) =>
+					{
+						let value_type = typer.get_symbol_back(name);
+						value_type.unwrap_or(self.value_type)
+					}
+					Err(error) => Err(error.into()),
+				}
+			}
+			Err(_poison) => self.value_type,
+		};
+		Parameter {
+			name: self.name,
 			value_type,
-		})
+		}
 	}
 }
 
 impl Typed for FunctionBody
 {
-	fn value_type(&self) -> Option<ValueType>
+	fn value_type(&self) -> Option<Poisonable<ValueType>>
 	{
 		match &self.return_value
 		{
@@ -439,55 +694,53 @@ impl Typed for FunctionBody
 
 impl Analyzable for FunctionBody
 {
-	type Item = FunctionBody;
-
-	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
+	fn analyze(self, typer: &mut Typer) -> Self
 	{
 		let contextual_return_type = typer.contextual_type.take();
-		let statements: Result<Vec<Statement>, anyhow::Error> =
-			self.statements.iter().map(|x| x.analyze(typer)).collect();
-		let statements = statements?;
-		let return_value = match &self.return_value
+		let statements: Vec<Statement> = self
+			.statements
+			.into_iter()
+			.map(|x| x.analyze(typer))
+			.collect();
+		let return_value = match self.return_value
 		{
 			Some(value) =>
 			{
 				typer.contextual_type = contextual_return_type;
-				let value = value.analyze(typer)?;
+				let value = value.analyze(typer);
 				typer.contextual_type = None;
 				Some(value)
 			}
 			None => None,
 		};
-		Ok(FunctionBody {
+		FunctionBody {
 			statements,
 			return_value,
-			return_value_identifier: self.return_value_identifier.clone(),
-		})
+			return_value_identifier: self.return_value_identifier,
+		}
 	}
 }
 
 impl Analyzable for Block
 {
-	type Item = Block;
-
-	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
+	fn analyze(self, typer: &mut Typer) -> Self
 	{
 		typer.contextual_type = None;
-		let statements: Result<Vec<Statement>, anyhow::Error> =
-			self.statements.iter().map(|x| x.analyze(typer)).collect();
-		let statements = statements?;
-		Ok(Block {
+		let statements: Vec<Statement> = self
+			.statements
+			.into_iter()
+			.map(|x| x.analyze(typer))
+			.collect();
+		Block {
 			statements,
-			location: self.location.clone(),
-		})
+			location: self.location,
+		}
 	}
 }
 
 impl Analyzable for Statement
 {
-	type Item = Statement;
-
-	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
+	fn analyze(self, typer: &mut Typer) -> Self
 	{
 		typer.contextual_type = None;
 		match self
@@ -499,33 +752,49 @@ impl Analyzable for Statement
 				location,
 			} =>
 			{
-				typer.put_symbol(name, Some(declared_type.clone()))?;
+				let recoverable_error =
+					typer.put_symbol(&name, Some(declared_type.clone()));
+				let declared_type =
+					typer.get_symbol_back(&name).unwrap_or(declared_type);
 				typer.contextual_type = Some(declared_type.clone());
-				let value = value.analyze(typer)?;
+				let value = value.analyze(typer);
 				typer.contextual_type = None;
-				let value_type = if let Some(inferred_type) = value.value_type()
+				let value_type = if let Err(error) = recoverable_error
 				{
-					typer.put_symbol(name, Some(inferred_type.clone()))?;
-					if inferred_type.can_be_declared_as(declared_type)
+					Some(Err(error.into()))
+				}
+				else if let Some(inferred_type) = value.value_type()
+				{
+					let result =
+						typer.put_symbol(&name, Some(inferred_type.clone()));
+					match (result, inferred_type, declared_type)
 					{
-						Some(inferred_type)
-					}
-					else
-					{
-						Some(declared_type.clone())
+						(Err(error), _, _) => Some(Err(error.into())),
+						(Ok(()), Ok(inferred_type), Ok(declared_type)) =>
+						{
+							if inferred_type.can_be_declared_as(&declared_type)
+							{
+								Some(Ok(inferred_type))
+							}
+							else
+							{
+								Some(Ok(declared_type))
+							}
+						}
+						(Ok(()), _, Err(poison)) => Some(Err(poison)),
+						(Ok(()), Err(poison), Ok(_)) => Some(Err(poison)),
 					}
 				}
 				else
 				{
 					None
 				};
-				let stmt = Statement::Declaration {
-					name: name.clone(),
+				Statement::Declaration {
+					name,
 					value: Some(value),
 					value_type,
-					location: location.clone(),
-				};
-				Ok(stmt)
+					location,
+				}
 			}
 			Statement::Declaration {
 				name,
@@ -534,20 +803,24 @@ impl Analyzable for Statement
 				location,
 			} =>
 			{
-				typer.put_symbol(name, None)?;
-				typer.contextual_type = typer.get_symbol(name);
-				let value = value.analyze(typer)?;
+				typer.contextual_type = typer.get_symbol(&name);
+				let value = value.analyze(typer);
 				typer.contextual_type = None;
 				let value_type = value.value_type();
 				let value_type = infer_for_declaration(value_type);
-				typer.put_symbol(name, value_type.clone())?;
-				let stmt = Statement::Declaration {
-					name: name.clone(),
+				let recoverable_error =
+					typer.put_symbol(&name, value_type.clone());
+				let value_type = match recoverable_error
+				{
+					Ok(()) => value_type,
+					Err(error) => Some(Err(error.into())),
+				};
+				Statement::Declaration {
+					name,
 					value: Some(value),
 					value_type,
-					location: location.clone(),
-				};
-				Ok(stmt)
+					location,
+				}
 			}
 			Statement::Declaration {
 				name,
@@ -556,14 +829,19 @@ impl Analyzable for Statement
 				location,
 			} =>
 			{
-				typer.put_symbol(name, Some(value_type.clone()))?;
-				let stmt = Statement::Declaration {
-					name: name.clone(),
-					value: None,
-					value_type: Some(value_type.clone()),
-					location: location.clone(),
+				let recoverable_error =
+					typer.put_symbol(&name, Some(value_type.clone()));
+				let value_type = match recoverable_error
+				{
+					Ok(()) => Some(value_type),
+					Err(error) => Some(Err(error.into())),
 				};
-				Ok(stmt)
+				Statement::Declaration {
+					name,
+					value: None,
+					value_type,
+					location,
+				}
 			}
 			Statement::Declaration {
 				name,
@@ -572,15 +850,14 @@ impl Analyzable for Statement
 				location,
 			} =>
 			{
-				let value_type = typer.get_symbol(name);
+				let value_type = typer.get_symbol(&name);
 				let value_type = infer_for_declaration(value_type);
-				let stmt = Statement::Declaration {
-					name: name.clone(),
+				Statement::Declaration {
+					name,
 					value: None,
 					value_type,
-					location: location.clone(),
-				};
-				Ok(stmt)
+					location,
+				}
 			}
 			Statement::Assignment {
 				reference,
@@ -588,41 +865,27 @@ impl Analyzable for Statement
 				location,
 			} =>
 			{
-				let ref_type = typer.get_type_of_reference(reference)?;
+				let ref_type = typer.get_type_of_reference(&reference);
 				typer.contextual_type = ref_type;
-				let value = value.analyze(typer)?;
+				let value = value.analyze(typer);
 				typer.contextual_type = None;
 				let value_type = value.value_type();
-				let reference =
-					reference.analyze_assignment(value_type, typer)?;
-				let stmt = Statement::Assignment {
+				let reference = reference.analyze_assignment(value_type, typer);
+				Statement::Assignment {
 					reference,
 					value,
-					location: location.clone(),
-				};
-				Ok(stmt)
+					location,
+				}
 			}
 			Statement::MethodCall { name, arguments } =>
 			{
 				let arguments =
-					typer.analyze_function_arguments(name, arguments)?;
-				let stmt = Statement::MethodCall {
-					name: name.clone(),
-					arguments,
-				};
-				Ok(stmt)
+					typer.analyze_function_arguments(&name, arguments);
+				Statement::MethodCall { name, arguments }
 			}
-			Statement::Loop { location } => Ok(Statement::Loop {
-				location: location.clone(),
-			}),
-			Statement::Goto { label, location } => Ok(Statement::Goto {
-				label: label.clone(),
-				location: location.clone(),
-			}),
-			Statement::Label { label, location } => Ok(Statement::Label {
-				label: label.clone(),
-				location: location.clone(),
-			}),
+			Statement::Loop { .. } => self,
+			Statement::Goto { .. } => self,
+			Statement::Label { .. } => self,
 			Statement::If {
 				condition,
 				then_branch,
@@ -630,94 +893,109 @@ impl Analyzable for Statement
 				location,
 			} =>
 			{
-				let condition = condition.analyze(typer)?;
+				let condition = condition.analyze(typer);
 				let then_branch = {
-					let branch = then_branch.analyze(typer)?;
+					let branch = then_branch.analyze(typer);
 					Box::new(branch)
 				};
 				let else_branch = if let Some(else_branch) = else_branch
 				{
-					let branch = else_branch.branch.analyze(typer)?;
+					let branch = else_branch.branch.analyze(typer);
 					Some(Else {
 						branch: Box::new(branch),
-						location_of_else: else_branch.location_of_else.clone(),
+						location_of_else: else_branch.location_of_else,
 					})
 				}
 				else
 				{
 					None
 				};
-				let stmt = Statement::If {
+				Statement::If {
 					condition,
 					then_branch,
 					else_branch,
-					location: location.clone(),
-				};
-				Ok(stmt)
+					location,
+				}
 			}
 			Statement::Block(block) =>
 			{
-				let block = block.analyze(typer)?;
-				Ok(Statement::Block(block))
+				let block = block.analyze(typer);
+				Statement::Block(block)
 			}
+			Statement::Poison(Poison::Error {
+				error,
+				partial: Some(statement),
+			}) =>
+			{
+				let statement = statement.analyze(typer);
+				Statement::Poison(Poison::Error {
+					error,
+					partial: Some(Box::new(statement)),
+				})
+			}
+			Statement::Poison(Poison::Error {
+				error: _,
+				partial: None,
+			}) => self,
+			Statement::Poison(Poison::Poisoned) => self,
 		}
 	}
 }
 
 impl Analyzable for Comparison
 {
-	type Item = Comparison;
-
-	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
+	fn analyze(self, typer: &mut Typer) -> Self
 	{
 		let contextual_type = typer.contextual_type.take();
 		typer.contextual_type =
 			self.right.value_type().or(contextual_type.clone());
-		let left = self.left.analyze(typer)?;
+		let left = self.left.analyze(typer);
 		typer.contextual_type = left.value_type().or(contextual_type);
-		let right = self.right.analyze(typer)?;
-		let expr = Comparison {
+		let right = self.right.analyze(typer);
+		Comparison {
 			op: self.op,
 			left,
 			right,
-			location: self.location.clone(),
-			location_of_op: self.location_of_op.clone(),
-		};
-		Ok(expr)
+			location: self.location,
+			location_of_op: self.location_of_op,
+		}
 	}
 }
 
 impl Analyzable for Array
 {
-	type Item = Array;
-
-	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
+	fn analyze(self, typer: &mut Typer) -> Self
 	{
 		let name = self.get_identifier();
-		let elements: Result<Vec<Expression>, anyhow::Error> = self
+		let elements: Vec<Expression> = self
 			.elements
-			.iter()
+			.into_iter()
 			.map(|element| {
-				let element = element.analyze(typer)?;
+				let element = element.analyze(typer);
 				let element_type = element.value_type();
 				typer.contextual_type = element_type.clone();
-				typer.put_symbol(&name, element_type)?;
-				Ok(element)
+				match typer.put_symbol(&name, element_type)
+				{
+					Ok(()) => element,
+					Err(error) => Expression::Poison(Poison::Error {
+						error,
+						partial: Some(Box::new(element)),
+					}),
+				}
 			})
 			.collect();
-		let elements = elements?;
 
-		Ok(Array {
+		Array {
 			elements,
-			location: self.location.clone(),
+			location: self.location,
 			resolution_id: self.resolution_id,
-		})
+		}
 	}
 }
 
 impl Typed for Expression
 {
-	fn value_type(&self) -> Option<ValueType>
+	fn value_type(&self) -> Option<Poisonable<ValueType>>
 	{
 		match self
 		{
@@ -740,10 +1018,11 @@ impl Typed for Expression
 				array: Array { elements, .. },
 			} => match element_type
 			{
-				Some(element_type) => Some(ValueType::Array {
+				Some(Ok(element_type)) => Some(Ok(ValueType::Array {
 					element_type: Box::new(element_type.clone()),
 					length: elements.len(),
-				}),
+				})),
+				Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
 				None => None,
 			},
 			Expression::StringLiteral { value_type, .. } => value_type.clone(),
@@ -753,23 +1032,22 @@ impl Typed for Expression
 			} => deref_type.clone(),
 			Expression::Autocoerce { coerced_type, .. } =>
 			{
-				Some(coerced_type.clone())
+				Some(Ok(coerced_type.clone()))
 			}
 			Expression::PrimitiveCast { coerced_type, .. } =>
 			{
-				Some(coerced_type.clone())
+				Some(Ok(coerced_type.clone()))
 			}
-			Expression::LengthOfArray { .. } => Some(ValueType::Usize),
+			Expression::LengthOfArray { .. } => Some(Ok(ValueType::Usize)),
 			Expression::FunctionCall { return_type, .. } => return_type.clone(),
+			Expression::Poison(_) => Some(Err(Poison::Poisoned)),
 		}
 	}
 }
 
 impl Analyzable for Expression
 {
-	type Item = Expression;
-
-	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
+	fn analyze(self, typer: &mut Typer) -> Self
 	{
 		match self
 		{
@@ -784,17 +1062,16 @@ impl Analyzable for Expression
 				let contextual_type = typer.contextual_type.take();
 				typer.contextual_type =
 					right.value_type().or(contextual_type.clone());
-				let left = left.analyze(typer)?;
+				let left = left.analyze(typer);
 				typer.contextual_type = left.value_type().or(contextual_type);
-				let right = right.analyze(typer)?;
-				let expr = Expression::Binary {
-					op: *op,
+				let right = right.analyze(typer);
+				Expression::Binary {
+					op,
 					left: Box::new(left),
 					right: Box::new(right),
-					location: location.clone(),
-					location_of_op: location_of_op.clone(),
-				};
-				Ok(expr)
+					location,
+					location_of_op,
+				}
 			}
 			Expression::Unary {
 				op,
@@ -803,16 +1080,15 @@ impl Analyzable for Expression
 				location_of_op,
 			} =>
 			{
-				let expr = expression.analyze(typer)?;
-				let expr = Expression::Unary {
-					op: *op,
+				let expr = expression.analyze(typer);
+				Expression::Unary {
+					op,
 					expression: Box::new(expr),
-					location: location.clone(),
-					location_of_op: location_of_op.clone(),
-				};
-				Ok(expr)
+					location,
+					location_of_op,
+				}
 			}
-			Expression::PrimitiveLiteral { .. } => Ok(self.clone()),
+			Expression::PrimitiveLiteral { .. } => self,
 			Expression::NakedIntegerLiteral {
 				value,
 				value_type,
@@ -821,18 +1097,19 @@ impl Analyzable for Expression
 			{
 				let value_type = match value_type
 				{
-					Some(vt) => Some(vt.clone()),
+					Some(Ok(vt)) => Some(Ok(vt.clone())),
+					Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
 					None =>
 					{
 						let contextual_type = typer.contextual_type.take();
 						filter_for_naked_integer(contextual_type)
 					}
 				};
-				Ok(Expression::NakedIntegerLiteral {
-					value: *value,
+				Expression::NakedIntegerLiteral {
+					value,
 					value_type,
-					location: location.clone(),
-				})
+					location,
+				}
 			}
 			Expression::BitIntegerLiteral {
 				value,
@@ -842,18 +1119,19 @@ impl Analyzable for Expression
 			{
 				let value_type = match value_type
 				{
-					Some(vt) => Some(vt.clone()),
+					Some(Ok(vt)) => Some(Ok(vt.clone())),
+					Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
 					None =>
 					{
 						let contextual_type = typer.contextual_type.take();
 						filter_for_bit_integer(contextual_type)
 					}
 				};
-				Ok(Expression::BitIntegerLiteral {
-					value: *value,
+				Expression::BitIntegerLiteral {
+					value,
 					value_type,
-					location: location.clone(),
-				})
+					location,
+				}
 			}
 			Expression::ArrayLiteral {
 				array,
@@ -861,50 +1139,73 @@ impl Analyzable for Expression
 			} =>
 			{
 				let name = array.get_identifier();
-				if element_type.is_some()
+				let put_result = if element_type.is_some()
 				{
-					typer.put_symbol(&name, element_type.clone())?;
+					let result = typer.put_symbol(&name, element_type.clone());
 					typer.contextual_type = element_type.clone();
+					result
 				}
 				else
 				{
 					let array_type = typer.contextual_type.take();
-					typer.contextual_type =
-						array_type.map(|x| x.get_element_type()).flatten();
+					typer.contextual_type = match array_type
+					{
+						Some(Ok(x)) => match x.get_element_type()
+						{
+							Some(y) => Some(Ok(y)),
+							None => None,
+						},
+						Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
+						None => None,
+					};
+					Ok(())
 				};
-				let array = array.analyze(typer)?;
-				let element_type = typer.get_symbol(&name);
-				Ok(Expression::ArrayLiteral {
-					array,
-					element_type,
-				})
+				let array = array.analyze(typer);
+				match put_result
+				{
+					Ok(()) =>
+					{
+						let element_type = typer.get_symbol(&name);
+
+						Expression::ArrayLiteral {
+							array,
+							element_type,
+						}
+					}
+					Err(error) => Expression::Poison(Poison::Error {
+						error,
+						partial: Some(Box::new(Expression::ArrayLiteral {
+							array,
+							element_type,
+						})),
+					}),
+				}
 			}
 			Expression::StringLiteral {
-				value_type: Some(vt),
+				value_type: Some(Ok(ref vt)),
 				..
 			} =>
 			{
 				let contextual_type = typer.contextual_type.take();
-				if let Some(ct) = contextual_type
+				match contextual_type
 				{
-					if vt.can_coerce_into(&ct)
+					Some(Ok(ct)) if vt.can_coerce_into(&ct) =>
 					{
-						let expr = self.clone();
-						Ok(Expression::Autocoerce {
+						let expr = self;
+						Expression::Autocoerce {
 							expression: Box::new(expr),
 							coerced_type: ct,
-						})
+						}
 					}
-					else
-					{
-						Ok(self.clone())
-					}
-				}
-				else
-				{
-					Ok(self.clone())
+					Some(Ok(_)) => self,
+					Some(Err(_poison)) => self,
+					None => self,
 				}
 			}
+			Expression::StringLiteral {
+				value_type: Some(Err(_)),
+				..
+			} => self,
 			Expression::StringLiteral {
 				bytes,
 				value_type: None,
@@ -915,26 +1216,26 @@ impl Analyzable for Expression
 				let (value_type, coerced_type) =
 					coerce_for_string_literal(contextual_type);
 				let expr = Expression::StringLiteral {
-					bytes: bytes.clone(),
+					bytes,
 					value_type,
-					location: location.clone(),
+					location,
 				};
 				if let Some(coerced_type) = coerced_type
 				{
-					Ok(Expression::Autocoerce {
+					Expression::Autocoerce {
 						expression: Box::new(expr),
 						coerced_type,
-					})
+					}
 				}
 				else
 				{
-					Ok(expr)
+					expr
 				}
 			}
 			Expression::Deref {
 				reference: _,
 				deref_type: Some(_),
-			} => Ok(self.clone()),
+			} => self,
 			Expression::Deref {
 				reference,
 				deref_type: None,
@@ -942,7 +1243,7 @@ impl Analyzable for Expression
 			Expression::Autocoerce {
 				expression: _,
 				coerced_type: _,
-			} => Ok(self.clone()),
+			} => self,
 			Expression::PrimitiveCast {
 				expression,
 				coerced_type,
@@ -950,59 +1251,57 @@ impl Analyzable for Expression
 				location_of_type,
 			} =>
 			{
-				let expr = expression.analyze(typer)?;
-				let expr = Expression::PrimitiveCast {
+				let expr = expression.analyze(typer);
+				Expression::PrimitiveCast {
 					expression: Box::new(expr),
-					coerced_type: coerced_type.clone(),
-					location: location.clone(),
-					location_of_type: location_of_type.clone(),
-				};
-				Ok(expr)
+					coerced_type,
+					location,
+					location_of_type,
+				}
 			}
 			Expression::LengthOfArray { reference } =>
 			{
-				let base_type = typer.get_symbol(&reference.base);
-				let array_type = typer.get_type_of_reference(reference)?;
+				let base_type = typer.get_type_of_base(&reference.base);
+				let array_type = typer.get_type_of_reference(&reference);
 				match array_type
 				{
-					Some(ValueType::Array { .. }) =>
+					Some(Ok(ValueType::Array { .. })) =>
 					{
-						let reference = if base_type == array_type
-						{
-							reference.clone()
-						}
-						else
-						{
-							reference.analyze_length(array_type, typer)?
-						};
-						Ok(Expression::LengthOfArray { reference })
+						let reference = reference
+							.analyze_length(base_type, array_type, typer);
+						Expression::LengthOfArray { reference }
 					}
-					Some(ValueType::Slice { .. }) =>
+					Some(Ok(ValueType::Slice { .. })) =>
 					{
-						let mut reference = if base_type == array_type
-						{
-							reference.clone()
-						}
-						else
-						{
-							reference.analyze_length(array_type, typer)?
-						};
+						let mut reference = reference
+							.analyze_length(base_type, array_type, typer);
 						let autostep = ReferenceStep::Autodeslice { offset: 1 };
 						reference.steps.push(autostep);
-						let expr = Expression::Deref {
+						Expression::Deref {
 							reference,
-							deref_type: Some(ValueType::Usize),
-						};
-						Ok(expr)
+							deref_type: Some(Ok(ValueType::Usize)),
+						}
 					}
-					Some(_) =>
+					Some(Ok(current_type)) =>
 					{
-						let error = anyhow!("can only take length of array")
-							.context(reference.location.format())
-							.context("this variable does not have a length");
-						Err(error)
+						// TODO determine location of declaration?
+						let previous = reference.location.clone();
+						Expression::Poison(Poison::Error {
+							error: Error::NotAnArrayWithLength {
+								current_type,
+								location: reference.location.clone(),
+								previous,
+							},
+							partial: Some(Box::new(
+								Expression::LengthOfArray { reference },
+							)),
+						})
 					}
-					None => Ok(self.clone()),
+					Some(Err(_poison)) =>
+					{
+						Expression::LengthOfArray { reference }
+					}
+					None => Expression::LengthOfArray { reference },
 				}
 			}
 			Expression::FunctionCall {
@@ -1011,282 +1310,372 @@ impl Analyzable for Expression
 				return_type,
 			} =>
 			{
-				let rt_identifier = name.clone().return_value();
-				typer.put_symbol(&rt_identifier, return_type.clone())?;
-				let return_type = typer.get_symbol(&rt_identifier);
+				let rv_identifier = name.return_value();
+				let recoverable_error =
+					typer.put_symbol(&rv_identifier, return_type.clone());
+				let return_type = typer.get_symbol(&rv_identifier);
 				let arguments =
-					typer.analyze_function_arguments(name, arguments)?;
+					typer.analyze_function_arguments(&name, arguments);
 				let expr = Expression::FunctionCall {
-					name: name.clone(),
+					name,
 					arguments,
 					return_type,
 				};
-				Ok(expr)
+				match recoverable_error
+				{
+					Ok(()) => expr,
+					Err(error) => Expression::Poison(Poison::Error {
+						error,
+						partial: Some(Box::new(expr)),
+					}),
+				}
 			}
+			Expression::Poison(_) => self,
 		}
 	}
 }
 
 impl Analyzable for ReferenceStep
 {
-	type Item = ReferenceStep;
-
-	fn analyze(&self, typer: &mut Typer) -> Result<Self::Item, anyhow::Error>
+	fn analyze(self, typer: &mut Typer) -> Self
 	{
 		match self
 		{
 			ReferenceStep::Element { argument } =>
 			{
-				typer.contextual_type = Some(ValueType::Usize);
-				let argument = argument.analyze(typer)?;
+				typer.contextual_type = Some(Ok(ValueType::Usize));
+				let argument = argument.analyze(typer);
 				typer.contextual_type = None;
-				Ok(ReferenceStep::Element {
+				ReferenceStep::Element {
 					argument: Box::new(argument),
-				})
+				}
 			}
-			ReferenceStep::Member { member: _ } => Ok(self.clone()),
-			ReferenceStep::Autodeslice { offset: _ } => Ok(self.clone()),
-			ReferenceStep::Autoderef => Ok(ReferenceStep::Autoderef),
-			ReferenceStep::Autoview => Ok(ReferenceStep::Autoview),
+			ReferenceStep::Member { member: _ } => self,
+			ReferenceStep::Autodeslice { offset: _ } => self,
+			ReferenceStep::Autoderef => ReferenceStep::Autoderef,
+			ReferenceStep::Autoview => ReferenceStep::Autoview,
 		}
 	}
+}
+
+fn analyze_assignment_steps(
+	base_type: ValueType,
+	previous_steps: Vec<ReferenceStep>,
+	value_type: &Option<Poisonable<ValueType>>,
+	address_depth: u8,
+) -> (Vec<ReferenceStep>, u8)
+{
+	let mut steps = Vec::new();
+	let mut current_type = base_type;
+	for step in previous_steps.into_iter()
+	{
+		match step
+		{
+			ReferenceStep::Element { argument: _ } =>
+			{
+				for _i in 0..MAX_AUTODEREF_DEPTH
+				{
+					match current_type
+					{
+						ValueType::Pointer { deref_type } =>
+						{
+							let step = ReferenceStep::Autoderef;
+							steps.push(step);
+							current_type = *deref_type;
+						}
+						ValueType::View { deref_type } =>
+						{
+							let step = ReferenceStep::Autoview;
+							steps.push(step);
+							current_type = *deref_type;
+						}
+						_ => break,
+					}
+				}
+				match current_type
+				{
+					ValueType::Slice { .. } =>
+					{
+						let autostep = ReferenceStep::Autodeslice { offset: 0 };
+						steps.push(autostep);
+					}
+					_ => (),
+				}
+				match current_type.get_element_type()
+				{
+					Some(element_type) =>
+					{
+						current_type = element_type;
+					}
+					None => unreachable!(),
+				}
+			}
+			ReferenceStep::Member { member: _ } => unimplemented!(),
+			ReferenceStep::Autoderef => match current_type
+			{
+				ValueType::Pointer { deref_type } =>
+				{
+					current_type = *deref_type;
+				}
+				_ => unreachable!(),
+			},
+			ReferenceStep::Autoview => match current_type
+			{
+				ValueType::View { deref_type } =>
+				{
+					current_type = *deref_type;
+				}
+				_ => unreachable!(),
+			},
+			ReferenceStep::Autodeslice { offset: 0 } => (),
+			ReferenceStep::Autodeslice { offset: 1 } =>
+			{
+				current_type = ValueType::Usize;
+			}
+			ReferenceStep::Autodeslice { offset: _ } => unreachable!(),
+		}
+		steps.push(step);
+	}
+	for _i in 0..MAX_AUTODEREF_DEPTH
+	{
+		match value_type
+		{
+			Some(Ok(vt)) if vt == &current_type =>
+			{
+				return (steps, 0);
+			}
+			_ => (),
+		}
+		match current_type
+		{
+			ValueType::Pointer { deref_type } =>
+			{
+				let step = ReferenceStep::Autoderef;
+				steps.push(step);
+				current_type = *deref_type;
+			}
+			_ => break,
+		}
+	}
+	(steps, address_depth)
 }
 
 impl Reference
 {
 	fn analyze_length(
-		&self,
-		value_type: Option<ValueType>,
+		self,
+		base_type: Option<Poisonable<ValueType>>,
+		array_type: Option<Poisonable<ValueType>>,
 		typer: &mut Typer,
-	) -> Result<Self, anyhow::Error>
+	) -> Self
 	{
-		self.analyze_assignment(value_type, typer)
+		match (base_type, array_type)
+		{
+			(Some(Ok(x)), Some(Ok(y))) if x == y => self,
+			(_, array_type) => self.analyze_assignment(array_type, typer),
+		}
 	}
 
 	fn analyze_assignment(
-		&self,
-		value_type: Option<ValueType>,
+		self,
+		value_type: Option<Poisonable<ValueType>>,
 		typer: &mut Typer,
-	) -> Result<Self, anyhow::Error>
+	) -> Self
 	{
-		let steps: Result<Vec<ReferenceStep>, anyhow::Error> =
-			self.steps.iter().map(|step| step.analyze(typer)).collect();
-		let steps: Vec<ReferenceStep> = steps?;
+		let steps: Vec<ReferenceStep> = self
+			.steps
+			.into_iter()
+			.map(|step| step.analyze(typer))
+			.collect();
 
-		let base_type = typer.get_symbol(&self.base);
-
-		let mut address_depth = self.address_depth;
-		let steps = if let Some(base_type) = base_type
+		let base = match &self.base
 		{
-			let previous_steps = steps;
-			let mut steps = Vec::new();
-
-			let mut current_type = base_type;
-			for step in previous_steps.into_iter()
+			Ok(base) => base,
+			Err(_poison) =>
 			{
-				match step
-				{
-					ReferenceStep::Element { argument: _ } =>
-					{
-						for _i in 0..MAX_AUTODEREF_DEPTH
-						{
-							match current_type
-							{
-								ValueType::Pointer { deref_type } =>
-								{
-									let step = ReferenceStep::Autoderef;
-									steps.push(step);
-									current_type = *deref_type;
-								}
-								ValueType::View { deref_type } =>
-								{
-									let step = ReferenceStep::Autoview;
-									steps.push(step);
-									current_type = *deref_type;
-								}
-								_ => break,
-							}
-						}
-						match current_type
-						{
-							ValueType::Slice { .. } =>
-							{
-								let autostep =
-									ReferenceStep::Autodeslice { offset: 0 };
-								steps.push(autostep);
-							}
-							_ => (),
-						}
-						match current_type.get_element_type()
-						{
-							Some(element_type) =>
-							{
-								current_type = element_type;
-							}
-							None => unreachable!(),
-						}
-					}
-					ReferenceStep::Member { member: _ } => unimplemented!(),
-					ReferenceStep::Autoderef => match current_type
-					{
-						ValueType::Pointer { deref_type } =>
-						{
-							current_type = *deref_type;
-						}
-						_ => unreachable!(),
-					},
-					ReferenceStep::Autoview => match current_type
-					{
-						ValueType::View { deref_type } =>
-						{
-							current_type = *deref_type;
-						}
-						_ => unreachable!(),
-					},
-					ReferenceStep::Autodeslice { offset: 0 } => (),
-					ReferenceStep::Autodeslice { offset: 1 } =>
-					{
-						current_type = ValueType::Usize;
-					}
-					ReferenceStep::Autodeslice { offset: _ } => unreachable!(),
-				}
-				steps.push(step);
-			}
-			for _i in 0..MAX_AUTODEREF_DEPTH
-			{
-				match current_type
-				{
-					ct if value_type.as_ref() == Some(&ct) =>
-					{
-						address_depth = 0;
-						break;
-					}
-					ValueType::Pointer { deref_type } =>
-					{
-						let step = ReferenceStep::Autoderef;
-						steps.push(step);
-						current_type = *deref_type;
-					}
-					_ => break,
+				return Reference {
+					base: self.base,
+					steps,
+					address_depth: self.address_depth,
+					location: self.location,
 				}
 			}
-			steps
-		}
-		else
+		};
+
+		let base_type = typer.get_symbol(base);
+
+		let (steps, address_depth) = match base_type
 		{
-			steps
+			Some(Ok(base_type)) => analyze_assignment_steps(
+				base_type,
+				steps,
+				&value_type,
+				self.address_depth,
+			),
+			Some(Err(_poison)) => (steps, self.address_depth),
+			None => (steps, self.address_depth),
 		};
 
 		let full_type =
 			build_type_of_reference(value_type, &steps, address_depth);
-		typer.put_symbol(&self.base, full_type)?;
+		let base = match typer.put_symbol(base, full_type)
+		{
+			Ok(()) => self.base,
+			Err(error) => Err(Poison::Error {
+				error,
+				partial: Some(base.clone()),
+			}),
+		};
 
-		Ok(Reference {
-			base: self.base.clone(),
+		Reference {
+			base,
 			steps,
 			address_depth,
-			location: self.location.clone(),
-		})
+			location: self.location,
+		}
 	}
 
-	fn analyze_deref_expression(
-		&self,
-		typer: &mut Typer,
-	) -> Result<Expression, anyhow::Error>
+	fn analyze_deref_expression(mut self, typer: &mut Typer) -> Expression
 	{
-		let steps: Result<Vec<ReferenceStep>, anyhow::Error> =
-			self.steps.iter().map(|step| step.analyze(typer)).collect();
-		let steps = steps?;
-
-		let known_type = typer.get_type_of_reference(self)?;
-		let ref_type = typer.get_symbol(&self.base);
+		let known_type = typer.get_type_of_reference(&self);
 		let contextual_type = typer.contextual_type.take();
 
+		self.steps = self
+			.steps
+			.into_iter()
+			.map(|step| step.analyze(typer))
+			.collect();
+
+		let base = match &self.base
+		{
+			Ok(base) => base,
+			Err(_poison) =>
+			{
+				return Expression::Deref {
+					reference: self,
+					deref_type: known_type,
+				};
+			}
+		};
+
+		let ref_type = typer.get_symbol(base);
 		match (known_type, contextual_type, ref_type)
 		{
-			(Some(x), Some(y), Some(ref_type)) if x == y =>
+			(Some(Ok(x)), Some(Ok(y)), Some(Ok(ref_type))) if x == y =>
 			{
-				self.autoderef(ref_type, y, steps, typer)
+				self.autoderef(ref_type, y, typer)
 			}
-			(Some(x), Some(y), _) if x == y =>
+			(Some(Ok(x)), Some(Ok(y)), None) if x == y =>
 			{
-				let base_type = Some(x);
-				let deref_type = Some(y);
+				let base_type = Some(Ok(x));
+				let deref_type = Some(Ok(y));
 				let full_type = build_type_of_reference(
 					base_type,
-					&steps,
+					&self.steps,
 					self.address_depth,
 				);
-				typer.put_symbol(&self.base, full_type.clone())?;
-				Ok(Expression::Deref {
-					reference: Reference {
-						base: self.base.clone(),
-						steps,
-						address_depth: self.address_depth,
-						location: self.location.clone(),
+				match typer.put_symbol(base, full_type.clone())
+				{
+					Ok(()) => Expression::Deref {
+						reference: self,
+						deref_type,
 					},
-					deref_type,
-				})
+					Err(error) => Expression::Poison(Poison::Error {
+						error,
+						partial: Some(Box::new(Expression::Deref {
+							reference: self,
+							deref_type,
+						})),
+					}),
+				}
 			}
-			(Some(x), Some(y), Some(ref_type)) if x.can_autoderef_into(&y) =>
+			(Some(Ok(x)), Some(Ok(y)), Some(Ok(ref_type)))
+				if x.can_autoderef_into(&y) =>
 			{
-				self.autoderef(ref_type, y, steps, typer)
+				self.autoderef(ref_type, y, typer)
 			}
-			(Some(def), None, Some(ref_type)) =>
+			(Some(Ok(def)), None, Some(Ok(ref_type))) =>
 			{
-				self.autoderef(ref_type, def, steps, typer)
+				self.autoderef(ref_type, def, typer)
 			}
-			(Some(def), _, _) =>
+			(Some(Err(Poison::Error { error, partial })), _, _) =>
 			{
-				let base_type = Some(def);
+				// Keep the error.
+				Expression::Deref {
+					reference: self,
+					deref_type: Some(Err(Poison::Error { error, partial })),
+				}
+			}
+			(Some(default_type_or_poisoned), _, _) =>
+			{
+				let base_type = Some(default_type_or_poisoned);
 				let deref_type = base_type.clone();
 				let full_type = build_type_of_reference(
 					base_type,
-					&steps,
+					&self.steps,
 					self.address_depth,
 				);
-				typer.put_symbol(&self.base, full_type.clone())?;
-				Ok(Expression::Deref {
-					reference: Reference {
-						base: self.base.clone(),
-						steps,
-						address_depth: self.address_depth,
-						location: self.location.clone(),
+				match typer.put_symbol(base, full_type.clone())
+				{
+					Ok(()) => Expression::Deref {
+						reference: self,
+						deref_type,
 					},
-					deref_type,
-				})
+					Err(error) => Expression::Poison(Poison::Error {
+						error,
+						partial: Some(Box::new(Expression::Deref {
+							reference: self,
+							deref_type,
+						})),
+					}),
+				}
 			}
 			(None, deref_type, _) =>
 			{
 				let base_type = deref_type.clone();
 				let full_type = build_type_of_reference(
 					base_type,
-					&steps,
+					&self.steps,
 					self.address_depth,
 				);
-				typer.put_symbol(&self.base, full_type.clone())?;
-				Ok(Expression::Deref {
-					reference: Reference {
-						base: self.base.clone(),
-						steps,
-						address_depth: self.address_depth,
-						location: self.location.clone(),
+				match typer.put_symbol(base, full_type.clone())
+				{
+					Ok(()) => Expression::Deref {
+						reference: self,
+						deref_type,
 					},
-					deref_type,
-				})
+					Err(error) => Expression::Poison(Poison::Error {
+						error,
+						partial: Some(Box::new(Expression::Deref {
+							reference: self,
+							deref_type,
+						})),
+					}),
+				}
 			}
 		}
 	}
 
 	fn autoderef(
-		&self,
+		self,
 		known_ref_type: ValueType,
 		target_type: ValueType,
-		steps: Vec<ReferenceStep>,
 		typer: &mut Typer,
-	) -> Result<Expression, anyhow::Error>
+	) -> Expression
 	{
-		let mut available_steps = steps.into_iter().peekable();
+		let base = match &self.base
+		{
+			Ok(base) => base,
+			Err(_poison) =>
+			{
+				return Expression::Deref {
+					reference: self,
+					deref_type: Some(Ok(known_ref_type)),
+				};
+			}
+		};
+
+		let mut available_steps = self.steps.into_iter().peekable();
 		let mut taken_steps = Vec::new();
 		let mut current_type = known_ref_type;
 		let mut coercion = None;
@@ -1417,188 +1806,208 @@ impl Reference
 				{
 					// This is invalid, but we want a proper error, not an
 					// autoderef failure, so just skip the autoderef.
-					let base_type = Some(target_type.clone());
-					let full_type = build_type_of_reference(
-						base_type,
-						&taken_steps,
-						self.address_depth,
-					);
-					typer.put_symbol(&self.base, full_type.clone())?;
 					let expr = Expression::Deref {
 						reference: Reference {
-							base: self.base.clone(),
+							base: self.base,
 							steps: taken_steps,
 							address_depth: self.address_depth,
-							location: self.location.clone(),
+							location: self.location,
 						},
-						deref_type: Some(target_type),
+						deref_type: Some(Ok(target_type)),
 					};
-					return Ok(expr);
+					return expr;
 				}
 				(ct, tt, step) =>
-				{
-					return Err(anyhow!("failed to autoderef")
-						.context(format!("target type: {:?}", tt))
-						.context(format!("current type: {:?}", ct))
-						.context(format!("available step: {:?}", step))
-						.context(format!("ad: {:?}", self.address_depth))
-						.context(format!("taken address: {:?}", take_address))
-						.context(self.location.format())
-						.context("failed to infer type of expression"));
-				}
+
+					panic!(
+						"failed to autoderef {}, target type: {:?}, current type: {:?}, available step: {:?}, ad: {:?}, taken address: {:?}",
+						self.location.format(),
+						tt,
+						ct,
+						step,
+						self.address_depth,
+						take_address),
 			}
 		}
 
 		let address_depth = if take_address { 1 } else { 0 };
 		let (deref_type, coerced_type) = match coercion
 		{
-			Some((x, y)) => (Some(x), Some(y)),
-			None => (Some(target_type), None),
+			Some((x, y)) => (Some(Ok(x)), Some(y)),
+			None => (Some(Ok(target_type)), None),
 		};
 		let base_type = deref_type.clone();
 		let full_type =
 			build_type_of_reference(base_type, &taken_steps, address_depth);
-		typer.put_symbol(&self.base, full_type.clone())?;
 		let expr = Expression::Deref {
 			reference: Reference {
-				base: self.base.clone(),
+				base: Ok(base.clone()),
 				steps: taken_steps,
 				address_depth,
-				location: self.location.clone(),
+				location: self.location,
 			},
 			deref_type,
 		};
-		if let Some(coerced_type) = coerced_type
+		let expr = if let Some(coerced_type) = coerced_type
 		{
-			Ok(Expression::Autocoerce {
+			Expression::Autocoerce {
 				expression: Box::new(expr),
 				coerced_type,
-			})
+			}
 		}
 		else
 		{
-			Ok(expr)
+			expr
+		};
+		match typer.put_symbol(base, full_type.clone())
+		{
+			Ok(()) => expr,
+			Err(error) => Expression::Poison(Poison::Error {
+				error,
+				partial: Some(Box::new(expr)),
+			}),
 		}
 	}
 }
 
 fn build_type_of_reference(
-	base_type: Option<ValueType>,
+	base_type: Option<Poisonable<ValueType>>,
 	steps: &[ReferenceStep],
 	address_depth: u8,
-) -> Option<ValueType>
+) -> Option<Poisonable<ValueType>>
 {
-	if let Some(base_type) = base_type
+	match base_type
 	{
-		let mut full_type = base_type;
-		for step in steps.iter().rev()
+		Some(Ok(base_type)) =>
 		{
-			match step
-			{
-				ReferenceStep::Element { argument: _ } =>
-				{
-					full_type = ValueType::ExtArray {
-						element_type: Box::new(full_type),
-					};
-				}
-				ReferenceStep::Member { member: _ } => unimplemented!(),
-				ReferenceStep::Autoderef =>
-				{
-					full_type = ValueType::Pointer {
-						deref_type: Box::new(full_type),
-					};
-				}
-				ReferenceStep::Autoview =>
-				{
-					full_type = ValueType::View {
-						deref_type: Box::new(full_type),
-					};
-				}
-				ReferenceStep::Autodeslice { offset: _ } => (),
-			}
+			let full_type = build_type_of_ref1(base_type, steps, address_depth);
+			Some(Ok(full_type))
 		}
-		for _i in 0..address_depth
-		{
-			match full_type
-			{
-				ValueType::Pointer { deref_type } =>
-				{
-					full_type = *deref_type;
-				}
-				_ => break,
-			}
-		}
-		Some(full_type)
-	}
-	else
-	{
-		None
-	}
-}
-
-fn infer_for_declaration(value_type: Option<ValueType>) -> Option<ValueType>
-{
-	match value_type
-	{
-		Some(ValueType::Pointer { .. }) => None,
-		Some(vt) => Some(vt),
+		Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
 		None => None,
 	}
 }
 
-fn filter_for_naked_integer(value_type: Option<ValueType>)
-	-> Option<ValueType>
+fn build_type_of_ref1(
+	base_type: ValueType,
+	steps: &[ReferenceStep],
+	address_depth: u8,
+) -> ValueType
+{
+	let mut full_type = base_type;
+
+	for step in steps.iter().rev()
+	{
+		match step
+		{
+			ReferenceStep::Element { argument: _ } =>
+			{
+				full_type = ValueType::ExtArray {
+					element_type: Box::new(full_type),
+				};
+			}
+			ReferenceStep::Member { member: _ } => unimplemented!(),
+			ReferenceStep::Autoderef =>
+			{
+				full_type = ValueType::Pointer {
+					deref_type: Box::new(full_type),
+				};
+			}
+			ReferenceStep::Autoview =>
+			{
+				full_type = ValueType::View {
+					deref_type: Box::new(full_type),
+				};
+			}
+			ReferenceStep::Autodeslice { offset: _ } => (),
+		}
+	}
+	for _i in 0..address_depth
+	{
+		match full_type
+		{
+			ValueType::Pointer { deref_type } =>
+			{
+				full_type = *deref_type;
+			}
+			_ => break,
+		}
+	}
+	full_type
+}
+
+fn infer_for_declaration(
+	value_type: Option<Poisonable<ValueType>>,
+) -> Option<Poisonable<ValueType>>
 {
 	match value_type
 	{
-		Some(ValueType::Int8) => value_type,
-		Some(ValueType::Int16) => value_type,
-		Some(ValueType::Int32) => value_type,
-		Some(ValueType::Int64) => value_type,
-		Some(ValueType::Int128) => value_type,
-		Some(ValueType::Uint8) => value_type,
-		Some(ValueType::Uint16) => value_type,
-		Some(ValueType::Uint32) => value_type,
-		Some(ValueType::Uint64) => value_type,
-		Some(ValueType::Uint128) => value_type,
-		Some(ValueType::Usize) => value_type,
-		Some(_) => Some(ValueType::Int32),
+		Some(Ok(ValueType::Pointer { .. })) => None,
+		Some(Ok(x)) => Some(Ok(x)),
+		Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
 		None => None,
 	}
 }
 
-fn filter_for_bit_integer(value_type: Option<ValueType>) -> Option<ValueType>
+fn filter_for_naked_integer(
+	value_type: Option<Poisonable<ValueType>>,
+) -> Option<Poisonable<ValueType>>
 {
 	match value_type
 	{
-		Some(ValueType::Uint8) => value_type,
-		Some(ValueType::Uint16) => value_type,
-		Some(ValueType::Uint32) => value_type,
-		Some(ValueType::Uint64) => value_type,
-		Some(ValueType::Usize) => value_type,
-		Some(ValueType::Pointer { .. }) => value_type,
-		Some(ValueType::View { .. }) => value_type,
-		Some(..) => Some(ValueType::Uint64),
+		Some(Ok(ValueType::Int8)) => value_type,
+		Some(Ok(ValueType::Int16)) => value_type,
+		Some(Ok(ValueType::Int32)) => value_type,
+		Some(Ok(ValueType::Int64)) => value_type,
+		Some(Ok(ValueType::Int128)) => value_type,
+		Some(Ok(ValueType::Uint8)) => value_type,
+		Some(Ok(ValueType::Uint16)) => value_type,
+		Some(Ok(ValueType::Uint32)) => value_type,
+		Some(Ok(ValueType::Uint64)) => value_type,
+		Some(Ok(ValueType::Uint128)) => value_type,
+		Some(Ok(ValueType::Usize)) => value_type,
+		Some(Ok(_)) => Some(Ok(ValueType::Int32)),
+		Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
+		None => None,
+	}
+}
+
+fn filter_for_bit_integer(
+	value_type: Option<Poisonable<ValueType>>,
+) -> Option<Poisonable<ValueType>>
+{
+	match value_type
+	{
+		Some(Ok(ValueType::Uint8)) => value_type,
+		Some(Ok(ValueType::Uint16)) => value_type,
+		Some(Ok(ValueType::Uint32)) => value_type,
+		Some(Ok(ValueType::Uint64)) => value_type,
+		Some(Ok(ValueType::Usize)) => value_type,
+		Some(Ok(ValueType::Pointer { .. })) => value_type,
+		Some(Ok(ValueType::View { .. })) => value_type,
+		Some(Ok(_)) => Some(Ok(ValueType::Uint64)),
+		Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
 		None => None,
 	}
 }
 
 fn coerce_for_string_literal(
-	value_type: Option<ValueType>,
-) -> (Option<ValueType>, Option<ValueType>)
+	value_type: Option<Poisonable<ValueType>>,
+) -> (Option<Poisonable<ValueType>>, Option<ValueType>)
 {
 	match value_type
 	{
-		Some(ValueType::String) => (value_type, None),
-		Some(vt) if vt == ValueType::for_byte_string() =>
+		Some(Ok(ValueType::String)) => (value_type, None),
+		Some(Ok(vt)) if vt == ValueType::for_byte_string() =>
 		{
-			(Some(vt.clone()), Some(vt))
+			(Some(Ok(vt.clone())), Some(vt))
 		}
-		Some(vt) if ValueType::for_byte_string().can_coerce_into(&vt) =>
+		Some(Ok(vt)) if ValueType::for_byte_string().can_coerce_into(&vt) =>
 		{
-			(Some(ValueType::for_byte_string()), Some(vt))
+			(Some(Ok(ValueType::for_byte_string())), Some(vt))
 		}
-		Some(_) => (Some(ValueType::String), None),
+		Some(Ok(_)) => (Some(Ok(ValueType::String)), None),
+		Some(Err(_poison)) => (Some(Err(Poison::Poisoned)), None),
 		None => (None, None),
 	}
 }

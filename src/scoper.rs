@@ -9,11 +9,9 @@ mod variable_references;
 
 use crate::common::*;
 
-pub fn analyze(
-	program: Vec<Declaration>,
-) -> Result<Vec<Declaration>, anyhow::Error>
+pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 {
-	let program = variable_references::analyze(program)?;
-	let program = label_references::analyze(program)?;
-	Ok(program)
+	let program = variable_references::analyze(program);
+	let program = label_references::analyze(program);
+	program
 }

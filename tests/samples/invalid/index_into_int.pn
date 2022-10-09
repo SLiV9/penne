@@ -1,0 +1,8 @@
+fn main() -> i32
+{
+	var x = 1000i32;
+	var y = x[2];
+	var data = [10i32, 20i32];
+	var z = data[1][1];
+	return: y + z
+}

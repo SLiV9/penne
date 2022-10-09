@@ -6,6 +6,7 @@
 
 use enumset::{EnumSet, EnumSetType};
 
+pub use crate::error::{Poison, Poisonable};
 pub use crate::lexer::Location;
 pub use crate::value_type::ValueType;
 
@@ -17,14 +18,14 @@ pub enum Declaration
 	{
 		name: Identifier,
 		value: Expression,
-		value_type: ValueType,
+		value_type: Poisonable<ValueType>,
 		flags: EnumSet<DeclarationFlag>,
 	},
 	Function
 	{
 		name: Identifier,
 		parameters: Vec<Parameter>,
-		body: FunctionBody,
+		body: Poisonable<FunctionBody>,
 		return_type: Option<ValueType>,
 		flags: EnumSet<DeclarationFlag>,
 	},
@@ -40,6 +41,7 @@ pub enum Declaration
 		directive: String,
 		location: Location,
 	},
+	Poison(Poison<Box<Declaration>>),
 }
 
 #[must_use]
@@ -54,8 +56,8 @@ pub enum DeclarationFlag
 #[derive(Debug, Clone)]
 pub struct Parameter
 {
-	pub name: Identifier,
-	pub value_type: Option<ValueType>,
+	pub name: Poisonable<Identifier>,
+	pub value_type: Poisonable<ValueType>,
 }
 
 #[must_use]
@@ -83,7 +85,7 @@ pub enum Statement
 	{
 		name: Identifier,
 		value: Option<Expression>,
-		value_type: Option<ValueType>,
+		value_type: Option<Poisonable<ValueType>>,
 		location: Location,
 	},
 	Assignment
@@ -119,6 +121,7 @@ pub enum Statement
 		location: Location,
 	},
 	Block(Block),
+	Poison(Poison<Box<Statement>>),
 }
 
 impl Statement
@@ -135,6 +138,15 @@ impl Statement
 			Statement::Label { location, .. } => location,
 			Statement::If { location, .. } => location,
 			Statement::Block(block) => &block.location,
+			Statement::Poison(Poison::Error {
+				error: _,
+				partial: Some(statement),
+			}) => statement.location(),
+			Statement::Poison(Poison::Error {
+				error: _,
+				partial: None,
+			}) => unreachable!(),
+			Statement::Poison(Poison::Poisoned) => unreachable!(),
 		}
 	}
 }
@@ -218,30 +230,30 @@ pub enum Expression
 	NakedIntegerLiteral
 	{
 		value: i128,
-		value_type: Option<ValueType>,
+		value_type: Option<Poisonable<ValueType>>,
 		location: Location,
 	},
 	BitIntegerLiteral
 	{
 		value: u64,
-		value_type: Option<ValueType>,
+		value_type: Option<Poisonable<ValueType>>,
 		location: Location,
 	},
 	StringLiteral
 	{
 		bytes: Vec<u8>,
-		value_type: Option<ValueType>,
+		value_type: Option<Poisonable<ValueType>>,
 		location: Location,
 	},
 	ArrayLiteral
 	{
 		array: Array,
-		element_type: Option<ValueType>,
+		element_type: Option<Poisonable<ValueType>>,
 	},
 	Deref
 	{
 		reference: Reference,
-		deref_type: Option<ValueType>,
+		deref_type: Option<Poisonable<ValueType>>,
 	},
 	Autocoerce
 	{
@@ -257,14 +269,15 @@ pub enum Expression
 	},
 	LengthOfArray
 	{
-		reference: Reference
+		reference: Reference,
 	},
 	FunctionCall
 	{
 		name: Identifier,
 		arguments: Vec<Expression>,
-		return_type: Option<ValueType>,
+		return_type: Option<Poisonable<ValueType>>,
 	},
+	Poison(Poison<Box<Expression>>),
 }
 
 impl Expression
@@ -285,6 +298,15 @@ impl Expression
 			Expression::PrimitiveCast { location, .. } => location,
 			Expression::LengthOfArray { reference, .. } => &reference.location,
 			Expression::FunctionCall { name, .. } => &name.location,
+			Expression::Poison(Poison::Error {
+				error: _,
+				partial: Some(expression),
+			}) => expression.location(),
+			Expression::Poison(Poison::Error {
+				error: _,
+				partial: None,
+			}) => unreachable!(),
+			Expression::Poison(Poison::Poisoned) => unreachable!(),
 		}
 	}
 }
@@ -355,7 +377,7 @@ pub enum ReferenceStep
 #[derive(Debug, Clone)]
 pub struct Reference
 {
-	pub base: Identifier,
+	pub base: Poisonable<Identifier>,
 	pub steps: Vec<ReferenceStep>,
 	pub address_depth: u8,
 	pub location: Location,
@@ -372,11 +394,11 @@ pub struct Identifier
 
 impl Identifier
 {
-	pub fn return_value(self) -> Self
+	pub fn return_value(&self) -> Self
 	{
 		Identifier {
 			name: format!("(return value of '{}')", self.name),
-			..self
+			..self.clone()
 		}
 	}
 }
