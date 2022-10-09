@@ -4,13 +4,7 @@
 // License: MIT
 //
 
-use penne::analyzer;
-use penne::generator;
-use penne::lexer;
-use penne::parser;
-use penne::resolver;
-use penne::scoper;
-use penne::typer;
+use penne::*;
 
 use pretty_assertions::assert_eq;
 use std::io::Write;
@@ -287,12 +281,7 @@ fn execute_integer_casting() -> Result<(), anyhow::Error>
 fn execute_calculation(filename: &str) -> Result<i32, anyhow::Error>
 {
 	let source = std::fs::read_to_string(&filename)?;
-	let tokens = lexer::lex(&source, filename);
-	let declarations = parser::parse(tokens);
-	let declarations = scoper::analyze(declarations);
-	let declarations = typer::analyze(declarations);
-	let declarations = analyzer::analyze(declarations);
-	let declarations = match resolver::resolve(declarations)
+	let declarations = match penne::compile_source(&source, &filename)
 	{
 		Ok(declarations) => declarations,
 		#[allow(unreachable_code)]

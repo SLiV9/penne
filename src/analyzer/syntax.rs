@@ -164,8 +164,6 @@ impl Analyzable for Block
 	{
 		discover_labels(&self.statements, analyzer);
 
-		analyzer.is_in_block = true;
-
 		let (others, last) = {
 			let mut statements = self.statements;
 			let last = statements.pop();
@@ -179,6 +177,7 @@ impl Analyzable for Block
 				let mut statements: Vec<Statement> = others
 					.into_iter()
 					.map(|statement| {
+						analyzer.is_in_block = true;
 						let statement = statement.analyze(analyzer);
 						match statement
 						{
@@ -201,14 +200,14 @@ impl Analyzable for Block
 						}
 					})
 					.collect();
+				analyzer.is_in_block = true;
 				let last = last.analyze(analyzer);
+				analyzer.is_in_block = false;
 				statements.push(last);
 				statements
 			}
 			None => Vec::new(),
 		};
-
-		analyzer.is_in_block = false;
 
 		Block {
 			statements,

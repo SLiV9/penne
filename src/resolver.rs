@@ -7,6 +7,7 @@
 use crate::common;
 use crate::common::*;
 use crate::error::Error;
+use crate::error::Errors;
 use crate::error::{Poison, Poisonable};
 use crate::resolved;
 use crate::typer::Typed;
@@ -17,46 +18,6 @@ pub fn resolve(
 ) -> Result<Vec<resolved::Declaration>, Errors>
 {
 	program.resolve()
-}
-
-pub struct Errors
-{
-	errors: Vec<Error>,
-}
-
-impl From<Error> for Errors
-{
-	fn from(error: Error) -> Self
-	{
-		Self {
-			errors: vec![error],
-		}
-	}
-}
-
-impl Errors
-{
-	pub fn panic(self) -> Never
-	{
-		match self.errors.into_iter().next()
-		{
-			Some(error) => panic!("{:?}", error),
-			None => panic!("empty errors"),
-		}
-	}
-}
-
-pub enum Never {}
-
-impl IntoIterator for Errors
-{
-	type Item = Error;
-	type IntoIter = <Vec<Error> as IntoIterator>::IntoIter;
-
-	fn into_iter(self) -> Self::IntoIter
-	{
-		self.errors.into_iter()
-	}
 }
 
 trait Resolvable
