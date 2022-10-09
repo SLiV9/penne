@@ -5,34 +5,47 @@
 //
 
 use crate::common::*;
+use crate::error::Error;
 
-use anyhow::anyhow;
-
-pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
+pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 {
 	let mut analyzer = Analyzer {
+		discovered_labels: std::collections::HashMap::new(),
 		unresolved_gotos: std::collections::HashMap::new(),
 		is_naked_then_branch: false,
 		is_naked_else_branch: false,
-		is_final_statement_in_block: false,
+		is_in_block: false,
 	};
-	for declaration in program
-	{
-		declaration.analyze(&mut analyzer)?;
-	}
-	Ok(())
+	program
+		.into_iter()
+		.map(|x| x.analyze(&mut analyzer))
+		.collect()
 }
 
 struct Analyzer
 {
+	discovered_labels: std::collections::HashMap<u32, Identifier>,
 	unresolved_gotos: std::collections::HashMap<u32, Identifier>,
 	is_naked_then_branch: bool,
 	is_naked_else_branch: bool,
-	is_final_statement_in_block: bool,
+	is_in_block: bool,
 }
 
 impl Analyzer
 {
+	fn discover_label(
+		&mut self,
+		label: &Identifier,
+		location_for_context: &Location,
+	)
+	{
+		let context = Identifier {
+			location: location_for_context.clone(),
+			..label.clone()
+		};
+		self.discovered_labels.insert(label.resolution_id, context);
+	}
+
 	fn add_goto(&mut self, label: &Identifier, location_for_context: &Location)
 	{
 		let context = Identifier {
@@ -41,20 +54,45 @@ impl Analyzer
 		};
 		self.unresolved_gotos.insert(label.resolution_id, context);
 	}
+
 	fn resolve_goto(&mut self, label: &Identifier)
 	{
 		self.unresolved_gotos.remove(&label.resolution_id);
 	}
+
+	fn get_first_unresolved_goto(&self) -> Option<UnresolvedGoto>
+	{
+		if let Some((rid, goto)) = self.unresolved_gotos.iter().next()
+		{
+			let goto = goto.clone();
+			let label = match self.discovered_labels.get(rid)
+			{
+				Some(label) => Ok(label.clone()),
+				None => Err(()),
+			};
+			Some(UnresolvedGoto { goto, label })
+		}
+		else
+		{
+			None
+		}
+	}
+}
+
+struct UnresolvedGoto
+{
+	goto: Identifier,
+	label: Result<Identifier, ()>,
 }
 
 trait Analyzable
 {
-	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>;
+	fn analyze(self, analyzer: &mut Analyzer) -> Self;
 }
 
 impl Analyzable for Declaration
 {
-	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
+	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
 		match self
 		{
@@ -63,82 +101,163 @@ impl Analyzable for Declaration
 				value: _,
 				value_type: _,
 				flags: _,
-			} => Ok(()),
+			} => self,
 			Declaration::Function {
-				name: _,
-				parameters: _,
-				body: Ok(body),
-				return_type: _,
-				flags: _,
-			} => body.analyze(analyzer),
-			Declaration::Function {
-				name: _,
-				parameters: _,
-				body: Err(_poison),
-				return_type: _,
-				flags: _,
-			} => Ok(()),
+				name,
+				parameters,
+				body,
+				return_type,
+				flags,
+			} =>
+			{
+				let body = match body
+				{
+					Ok(body) => Ok(body.analyze(analyzer)),
+					Err(poison) => Err(poison),
+				};
+				Declaration::Function {
+					name,
+					parameters,
+					body,
+					return_type,
+					flags,
+				}
+			}
 			Declaration::FunctionHead {
 				name: _,
 				parameters: _,
 				return_type: _,
 				flags: _,
-			} => Ok(()),
+			} => self,
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
-			Declaration::Poison(Poison::Error {
-				error: _,
-				partial: Some(declaration),
-			}) => declaration.analyze(analyzer),
-			Declaration::Poison(Poison::Error {
-				error: _,
-				partial: None,
-			}) => Ok(()),
-			Declaration::Poison(Poison::Poisoned) => Ok(()),
+			Declaration::Poison(_) => self,
 		}
 	}
 }
 
 impl Analyzable for FunctionBody
 {
-	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
+	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
-		for statement in &self.statements
-		{
-			statement.analyze(analyzer)?;
+		discover_labels(&self.statements, analyzer);
+
+		// We are a function body, not a block.
+		analyzer.is_in_block = false;
+
+		let statements = self
+			.statements
+			.into_iter()
+			.map(|x| x.analyze(analyzer))
+			.collect();
+
+		FunctionBody {
+			statements,
+			return_value: self.return_value,
+			return_value_identifier: self.return_value_identifier,
 		}
-		Ok(())
 	}
 }
 
 impl Analyzable for Block
 {
-	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
+	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
-		match self.statements.split_last()
+		discover_labels(&self.statements, analyzer);
+
+		analyzer.is_in_block = true;
+
+		let (others, last) = {
+			let mut statements = self.statements;
+			let last = statements.pop();
+			let others = statements;
+			(others, last)
+		};
+		let statements = match last
 		{
-			Some((last, others)) =>
+			Some(last) =>
 			{
-				for statement in others
-				{
-					statement.analyze(analyzer)?;
-				}
-				analyzer.is_final_statement_in_block = true;
-				last.analyze(analyzer)?;
-				analyzer.is_final_statement_in_block = false;
-				Ok(())
+				let mut statements: Vec<Statement> = others
+					.into_iter()
+					.map(|statement| {
+						let statement = statement.analyze(analyzer);
+						match statement
+						{
+							Statement::Loop { location } =>
+							{
+								Statement::Poison(Poison::Error {
+									error: Error::NonFinalLoopStatement {
+										location: location.clone(),
+										location_of_block: self
+											.location
+											.clone(),
+									},
+									partial: Some(Box::new(Statement::Loop {
+										location,
+									})),
+								})
+							}
+							Statement::Poison(_) => statement,
+							_ => statement,
+						}
+					})
+					.collect();
+				let last = last.analyze(analyzer);
+				statements.push(last);
+				statements
 			}
-			None => Ok(()),
+			None => Vec::new(),
+		};
+
+		analyzer.is_in_block = false;
+
+		Block {
+			statements,
+			location: self.location,
+		}
+	}
+}
+
+fn discover_labels(statements: &[Statement], analyzer: &mut Analyzer)
+{
+	// Look ahead into the top-level statements of this function body or block
+	// for labels, so that any goto-related error knows where the corresponding
+	// label is.
+	for statement in statements
+	{
+		match statement
+		{
+			Statement::Label { label, location } =>
+			{
+				analyzer.discover_label(label, location);
+			}
+			Statement::Poison(Poison::Error {
+				error: _,
+				partial: Some(partial),
+			}) => match partial.as_ref()
+			{
+				Statement::Label { label, location } =>
+				{
+					analyzer.discover_label(label, location);
+				}
+				_ => (),
+			},
+			Statement::Block(_) =>
+			{
+				// Do not look into blocks because they have their own
+				// label scope.
+			}
+			_ => (),
 		}
 	}
 }
 
 impl Analyzable for Statement
 {
-	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
+	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
 		if analyzer.is_naked_then_branch || analyzer.is_naked_else_branch
 		{
-			match self
+			match &self
 			{
 				Statement::Goto { .. } => (),
 				Statement::Block(..) => (),
@@ -146,102 +265,119 @@ impl Analyzable for Statement
 				Statement::Poison(_poison) => (),
 				statement =>
 				{
-					return Err(anyhow!("missing braces")
-						.context(statement.location().format())
-						.context(
-							"braces around conditional branches \
-							can only be omitted for goto statements",
-						))
+					return Statement::Poison(Poison::Error {
+						error: Error::MissingBraces {
+							location: statement.location().clone(),
+						},
+						partial: Some(Box::new(self)),
+					})
 				}
 			}
 		}
 
 		match self
 		{
-			Statement::Declaration { name, .. } =>
+			Statement::Declaration {
+				name,
+				value,
+				value_type,
+				location,
+			} => match analyzer.get_first_unresolved_goto()
 			{
-				if let Some((_id, goto)) =
-					analyzer.unresolved_gotos.iter().next()
-				{
-					Err(anyhow!("unresolved goto")
-						.context(goto.location.format())
-						.context(format!(
-							"jump to label '{}' may skip this declaration",
-							goto.name
-						))
-						.context(name.location.format())
-						.context("variable declaration may be skipped by goto"))
-				}
-				else
-				{
-					Ok(())
-				}
-			}
-			Statement::Assignment { .. } => Ok(()),
-			Statement::MethodCall { .. } => Ok(()),
+				Some(UnresolvedGoto {
+					goto,
+					label: Ok(label),
+				}) => Statement::Poison(Poison::Error {
+					error: Error::VariableDeclarationMayBeSkipped {
+						location: location.clone(),
+						location_of_goto: goto.location.clone(),
+						location_of_label: label.location.clone(),
+					},
+					partial: Some(Box::new(Statement::Declaration {
+						name,
+						value,
+						value_type,
+						location,
+					})),
+				}),
+				Some(UnresolvedGoto {
+					goto: _,
+					label: Err(()),
+				}) => Statement::Poison(Poison::Poisoned),
+				None => Statement::Declaration {
+					name,
+					value,
+					value_type,
+					location,
+				},
+			},
+			Statement::Assignment { .. } => self,
+			Statement::MethodCall { .. } => self,
 			Statement::Loop { location } =>
 			{
-				if analyzer.is_final_statement_in_block
+				if analyzer.is_in_block
 				{
-					Ok(())
+					Statement::Loop { location }
 				}
 				else
 				{
-					Err(anyhow!("misplaced loop statement")
-						.context(location.format())
-						.context(
-							"loop statement must be final statement \
-							in code block",
-						))
+					Statement::Poison(Poison::Error {
+						error: Error::MisplacedLoopStatement {
+							location: location.clone(),
+						},
+						partial: Some(Box::new(Statement::Loop { location })),
+					})
 				}
 			}
 			Statement::Goto { label, location } =>
 			{
-				analyzer.add_goto(label, location);
-				Ok(())
+				analyzer.add_goto(&label, &location);
+				Statement::Goto { label, location }
 			}
-			Statement::Label { label, location: _ } =>
+			Statement::Label { label, location } =>
 			{
-				analyzer.resolve_goto(label);
-				Ok(())
+				analyzer.resolve_goto(&label);
+				Statement::Label { label, location }
 			}
 			Statement::If {
-				condition: _,
+				condition,
 				then_branch,
 				else_branch,
-				location: _,
+				location,
 			} =>
 			{
-				analyzer.is_final_statement_in_block = false;
+				analyzer.is_in_block = false;
 
 				analyzer.is_naked_then_branch = true;
-				then_branch.analyze(analyzer)?;
+				let then_branch = Box::new(then_branch.analyze(analyzer));
 				analyzer.is_naked_then_branch = false;
 
-				if let Some(else_branch) = else_branch
-				{
+				let else_branch = else_branch.map(|x| {
 					analyzer.is_naked_else_branch = true;
-					else_branch.branch.analyze(analyzer)?;
+					let branch = x.branch.analyze(analyzer);
 					analyzer.is_naked_else_branch = false;
-				}
 
-				Ok(())
+					Else {
+						branch: Box::new(branch),
+						location_of_else: x.location_of_else,
+					}
+				});
+
+				Statement::If {
+					condition,
+					then_branch,
+					else_branch,
+					location,
+				}
 			}
 			Statement::Block(block) =>
 			{
 				analyzer.is_naked_then_branch = false;
 				analyzer.is_naked_else_branch = false;
-				block.analyze(analyzer)
+				let block = block.analyze(analyzer);
+				Statement::Block(block)
 			}
-			Statement::Poison(Poison::Error {
-				error: _,
-				partial: Some(statement),
-			}) => statement.analyze(analyzer),
-			Statement::Poison(Poison::Error {
-				error: _,
-				partial: None,
-			}) => Ok(()),
-			Statement::Poison(Poison::Poisoned) => Ok(()),
+			Statement::Poison(_) => self,
 		}
 	}
 }

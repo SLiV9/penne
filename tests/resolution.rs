@@ -23,7 +23,7 @@ fn resolve(
 	let declarations = parser::parse(tokens);
 	let declarations = scoper::analyze(declarations);
 	let declarations = typer::analyze(declarations);
-	analyzer::analyze(&declarations)?;
+	let declarations = analyzer::analyze(declarations);
 	Ok(resolver::resolve(declarations))
 }
 

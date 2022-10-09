@@ -158,6 +158,10 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 		.set_fg(Some(Color::Red))
 		.set_bold(true)
 		.to_owned();
+	let colorspec_warning = ColorSpec::new()
+		.set_fg(Some(Color::Yellow))
+		.set_bold(true)
+		.to_owned();
 	let colorspec_success =
 		ColorSpec::new().set_fg(Some(Color::Green)).to_owned();
 
@@ -271,11 +275,11 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			stdout.set_color(&colorspec_header)?;
 			writeln!(stdout, "Analyzing {}...", filename)?;
 		}
-		analyzer::analyze(&declarations)?;
+		let declarations = analyzer::analyze(declarations);
 		if verbose
 		{
-			stdout.set_color(&colorspec_success)?;
-			writeln!(stdout, "Analysis complete.")?;
+			stdout.set_color(&colorspec_dump)?;
+			writeln!(stdout, "{:?}", declarations)?;
 			writeln!(stdout)?;
 		}
 		let stored_declarations = declarations.clone();
@@ -285,19 +289,19 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			writeln!(stdout, "Linting {}...", filename)?;
 		}
 		let lints = linter::lint(&declarations);
-		if !lints.is_empty()
+		if verbose
 		{
-			for lint in lints
+			if !lints.is_empty()
 			{
-				writeln!(stdout)?;
-				lint.report().eprint(ariadne::sources(sources.clone()))?;
+				stdout.set_color(&colorspec_warning)?;
+				writeln!(stdout, "Linting raised some warnings.")?;
+			// We show them after resolution, if there are no errors.
 			}
-			writeln!(stdout)?;
-		}
-		else if verbose
-		{
-			stdout.set_color(&colorspec_success)?;
-			writeln!(stdout, "Linting complete.")?;
+			else
+			{
+				stdout.set_color(&colorspec_success)?;
+				writeln!(stdout, "Linting complete.")?;
+			}
 			writeln!(stdout)?;
 		}
 		if verbose
@@ -327,6 +331,15 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 		{
 			stdout.set_color(&colorspec_dump)?;
 			writeln!(stdout, "{:?}", declarations)?;
+			writeln!(stdout)?;
+		}
+		if !lints.is_empty()
+		{
+			for lint in lints
+			{
+				writeln!(stdout)?;
+				lint.report().eprint(ariadne::sources(sources.clone()))?;
+			}
 			writeln!(stdout)?;
 		}
 		if verbose

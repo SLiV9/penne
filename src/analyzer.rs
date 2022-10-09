@@ -10,10 +10,10 @@ mod syntax;
 
 use crate::common::*;
 
-pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
+pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 {
-	syntax::analyze(program)?;
-	function_calls::analyze(program)?;
-	mutability::analyze(program)?;
-	Ok(())
+	let program = syntax::analyze(program);
+	let program = function_calls::analyze(program);
+	let program = mutability::analyze(program);
+	program
 }

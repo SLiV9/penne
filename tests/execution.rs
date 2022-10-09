@@ -291,7 +291,7 @@ fn execute_calculation(filename: &str) -> Result<i32, anyhow::Error>
 	let declarations = parser::parse(tokens);
 	let declarations = scoper::analyze(declarations);
 	let declarations = typer::analyze(declarations);
-	analyzer::analyze(&declarations)?;
+	let declarations = analyzer::analyze(declarations);
 	let declarations =
 		resolver::resolve(declarations).map_err(|e| e.first())?;
 	let ir = generator::generate(&declarations, filename, false)?;

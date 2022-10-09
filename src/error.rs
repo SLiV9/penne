@@ -80,6 +80,15 @@ pub enum Error
 	{
 		location: Location
 	},
+	IllegalVariableTypeSlice
+	{
+		location: Location
+	},
+	IllegalParameterType
+	{
+		value_type: ValueType,
+		location: Location,
+	},
 	TypeNotAllowedInExtern
 	{
 		value_type: ValueType,
@@ -164,6 +173,20 @@ pub enum Error
 		location: Location,
 		previous: Location,
 	},
+	ArgumentTypeMismatch
+	{
+		parameter_name: String,
+		argument_type: ValueType,
+		parameter_type: ValueType,
+		location: Location,
+		location_of_declaration: Location,
+	},
+	IndexTypeMismatch
+	{
+		argument_type: ValueType,
+		index_type: ValueType,
+		location: Location,
+	},
 	NotAnArray
 	{
 		current_type: ValueType,
@@ -176,6 +199,57 @@ pub enum Error
 		location: Location,
 		previous: Location,
 	},
+	TooFewArguments
+	{
+		location: Location,
+		location_of_declaration: Location,
+	},
+	TooManyArguments
+	{
+		location: Location,
+		location_of_declaration: Location,
+	},
+	FunctionInConstContext
+	{
+		location: Location
+	},
+	CannotCopyArray
+	{
+		location: Location
+	},
+	CannotCopySlice
+	{
+		location: Location
+	},
+	NotMutable
+	{
+		location: Location,
+		location_of_declaration: Location,
+	},
+	AddressOfTemporaryAddress
+	{
+		location: Location,
+		location_of_declaration: Location,
+	},
+	MissingBraces
+	{
+		location: Location
+	},
+	NonFinalLoopStatement
+	{
+		location: Location,
+		location_of_block: Location,
+	},
+	MisplacedLoopStatement
+	{
+		location: Location
+	},
+	VariableDeclarationMayBeSkipped
+	{
+		location: Location,
+		location_of_goto: Location,
+		location_of_label: Location,
+	},
 }
 
 impl Error
@@ -185,6 +259,7 @@ impl Error
 		let mut colors = ariadne::ColorGenerator::new();
 		let a = colors.next();
 		let b = colors.next();
+		let c = colors.next();
 
 		match self
 		{
@@ -394,8 +469,46 @@ impl Error
 			)
 			.finish(),
 
+			Error::IllegalVariableTypeSlice {
+				location,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_message("Invalid variable type")
+			.with_label(
+				location
+					.label()
+					.with_message(
+						"Slices cannot be assigned to variables.",
+					)
+					.with_color(a),
+			)
+			.finish(),
+
+			Error::IllegalParameterType {
+				value_type,
+				location,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_message("Invalid parameter type")
+			.with_label(
+				location
+					.label()
+					.with_message(format!(
+						"The type {} is not allowed as a parameter.",
+						show_type(value_type).fg(a)
+					))
+					.with_color(a),
+			)
+			.finish(),
+
 			Error::TypeNotAllowedInExtern {
-				value_type: _,
+				value_type,
 				location_of_type,
 				location_of_declaration,
 			} => Report::build(
@@ -407,9 +520,10 @@ impl Error
 			.with_label(
 				location_of_type
 					.label()
-					.with_message(
-						"This type is not allowed in external declarations.",
-					)
+					.with_message(format!(
+						"The type {} is not allowed in external declarations.",
+						show_type(value_type).fg(a)
+					))
 					.with_color(a),
 			)
 			.with_label(
@@ -755,6 +869,54 @@ impl Error
 				.finish()
 			}
 
+			Error::ArgumentTypeMismatch { parameter_name,
+				argument_type, parameter_type, location, location_of_declaration } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location.source_filename,
+					location.span.start,
+				)
+				.with_message("Mismatched types")
+				.with_label(
+					location
+						.label()
+						.with_message(format!("Argument has type {}.",
+							show_type(argument_type).fg(a)))
+						.with_color(a),
+				)
+				.with_label(
+					location_of_declaration
+						.label()
+						.with_message(format!("Parameter '{}' has type {}.",
+							parameter_name.fg(b),
+							show_type(parameter_type).fg(b)))
+						.with_color(b),
+				)
+				.finish()
+			}
+
+			Error::IndexTypeMismatch {
+				argument_type, index_type, location } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location.source_filename,
+					location.span.start,
+				)
+				.with_message("Mismatched types")
+				.with_label(
+					location
+						.label()
+						.with_message(format!(
+							"Argument has type {}, expected {}.",
+							show_type(argument_type).fg(a),
+							show_type(index_type).fg(c)))
+						.with_color(a),
+				)
+				.finish()
+			}
+
 			Error::NotAnArray { current_type, location, previous } =>
 			{
 				Report::build(
@@ -802,6 +964,265 @@ impl Error
 				)
 				.finish()
 			}
+
+			Error::TooFewArguments { location, location_of_declaration } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location.source_filename,
+					location.span.start,
+				)
+				.with_message("Too few arguments")
+				.with_label(
+					location
+						.label()
+						.with_message("Too few arguments in function call.")
+						.with_color(a),
+				)
+				.with_label(
+					location_of_declaration
+						.label()
+						.with_message("Function declared here.")
+						.with_color(b),
+				)
+				.finish()
+			}
+
+			Error::TooManyArguments { location, location_of_declaration } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location.source_filename,
+					location.span.start,
+				)
+				.with_message("Too many arguments")
+				.with_label(
+					location
+						.label()
+						.with_message("Too many arguments in function call.")
+						.with_color(a),
+				)
+				.with_label(
+					location_of_declaration
+						.label()
+						.with_message("Function declared here.")
+						.with_color(b),
+				)
+				.finish()
+			}
+
+			Error::FunctionInConstContext {
+				location,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_message("Function in constant expression")
+			.with_label(
+				location
+					.label()
+					.with_message(
+						"Function calls cannot occur in constant expressions.",
+					)
+					.with_color(a),
+			)
+			.finish(),
+
+			Error::CannotCopyArray { location } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location.source_filename,
+					location.span.start,
+				)
+				.with_message("Cannot copy array")
+				.with_label(
+					location
+						.label()
+						.with_message("Cannot copy this array.")
+						.with_color(a),
+				)
+				.finish()
+			}
+
+			Error::CannotCopySlice { location } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location.source_filename,
+					location.span.start,
+				)
+				.with_message("Cannot copy slice")
+				.with_label(
+					location
+						.label()
+						.with_message("Cannot copy this slice.")
+						.with_color(a),
+				)
+				.finish()
+			}
+
+			Error::NotMutable { location, location_of_declaration } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location.source_filename,
+					location.span.start,
+				)
+				.with_message("Illegal mutation")
+				.with_label(
+					location
+						.label()
+						.with_message("Cannot mutate this value.")
+						.with_color(a),
+				)
+				.with_label(
+					location_of_declaration
+						.label()
+						.with_message("This value is not mutable.")
+						.with_color(b),
+				)
+				.finish()
+			}
+
+			Error::AddressOfTemporaryAddress { location, location_of_declaration } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location.source_filename,
+					location.span.start,
+				)
+				.with_message("Address of temporary address")
+				.with_label(
+					location
+						.label()
+						.with_message("Cannot take address of temporary address.")
+						.with_color(a),
+				)
+				.with_label(
+					location_of_declaration
+						.label()
+						.with_message(format!(
+							"This value is not of type {}.",
+							"`&&_`".fg(b)
+						))
+						.with_color(b),
+				)
+				.finish()
+			}
+
+			Error::MissingBraces {
+				location,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_message("Missing braces")
+			.with_label(
+				location
+					.label()
+					.with_message(
+						"Add braces around this statement."
+					)
+					.with_color(a),
+			)
+			.with_note(format!(
+				"Braces around conditional branches can only be omitted for {} statements.",
+				"`goto`".fg(a)
+			))
+			.finish(),
+
+			Error::NonFinalLoopStatement {
+				location,
+				location_of_block,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_message("Misplaced loop statement")
+			.with_label(
+				location
+					.label()
+					.with_message(
+						"This is not the final statement..."
+					)
+					.with_color(a),
+			)
+			.with_label(
+				location_of_block
+					.label()
+					.with_message(
+						"...of this block."
+					)
+					.with_color(b),
+			)
+			.with_note(format!(
+				"The {} statement must always be the final statement of a block.",
+				"`loop`".fg(a)))
+			.finish(),
+
+			Error::MisplacedLoopStatement {
+				location,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_message("Misplaced loop statement")
+			.with_label(
+				location
+					.label()
+					.with_message(
+						"This is not allowed here."
+					)
+					.with_color(a),
+			)
+			.with_note(format!(
+				"The {} statement must always be the final statement of a block.",
+				"`loop`".fg(a)))
+			.finish(),
+
+			Error::VariableDeclarationMayBeSkipped {
+				location,
+				location_of_goto,
+				location_of_label,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_message("Variable declaration may be skipped")
+			.with_label(
+				location
+					.label()
+					.with_message(
+						"...may skip this variable declaration."
+					)
+					.with_priority(-50)
+					.with_color(a),
+			)
+			.with_label(
+				location_of_goto
+					.label()
+					.with_message(format!(
+						"A jump from this {} statement...",
+						"`goto`".fg(b)
+
+					))
+					.with_color(b),
+			)
+			.with_label(
+				location_of_label
+					.label()
+					.with_message(
+						"...to this label..."
+					)
+					.with_color(c),
+			)
+			.finish(),
 
 		}
 	}

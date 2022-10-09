@@ -21,7 +21,7 @@ fn lint(filename: &str) -> Result<Vec<Lint>, anyhow::Error>
 	let declarations = parser::parse(tokens);
 	let declarations = scoper::analyze(declarations);
 	let declarations = typer::analyze(declarations);
-	analyzer::analyze(&declarations)?;
+	let declarations = analyzer::analyze(declarations);
 	Ok(linter::lint(&declarations))
 }
 

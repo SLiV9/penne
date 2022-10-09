@@ -5,20 +5,17 @@
 //
 
 use crate::common::*;
+use crate::error::Error;
 
-use anyhow::anyhow;
-use anyhow::Context;
-
-pub fn analyze(program: &Vec<Declaration>) -> Result<(), anyhow::Error>
+pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 {
 	let mut analyzer = Analyzer {
 		variables: std::collections::HashMap::new(),
 	};
-	for declaration in program
-	{
-		declaration.analyze(&mut analyzer)?;
-	}
-	Ok(())
+	program
+		.into_iter()
+		.map(|x| x.analyze(&mut analyzer))
+		.collect()
 }
 
 struct Analyzer
@@ -28,36 +25,17 @@ struct Analyzer
 
 impl Analyzer
 {
-	fn declare_variable(
-		&mut self,
-		identifier: &Identifier,
-		is_mutable: bool,
-	) -> Result<(), anyhow::Error>
+	fn declare_variable(&mut self, identifier: &Identifier, is_mutable: bool)
 	{
-		let old_value = self
-			.variables
+		self.variables
 			.insert(identifier.resolution_id, (identifier.clone(), is_mutable));
-		match old_value
-		{
-			Some((_, was_mutable)) if was_mutable == is_mutable => Ok(()),
-			Some((old_identifier, was_mutable)) => Err(anyhow!(
-				"first occurrence {}",
-				old_identifier.location.format()
-			)
-			.context(identifier.location.format())
-			.context(format!(
-				"conflicting mutabilities for '{}', {:?} and {:?}",
-				identifier.name, was_mutable, is_mutable
-			))),
-			None => Ok(()),
-		}
 	}
 
 	fn use_variable(
 		&self,
 		identifier: &Poisonable<Identifier>,
 		is_mutated: bool,
-	) -> Result<(), anyhow::Error>
+	) -> Result<(), Error>
 	{
 		if let Ok(identifier) = identifier
 		{
@@ -66,15 +44,12 @@ impl Analyzer
 			{
 				if is_mutated && !is_mutable
 				{
-					return Err(anyhow!(
-						"previous declaration {}",
-						previous_identifier.location.format()
-					)
-					.context(identifier.location.format())
-					.context(format!(
-						"the variable '{}' is not mutable",
-						identifier.name
-					)));
+					Err(Error::NotMutable {
+						location: identifier.location.clone(),
+						location_of_declaration: previous_identifier
+							.location
+							.clone(),
+					})
 				}
 				else
 				{
@@ -95,119 +70,133 @@ impl Analyzer
 
 trait Analyzable
 {
-	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>;
+	fn analyze(self, analyzer: &mut Analyzer) -> Self;
 }
 
 impl Analyzable for Declaration
 {
-	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
+	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
 		match self
 		{
 			Declaration::Constant {
 				name,
 				value,
-				value_type: _,
-				flags: _,
+				value_type,
+				flags,
 			} =>
 			{
-				analyzer.declare_variable(name, false)?;
-				value.analyze(analyzer)?;
-				Ok(())
+				analyzer.declare_variable(&name, false);
+				let value = value.analyze(analyzer);
+				Declaration::Constant {
+					name,
+					value,
+					value_type,
+					flags,
+				}
 			}
 			Declaration::Function {
-				name: _,
+				name,
 				parameters,
 				body,
-				return_type: _,
-				flags: _,
+				return_type,
+				flags,
 			} =>
 			{
-				for parameter in parameters
+				let parameters = parameters
+					.into_iter()
+					.map(|x| x.analyze(analyzer))
+					.collect();
+				let body = match body
 				{
-					parameter.analyze(analyzer)?;
+					Ok(body) => Ok(body.analyze(analyzer)),
+					Err(poison) => Err(poison),
+				};
+				Declaration::Function {
+					name,
+					parameters,
+					body,
+					return_type,
+					flags,
 				}
-				match body
-				{
-					Ok(body) => body.analyze(analyzer)?,
-					Err(_poison) => (),
-				}
-				Ok(())
 			}
 			Declaration::FunctionHead {
-				name: _,
+				name,
 				parameters,
-				return_type: _,
-				flags: _,
+				return_type,
+				flags,
 			} =>
 			{
-				for parameter in parameters
-				{
-					parameter.analyze(analyzer)?;
+				let parameters = parameters
+					.into_iter()
+					.map(|x| x.analyze(analyzer))
+					.collect();
+				Declaration::FunctionHead {
+					name,
+					parameters,
+					return_type,
+					flags,
 				}
-				Ok(())
 			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
-			Declaration::Poison(Poison::Error {
-				error: _,
-				partial: Some(declaration),
-			}) => declaration.analyze(analyzer),
-			Declaration::Poison(Poison::Error {
-				error: _,
-				partial: None,
-			}) => Ok(()),
-			Declaration::Poison(Poison::Poisoned) => Ok(()),
+			Declaration::Poison(_) => self,
 		}
 	}
 }
 
 impl Analyzable for Parameter
 {
-	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
+	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
 		match &self.name
 		{
 			Ok(name) =>
 			{
-				analyzer.declare_variable(name, false)?;
+				analyzer.declare_variable(name, false);
 			}
 			Err(_poison) => (),
 		}
-		Ok(())
+		self
 	}
 }
 
 impl Analyzable for FunctionBody
 {
-	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
+	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
-		for statement in &self.statements
-		{
-			statement.analyze(analyzer)?;
+		let statements = self
+			.statements
+			.into_iter()
+			.map(|x| x.analyze(analyzer))
+			.collect();
+		let return_value = self.return_value.map(|x| x.analyze(analyzer));
+		FunctionBody {
+			statements,
+			return_value,
+			return_value_identifier: self.return_value_identifier,
 		}
-		if let Some(return_value) = &self.return_value
-		{
-			return_value.analyze(analyzer)?;
-		}
-		Ok(())
 	}
 }
 
 impl Analyzable for Block
 {
-	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
+	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
-		for statement in &self.statements
-		{
-			statement.analyze(analyzer)?;
+		let statements = self
+			.statements
+			.into_iter()
+			.map(|x| x.analyze(analyzer))
+			.collect();
+		Block {
+			statements,
+			location: self.location,
 		}
-		Ok(())
 	}
 }
 
 impl Analyzable for Statement
 {
-	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
+	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
 		match self
 		{
@@ -218,12 +207,7 @@ impl Analyzable for Statement
 				location,
 			} =>
 			{
-				if let Some(value) = value
-				{
-					value
-						.analyze(analyzer)
-						.with_context(|| location.format())?;
-				}
+				let value = value.map(|x| x.analyze(analyzer));
 				let is_mutable = match value_type
 				{
 					Some(Ok(ValueType::View { .. })) => false,
@@ -231,8 +215,13 @@ impl Analyzable for Statement
 					Some(Err(_)) => true,
 					None => true,
 				};
-				analyzer.declare_variable(name, is_mutable)?;
-				Ok(())
+				analyzer.declare_variable(&name, is_mutable);
+				Statement::Declaration {
+					name,
+					value,
+					value_type,
+					location,
+				}
 			}
 			Statement::Assignment {
 				reference,
@@ -240,17 +229,15 @@ impl Analyzable for Statement
 				location,
 			} =>
 			{
-				value.analyze(analyzer).with_context(|| location.format())?;
+				let value = value.analyze(analyzer);
+				let reference = reference.analyze(analyzer);
 
 				let mut needs_outer_mutability = true;
 				for step in reference.steps.iter()
 				{
 					match step
 					{
-						ReferenceStep::Element { argument } =>
-						{
-							argument.analyze(analyzer)?;
-						}
+						ReferenceStep::Element { .. } => (),
 						ReferenceStep::Member { .. } => (),
 						ReferenceStep::Autodeslice { .. } => (),
 						ReferenceStep::Autoderef =>
@@ -261,27 +248,35 @@ impl Analyzable for Statement
 					}
 				}
 
-				analyzer
-					.use_variable(&reference.base, needs_outer_mutability)?;
-				Ok(())
-			}
-			Statement::MethodCall { name: _, arguments } =>
-			{
-				for argument in arguments
+				match analyzer
+					.use_variable(&reference.base, needs_outer_mutability)
 				{
-					argument.analyze(analyzer)?;
+					Ok(()) => Statement::Assignment {
+						reference,
+						value,
+						location,
+					},
+					Err(error) => Statement::Poison(Poison::Error {
+						error,
+						partial: Some(Box::new(Statement::Assignment {
+							reference,
+							value,
+							location,
+						})),
+					}),
 				}
-				Ok(())
 			}
-			Statement::Loop { location: _ } => Ok(()),
-			Statement::Goto {
-				label: _,
-				location: _,
-			} => Ok(()),
-			Statement::Label {
-				label: _,
-				location: _,
-			} => Ok(()),
+			Statement::MethodCall { name, arguments } =>
+			{
+				let arguments = arguments
+					.into_iter()
+					.map(|x| x.analyze(analyzer))
+					.collect();
+				Statement::MethodCall { name, arguments }
+			}
+			Statement::Loop { .. } => self,
+			Statement::Goto { .. } => self,
+			Statement::Label { .. } => self,
 			Statement::If {
 				condition,
 				then_branch,
@@ -289,107 +284,148 @@ impl Analyzable for Statement
 				location,
 			} =>
 			{
-				condition
-					.analyze(analyzer)
-					.with_context(|| location.format())?;
-				then_branch.analyze(analyzer)?;
-				if let Some(else_branch) = else_branch
-				{
-					else_branch.branch.analyze(analyzer)?;
+				let condition = condition.analyze(analyzer);
+				let then_branch = Box::new(then_branch.analyze(analyzer));
+				let else_branch = else_branch.map(|x| {
+					let branch = x.branch.analyze(analyzer);
+					Else {
+						branch: Box::new(branch),
+						location_of_else: x.location_of_else,
+					}
+				});
+				Statement::If {
+					condition,
+					then_branch,
+					else_branch,
+					location,
 				}
-				Ok(())
 			}
-			Statement::Block(block) => block.analyze(analyzer),
-			Statement::Poison(Poison::Error {
-				error: _,
-				partial: Some(statement),
-			}) => statement.analyze(analyzer),
-			Statement::Poison(Poison::Error {
-				error: _,
-				partial: None,
-			}) => Ok(()),
-			Statement::Poison(Poison::Poisoned) => Ok(()),
+			Statement::Block(block) =>
+			{
+				let block = block.analyze(analyzer);
+				Statement::Block(block)
+			}
+			Statement::Poison(_) => self,
 		}
 	}
 }
 
 impl Analyzable for Comparison
 {
-	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
+	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
-		self.left
-			.analyze(analyzer)
-			.with_context(|| self.location.format())?;
-		self.right
-			.analyze(analyzer)
-			.with_context(|| self.location.format())?;
-		Ok(())
+		let left = self.left.analyze(analyzer);
+		let right = self.right.analyze(analyzer);
+		Comparison {
+			op: self.op,
+			left,
+			right,
+			location: self.location,
+			location_of_op: self.location_of_op,
+		}
 	}
 }
 
 impl Analyzable for Array
 {
-	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
+	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
-		for element in &self.elements
-		{
-			element.analyze(analyzer)?;
+		let elements = self
+			.elements
+			.into_iter()
+			.map(|x| x.analyze(analyzer))
+			.collect();
+		Array {
+			elements,
+			location: self.location,
+			resolution_id: self.resolution_id,
 		}
-		Ok(())
 	}
 }
 
 impl Analyzable for Expression
 {
-	fn analyze(&self, analyzer: &mut Analyzer) -> Result<(), anyhow::Error>
+	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
 		match self
 		{
 			Expression::Binary {
-				op: _,
+				op,
 				left,
 				right,
 				location,
-				location_of_op: _,
+				location_of_op,
 			} =>
 			{
-				left.analyze(analyzer).with_context(|| location.format())?;
-				right.analyze(analyzer).with_context(|| location.format())?;
-				Ok(())
+				let left = left.analyze(analyzer);
+				let right = right.analyze(analyzer);
+				Expression::Binary {
+					op,
+					left: Box::new(left),
+					right: Box::new(right),
+					location,
+					location_of_op,
+				}
 			}
 			Expression::Unary {
-				op: _,
+				op,
 				expression,
 				location,
-				location_of_op: _,
+				location_of_op,
 			} =>
 			{
-				expression
-					.analyze(analyzer)
-					.with_context(|| location.format())?;
-				Ok(())
+				let expression = expression.analyze(analyzer);
+				Expression::Unary {
+					op,
+					expression: Box::new(expression),
+					location,
+					location_of_op,
+				}
 			}
-			Expression::PrimitiveLiteral { .. } => Ok(()),
-			Expression::NakedIntegerLiteral { .. } => Ok(()),
-			Expression::BitIntegerLiteral { .. } => Ok(()),
+			Expression::PrimitiveLiteral { .. } => self,
+			Expression::NakedIntegerLiteral { .. } => self,
+			Expression::BitIntegerLiteral { .. } => self,
 			Expression::ArrayLiteral {
 				array,
-				element_type: _,
-			} => array.analyze(analyzer),
-			Expression::StringLiteral { .. } => Ok(()),
+				element_type,
+			} =>
+			{
+				let array = array.analyze(analyzer);
+				Expression::ArrayLiteral {
+					array,
+					element_type,
+				}
+			}
+			Expression::StringLiteral { .. } => self,
 			Expression::Autocoerce {
 				expression,
-				coerced_type: _,
-			} => expression.analyze(analyzer),
+				coerced_type,
+			} =>
+			{
+				let expression = expression.analyze(analyzer);
+				Expression::Autocoerce {
+					expression: Box::new(expression),
+					coerced_type,
+				}
+			}
 			Expression::PrimitiveCast {
 				expression,
-				coerced_type: _,
-				location: _,
-				location_of_type: _,
-			} => expression.analyze(analyzer),
+				coerced_type,
+				location,
+				location_of_type,
+			} =>
+			{
+				let expression = expression.analyze(analyzer);
+				Expression::PrimitiveCast {
+					expression: Box::new(expression),
+					coerced_type,
+					location,
+					location_of_type,
+				}
+			}
 			Expression::Deref {
 				reference,
-				deref_type: _,
+				deref_type,
 			} =>
 			{
 				let is_addressed = match reference.address_depth
@@ -398,62 +434,123 @@ impl Analyzable for Expression
 					1 => true,
 					_ =>
 					{
-						return Err(anyhow!("address depth too high")
-							.context(reference.location.format())
-							.context(format!(
-							"cannot take address of temporary address of ''",
-						)));
+						match &reference.base
+						{
+							Ok(base) =>
+							{
+								let location = reference.location.clone();
+								let location_of_declaration =
+									base.location.clone();
+								return Expression::Poison(Poison::Error {
+									error: Error::AddressOfTemporaryAddress {
+										location,
+										location_of_declaration,
+									},
+									partial: Some(Box::new(
+										Expression::Deref {
+											reference,
+											deref_type,
+										},
+									)),
+								});
+							}
+							Err(_poison) =>
+							{
+								// The reference will already throw an error.
+								return Expression::Deref {
+									reference,
+									deref_type,
+								};
+							}
+						}
 					}
 				};
-				analyzer.use_variable(&reference.base, is_addressed)?;
-				for step in reference.steps.iter()
+				let reference = reference.analyze(analyzer);
+				match analyzer.use_variable(&reference.base, is_addressed)
 				{
-					match step
-					{
-						ReferenceStep::Element { argument } =>
-						{
-							argument.analyze(analyzer)?;
-						}
-						ReferenceStep::Member { .. } => (),
-						ReferenceStep::Autodeslice { .. } => (),
-						ReferenceStep::Autoderef => (),
-						ReferenceStep::Autoview => (),
-					}
+					Ok(()) => Expression::Deref {
+						reference,
+						deref_type,
+					},
+					Err(error) => Expression::Poison(Poison::Error {
+						error,
+						partial: Some(Box::new(Expression::Deref {
+							reference,
+							deref_type,
+						})),
+					}),
 				}
-				Ok(())
 			}
 			Expression::LengthOfArray { reference } =>
 			{
-				analyzer.use_variable(&reference.base, false)?;
-				for step in reference.steps.iter()
+				let reference = reference.analyze(analyzer);
+				match analyzer.use_variable(&reference.base, false)
 				{
-					match step
-					{
-						ReferenceStep::Element { argument } =>
-						{
-							argument.analyze(analyzer)?;
-						}
-						ReferenceStep::Member { .. } => (),
-						ReferenceStep::Autodeslice { .. } => (),
-						ReferenceStep::Autoderef => (),
-						ReferenceStep::Autoview => (),
-					}
+					Ok(()) => Expression::LengthOfArray { reference },
+					Err(error) => Expression::Poison(Poison::Error {
+						error,
+						partial: Some(Box::new(Expression::LengthOfArray {
+							reference,
+						})),
+					}),
 				}
-				Ok(())
 			}
 			Expression::FunctionCall {
-				name: _,
+				name,
 				arguments,
-				return_type: _,
+				return_type,
 			} =>
 			{
-				for argument in arguments
-				{
-					argument.analyze(analyzer)?;
+				let arguments = arguments
+					.into_iter()
+					.map(|argument| argument.analyze(analyzer))
+					.collect();
+				Expression::FunctionCall {
+					name,
+					arguments,
+					return_type,
 				}
-				Ok(())
 			}
-			Expression::Poison(_) => Ok(()),
+			Expression::Poison(_) => self,
+		}
+	}
+}
+
+impl Analyzable for ReferenceStep
+{
+	fn analyze(self, analyzer: &mut Analyzer) -> Self
+	{
+		match self
+		{
+			ReferenceStep::Element { argument } =>
+			{
+				let argument = argument.analyze(analyzer);
+				ReferenceStep::Element {
+					argument: Box::new(argument),
+				}
+			}
+			ReferenceStep::Member { .. } => self,
+			ReferenceStep::Autodeslice { .. } => self,
+			ReferenceStep::Autoderef => self,
+			ReferenceStep::Autoview => self,
+		}
+	}
+}
+
+impl Analyzable for Reference
+{
+	fn analyze(self, analyzer: &mut Analyzer) -> Self
+	{
+		let steps = self
+			.steps
+			.into_iter()
+			.map(|x| x.analyze(analyzer))
+			.collect();
+		Reference {
+			base: self.base,
+			steps,
+			address_depth: self.address_depth,
+			location: self.location,
 		}
 	}
 }

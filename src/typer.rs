@@ -440,9 +440,7 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 
 trait Analyzable
 {
-	type Item;
-
-	fn analyze(self, typer: &mut Typer) -> Self::Item;
+	fn analyze(self, typer: &mut Typer) -> Self;
 }
 
 impl Typed for Declaration
@@ -468,9 +466,7 @@ impl Typed for Declaration
 
 impl Analyzable for Declaration
 {
-	type Item = Declaration;
-
-	fn analyze(self, typer: &mut Typer) -> Self::Item
+	fn analyze(self, typer: &mut Typer) -> Self
 	{
 		match self
 		{
@@ -659,9 +655,7 @@ fn analyze_return_value(
 
 impl Analyzable for Parameter
 {
-	type Item = Parameter;
-
-	fn analyze(self, typer: &mut Typer) -> Self::Item
+	fn analyze(self, typer: &mut Typer) -> Self
 	{
 		let value_type = match &self.name
 		{
@@ -700,9 +694,7 @@ impl Typed for FunctionBody
 
 impl Analyzable for FunctionBody
 {
-	type Item = FunctionBody;
-
-	fn analyze(self, typer: &mut Typer) -> Self::Item
+	fn analyze(self, typer: &mut Typer) -> Self
 	{
 		let contextual_return_type = typer.contextual_type.take();
 		let statements: Vec<Statement> = self
@@ -731,9 +723,7 @@ impl Analyzable for FunctionBody
 
 impl Analyzable for Block
 {
-	type Item = Block;
-
-	fn analyze(self, typer: &mut Typer) -> Self::Item
+	fn analyze(self, typer: &mut Typer) -> Self
 	{
 		typer.contextual_type = None;
 		let statements: Vec<Statement> = self
@@ -750,9 +740,7 @@ impl Analyzable for Block
 
 impl Analyzable for Statement
 {
-	type Item = Statement;
-
-	fn analyze(self, typer: &mut Typer) -> Self::Item
+	fn analyze(self, typer: &mut Typer) -> Self
 	{
 		typer.contextual_type = None;
 		match self
@@ -956,9 +944,7 @@ impl Analyzable for Statement
 
 impl Analyzable for Comparison
 {
-	type Item = Comparison;
-
-	fn analyze(self, typer: &mut Typer) -> Self::Item
+	fn analyze(self, typer: &mut Typer) -> Self
 	{
 		let contextual_type = typer.contextual_type.take();
 		typer.contextual_type =
@@ -978,9 +964,7 @@ impl Analyzable for Comparison
 
 impl Analyzable for Array
 {
-	type Item = Array;
-
-	fn analyze(self, typer: &mut Typer) -> Self::Item
+	fn analyze(self, typer: &mut Typer) -> Self
 	{
 		let name = self.get_identifier();
 		let elements: Vec<Expression> = self
@@ -1063,9 +1047,7 @@ impl Typed for Expression
 
 impl Analyzable for Expression
 {
-	type Item = Expression;
-
-	fn analyze(self, typer: &mut Typer) -> Self::Item
+	fn analyze(self, typer: &mut Typer) -> Self
 	{
 		match self
 		{
@@ -1355,9 +1337,7 @@ impl Analyzable for Expression
 
 impl Analyzable for ReferenceStep
 {
-	type Item = ReferenceStep;
-
-	fn analyze(self, typer: &mut Typer) -> Self::Item
+	fn analyze(self, typer: &mut Typer) -> Self
 	{
 		match self
 		{

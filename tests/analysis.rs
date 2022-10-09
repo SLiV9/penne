@@ -7,19 +7,24 @@
 use penne::analyzer;
 use penne::lexer;
 use penne::parser;
+use penne::resolved;
+use penne::resolver;
 use penne::scoper;
 use penne::typer;
 
 use anyhow::anyhow;
 
-fn analyze(filename: &str) -> Result<Result<(), anyhow::Error>, anyhow::Error>
+fn analyze(
+	filename: &str,
+) -> Result<Result<Vec<resolved::Declaration>, resolver::Errors>, anyhow::Error>
 {
 	let source = std::fs::read_to_string(filename)?;
 	let tokens = lexer::lex(&source, filename);
 	let declarations = parser::parse(tokens);
 	let declarations = scoper::analyze(declarations);
 	let declarations = typer::analyze(declarations);
-	Ok(analyzer::analyze(&declarations))
+	let declarations = analyzer::analyze(declarations);
+	Ok(resolver::resolve(declarations))
 }
 
 #[test]
