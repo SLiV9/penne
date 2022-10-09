@@ -288,6 +288,7 @@ impl Analyzable for Statement
 					label: Ok(label),
 				}) => Statement::Poison(Poison::Error {
 					error: Error::VariableDeclarationMayBeSkipped {
+						label: label.name.clone(),
 						location: location.clone(),
 						location_of_goto: goto.location.clone(),
 						location_of_label: label.location.clone(),

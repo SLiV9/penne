@@ -287,6 +287,7 @@ pub enum Error
 	},
 	VariableDeclarationMayBeSkipped
 	{
+		label: String,
 		location: Location,
 		location_of_goto: Location,
 		location_of_label: Location,
@@ -342,10 +343,9 @@ impl Error
 {
 	pub fn report(&self) -> Report<(String, std::ops::Range<usize>)>
 	{
-		let mut colors = ariadne::ColorGenerator::new();
-		let a = colors.next();
-		let b = colors.next();
-		let c = colors.next();
+		let a = ariadne::Color::Yellow;
+		let b = ariadne::Color::Cyan;
+		let c = ariadne::Color::Magenta;
 
 		match self
 		{
@@ -616,7 +616,7 @@ impl Error
 				location_of_declaration
 					.label()
 					.with_message("Declaration marked external here.")
-					.with_color(a),
+					.with_color(b),
 			)
 			.finish(),
 
@@ -1272,6 +1272,7 @@ impl Error
 			.finish(),
 
 			Error::VariableDeclarationMayBeSkipped {
+				label,
 				location,
 				location_of_goto,
 				location_of_label,
@@ -1287,16 +1288,15 @@ impl Error
 					.with_message(
 						"...may skip this variable declaration."
 					)
-					.with_priority(-50)
 					.with_color(a),
 			)
 			.with_label(
 				location_of_goto
 					.label()
 					.with_message(format!(
-						"A jump from this {} statement...",
-						"`goto`".fg(b)
-
+						"A jump from this {} statement to '{}'...",
+						"`goto`".fg(b),
+						label.fg(c)
 					))
 					.with_color(b),
 			)
@@ -1304,7 +1304,7 @@ impl Error
 				location_of_label
 					.label()
 					.with_message(
-						"...to this label..."
+						"After this label, the existence of the declared variable is dubious."
 					)
 					.with_color(c),
 			)
@@ -1457,6 +1457,7 @@ impl Error
 				.with_label(
 					location_of_op
 						.label()
+						.with_order(2)
 						.with_message(format!(
 							"Expected {}.",
 							show_possible_types(&possible_types, b)))
@@ -1524,10 +1525,10 @@ fn note_for_possible_casts(
 	{
 		format!(
 			"Can cast {} into {}, or {} into {}.",
-			show_possible_types(possible_value_types, a),
-			show_type(coerced_type).fg(b),
 			show_type(value_type).fg(a),
 			show_possible_types(possible_coerced_types, b),
+			show_possible_types(possible_value_types, a),
+			show_type(coerced_type).fg(b),
 		)
 	}
 }

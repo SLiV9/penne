@@ -74,8 +74,8 @@ Linting errors:
 	☐	Warn that array length indicators in extern fn is not enforced
 
 Usability:
-	☐	Error recovery
-	☐	Switch from anyhow to custom error printed with ariadne or codespan
+	✔	Error recovery @done (2022-10-09 22:24)
+	✔	Switch to custom error printed with ariadne @done (2022-10-09 22:24)
 	☐	Debug symbols in the resulting IR/executable
 	☐	Add helpful note when trying to jump backwards
 		☐	Similarly, add note when referencing variable declared later

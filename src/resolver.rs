@@ -977,11 +977,13 @@ fn analyze_primitive_cast(
 	{
 		let possible_value_types = VALID_PRIMITIVE_TYPES
 			.iter()
+			.filter(|vt| vt != &&coerced_type)
 			.filter(|vt| is_valid_primitive_cast(vt, &coerced_type))
 			.map(|x| OperandValueType::ValueType(x.clone()))
 			.collect();
 		let possible_coerced_types = VALID_PRIMITIVE_TYPES
 			.iter()
+			.filter(|ct| ct != &&value_type)
 			.filter(|ct| is_valid_primitive_cast(&value_type, ct))
 			.map(|x| OperandValueType::ValueType(x.clone()))
 			.collect();

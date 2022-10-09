@@ -98,6 +98,18 @@ impl Tokens
 		}
 		popped
 	}
+
+	fn get_next_location(&self) -> Option<Location>
+	{
+		match self.tokens.front()
+		{
+			Some(LexedToken {
+				result: _,
+				location,
+			}) => Some(location.clone()),
+			None => None,
+		}
+	}
 }
 
 fn peek(tokens: &mut Tokens) -> Option<&Token>
@@ -1145,12 +1157,15 @@ fn parse_singular_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 			}
 		};
 		tokens.pop_front();
-		let location_of_as = tokens.last_location.clone();
 
+		let location_of_type = tokens.get_next_location();
 		let coerced_type = parse_type(tokens)?;
 
-		// TODO location_of_type
-		let location_of_type = location_of_as;
+		let location_of_type = match location_of_type
+		{
+			Some(location) => location.combined_with(&tokens.last_location),
+			None => tokens.last_location.clone(),
+		};
 		location = location.combined_with(&location_of_type);
 
 		expression = Expression::PrimitiveCast {
@@ -1499,6 +1514,7 @@ fn parse_rest_of_array(
 		"expected comma or right bracket",
 		tokens,
 	)?;
+	array.location = array.location.combined_with(&tokens.last_location);
 
 	Ok(array)
 }

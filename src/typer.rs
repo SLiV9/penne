@@ -1598,9 +1598,17 @@ impl Reference
 			{
 				self.autoderef(ref_type, def, typer)
 			}
-			(Some(default_type_or_poison), _, _) =>
+			(Some(Err(Poison::Error { error, partial })), _, _) =>
 			{
-				let base_type = Some(default_type_or_poison);
+				// Keep the error.
+				Expression::Deref {
+					reference: self,
+					deref_type: Some(Err(Poison::Error { error, partial })),
+				}
+			}
+			(Some(default_type_or_poisoned), _, _) =>
+			{
+				let base_type = Some(default_type_or_poisoned);
 				let deref_type = base_type.clone();
 				let full_type = build_type_of_reference(
 					base_type,

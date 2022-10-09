@@ -119,3 +119,14 @@ fn fail_to_type_length_of_int() -> Result<(), anyhow::Error>
 		Err(_) => Ok(()),
 	}
 }
+
+#[test]
+fn fail_to_type_index_into_int() -> Result<(), anyhow::Error>
+{
+	let analysis_result = compile("tests/samples/invalid/index_into_int.pn");
+	match analysis_result
+	{
+		Ok(_) => Err(anyhow!("broken test")),
+		Err(_) => Ok(()),
+	}
+}

@@ -41,10 +41,9 @@ impl Lint
 {
 	pub fn report(&self) -> Report<(String, std::ops::Range<usize>)>
 	{
-		let mut colors = ariadne::ColorGenerator::new();
-		let a = colors.next();
-		let b = colors.next();
-		let c = colors.next();
+		let a = ariadne::Color::Yellow;
+		let b = ariadne::Color::Cyan;
+		let c = ariadne::Color::Magenta;
 
 		match self
 		{

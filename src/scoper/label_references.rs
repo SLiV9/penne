@@ -37,10 +37,12 @@ impl Analyzer
 			if let Some(previous_identifier) =
 				scope.iter().find(|x| x.name == identifier.name)
 			{
+				// Because we analyze labels backwards, the previous label is
+				// the one that should be marked as a duplicate.
 				recoverable_error = Some(Error::DuplicateDeclarationLabel {
 					name: identifier.name.clone(),
-					location: identifier.location.clone(),
-					previous: previous_identifier.location.clone(),
+					location: previous_identifier.location.clone(),
+					previous: identifier.location.clone(),
 				});
 				break;
 			}

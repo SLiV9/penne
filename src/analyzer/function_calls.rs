@@ -56,7 +56,7 @@ impl Analyzer
 	fn use_function(
 		&self,
 		identifier: &Identifier,
-		arguments: Vec<Option<Poisonable<ValueType>>>,
+		arguments: &[Expression],
 	) -> Result<(), Error>
 	{
 		let declared = match self.functions.get(&identifier.resolution_id)
@@ -88,10 +88,9 @@ impl Analyzer
 		}
 		else
 		{
-			for (parameter, argument) in
-				parameters.iter().zip(arguments.into_iter())
+			for (parameter, argument) in parameters.iter().zip(arguments.iter())
 			{
-				match (&parameter.value_type, argument)
+				match (&parameter.value_type, argument.value_type())
 				{
 					(Ok(p), Some(Ok(a))) if p != &a => match &parameter.name
 					{
@@ -104,7 +103,7 @@ impl Analyzer
 								parameter_name,
 								argument_type: a,
 								parameter_type: p.clone(),
-								location: identifier.location.clone(),
+								location: argument.location().clone(),
 								location_of_declaration,
 							});
 						}
@@ -364,10 +363,8 @@ impl Analyzable for Statement
 					});
 				}
 
-				let argument_types =
-					arguments.iter().map(|x| x.value_type()).collect();
 				let recoverable_error =
-					analyzer.use_function(&name, argument_types);
+					analyzer.use_function(&name, &arguments);
 				let arguments = arguments
 					.into_iter()
 					.map(|argument| {
@@ -616,10 +613,8 @@ impl Analyzable for Expression
 					});
 				}
 
-				let argument_types =
-					arguments.iter().map(|x| x.value_type()).collect();
 				let recoverable_error =
-					analyzer.use_function(&name, argument_types);
+					analyzer.use_function(&name, &arguments);
 				let arguments = arguments
 					.into_iter()
 					.map(|argument| {
