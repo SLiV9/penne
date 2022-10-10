@@ -219,6 +219,16 @@ fn execute_pointer_to_slice() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_length_of_pointer_to_slice() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation(
+		"tests/samples/valid/length_of_pointer_to_slice.pn",
+	)?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_bitshift_type_inference() -> Result<(), anyhow::Error>
 {
 	let result =

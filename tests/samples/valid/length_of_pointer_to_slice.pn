@@ -1,0 +1,6 @@
+fn main() -> usize
+{
+	var buffer: [3]u8 = [20, 32, 0x00];
+	var x: &[]u8 = &buffer;
+	return: 197 + |x|
+}

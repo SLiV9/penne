@@ -1,12 +1,6 @@
-fn foo(some_value: &u8) -> u8
-{
-	return: some_value
-}
-
 fn main() -> u8
 {
 	var ten: u8 = 10;
 	var pointer_to_ten: &u8 = ten;
-	var result = foo(pointer_to_ten);
-	return: result
+	return: pointer_to_ten
 }

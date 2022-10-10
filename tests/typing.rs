@@ -38,6 +38,30 @@ fn compile_to_fail(codes: &[u16], filename: &str)
 }
 
 #[test]
+fn fail_to_type_assignment_type_mismatch()
+{
+	compile_to_fail(&[500], "tests/samples/invalid/assignment_type_mismatch.pn")
+}
+
+#[test]
+fn fail_to_type_declaration_type_mismatch()
+{
+	compile_to_fail(
+		&[500],
+		"tests/samples/invalid/declaration_type_mismatch.pn",
+	)
+}
+
+#[test]
+fn fail_to_type_initialization_type_mismatch()
+{
+	compile_to_fail(
+		&[500],
+		"tests/samples/invalid/initialization_type_mismatch.pn",
+	)
+}
+
+#[test]
 fn fail_to_type_return_type_mismatch()
 {
 	compile_to_fail(&[333], "tests/samples/invalid/return_type_mismatch.pn")
