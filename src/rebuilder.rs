@@ -721,11 +721,15 @@ impl Rebuildable for ValueType
 			)),
 			ValueType::Slice { element_type } =>
 			{
-				Ok(format!("[]{}", element_type.rebuild(indentation)?))
+				Ok(format!("[:]{}", element_type.rebuild(indentation)?))
 			}
-			ValueType::ExtArray { element_type } =>
+			ValueType::EndlessArray { element_type } =>
 			{
-				Ok(format!("[EXT]{}", element_type.rebuild(indentation)?))
+				Ok(format!("[...]{}", element_type.rebuild(indentation)?))
+			}
+			ValueType::Arraylike { element_type } =>
+			{
+				Ok(format!("[]{}", element_type.rebuild(indentation)?))
 			}
 			ValueType::Pointer { deref_type } =>
 			{

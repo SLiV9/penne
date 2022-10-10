@@ -54,11 +54,12 @@ fn do_update_symbol(
 	vt: ValueType,
 ) -> Result<(), Error>
 {
+	// TODO really think about this again
 	match &symbol.value_type
 	{
 		Ok(ot) if ot == &vt => Ok(()),
-		Ok(ot) if ot.can_autoderef_into(&vt) => Ok(()),
-		Ok(ot) if vt.can_autoderef_into(ot) =>
+		Ok(ot) if false && ot.can_autoderef_into(&vt) => Ok(()),
+		Ok(ot) if false && vt.can_autoderef_into(ot) =>
 		{
 			symbol.identifier = new_identifier.clone();
 			symbol.value_type = Ok(vt);

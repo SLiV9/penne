@@ -35,7 +35,6 @@ Functionality:
 	✔	Function calls @done (2021-01-16 18:03)
 	✔	Function parameters @done (2021-01-16 18:03)
 	☐	Structs
-	☐	Nested arrays
 	☐	Vec and String
 	✘	Explicit mutable parameters @cancelled (2022-09-03 16:04)
 	☐	Modules

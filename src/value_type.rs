@@ -31,7 +31,11 @@ pub enum ValueType
 	{
 		element_type: Box<ValueType>,
 	},
-	ExtArray
+	EndlessArray
+	{
+		element_type: Box<ValueType>,
+	},
+	Arraylike
 	{
 		element_type: Box<ValueType>,
 	},
@@ -81,7 +85,8 @@ impl ValueType
 			ValueType::String => false,
 			ValueType::Array { .. } => false,
 			ValueType::Slice { .. } => false,
-			ValueType::ExtArray { .. } => false,
+			ValueType::EndlessArray { .. } => false,
+			ValueType::Arraylike { .. } => false,
 			ValueType::Pointer { .. } => false,
 			ValueType::View { .. } => false,
 		}
@@ -127,12 +132,12 @@ impl ValueType
 				length: _,
 			} => match other
 			{
-				ValueType::ExtArray { element_type: b } => a.can_be_used_as(b),
+				ValueType::Arraylike { element_type: b } => a.can_be_used_as(b),
 				_ => self == other,
 			},
-			ValueType::Slice { element_type: a } => match other
+			ValueType::EndlessArray { element_type: a } => match other
 			{
-				ValueType::ExtArray { element_type: b } => a.can_be_used_as(b),
+				ValueType::Arraylike { element_type: b } => a.can_be_used_as(b),
 				_ => self == other,
 			},
 			_ => self == other,
@@ -148,7 +153,12 @@ impl ValueType
 				length: _,
 			} => match other
 			{
-				ValueType::Slice { element_type: b } => a == b,
+				ValueType::Arraylike { element_type: b } => a == b,
+				_ => self == other,
+			},
+			ValueType::Slice { element_type: a } => match other
+			{
+				ValueType::Arraylike { element_type: b } => a == b,
 				_ => self == other,
 			},
 			_ => self == other,
@@ -165,20 +175,18 @@ impl ValueType
 			} => match other
 			{
 				ValueType::Slice { element_type: b } => a == b,
-				ValueType::ExtArray { element_type: b } => a == b,
 				ValueType::View { deref_type } => match deref_type.as_ref()
 				{
-					ValueType::ExtArray { element_type: b } => a == b,
+					ValueType::EndlessArray { element_type: b } => a == b,
 					_ => false,
 				},
 				_ => false,
 			},
 			ValueType::Slice { element_type: a } => match other
 			{
-				ValueType::ExtArray { element_type: b } => a == b,
 				ValueType::View { deref_type } => match deref_type.as_ref()
 				{
-					ValueType::ExtArray { element_type: b } => a == b,
+					ValueType::EndlessArray { element_type: b } => a == b,
 					_ => false,
 				},
 				_ => false,
@@ -189,38 +197,21 @@ impl ValueType
 
 	pub fn can_autoderef_into(&self, other: &ValueType) -> bool
 	{
+		// TODO really think about this again
 		match self
 		{
-			ValueType::Array {
-				element_type: a,
-				length: _,
-			} => match other
+			ValueType::Array { .. } =>
 			{
-				ValueType::Slice { element_type: b } => a.can_be_used_as(b),
-				ValueType::ExtArray { element_type: b } => a.can_be_used_as(b),
-				ValueType::View { deref_type } => match deref_type.as_ref()
-				{
-					ValueType::ExtArray { element_type: b } =>
-					{
-						a.can_be_used_as(b)
-					}
-					_ => false,
-				},
-				_ => false,
-			},
-			ValueType::Slice { element_type: a } => match other
+				self.can_be_used_as(other) || self.can_coerce_into(other)
+			}
+			ValueType::Slice { .. } =>
 			{
-				ValueType::ExtArray { element_type: b } => a.can_be_used_as(b),
-				ValueType::View { deref_type } => match deref_type.as_ref()
-				{
-					ValueType::ExtArray { element_type: b } =>
-					{
-						a.can_be_used_as(b)
-					}
-					_ => false,
-				},
-				_ => false,
-			},
+				self.can_be_used_as(other) || self.can_coerce_into(other)
+			}
+			ValueType::EndlessArray { .. } =>
+			{
+				self.can_be_used_as(other) || self.can_coerce_into(other)
+			}
 			ValueType::View { deref_type } =>
 			{
 				deref_type.as_ref().can_be_used_as(other)
@@ -255,7 +246,11 @@ impl ValueType
 			{
 				Some(element_type.as_ref().clone())
 			}
-			ValueType::ExtArray { element_type } =>
+			ValueType::EndlessArray { element_type } =>
+			{
+				Some(element_type.as_ref().clone())
+			}
+			ValueType::Arraylike { element_type } =>
 			{
 				Some(element_type.as_ref().clone())
 			}

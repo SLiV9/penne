@@ -1,0 +1,53 @@
+struct SmallVec
+{
+	buffer_is_array_with_fixed_len: [100]i32,
+	data_is_pointer_to_endless_array: &[]i32,
+	data_is_pointer_to_explicit_endless_array: &[...]i32,
+	illegal_because_unknown_size: []i32,
+	length: usize,
+	position: Position,
+}
+
+word64 Position
+{
+	x: i32,
+	y: i32,
+}
+
+fn foo(slice: []i32,
+	pointer_to_slice: &[]i32)
+{
+	var array_with_fixed_len: [10]i32;
+	var array_with_fixed_len: [10]&i32;
+	var array_with_inferred_but_fixed_len: []i32 = [2, 3];
+	var bitstring_slice: []u8 = "hello\0";
+	var explicit_bitstring_slice: [:]u8 = "hello\0";
+	var pointer_to_array_without_len: &[...]i32 = &array_with_fixed_len;
+	var multidimensional_array: [10][10]i32;
+	var multidimensional_array_must_have_stride: [][10]i32;
+	var illegal: [][]i32;
+	var illegal: [10][...]i32;
+	var pointer_to_multidimensionl_array_without_len: &[...][10]i32;
+	var array_of_pointer_to_endless_array: [10]&[...]i32;
+	var struct_on_stack: SmallVec;
+	var struct_on_heap: &SmallVec;
+	var word_on_stack: Position;
+	var copy_of_word = word_on_stack;
+}
+
+fn bar(array_view_with_enforced_len: [10]i32,
+	array_pointer_with_enforced_len: &[10]i32,
+	slice: []i32,
+	array_pointer_with_runtime_len: &[]i32,
+	array_view_with_explicit_runtime_len: [:]i32,
+	array_pointer_with_explicit_runtime_len: &[:]i32,
+	endless_array_view: ([]i32),
+	explicit_endless_array_view: ([...]i32),
+	endless_array_pointer: &[...]i32,
+	small_vec_view: SmallVec,
+	small_vec_explicit_view: (SmallVec),
+	small_vec_pointer: &SmallVec,
+	word_by_value: Position,
+	word_by_explicit_view: (Position),
+	word_by_pointer: &Position,
+	dummy: i32);

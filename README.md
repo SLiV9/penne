@@ -133,9 +133,9 @@ fn foo() -> i32
 
 Here the line `x = x + 1` is executed forever and the end of the function is never reached.
 
-### Slices
+### Views
 
-Function arguments other than pointers (see below) and primitives are passed by slice. For arrays this means an array slice is created and passed into the function. Array slices remember the length of their array, which can be accessed with the length operation `|x|`.
+Function arguments other than pointers (see below) and primitives are passed as a view. For arrays this means an array view is created and passed into the function. Array views remember the length of their array, which can be accessed with the length operation `|x|`.
 
 ```
 fn foo()
@@ -161,7 +161,7 @@ fn sum(x: []i32) -> i32
 
 ### Reference pointers
 
-Slices allow you to pass a large value by reference, but they only give immutable access. For mutable access, a pointer is needed. They can be created by taking the address of a value. Unlike in most other languages, reference pointers in Penne automatically dereference to their base type, which is any type that isn't a reference pointer.
+Views allow you to pass a large value by reference, but they only give immutable access. For mutable access, a pointer is needed. They can be created by taking the address of a value. Unlike in most other languages, reference pointers in Penne automatically dereference to their base type, which is any type that isn't a reference pointer.
 
 ```
 	var x: i32 = 17;

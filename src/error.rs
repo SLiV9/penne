@@ -1878,9 +1878,13 @@ fn show_type_inner(value_type: &ValueType) -> String
 		} => format!("[{}]{}", length, show_type_inner(&element_type)),
 		ValueType::Slice { element_type } =>
 		{
-			format!("[]{}", show_type_inner(&element_type))
+			format!("[:]{}", show_type_inner(&element_type))
 		}
-		ValueType::ExtArray { element_type } =>
+		ValueType::EndlessArray { element_type } =>
+		{
+			format!("[...]{}", show_type_inner(&element_type))
+		}
+		ValueType::Arraylike { element_type } =>
 		{
 			format!("[]{}", show_type_inner(&element_type))
 		}
