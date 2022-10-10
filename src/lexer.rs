@@ -100,7 +100,6 @@ pub struct Location
 {
 	pub source_filename: String,
 	pub span: std::ops::Range<usize>,
-	pub line: String,
 	pub line_number: usize,
 	pub line_offset: usize,
 }
@@ -110,8 +109,8 @@ impl Location
 	pub fn format(&self) -> String
 	{
 		format!(
-			"at {}:{}:{} ('{}')",
-			self.source_filename, self.line_number, self.line_offset, self.line
+			"at {}:{}:{}",
+			self.source_filename, self.line_number, self.line_offset
 		)
 	}
 
@@ -175,7 +174,6 @@ fn lex_line(
 		let location = Location {
 			source_filename: source_filename.to_string(),
 			span: source_offset_start..source_offset_end,
-			line: line.to_string(),
 			line_number,
 			line_offset,
 		};

@@ -60,13 +60,7 @@ impl From<Vec<LexedToken>> for Tokens
 				result: _,
 				location,
 			}) => location.clone(),
-			None => Location {
-				source_filename: "unreachable".to_string(),
-				span: 0..0,
-				line: "".to_string(),
-				line_number: 0,
-				line_offset: 0,
-			},
+			None => unreachable!(),
 		};
 		Tokens {
 			tokens: VecDeque::from(tokens),
