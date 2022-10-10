@@ -6,7 +6,7 @@
 
 use penne::*;
 
-use anyhow::anyhow;
+use pretty_assertions::assert_eq;
 
 fn compile(filename: &str) -> Result<Vec<Declaration>, Errors>
 {
@@ -14,95 +14,68 @@ fn compile(filename: &str) -> Result<Vec<Declaration>, Errors>
 	penne::compile_source(&source, &filename)
 }
 
-#[test]
-fn fail_to_resolve_bitshift_without_types() -> Result<(), anyhow::Error>
+fn compile_to_fail(codes: &[u16], filename: &str)
 {
-	let analysis_result =
-		compile("tests/samples/invalid/bitshift_without_types.pn");
-	match analysis_result
+	match compile(filename)
 	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
+		Ok(_) => panic!("broken test"),
+		Err(errors) =>
+		{
+			assert_eq!(errors.codes(), codes, "unexpected {:?}", errors)
+		}
 	}
 }
 
 #[test]
-fn fail_to_resolve_bitshift_type_mismatch() -> Result<(), anyhow::Error>
+fn fail_to_resolve_bitshift_without_types()
 {
-	let analysis_result =
-		compile("tests/samples/invalid/bitshift_type_mismatch.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[581], "tests/samples/invalid/bitshift_without_types.pn")
 }
 
 #[test]
-fn fail_to_resolve_bitshift_non_integer() -> Result<(), anyhow::Error>
+fn fail_to_resolve_bitshift_type_mismatch()
 {
-	let analysis_result =
-		compile("tests/samples/invalid/bitshift_non_integer.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(
+		&[581, 551],
+		"tests/samples/invalid/bitshift_type_mismatch.pn",
+	)
 }
 
 #[test]
-fn fail_to_resolve_negative_u32() -> Result<(), anyhow::Error>
+fn fail_to_resolve_bitshift_non_integer()
 {
-	let analysis_result = compile("tests/samples/invalid/negative_u32.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[550], "tests/samples/invalid/bitshift_non_integer.pn")
 }
 
 #[test]
-fn fail_to_resolve_bitwise_not_usize() -> Result<(), anyhow::Error>
+fn fail_to_resolve_negative_u32()
 {
-	let analysis_result = compile("tests/samples/invalid/bitwise_not_usize.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[550], "tests/samples/invalid/negative_u32.pn")
 }
 
 #[test]
-fn fail_to_resolve_comparison_on_arrays() -> Result<(), anyhow::Error>
+fn fail_to_resolve_bitwise_not_usize()
 {
-	let analysis_result =
-		compile("tests/samples/invalid/comparison_on_arrays.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[550], "tests/samples/invalid/bitwise_not_usize.pn")
 }
 
 #[test]
-fn fail_to_resolve_comparison_ge_pointer() -> Result<(), anyhow::Error>
+fn fail_to_resolve_comparison_on_arrays()
 {
-	let analysis_result =
-		compile("tests/samples/invalid/comparison_ge_pointer.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[550], "tests/samples/invalid/comparison_on_arrays.pn")
 }
 
 #[test]
-fn fail_to_resolve_invalid_casts() -> Result<(), anyhow::Error>
+fn fail_to_resolve_comparison_ge_pointer()
 {
-	let analysis_result = compile("tests/samples/invalid/invalid_casts.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[550], "tests/samples/invalid/comparison_ge_pointer.pn")
+}
+
+#[test]
+fn fail_to_resolve_invalid_casts()
+{
+	compile_to_fail(
+		&[552, 552, 552, 552],
+		"tests/samples/invalid/invalid_casts.pn",
+	)
 }

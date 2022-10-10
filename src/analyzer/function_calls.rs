@@ -99,6 +99,16 @@ impl Analyzer
 							let parameter_name = declared.name.clone();
 							let location_of_declaration =
 								declared.location.clone();
+							if can_hint_missing_address(&argument, &a, p)
+							{
+								return Err(Error::ArgumentMissingAddress {
+									parameter_name,
+									argument_type: a,
+									parameter_type: p.clone(),
+									location: argument.location().clone(),
+									location_of_declaration,
+								});
+							}
 							return Err(Error::ArgumentTypeMismatch {
 								parameter_name,
 								argument_type: a,
@@ -114,6 +124,30 @@ impl Analyzer
 			}
 			Ok(())
 		}
+	}
+}
+
+fn can_hint_missing_address(
+	argument: &Expression,
+	argument_type: &ValueType,
+	parameter_type: &ValueType,
+) -> bool
+{
+	match parameter_type
+	{
+		ValueType::Pointer { deref_type }
+			if deref_type.as_ref() == argument_type =>
+		{
+			match argument
+			{
+				Expression::Deref {
+					reference: _,
+					deref_type: _,
+				} => true,
+				_ => false,
+			}
+		}
+		_ => false,
 	}
 }
 

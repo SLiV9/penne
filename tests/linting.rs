@@ -13,7 +13,7 @@ use penne::resolver;
 use penne::scoper;
 use penne::typer;
 
-use anyhow::anyhow;
+use pretty_assertions::assert_eq;
 
 fn lint(filename: &str) -> Vec<Lint>
 {
@@ -33,44 +33,21 @@ fn lint(filename: &str) -> Vec<Lint>
 	lints
 }
 
-#[test]
-fn trigger_lint_for_loop_in_branch() -> Result<(), anyhow::Error>
+fn lint_to_fail(codes: &[u16], filename: &str)
 {
-	let analysis_result = lint("examples/loop_in_branch.pn");
-	let mut lints = analysis_result.iter();
-	match lints.next()
-	{
-		Some(Lint::LoopAsFirstStatement { .. }) => (),
-		Some(lint) => Err(anyhow!("unexpected {:?}", lint))?,
-		None => Err(anyhow!("broken test"))?,
-	}
-	match lints.next()
-	{
-		Some(lint) => Err(anyhow!("unexpected {:?}", lint))?,
-		None => Ok(()),
-	}
+	let lints = lint(filename);
+	let lint_codes: Vec<u16> = lints.iter().map(|x| x.code()).collect();
+	assert_eq!(lint_codes, codes, "unexpected {:?}", lints);
 }
 
 #[test]
-fn trigger_multiple_lints() -> Result<(), anyhow::Error>
+fn trigger_lint_for_loop_in_branch()
 {
-	let analysis_result = lint("tests/samples/valid/multiple_lints.pn");
-	let mut lints = analysis_result.iter();
-	match lints.next()
-	{
-		Some(Lint::LoopAsFirstStatement { .. }) => (),
-		Some(lint) => Err(anyhow!("unexpected {:?}", lint))?,
-		None => Err(anyhow!("broken test"))?,
-	}
-	match lints.next()
-	{
-		Some(Lint::LoopAsFirstStatement { .. }) => (),
-		Some(lint) => Err(anyhow!("unexpected {:?}", lint))?,
-		None => Err(anyhow!("broken test"))?,
-	}
-	match lints.next()
-	{
-		Some(lint) => Err(anyhow!("unexpected {:?}", lint))?,
-		None => Ok(()),
-	}
+	lint_to_fail(&[1800], "examples/loop_in_branch.pn");
+}
+
+#[test]
+fn trigger_multiple_lints()
+{
+	lint_to_fail(&[1800, 1800], "tests/samples/valid/multiple_lints.pn");
 }

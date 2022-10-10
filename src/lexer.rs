@@ -88,6 +88,7 @@ pub enum Error
 	UnexpectedCharacter,
 	InvalidIntegerLiteral(std::num::ParseIntError),
 	InvalidNakedIntegerLiteral,
+	InvalidBitIntegerLiteral,
 	InvalidIntegerTypeSuffix,
 	InvalidEscapeSequence,
 	UnexpectedTrailingBackslash,
@@ -117,6 +118,16 @@ impl Location
 	pub fn label(&self) -> Label<(String, std::ops::Range<usize>)>
 	{
 		Label::new((self.source_filename.to_string(), self.span.clone()))
+	}
+
+	pub fn label_before_start(&self)
+		-> Label<(String, std::ops::Range<usize>)>
+	{
+		let location = Location {
+			span: self.span.start..self.span.start,
+			..self.clone()
+		};
+		location.label()
 	}
 
 	pub fn label_after_end(&self) -> Label<(String, std::ops::Range<usize>)>
@@ -334,7 +345,7 @@ fn lex_line(
 					}
 					u64::from_str_radix(&literal, 16)
 						.map(|value| Token::BitInteger(value))
-						.map_err(|e| Error::InvalidIntegerLiteral(e))
+						.map_err(|_error| Error::InvalidBitIntegerLiteral)
 				}
 				Some((_i, 'b')) =>
 				{
@@ -356,7 +367,7 @@ fn lex_line(
 					}
 					u64::from_str_radix(&literal, 2)
 						.map(|value| Token::BitInteger(value))
-						.map_err(|e| Error::InvalidIntegerLiteral(e))
+						.map_err(|_error| Error::InvalidBitIntegerLiteral)
 				}
 				_ =>
 				{
@@ -433,7 +444,7 @@ fn lex_line(
 							Ok(Token::NakedInteger(value))
 						}
 						Ok(_) => Err(Error::InvalidNakedIntegerLiteral),
-						Err(error) => Err(Error::InvalidIntegerLiteral(error)),
+						Err(_error) => Err(Error::InvalidNakedIntegerLiteral),
 					}
 				}
 				else

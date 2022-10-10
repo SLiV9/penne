@@ -823,6 +823,7 @@ fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 			if let Some(Token::Colon) = peek(tokens)
 			{
 				tokens.pop_front();
+				let location = location.combined_with(&tokens.last_location);
 				let statement = Statement::Label {
 					label: Identifier {
 						name: x,

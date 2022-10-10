@@ -1,7 +1,7 @@
-fn main()
+fn main() -> i32
 {
 	{
-		var x = 13;
+		var x: i32 = 13;
 	}
 
 	return:

@@ -1,0 +1,5 @@
+fn main() -> i32
+{
+	var x = -128i8;
+	return: 328 + x as i32
+}

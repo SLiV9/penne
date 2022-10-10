@@ -11,6 +11,7 @@ pub use crate::value_type::ValueType;
 
 use ariadne::{Fmt, Report, ReportKind};
 
+#[derive(Debug)]
 pub struct Errors
 {
 	pub errors: Vec<Error>,
@@ -35,6 +36,11 @@ impl Errors
 			Some(error) => panic!("{:?}", error),
 			None => panic!("empty errors"),
 		}
+	}
+
+	pub fn codes(&self) -> Vec<u16>
+	{
+		self.errors.iter().map(|x| x.code()).collect()
 	}
 }
 
@@ -222,6 +228,14 @@ pub enum Error
 		location: Location,
 		location_of_declaration: Location,
 	},
+	ArgumentMissingAddress
+	{
+		parameter_name: String,
+		argument_type: ValueType,
+		parameter_type: ValueType,
+		location: Location,
+		location_of_declaration: Location,
+	},
 	IndexTypeMismatch
 	{
 		argument_type: ValueType,
@@ -341,6 +355,93 @@ pub enum Error
 
 impl Error
 {
+	pub fn code(&self) -> u16
+	{
+		match self
+		{
+			Error::UnexpectedEndOfFile { .. } => 100,
+			Error::Lexical {
+				error: lexer::Error::UnexpectedCharacter,
+				..
+			} => 110,
+			Error::Lexical {
+				error: lexer::Error::InvalidIntegerLiteral(..),
+				..
+			} => 140,
+			Error::Lexical {
+				error: lexer::Error::InvalidIntegerTypeSuffix,
+				..
+			} => 141,
+			Error::Lexical {
+				error: lexer::Error::InvalidNakedIntegerLiteral,
+				..
+			} => 142,
+			Error::Lexical {
+				error: lexer::Error::InvalidBitIntegerLiteral,
+				..
+			} => 143,
+			Error::Lexical {
+				error: lexer::Error::MissingClosingQuote,
+				..
+			} => 160,
+			Error::Lexical {
+				error: lexer::Error::UnexpectedTrailingBackslash,
+				..
+			} => 161,
+			Error::Lexical {
+				error: lexer::Error::InvalidEscapeSequence,
+				..
+			} => 162,
+			Error::Lexical {
+				error: lexer::Error::InvalidMixedString,
+				..
+			} => 163,
+			Error::UnexpectedToken { .. } => 300,
+			Error::MissingReturnType { .. } => 330,
+			Error::MissingAmbiguousReturnType { .. } => 331,
+			Error::AmbiguousReturnValue { .. } => 332,
+			Error::ConflictingReturnValue { .. } => 333,
+			Error::MissingReturnValue { .. } => 334,
+			Error::MissingReturnValueAfterStatement { .. } => 335,
+			Error::IllegalVariableTypeSlice { .. } => 350,
+			Error::IllegalParameterType { .. } => 351,
+			Error::TypeNotAllowedInExtern { .. } => 352,
+			Error::FunctionInConstContext { .. } => 360,
+			Error::MaximumParseDepthExceeded { .. } => 390,
+			Error::UndefinedLabel { .. } => 400,
+			Error::UndefinedFunction { .. } => 401,
+			Error::UndefinedVariable { .. } => 402,
+			Error::DuplicateDeclarationLabel { .. } => 420,
+			Error::DuplicateDeclarationFunction { .. } => 421,
+			Error::DuplicateDeclarationVariable { .. } => 422,
+			Error::DuplicateDeclarationConstant { .. } => 423,
+			Error::ConflictingTypes { .. } => 500,
+			Error::NotAnArray { .. } => 501,
+			Error::NotAnArrayWithLength { .. } => 502,
+			Error::IndexTypeMismatch { .. } => 503,
+			Error::TooFewArguments { .. } => 510,
+			Error::TooManyArguments { .. } => 511,
+			Error::ArgumentTypeMismatch { .. } => 512,
+			Error::ArgumentMissingAddress { .. } => 513,
+			Error::NotMutable { .. } => 530,
+			Error::CannotCopyArray { .. } => 531,
+			Error::CannotCopySlice { .. } => 532,
+			Error::AddressOfTemporaryAddress { .. } => 533,
+			Error::InvalidOperandType { .. } => 550,
+			Error::MismatchedOperandTypes { .. } => 551,
+			Error::InvalidPrimitiveCast { .. } => 552,
+			Error::AmbiguousType { .. } => 580,
+			Error::AmbiguousTypeOfDeclaration { .. } => 581,
+			Error::AmbiguousTypeOfNakedIntegerLiteral { .. } => 582,
+			Error::AmbiguousTypeOfArrayLiteral { .. } => 583,
+			Error::AmbiguousTypeOfStringLiteral { .. } => 584,
+			Error::NonFinalLoopStatement { .. } => 800,
+			Error::MisplacedLoopStatement { .. } => 801,
+			Error::VariableDeclarationMayBeSkipped { .. } => 820,
+			Error::MissingBraces { .. } => 840,
+		}
+	}
+
 	pub fn report(&self) -> Report<(String, std::ops::Range<usize>)>
 	{
 		let a = ariadne::Color::Yellow;
@@ -357,6 +458,7 @@ impl Error
 				&last_location.source_filename,
 				last_location.span.end,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Unexpected end of file")
 			.with_label(
 				last_location
@@ -383,6 +485,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Unexpected character")
 			.with_label(
 				location.label().with_message(expectation).with_color(a),
@@ -398,11 +501,32 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Invalid integer literal")
 			.with_label(
 				location.label().with_message(expectation).with_color(a),
 			)
 			.with_note(format!("{}", inner_error))
+			.finish(),
+
+			Error::Lexical {
+				error: lexer::Error::InvalidBitIntegerLiteral,
+				expectation,
+				location,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Invalid bit integer literal")
+			.with_label(
+				location.label().with_message(expectation).with_color(a),
+			)
+			.with_note(format!(
+				"Hexadecimal and binary integer literals have to fit {}.",
+				"`u64`".fg(a)
+			))
 			.finish(),
 
 			Error::Lexical {
@@ -414,6 +538,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Invalid untyped integer literal")
 			.with_label(
 				location.label().with_message(expectation).with_color(a),
@@ -433,6 +558,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Invalid integer literal type suffix")
 			.with_label(
 				location.label().with_message(expectation).with_color(a),
@@ -448,6 +574,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Invalid escape sequence")
 			.with_label(
 				location.label().with_message(expectation).with_color(a),
@@ -463,6 +590,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Unexpected trailing backslash")
 			.with_label(
 				location.label().with_message(expectation).with_color(a),
@@ -482,6 +610,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Missing closing quote")
 			.with_label(
 				location.label().with_message(expectation).with_color(a),
@@ -501,6 +630,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Invalid mixed string")
 			.with_label(
 				location.label().with_message(expectation).with_color(a),
@@ -519,6 +649,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Unexpected token")
 			.with_label(
 				location.label().with_message(expectation).with_color(a),
@@ -530,6 +661,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Maximum parse depth exceeded")
 			.with_label(
 				location
@@ -544,6 +676,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Invalid variable type")
 			.with_label(
 				location
@@ -561,6 +694,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Invalid parameter type")
 			.with_label(
 				location
@@ -582,6 +716,7 @@ impl Error
 				&location_of_type.source_filename,
 				location_of_type.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Invalid external type")
 			.with_label(
 				location_of_type
@@ -609,6 +744,7 @@ impl Error
 				&location_of_return_value.source_filename,
 				location_of_return_value.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Missing return type")
 			.with_label(
 				location_of_return_value
@@ -635,6 +771,7 @@ impl Error
 				&location_of_return_value.source_filename,
 				location_of_return_value.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Missing return type")
 			.with_label(
 				location_of_return_value
@@ -659,6 +796,7 @@ impl Error
 				&location_of_return_value.source_filename,
 				location_of_return_value.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Ambiguous return value")
 			.with_label(
 				location_of_return_value
@@ -687,6 +825,7 @@ impl Error
 				&location_of_return_value.source_filename,
 				location_of_return_value.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Conflicting return value")
 			.with_label(
 				location_of_return_value
@@ -717,6 +856,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Missing return value")
 			.with_label(
 				location
@@ -744,8 +884,8 @@ impl Error
 				)
 				.with_message("Missing return value")
 				.with_label(
-					location
-						.label()
+					after
+						.label_after_end()
 						.with_message("Expected return value...")
 						.with_color(a),
 				)
@@ -753,10 +893,10 @@ impl Error
 					after
 						.label()
 						.with_message(format!(
-							"...after this {} statement.",
+							"...after this {} label.",
 							"`return`".fg(b)
 						))
-						.with_priority(-10)
+						.with_order(2)
 						.with_color(b),
 				)
 				.finish()
@@ -771,6 +911,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Duplicate variable")
 			.with_label(
 				location
@@ -799,6 +940,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Duplicate constant")
 			.with_label(
 				location
@@ -826,6 +968,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Duplicate function")
 			.with_label(
 				location
@@ -853,6 +996,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Duplicate label")
 			.with_label(
 				location
@@ -876,6 +1020,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Undefined reference")
 			.with_label(
 				location
@@ -893,6 +1038,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Undefined reference")
 			.with_label(
 				location
@@ -910,6 +1056,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Undefined label")
 			.with_label(
 				location
@@ -933,6 +1080,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Conflicting types")
 			.with_label(
 				location
@@ -966,6 +1114,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Mismatched types")
 			.with_label(
 				location
@@ -988,6 +1137,50 @@ impl Error
 			)
 			.finish(),
 
+			Error::ArgumentMissingAddress {
+				parameter_name,
+				argument_type,
+				parameter_type,
+				location,
+				location_of_declaration,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Mismatched types")
+			.with_label(
+				location
+					.label()
+					.with_message(format!(
+						"Argument has type {}.",
+						show_type(argument_type).fg(a)
+					))
+					.with_color(a),
+			)
+			.with_label(
+				location
+					.label_before_start()
+					.with_order(3)
+					.with_message(format!(
+						"Add {} here to pass by reference pointer.",
+						"`&`".fg(c)
+					))
+					.with_color(c),
+			)
+			.with_label(
+				location_of_declaration
+					.label()
+					.with_message(format!(
+						"Parameter '{}' has type {}.",
+						parameter_name.fg(b),
+						show_type(parameter_type).fg(b)
+					))
+					.with_color(b),
+			)
+			.finish(),
+
 			Error::IndexTypeMismatch {
 				argument_type,
 				index_type,
@@ -997,6 +1190,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Mismatched types")
 			.with_label(
 				location
@@ -1019,6 +1213,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Conflicting types")
 			.with_label(
 				location
@@ -1046,6 +1241,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Conflicting types")
 			.with_label(
 				location
@@ -1072,6 +1268,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Too few arguments")
 			.with_label(
 				location
@@ -1095,6 +1292,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Too many arguments")
 			.with_label(
 				location
@@ -1115,6 +1313,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Function in constant expression")
 			.with_label(
 				location
@@ -1131,6 +1330,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Cannot copy array")
 			.with_label(
 				location
@@ -1145,6 +1345,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Cannot copy slice")
 			.with_label(
 				location
@@ -1162,6 +1363,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Illegal mutation")
 			.with_label(
 				location
@@ -1185,6 +1387,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Address of temporary address")
 			.with_label(
 				location
@@ -1208,6 +1411,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Missing braces")
 			.with_label(
 				location
@@ -1230,6 +1434,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Misplaced loop statement")
 			.with_label(
 				location
@@ -1255,6 +1460,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Misplaced loop statement")
 			.with_label(
 				location
@@ -1279,6 +1485,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Variable declaration may be skipped")
 			.with_label(
 				location
@@ -1312,6 +1519,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Ambiguous type")
 			.with_label(
 				location
@@ -1326,6 +1534,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Ambiguous type")
 			.with_label(
 				location
@@ -1344,6 +1553,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Ambiguous type")
 			.with_label(
 				location
@@ -1367,6 +1577,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Ambiguous type")
 			.with_label(
 				location
@@ -1383,6 +1594,7 @@ impl Error
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Ambiguous type")
 			.with_label(
 				location
@@ -1403,6 +1615,7 @@ impl Error
 				&location_of_op.source_filename,
 				location_of_op.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Mismatched operand types")
 			.with_label(
 				location_of_left
@@ -1442,6 +1655,7 @@ impl Error
 				&location_of_op.source_filename,
 				location_of_op.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Invalid operand type")
 			.with_label(
 				location_of_operand
@@ -1476,6 +1690,7 @@ impl Error
 				&location_of_operand.source_filename,
 				location_of_operand.span.start,
 			)
+			.with_code(format!("E{}", self.code()))
 			.with_message("Invalid primitive cast")
 			.with_label(
 				location_of_operand

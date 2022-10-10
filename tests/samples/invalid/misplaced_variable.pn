@@ -2,7 +2,7 @@ fn main() -> i32
 {
 	var x = y;
 
-	var y = 13;
+	var y: i32 = 13;
 
 	return:
 	x

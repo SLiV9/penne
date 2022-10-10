@@ -6,88 +6,121 @@
 
 use penne::*;
 
-use anyhow::anyhow;
+use pretty_assertions::assert_eq;
 
-fn parse(filename: &str) -> Result<Vec<Declaration>, Errors>
+fn compile(filename: &str) -> Result<Vec<Declaration>, Errors>
 {
 	let source = std::fs::read_to_string(filename).unwrap();
 	penne::compile_source(&source, &filename)
 }
 
-#[test]
-fn fail_to_parse_invalid_character() -> Result<(), anyhow::Error>
+fn compile_to_fail(codes: &[u16], filename: &str)
 {
-	let parse_result = parse("tests/samples/invalid/invalid_character.pn");
-	match parse_result
+	match compile(filename)
 	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
+		Ok(_) => panic!("broken test"),
+		Err(errors) =>
+		{
+			assert_eq!(errors.codes(), codes, "unexpected {:?}", errors)
+		}
 	}
 }
 
 #[test]
-fn fail_to_parse_invalid_escape() -> Result<(), anyhow::Error>
+fn fail_to_parse_invalid_character()
 {
-	let parse_result = parse("tests/samples/invalid/invalid_escape.pn");
-	match parse_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[110], "tests/samples/invalid/invalid_character.pn")
 }
 
 #[test]
-fn fail_to_parse_invalid_trailing_slash_in_string() -> Result<(), anyhow::Error>
+fn fail_to_parse_invalid_escape()
 {
-	let parse_result =
-		parse("tests/samples/invalid/invalid_trailing_slash_in_string.pn");
-	match parse_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[162], "tests/samples/invalid/invalid_escape.pn")
 }
 
 #[test]
-fn fail_to_parse_missing_closing_quote() -> Result<(), anyhow::Error>
+fn fail_to_parse_invalid_trailing_slash_in_string()
 {
-	let parse_result = parse("tests/samples/invalid/missing_closing_quote.pn");
-	match parse_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(
+		&[161],
+		"tests/samples/invalid/invalid_trailing_slash_in_string.pn",
+	)
 }
 
 #[test]
-fn fail_to_parse_integer_too_big() -> Result<(), anyhow::Error>
+fn fail_to_parse_missing_closing_quote()
 {
-	let parse_result = parse("tests/samples/invalid/integer_too_big.pn");
-	match parse_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[160], "tests/samples/invalid/missing_closing_quote.pn")
 }
 
 #[test]
-fn fail_to_parse_duplicate_return() -> Result<(), anyhow::Error>
+fn fail_to_parse_invalid_integer_suffix()
 {
-	let parse_result = parse("tests/samples/invalid/duplicate_return.pn");
-	match parse_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[141], "tests/samples/invalid/invalid_integer_suffix.pn")
 }
 
 #[test]
-fn fail_to_parse_empty_return() -> Result<(), anyhow::Error>
+fn fail_to_parse_integer_too_big()
 {
-	let parse_result = parse("tests/samples/invalid/empty_return.pn");
-	match parse_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[142], "tests/samples/invalid/integer_too_big.pn")
+}
+
+#[test]
+fn fail_to_parse_i32_too_big()
+{
+	compile_to_fail(&[140], "tests/samples/invalid/i32_too_big.pn")
+}
+
+#[test]
+fn fail_to_parse_i128_too_big()
+{
+	compile_to_fail(&[140], "tests/samples/invalid/i128_too_big.pn")
+}
+
+#[test]
+fn fail_to_parse_untyped_integer_too_big()
+{
+	compile_to_fail(&[142], "tests/samples/invalid/untyped_integer_too_big.pn")
+}
+
+#[test]
+fn fail_to_parse_bit_integer_too_big()
+{
+	compile_to_fail(&[143], "tests/samples/invalid/bit_integer_too_big.pn")
+}
+
+#[test]
+fn fail_to_parse_duplicate_return()
+{
+	compile_to_fail(&[0], "tests/samples/invalid/duplicate_return.pn")
+}
+
+#[test]
+fn fail_to_parse_early_return()
+{
+	compile_to_fail(&[0], "tests/samples/invalid/early_return.pn")
+}
+
+#[test]
+fn fail_to_parse_early_return_in_void()
+{
+	compile_to_fail(&[0], "tests/samples/invalid/early_return_in_void.pn")
+}
+
+#[test]
+fn fail_to_parse_return_as_normal_label()
+{
+	compile_to_fail(&[0], "tests/samples/invalid/return_as_normal_label.pn")
+}
+
+#[test]
+fn fail_to_parse_empty_return()
+{
+	compile_to_fail(&[335], "tests/samples/invalid/empty_return.pn")
+}
+
+#[test]
+fn fail_to_parse_empty_return_in_void()
+{
+	compile_to_fail(&[335], "tests/samples/invalid/empty_return_in_void.pn")
 }

@@ -1,11 +1,9 @@
 fn foo()
 {
-	var x = 13;
+	var x: i32 = 13;
 }
 
-fn main()
+fn main() -> i32
 {
-
-	return:
-	x
+	return: x
 }

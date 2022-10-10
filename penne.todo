@@ -80,9 +80,9 @@ Usability:
 	☐	Add helpful note when trying to jump backwards
 		☐	Similarly, add note when referencing variable declared later
 		☐	Add note when referencing variable from an inner scope
-	☐	HTTP style error numbers
-		"244 Mismatched Brace" as googlable error code with description underneath
-	☐ Match expected error codes in tests
+	✔	Error codes @done (2022-10-10 14:23)
+	✔ Match expected error codes in tests @done (2022-10-10 14:23)
+	☐	Generate error index by formatting literate-style samples with ansi2html
 	✔	Color default terminal output differently from LLVM errors @done (2022-09-07 15:22)
 	☐	Allow goto to skip var declaration if short-lived (skip_shortlived_var.pn)
 

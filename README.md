@@ -45,8 +45,7 @@ fn determine_collatz_number(x: i32) -> i32
 		loop;
 	}
 
-	return:
-	steps
+	return: steps
 }
 ```
 
@@ -110,8 +109,7 @@ fn foo() -> i32
 	x = 10; // this line is not executed
 	end:
 	x = x + 1;
-	return:
-	x
+	return: x
 }
 ```
 
@@ -129,8 +127,7 @@ fn foo() -> i32
 		loop;
 	}
 
-	return:
-	x
+	return: x
 }
 ```
 

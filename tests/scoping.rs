@@ -6,7 +6,7 @@
 
 use penne::*;
 
-use anyhow::anyhow;
+use pretty_assertions::assert_eq;
 
 fn compile(filename: &str) -> Result<Vec<Declaration>, Errors>
 {
@@ -14,103 +14,68 @@ fn compile(filename: &str) -> Result<Vec<Declaration>, Errors>
 	penne::compile_source(&source, &filename)
 }
 
-#[test]
-fn fail_to_scope_duplicate_label() -> Result<(), anyhow::Error>
+fn compile_to_fail(codes: &[u16], filename: &str)
 {
-	let analysis_result = compile("tests/samples/invalid/duplicate_label.pn");
-	match analysis_result
+	match compile(filename)
 	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
+		Ok(_) => panic!("broken test"),
+		Err(errors) =>
+		{
+			assert_eq!(errors.codes(), codes, "unexpected {:?}", errors)
+		}
 	}
 }
 
 #[test]
-fn fail_to_scope_misplaced_variable() -> Result<(), anyhow::Error>
+fn fail_to_scope_duplicate_label()
 {
-	let analysis_result =
-		compile("tests/samples/invalid/misplaced_variable.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[420], "tests/samples/invalid/duplicate_label.pn")
 }
 
 #[test]
-fn fail_to_scope_foobar_variable() -> Result<(), anyhow::Error>
+fn fail_to_scope_misplaced_variable()
 {
-	let analysis_result = compile("tests/samples/invalid/foobar_variable.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[402], "tests/samples/invalid/misplaced_variable.pn")
 }
 
 #[test]
-fn fail_to_scope_illegal_jump_back() -> Result<(), anyhow::Error>
+fn fail_to_scope_foobar_variable()
 {
-	let analysis_result = compile("tests/samples/invalid/illegal_jump_back.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[402], "tests/samples/invalid/foobar_variable.pn")
 }
 
 #[test]
-fn fail_to_scope_label_in_else() -> Result<(), anyhow::Error>
+fn fail_to_scope_illegal_jump_back()
 {
-	let analysis_result = compile("tests/samples/invalid/label_in_else.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[400], "tests/samples/invalid/illegal_jump_back.pn")
 }
 
 #[test]
-fn fail_to_scope_missing_label() -> Result<(), anyhow::Error>
+fn fail_to_scope_label_in_else()
 {
-	let analysis_result = compile("tests/samples/invalid/missing_label.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[400], "tests/samples/invalid/label_in_else.pn")
 }
 
 #[test]
-fn fail_to_scope_missing_variable() -> Result<(), anyhow::Error>
+fn fail_to_scope_missing_label()
 {
-	let analysis_result = compile("tests/samples/invalid/missing_variable.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[400], "tests/samples/invalid/missing_label.pn")
 }
 
 #[test]
-fn fail_to_scope_missing_function() -> Result<(), anyhow::Error>
+fn fail_to_scope_missing_variable()
 {
-	let analysis_result = compile("tests/samples/invalid/missing_function.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[402], "tests/samples/invalid/missing_variable.pn")
 }
 
 #[test]
-fn fail_to_scope_outscoped_variable() -> Result<(), anyhow::Error>
+fn fail_to_scope_missing_function()
 {
-	let analysis_result =
-		compile("tests/samples/invalid/outscoped_variable.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[401], "tests/samples/invalid/missing_function.pn")
+}
+
+#[test]
+fn fail_to_scope_outscoped_variable()
+{
+	compile_to_fail(&[402], "tests/samples/invalid/outscoped_variable.pn")
 }

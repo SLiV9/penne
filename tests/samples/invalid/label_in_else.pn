@@ -1,4 +1,4 @@
-fn main()
+fn main() -> i32
 {
 	var x = 33;
 
@@ -12,6 +12,5 @@ fn main()
 	}
 	x = 12;
 
-	return:
-	x
+	return: x
 }

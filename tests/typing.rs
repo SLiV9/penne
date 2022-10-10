@@ -6,7 +6,7 @@
 
 use penne::*;
 
-use anyhow::anyhow;
+use pretty_assertions::assert_eq;
 
 fn compile(filename: &str) -> Result<Vec<Declaration>, Errors>
 {
@@ -15,118 +15,81 @@ fn compile(filename: &str) -> Result<Vec<Declaration>, Errors>
 }
 
 #[test]
-fn allow_differing_local_variable_types() -> Result<(), anyhow::Error>
+fn allow_differing_local_variable_types()
 {
-	let analysis_result =
-		compile("tests/samples/valid/local_variable_types.pn");
-	match analysis_result
+	match compile("tests/samples/valid/local_variable_types.pn")
 	{
-		Ok(_) => Ok(()),
+		Ok(_) => (),
 		#[allow(unreachable_code)]
 		Err(errors) => match errors.panic() {},
 	}
 }
 
-#[test]
-fn fail_to_type_return_type_mismatch() -> Result<(), anyhow::Error>
+fn compile_to_fail(codes: &[u16], filename: &str)
 {
-	let analysis_result =
-		compile("tests/samples/invalid/return_type_mismatch.pn");
-	match analysis_result
+	match compile(filename)
 	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
+		Ok(_) => panic!("broken test"),
+		Err(errors) =>
+		{
+			assert_eq!(errors.codes(), codes, "unexpected {:?}", errors)
+		}
 	}
 }
 
 #[test]
-fn fail_to_type_constant_type_mismatch() -> Result<(), anyhow::Error>
+fn fail_to_type_return_type_mismatch()
 {
-	let analysis_result =
-		compile("tests/samples/invalid/constant_type_mismatch.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[333], "tests/samples/invalid/return_type_mismatch.pn")
 }
 
 #[test]
-fn fail_to_type_missing_return() -> Result<(), anyhow::Error>
+fn fail_to_type_constant_type_mismatch()
 {
-	let analysis_result = compile("tests/samples/invalid/missing_return.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[500], "tests/samples/invalid/constant_type_mismatch.pn")
 }
 
 #[test]
-fn fail_to_type_mismatched_variable_type() -> Result<(), anyhow::Error>
+fn fail_to_type_missing_return()
 {
-	let analysis_result =
-		compile("tests/samples/invalid/mismatched_variable_type.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[334], "tests/samples/invalid/missing_return.pn")
 }
 
 #[test]
-fn fail_to_type_mismatched_assign() -> Result<(), anyhow::Error>
+fn fail_to_type_mismatched_variable_type()
 {
-	let analysis_result = compile("tests/samples/invalid/mismatched_assign.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[500], "tests/samples/invalid/mismatched_variable_type.pn")
 }
 
 #[test]
-fn fail_to_type_mismatched_array_elements() -> Result<(), anyhow::Error>
+fn fail_to_type_mismatched_assign()
 {
-	let analysis_result =
-		compile("tests/samples/invalid/mismatched_array_elements.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[500], "tests/samples/invalid/mismatched_assign.pn")
 }
 
 #[test]
-fn fail_to_type_mismatched_array_type() -> Result<(), anyhow::Error>
+fn fail_to_type_mismatched_array_elements()
 {
-	let analysis_result =
-		compile("tests/samples/invalid/mismatched_array_type.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(
+		&[500],
+		"tests/samples/invalid/mismatched_array_elements.pn",
+	)
 }
 
 #[test]
-fn fail_to_type_length_of_int() -> Result<(), anyhow::Error>
+fn fail_to_type_mismatched_array_type()
 {
-	let analysis_result = compile("tests/samples/invalid/length_of_int.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[500], "tests/samples/invalid/mismatched_array_type.pn")
 }
 
 #[test]
-fn fail_to_type_index_into_int() -> Result<(), anyhow::Error>
+fn fail_to_type_length_of_int()
 {
-	let analysis_result = compile("tests/samples/invalid/index_into_int.pn");
-	match analysis_result
-	{
-		Ok(_) => Err(anyhow!("broken test")),
-		Err(_) => Ok(()),
-	}
+	compile_to_fail(&[502], "tests/samples/invalid/length_of_int.pn")
+}
+
+#[test]
+fn fail_to_type_index_into_int()
+{
+	compile_to_fail(&[501, 501], "tests/samples/invalid/index_into_int.pn")
 }

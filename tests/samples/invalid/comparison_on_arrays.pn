@@ -1,7 +1,7 @@
 fn main() -> u8
 {
 	var result = 0;
-	if [2, 3] == [2, 3]
+	if [2i32, 3] == [2i32, 3]
 	{
 		result = 23;
 	}

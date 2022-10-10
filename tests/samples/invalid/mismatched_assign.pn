@@ -1,9 +1,8 @@
-fn main()
+fn main() -> i32
 {
 	var x = true;
 
 	x = 100;
 
-	return:
-	x
+	return: 400
 }

@@ -615,10 +615,25 @@ fn analyze_return_value(
 			// This error will already be thrown by the body.
 			Ok(())
 		}
-		(Some(_), Some(_), Some(Ok(vt))) =>
+		(Some(rt), Some(_), Some(Ok(vt))) =>
 		{
 			let rv_identifier = function.return_value();
-			typer.put_symbol(&rv_identifier, Some(Ok(vt)))
+			match typer.put_symbol(&rv_identifier, Some(Ok(vt)))
+			{
+				Ok(()) => Ok(()),
+				Err(Error::ConflictingTypes {
+					current_type: vt, ..
+				}) => Err(Error::ConflictingReturnValue {
+					inferred_type: vt,
+					declared_type: rt.clone(),
+					location_of_return_value: body
+						.return_value_identifier
+						.location
+						.clone(),
+					location_of_declaration: function.location.clone(),
+				}),
+				Err(error) => Err(error),
+			}
 		}
 		(Some(rt), Some(_), None) => Err(Error::AmbiguousReturnValue {
 			declared_type: rt.clone(),
@@ -1817,16 +1832,16 @@ impl Reference
 					};
 					return expr;
 				}
-				(ct, tt, step) =>
-
-					panic!(
-						"failed to autoderef {}, target type: {:?}, current type: {:?}, available step: {:?}, ad: {:?}, taken address: {:?}",
-						self.location.format(),
-						tt,
-						ct,
-						step,
-						self.address_depth,
-						take_address),
+				(ct, tt, step) => panic!(
+					"failed to autoderef {}, target type: {:?}, current type: \
+					 {:?}, available step: {:?}, ad: {:?}, taken address: {:?}",
+					self.location.format(),
+					tt,
+					ct,
+					step,
+					self.address_depth,
+					take_address
+				),
 			}
 		}
 

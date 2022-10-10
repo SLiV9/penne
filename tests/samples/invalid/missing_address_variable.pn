@@ -6,6 +6,7 @@ fn foo(some_value: &u8) -> u8
 fn main() -> u8
 {
 	var ten: u8 = 10;
-	var result = foo(ten);
+	var pointer_to_ten: &u8 = ten;
+	var result = foo(pointer_to_ten);
 	return: result
 }

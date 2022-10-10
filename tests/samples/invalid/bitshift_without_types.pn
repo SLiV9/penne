@@ -1,14 +1,5 @@
 fn main() -> i32
 {
-	var c: usize = 0;
 	var mask = 1 << 47;
-	mask = mask << 160;
-	{
-		if c == 40
-			goto return;
-		c = c + 1;
-		mask = mask >> 1;
-		loop;
-	}
 	return: 200
 }

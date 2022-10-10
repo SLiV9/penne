@@ -39,6 +39,15 @@ pub enum Lint
 
 impl Lint
 {
+	pub fn code(&self) -> u16
+	{
+		match self
+		{
+			Lint::LoopAsFirstStatement { .. } => 1800,
+			Lint::UnreachableCode { .. } => 1880,
+		}
+	}
+
 	pub fn report(&self) -> Report<(String, std::ops::Range<usize>)>
 	{
 		let a = ariadne::Color::Yellow;
@@ -56,6 +65,7 @@ impl Lint
 				&location_of_loop.source_filename,
 				location_of_loop.span.start,
 			)
+			.with_code(format!("L{}", self.code()))
 			.with_message("Conditional infinite loop")
 			.with_label(
 				location_of_loop
@@ -80,7 +90,8 @@ impl Lint
 					.with_color(b),
 			)
 			.with_note(format!(
-				"Perhaps use {} instead. To surpress with warning, add a label.",
+				"Perhaps use {} instead. To surpress this warning, add a \
+				 label.",
 				"`goto`".fg(a)
 			))
 			.finish(),
@@ -90,6 +101,7 @@ impl Lint
 				&location.source_filename,
 				location.span.start,
 			)
+			.with_code(format!("L{}", self.code()))
 			.with_message("Unreachable code")
 			.with_label(
 				location
