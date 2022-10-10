@@ -2,11 +2,12 @@ fn main() -> i32
 {
 	var x = 33;
 
-	goto return;
-
-	return:
-
-	x = 7;
+	{
+		goto return;
+		x = -1000;
+		return:
+		x = 7;
+	}
 
 	return:
 	x

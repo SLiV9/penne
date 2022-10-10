@@ -123,6 +123,14 @@ pub enum Error
 		location: Location,
 		expectation: String,
 	},
+	UnexpectedSemicolonAfterIdentifier
+	{
+		location: Location, after: Location
+	},
+	UnexpectedSemicolonAfterReturnValue
+	{
+		location: Location, after: Location
+	},
 	MaximumParseDepthExceeded
 	{
 		location: Location
@@ -397,6 +405,8 @@ impl Error
 				..
 			} => 163,
 			Error::UnexpectedToken { .. } => 300,
+			Error::UnexpectedSemicolonAfterIdentifier { .. } => 301,
+			Error::UnexpectedSemicolonAfterReturnValue { .. } => 302,
 			Error::MissingReturnType { .. } => 330,
 			Error::MissingAmbiguousReturnType { .. } => 331,
 			Error::AmbiguousReturnValue { .. } => 332,
@@ -661,6 +671,58 @@ impl Error
 				location.label().with_message(expectation).with_color(a),
 			)
 			.finish(),
+
+			Error::UnexpectedSemicolonAfterIdentifier { location, after } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location.source_filename,
+					location.span.start,
+				)
+				.with_code(format!("E{}", self.code()))
+				.with_message("Unexpected token")
+				.with_label(
+					location
+						.label()
+						.with_message("Unexpected semicolon")
+						.with_color(a),
+				)
+				.with_label(
+					after
+						.label()
+						.with_order(2)
+						.with_message("This is not a valid statement.")
+						.with_color(b),
+				)
+				.finish()
+			}
+
+			Error::UnexpectedSemicolonAfterReturnValue { location, after } =>
+			{
+				Report::build(
+					ReportKind::Error,
+					&location.source_filename,
+					location.span.start,
+				)
+				.with_code(format!("E{}", self.code()))
+				.with_message("Unexpected semicolon after return value")
+				.with_label(
+					location
+						.label()
+						.with_message("Unexpected semicolon")
+						.with_color(a),
+				)
+				.with_label(
+					after
+						.label()
+						.with_order(2)
+						.with_message(
+							"This is the return value of this function.",
+						)
+						.with_color(b),
+				)
+				.finish()
+			}
 
 			Error::MaximumParseDepthExceeded { location } => Report::build(
 				ReportKind::Error,

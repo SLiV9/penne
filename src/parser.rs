@@ -320,7 +320,19 @@ fn parse_constant_declaration(
 		location_of_declaration.combined_with(&tokens.last_location);
 	let value_type =
 		parse_colon_and_type(&flags, &location_of_declaration, tokens);
-	let expression = parse_assignment_and_expression(tokens);
+
+	let expression = match parse_assignment_and_expression(tokens)
+	{
+		Ok(expression) => expression,
+		Err(Poison::Error { error, partial }) =>
+		{
+			Expression::Poison(Poison::Error {
+				error,
+				partial: partial.map(|x| Box::new(x)),
+			})
+		}
+		Err(Poison::Poisoned) => Expression::Poison(Poison::Poisoned),
+	};
 
 	consume(Token::Semicolon, "expected semicolon", tokens)?;
 
@@ -331,6 +343,15 @@ fn parse_constant_declaration(
 		flags,
 	};
 	Ok(declaration)
+}
+
+fn parse_assignment_and_expression(
+	tokens: &mut Tokens,
+) -> Poisonable<Expression>
+{
+	consume(Token::Assignment, "expected assignment", tokens)?;
+	let expression = parse_expression(tokens)?;
+	Ok(expression)
 }
 
 fn parse_function_declaration(
@@ -678,7 +699,20 @@ fn parse_function_body(
 				statements.push(statement);
 
 				let return_value = parse_expression(tokens)?;
-				consume(Token::BraceRight, "expected closing brace", tokens)?;
+				if let Some(Token::Semicolon) = peek(tokens)
+				{
+					tokens.pop_front();
+					let error = Error::UnexpectedSemicolonAfterReturnValue {
+						location: tokens.last_location.clone(),
+						after: return_value.location().clone(),
+					};
+					return Err(error.into());
+				}
+				consume(
+					Token::BraceRight,
+					"expected closing brace after return value",
+					tokens,
+				)?;
 				let return_value_location = return_value.location().clone();
 				let body = FunctionBody {
 					statements,
@@ -853,7 +887,17 @@ fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 			let reference =
 				parse_rest_of_reference(x, location.clone(), tokens)?;
 
-			let expression = parse_assignment_and_expression(tokens);
+			if let Some(Token::Semicolon) = peek(tokens)
+			{
+				tokens.pop_front();
+				return Err(Error::UnexpectedSemicolonAfterIdentifier {
+					location: tokens.last_location.clone(),
+					after: reference.location.clone(),
+				});
+			}
+			consume(Token::Assignment, "expected assignment", tokens)?;
+			let expression = parse_expression(tokens)?;
+
 			let statement = Statement::Assignment {
 				reference,
 				value: expression,
@@ -867,7 +911,17 @@ fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 			let assignment_location = location.clone();
 			let reference = parse_addressed_reference(location, tokens)?;
 
-			let expression = parse_assignment_and_expression(tokens);
+			if let Some(Token::Semicolon) = peek(tokens)
+			{
+				tokens.pop_front();
+				return Err(Error::UnexpectedSemicolonAfterIdentifier {
+					location: tokens.last_location.clone(),
+					after: reference.location.clone(),
+				});
+			}
+			consume(Token::Assignment, "expected assignment", tokens)?;
+			let expression = parse_expression(tokens)?;
+
 			let statement = Statement::Assignment {
 				reference,
 				value: expression,
@@ -878,8 +932,7 @@ fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 		}
 		_ => Err(Error::UnexpectedToken {
 			location,
-			expectation: "expected keyword, identifier or opening brace"
-				.to_string(),
+			expectation: "expected statement".to_string(),
 		}),
 	}
 }
@@ -917,31 +970,6 @@ fn parse_comparison(tokens: &mut Tokens) -> Result<Comparison, Error>
 		location,
 		location_of_op,
 	})
-}
-
-fn parse_assignment_and_expression(tokens: &mut Tokens) -> Expression
-{
-	match parse_assignment_and_expression_or_poison(tokens)
-	{
-		Ok(expression) => expression,
-		Err(Poison::Error { error, partial }) =>
-		{
-			Expression::Poison(Poison::Error {
-				error,
-				partial: partial.map(|x| Box::new(x)),
-			})
-		}
-		Err(Poison::Poisoned) => Expression::Poison(Poison::Poisoned),
-	}
-}
-
-fn parse_assignment_and_expression_or_poison(
-	tokens: &mut Tokens,
-) -> Poisonable<Expression>
-{
-	consume(Token::Assignment, "expected assignment", tokens)?;
-	let expression = parse_expression(tokens)?;
-	Ok(expression)
 }
 
 fn parse_expression(tokens: &mut Tokens) -> Result<Expression, Error>

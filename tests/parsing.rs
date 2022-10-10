@@ -96,27 +96,33 @@ fn fail_to_parse_bit_integer_too_big()
 }
 
 #[test]
+fn fail_to_parse_non_existing_statement()
+{
+	compile_to_fail(&[301], "tests/samples/invalid/non_existing_statement.pn")
+}
+
+#[test]
 fn fail_to_parse_duplicate_return()
 {
-	compile_to_fail(&[0], "tests/samples/invalid/duplicate_return.pn")
+	compile_to_fail(&[420], "tests/samples/invalid/duplicate_return.pn")
 }
 
 #[test]
 fn fail_to_parse_early_return()
 {
-	compile_to_fail(&[0], "tests/samples/invalid/early_return.pn")
+	compile_to_fail(&[300], "tests/samples/invalid/early_return.pn")
 }
 
 #[test]
 fn fail_to_parse_early_return_in_void()
 {
-	compile_to_fail(&[0], "tests/samples/invalid/early_return_in_void.pn")
+	compile_to_fail(&[301], "tests/samples/invalid/early_return_in_void.pn")
 }
 
 #[test]
-fn fail_to_parse_return_as_normal_label()
+fn fail_to_parse_return_as_end()
 {
-	compile_to_fail(&[0], "tests/samples/invalid/return_as_normal_label.pn")
+	compile_to_fail(&[302], "tests/samples/invalid/return_as_end.pn")
 }
 
 #[test]

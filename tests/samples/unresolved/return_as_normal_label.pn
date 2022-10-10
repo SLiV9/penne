@@ -1,0 +1,14 @@
+fn main()
+{
+	var x: i32 = 33;
+
+	{
+		{
+			if x == 35
+				goto return;
+			x = x + 1;
+			loop;
+		}
+		return:
+	}
+}
