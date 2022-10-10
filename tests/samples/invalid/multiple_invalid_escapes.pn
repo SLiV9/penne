@@ -1,0 +1,4 @@
+fn main()
+{
+	var x = "Is \z or \2 a valid escape?";
+}

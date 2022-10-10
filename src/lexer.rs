@@ -503,12 +503,14 @@ fn lex_line(
 			{
 				let mut bytes = Vec::new();
 				let mut closed = false;
+				let mut first_error_token = None;
 				let mut end_of_line_offset = line_offset + 1;
 				let mut must_be_utf8 = false;
 				let mut must_be_bytestring = false;
 
 				while let Some((inner_line_offset, x)) = iter.next()
 				{
+					let source_offset_start_of_char = source_offset_end;
 					source_offset_end += 1;
 					end_of_line_offset = inner_line_offset + 1;
 					if x == '\\'
@@ -562,13 +564,13 @@ fn lex_line(
 									let warning = LexedToken {
 										result: Err(error),
 										location: Location {
-											span: source_offset_start
+											span: source_offset_start_of_char
 												..source_offset_end,
 											line_offset: end_of_line_offset,
 											..location.clone()
 										},
 									};
-									tokens.push(warning);
+									first_error_token.get_or_insert(warning);
 								}
 							}
 							Some((_, _y)) =>
@@ -576,13 +578,13 @@ fn lex_line(
 								let warning = LexedToken {
 									result: Err(Error::InvalidEscapeSequence),
 									location: Location {
-										span: source_offset_start
+										span: source_offset_start_of_char
 											..source_offset_end,
 										line_offset: end_of_line_offset,
 										..location.clone()
 									},
 								};
-								tokens.push(warning);
+								first_error_token.get_or_insert(warning);
 							}
 							None =>
 							{
@@ -591,13 +593,13 @@ fn lex_line(
 										Error::UnexpectedTrailingBackslash,
 									),
 									location: Location {
-										span: source_offset_start
+										span: source_offset_start_of_char
 											..source_offset_end,
 										line_offset: end_of_line_offset,
 										..location.clone()
 									},
 								};
-								tokens.push(warning);
+								first_error_token.get_or_insert(warning);
 							}
 						}
 					}
@@ -622,12 +624,13 @@ fn lex_line(
 						let warning = LexedToken {
 							result: Err(Error::UnexpectedCharacter),
 							location: Location {
-								span: source_offset_start..source_offset_end,
+								span: source_offset_start_of_char
+									..source_offset_end,
 								line_offset: end_of_line_offset,
 								..location.clone()
 							},
 						};
-						tokens.push(warning);
+						first_error_token.get_or_insert(warning);
 					}
 					else
 					{
@@ -648,7 +651,13 @@ fn lex_line(
 							..location.clone()
 						},
 					};
-					tokens.push(warning);
+					first_error_token.get_or_insert(warning);
+				}
+				if let Some(error_token) = first_error_token
+				{
+					tokens.push(error_token);
+					source_offset_start = source_offset_end;
+					continue;
 				}
 				if must_be_bytestring && must_be_utf8
 				{

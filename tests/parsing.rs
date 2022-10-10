@@ -39,10 +39,16 @@ fn fail_to_parse_invalid_escape()
 }
 
 #[test]
+fn fail_to_parse_multiple_invalid_escapes()
+{
+	compile_to_fail(&[162], "tests/samples/invalid/multiple_invalid_escapes.pn")
+}
+
+#[test]
 fn fail_to_parse_invalid_trailing_slash_in_string()
 {
 	compile_to_fail(
-		&[161],
+		&[161, 110, 160],
 		"tests/samples/invalid/invalid_trailing_slash_in_string.pn",
 	)
 }

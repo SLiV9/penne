@@ -567,7 +567,7 @@ impl Error
 
 			Error::Lexical {
 				error: lexer::Error::InvalidEscapeSequence,
-				expectation,
+				expectation: _,
 				location,
 			} => Report::build(
 				ReportKind::Error,
@@ -577,13 +577,16 @@ impl Error
 			.with_code(format!("E{}", self.code()))
 			.with_message("Invalid escape sequence")
 			.with_label(
-				location.label().with_message(expectation).with_color(a),
+				location
+					.label()
+					.with_message("Invalid character escape sequence")
+					.with_color(a),
 			)
 			.finish(),
 
 			Error::Lexical {
 				error: lexer::Error::UnexpectedTrailingBackslash,
-				expectation,
+				expectation: _,
 				location,
 			} => Report::build(
 				ReportKind::Error,
@@ -593,7 +596,10 @@ impl Error
 			.with_code(format!("E{}", self.code()))
 			.with_message("Unexpected trailing backslash")
 			.with_label(
-				location.label().with_message(expectation).with_color(a),
+				location
+					.label()
+					.with_message("Unexpected trailing backslash")
+					.with_color(a),
 			)
 			.with_note(
 				"To continue a string across multiple lines, close it and \
