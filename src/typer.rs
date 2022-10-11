@@ -1264,6 +1264,9 @@ impl Analyzable for Expression
 				location_of_type,
 			} =>
 			{
+				// We cannot infer the type of `expression` from context,
+				// because the context will always think it is `coerced_type`.
+				typer.contextual_type = None;
 				let expr = expression.analyze(typer);
 				Expression::PrimitiveCast {
 					expression: Box::new(expr),
@@ -1373,25 +1376,6 @@ impl Analyzable for ReferenceStep
 			ReferenceStep::Autoview => ReferenceStep::Autoview,
 		}
 	}
-}
-
-fn are_simple_deref_steps_concrete(steps: &[ReferenceStep]) -> bool
-{
-	steps.iter().all(|step| match step
-	{
-		ReferenceStep::Element {
-			argument: _,
-			is_endless: Some(_),
-		} => true,
-		ReferenceStep::Element {
-			argument: _,
-			is_endless: None,
-		} => false,
-		ReferenceStep::Member { member: _ } => true,
-		ReferenceStep::Autodeslice { offset: _ } => true,
-		ReferenceStep::Autoderef => true,
-		ReferenceStep::Autoview => true,
-	})
 }
 
 fn analyze_assignment_steps(
@@ -1681,8 +1665,9 @@ impl Reference
 		{
 			Ok(()) =>
 			{
-				let deref_type = deref_type
-					.filter(|_| are_simple_deref_steps_concrete(&self.steps));
+				let is_concrete =
+					self.steps.iter().all(|step| step.is_concrete());
+				let deref_type = deref_type.filter(|_| is_concrete);
 				Expression::Deref {
 					reference: self,
 					deref_type,

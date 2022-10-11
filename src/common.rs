@@ -375,6 +375,28 @@ pub enum ReferenceStep
 	Autoview,
 }
 
+impl ReferenceStep
+{
+	pub fn is_concrete(&self) -> bool
+	{
+		match self
+		{
+			ReferenceStep::Element {
+				argument: _,
+				is_endless: Some(_),
+			} => true,
+			ReferenceStep::Element {
+				argument: _,
+				is_endless: None,
+			} => false,
+			ReferenceStep::Member { member: _ } => true,
+			ReferenceStep::Autodeslice { offset: _ } => true,
+			ReferenceStep::Autoderef => true,
+			ReferenceStep::Autoview => true,
+		}
+	}
+}
+
 #[must_use]
 #[derive(Debug, Clone)]
 pub struct Reference

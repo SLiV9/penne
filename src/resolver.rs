@@ -624,7 +624,17 @@ impl Resolvable for Reference
 
 	fn resolve(self) -> Result<Self::Item, Errors>
 	{
-		let (base, steps) = (self.base, self.steps).resolve()?;
+		// If the base reference is poisoned, there is no point in showing
+		// errors related to the reference steps.
+		let base = self.base.resolve()?;
+		let is_concrete = self.steps.iter().all(|step| step.is_concrete());
+		if !is_concrete
+		{
+			Err(Error::AmbiguousType {
+				location: self.location,
+			})?
+		}
+		let steps = self.steps.resolve()?;
 		Ok(resolved::Reference {
 			base,
 			steps,
