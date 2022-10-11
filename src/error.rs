@@ -135,9 +135,10 @@ pub enum Error
 	{
 		location: Location
 	},
-	IllegalVariableTypeSlice
+	IllegalVariableType
 	{
-		location: Location
+		value_type: ValueType,
+		location: Location,
 	},
 	IllegalParameterType
 	{
@@ -413,7 +414,7 @@ impl Error
 			Error::ConflictingReturnValue { .. } => 333,
 			Error::MissingReturnValue { .. } => 334,
 			Error::MissingReturnValueAfterStatement { .. } => 335,
-			Error::IllegalVariableTypeSlice { .. } => 350,
+			Error::IllegalVariableType { .. } => 350,
 			Error::IllegalParameterType { .. } => 351,
 			Error::TypeNotAllowedInExtern { .. } => 352,
 			Error::FunctionInConstContext { .. } => 360,
@@ -739,7 +740,10 @@ impl Error
 			)
 			.finish(),
 
-			Error::IllegalVariableTypeSlice { location } => Report::build(
+			Error::IllegalVariableType {
+				value_type,
+				location,
+			} => Report::build(
 				ReportKind::Error,
 				&location.source_filename,
 				location.span.start,
@@ -749,7 +753,10 @@ impl Error
 			.with_label(
 				location
 					.label()
-					.with_message("Slices cannot be assigned to variables.")
+					.with_message(format!(
+						"The type {} cannot be assigned to a variable.",
+						show_type(value_type).fg(a)
+					))
 					.with_color(a),
 			)
 			.finish(),

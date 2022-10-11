@@ -1123,7 +1123,12 @@ impl Generatable for ValueType
 					)
 				}
 			}
-			ValueType::ExtArray { element_type } =>
+			ValueType::EndlessArray { element_type } =>
+			{
+				let element_type = element_type.generate(llvm)?;
+				element_type
+			}
+			ValueType::Arraylike { element_type } =>
 			{
 				let element_type = element_type.generate(llvm)?;
 				element_type
@@ -1250,7 +1255,10 @@ impl Reference
 		{
 			match step
 			{
-				ReferenceStep::Element { argument } =>
+				ReferenceStep::Element {
+					argument,
+					is_endless: _,
+				} =>
 				{
 					let argument: LLVMValueRef = argument.generate(llvm)?;
 					indices.push(argument)
@@ -1264,7 +1272,10 @@ impl Reference
 				{
 					let is_followed_by_access = match steps.peek()
 					{
-						Some(ReferenceStep::Element { .. }) => true,
+						Some(ReferenceStep::Element { is_endless, .. }) =>
+						{
+							!is_endless
+						}
 						Some(ReferenceStep::Member { .. }) => true,
 						Some(ReferenceStep::Autoderef { .. }) => false,
 						Some(ReferenceStep::Autoview { .. }) => false,
@@ -1505,7 +1516,7 @@ fn generate_autocoerce(
 		},
 		ValueType::View { deref_type } => match deref_type.as_ref()
 		{
-			ValueType::ExtArray { element_type } => match expression
+			ValueType::EndlessArray { element_type } => match expression
 			{
 				Expression::Deref {
 					reference,
@@ -1527,7 +1538,7 @@ fn generate_autocoerce(
 		},
 		ValueType::Pointer { deref_type } => match deref_type.as_ref()
 		{
-			ValueType::ExtArray { element_type } => match expression
+			ValueType::EndlessArray { element_type } => match expression
 			{
 				Expression::Deref {
 					reference,

@@ -1,0 +1,3 @@
+extern fn read(buffer: &[256]u8);
+extern fn add3(list_of_vec3: [][3]i32, output: &[3]i32);
+extern fn solve(ten_by_ten_matrix: &[10][10]i32);

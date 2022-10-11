@@ -522,11 +522,15 @@ impl Analyzable for ReferenceStep
 	{
 		match self
 		{
-			ReferenceStep::Element { argument } =>
+			ReferenceStep::Element {
+				argument,
+				is_endless,
+			} =>
 			{
 				let argument = argument.analyze(analyzer);
 				ReferenceStep::Element {
 					argument: Box::new(argument),
+					is_endless,
 				}
 			}
 			ReferenceStep::Member { .. } => self,

@@ -760,7 +760,26 @@ impl Rebuildable for Reference
 		{
 			match step
 			{
-				ReferenceStep::Element { argument } => write!(
+				ReferenceStep::Element {
+					argument,
+					is_endless: Some(true),
+				} => write!(
+					&mut buffer,
+					"[+ {}]",
+					argument.rebuild(&indentation.increased())?
+				)?,
+				ReferenceStep::Element {
+					argument,
+					is_endless: Some(false),
+				} => write!(
+					&mut buffer,
+					"[. {}]",
+					argument.rebuild(&indentation.increased())?
+				)?,
+				ReferenceStep::Element {
+					argument,
+					is_endless: _,
+				} => write!(
 					&mut buffer,
 					"[{}]",
 					argument.rebuild(&indentation.increased())?

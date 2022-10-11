@@ -194,6 +194,7 @@ pub enum ReferenceStep
 	Element
 	{
 		argument: Box<Expression>,
+		is_endless: bool,
 	},
 	Member
 	{

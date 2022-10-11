@@ -342,21 +342,27 @@ impl Analyzable for Statement
 				{
 					Some(Ok(vt @ ValueType::Slice { .. })) =>
 					{
-						Some(Err(Poison::Error {
-							error: Error::IllegalVariableTypeSlice {
-								location: name.location.clone(),
-							},
-							partial: Some(vt),
-						}))
+						Some(Err(Error::IllegalVariableType {
+							value_type: vt,
+							location: name.location.clone(),
+						}
+						.into()))
 					}
-					Some(Ok(vt @ ValueType::ExtArray { .. })) =>
+					Some(Ok(vt @ ValueType::EndlessArray { .. })) =>
 					{
-						Some(Err(Poison::Error {
-							error: Error::IllegalVariableTypeSlice {
-								location: name.location.clone(),
-							},
-							partial: Some(vt),
-						}))
+						Some(Err(Error::IllegalVariableType {
+							value_type: vt,
+							location: name.location.clone(),
+						}
+						.into()))
+					}
+					Some(Ok(vt @ ValueType::Arraylike { .. })) =>
+					{
+						Some(Err(Error::IllegalVariableType {
+							value_type: vt,
+							location: name.location.clone(),
+						}
+						.into()))
 					}
 					_ => value_type,
 				};
@@ -555,7 +561,8 @@ impl Analyzable for Expression
 			{
 				let deref_type = match deref_type
 				{
-					Some(Ok(vt @ ValueType::Array { .. })) =>
+					Some(Ok(vt @ ValueType::Array { .. }))
+					| Some(Ok(vt @ ValueType::EndlessArray { .. })) =>
 					{
 						if !analyzer.is_immediate_function_argument
 						{
@@ -572,7 +579,7 @@ impl Analyzable for Expression
 						}
 					}
 					Some(Ok(vt @ ValueType::Slice { .. }))
-					| Some(Ok(vt @ ValueType::ExtArray { .. })) =>
+					| Some(Ok(vt @ ValueType::Arraylike { .. })) =>
 					{
 						if !analyzer.is_immediate_function_argument
 						{
@@ -686,7 +693,10 @@ impl Analyzable for ReferenceStep
 	{
 		match self
 		{
-			ReferenceStep::Element { argument } =>
+			ReferenceStep::Element {
+				argument,
+				is_endless,
+			} =>
 			{
 				analyzer.is_immediate_function_argument = false;
 				let argument = argument.analyze(analyzer);
@@ -707,6 +717,7 @@ impl Analyzable for ReferenceStep
 				};
 				ReferenceStep::Element {
 					argument: Box::new(argument),
+					is_endless,
 				}
 			}
 			ReferenceStep::Member { .. } => self,

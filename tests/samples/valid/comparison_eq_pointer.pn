@@ -3,7 +3,7 @@ fn main() -> u8
 	var result = -1;
 	var a: i32 = 10;
 	var x: &i32 = &a;
-	var y: &&i32 = &x;
+	var y: &&i32 = &&x;
 	if &x == &y
 	{
 		result = 200;

@@ -573,11 +573,31 @@ fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 		}
 		Token::BracketLeft => match peek(tokens)
 		{
+			Some(Token::Colon) =>
+			{
+				tokens.pop_front();
+				consume(Token::BracketRight, "expected right bracket", tokens)?;
+				let element_type = parse_type(tokens)?;
+				Ok(ValueType::Slice {
+					element_type: Box::new(element_type),
+				})
+			}
+			Some(Token::Dot) =>
+			{
+				tokens.pop_front();
+				consume(Token::Dot, "expected dot", tokens)?;
+				consume(Token::Dot, "expected dot", tokens)?;
+				consume(Token::BracketRight, "expected right bracket", tokens)?;
+				let element_type = parse_type(tokens)?;
+				Ok(ValueType::EndlessArray {
+					element_type: Box::new(element_type),
+				})
+			}
 			Some(Token::BracketRight) | None =>
 			{
 				consume(Token::BracketRight, "expected right bracket", tokens)?;
 				let element_type = parse_type(tokens)?;
-				Ok(ValueType::Slice {
+				Ok(ValueType::Arraylike {
 					element_type: Box::new(element_type),
 				})
 			}
@@ -1626,6 +1646,7 @@ fn parse_rest_of_reference(
 		consume(Token::BracketRight, "expected right bracket", tokens)?;
 		let step = ReferenceStep::Element {
 			argument: Box::new(argument),
+			is_endless: None,
 		};
 		steps.push(step);
 		if steps.len() > MAX_REFERENCE_DEPTH
@@ -1654,11 +1675,7 @@ fn fix_type_for_flags(
 	{
 		match value_type
 		{
-			ValueType::Array {
-				element_type,
-				length: _,
-			}
-			| ValueType::Slice { element_type } =>
+			ValueType::Arraylike { element_type } =>
 			{
 				let element_type = externalize_type(
 					*element_type,
@@ -1666,7 +1683,7 @@ fn fix_type_for_flags(
 					location_of_declaration,
 				)?;
 				Ok(ValueType::View {
-					deref_type: Box::new(ValueType::ExtArray {
+					deref_type: Box::new(ValueType::EndlessArray {
 						element_type: Box::new(element_type),
 					}),
 				})
@@ -1680,7 +1697,34 @@ fn fix_type_for_flags(
 	}
 	else
 	{
-		Ok(value_type)
+		match value_type
+		{
+			ValueType::Arraylike { element_type } =>
+			{
+				Ok(ValueType::Slice { element_type })
+			}
+			ValueType::Pointer { deref_type } => match *deref_type
+			{
+				ValueType::Arraylike { element_type } =>
+				{
+					let deref_type =
+						Box::new(ValueType::Slice { element_type });
+					Ok(ValueType::Pointer { deref_type })
+				}
+				_ => Ok(ValueType::Pointer { deref_type }),
+			},
+			ValueType::View { deref_type } => match *deref_type
+			{
+				ValueType::Arraylike { element_type } =>
+				{
+					let deref_type =
+						Box::new(ValueType::Slice { element_type });
+					Ok(ValueType::View { deref_type })
+				}
+				_ => Ok(ValueType::View { deref_type }),
+			},
+			_ => Ok(value_type),
+		}
 	}
 }
 
@@ -1692,19 +1736,14 @@ fn externalize_type(
 {
 	match value_type
 	{
-		ValueType::Array {
-			element_type,
-			length: _,
-		}
-		| ValueType::Slice { element_type }
-		| ValueType::ExtArray { element_type } =>
+		ValueType::Arraylike { element_type } =>
 		{
 			let element_type = externalize_type(
 				*element_type,
 				location_of_type,
 				location_of_declaration,
 			)?;
-			Ok(ValueType::ExtArray {
+			Ok(ValueType::EndlessArray {
 				element_type: Box::new(element_type),
 			})
 		}

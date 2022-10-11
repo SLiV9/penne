@@ -210,10 +210,10 @@ fn execute_array_aliasing() -> Result<(), anyhow::Error>
 }
 
 #[test]
-fn execute_pointer_to_slice() -> Result<(), anyhow::Error>
+fn execute_pointer_to_endless_array() -> Result<(), anyhow::Error>
 {
 	let result =
-		execute_calculation("tests/samples/valid/pointer_to_slice.pn")?;
+		execute_calculation("tests/samples/valid/pointer_to_endless_array.pn")?;
 	assert_eq!(result, 200);
 	Ok(())
 }

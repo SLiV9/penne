@@ -1,0 +1,15 @@
+fn main() -> i32
+{
+	var x = 33;
+
+	goto next;
+
+	x = 100;
+
+	{
+		next:
+		x = 50;
+	}
+
+	return: x
+}

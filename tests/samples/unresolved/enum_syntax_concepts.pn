@@ -1,0 +1,61 @@
+
+enum8 Color
+{
+	RED, // 1
+	GREEN, // 2
+	BLUE, // 3
+}
+
+fn foo()
+{
+	// What should be the type of x? Color? u8? Or "?Color"?
+	var x;
+
+	// Instead of switch statements there is the jump table:
+	if x is Color
+	{
+		// x is now known to be a valid Color value, so we can safely jump.
+		goto x;
+		Color::RED:
+		{
+			// ...
+			// Do we need a break statement here?
+			// Even though "goto end;" is consistent, it seems too verbose.
+		}
+		// Color:: can be omitted because we are inside a jump table.
+		GREEN:
+		{
+			// ...
+		}
+		BLUE:
+		{
+			// ...
+		}
+	}
+	else
+	{
+		// Optional else.
+	}
+}
+
+fn alternatively()
+{
+	var x: Color;
+
+	goto x
+	{
+		RED:
+		{
+			// ...
+		}
+		GREEN:
+		{
+			// ...
+		}
+		BLUE:
+		{
+			// ...
+		}
+	}
+	else nothing;
+}

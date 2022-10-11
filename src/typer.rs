@@ -54,12 +54,17 @@ fn do_update_symbol(
 	vt: ValueType,
 ) -> Result<(), Error>
 {
-	// TODO really think about this again
 	match &symbol.value_type
 	{
 		Ok(ot) if ot == &vt => Ok(()),
-		Ok(ot) if false && ot.can_autoderef_into(&vt) => Ok(()),
-		Ok(ot) if false && vt.can_autoderef_into(ot) =>
+		Ok(ot) if ot.can_be_concretization_of(&vt) => Ok(()),
+		Ok(ot) if vt.can_be_declared_as(ot) =>
+		{
+			// Keep symbol.identifier the same.
+			symbol.value_type = Ok(vt);
+			Ok(())
+		}
+		Ok(ot) if vt.can_be_concretization_of(ot) =>
 		{
 			symbol.identifier = new_identifier.clone();
 			symbol.value_type = Ok(vt);
@@ -193,7 +198,10 @@ impl Typer
 			{
 				match step
 				{
-					ReferenceStep::Element { argument: _ } =>
+					ReferenceStep::Element {
+						argument: _,
+						is_endless: _,
+					} =>
 					{
 						match x.get_element_type()
 						{
@@ -786,19 +794,15 @@ impl Analyzable for Statement
 					match (result, inferred_type, declared_type)
 					{
 						(Err(error), _, _) => Some(Err(error.into())),
-						(Ok(()), Ok(inferred_type), Ok(declared_type)) =>
-						{
-							if inferred_type.can_be_declared_as(&declared_type)
-							{
-								Some(Ok(inferred_type))
-							}
-							else
-							{
-								Some(Ok(declared_type))
-							}
-						}
 						(Ok(()), _, Err(poison)) => Some(Err(poison)),
 						(Ok(()), Err(poison), Ok(_)) => Some(Err(poison)),
+						(Ok(()), Ok(_), Ok(declared_type)) =>
+						{
+							let resulting_type = typer
+								.get_symbol_back(&name)
+								.unwrap_or(Ok(declared_type));
+							Some(resulting_type)
+						}
 					}
 				}
 				else
@@ -1357,13 +1361,17 @@ impl Analyzable for ReferenceStep
 	{
 		match self
 		{
-			ReferenceStep::Element { argument } =>
+			ReferenceStep::Element {
+				argument,
+				is_endless,
+			} =>
 			{
 				typer.contextual_type = Some(Ok(ValueType::Usize));
 				let argument = argument.analyze(typer);
 				typer.contextual_type = None;
 				ReferenceStep::Element {
 					argument: Box::new(argument),
+					is_endless,
 				}
 			}
 			ReferenceStep::Member { member: _ } => self,
@@ -1385,9 +1393,12 @@ fn analyze_assignment_steps(
 	let mut current_type = base_type;
 	for step in previous_steps.into_iter()
 	{
-		match step
+		let step = match step
 		{
-			ReferenceStep::Element { argument: _ } =>
+			ReferenceStep::Element {
+				argument,
+				is_endless: _,
+			} =>
 			{
 				for _i in 0..MAX_AUTODEREF_DEPTH
 				{
@@ -1417,6 +1428,14 @@ fn analyze_assignment_steps(
 					}
 					_ => (),
 				}
+				let is_endless = match &current_type
+				{
+					ValueType::Array { .. } => Some(false),
+					ValueType::Slice { .. } => Some(false),
+					ValueType::EndlessArray { .. } => Some(true),
+					ValueType::Arraylike { .. } => None,
+					_ => None,
+				};
 				match current_type.get_element_type()
 				{
 					Some(element_type) =>
@@ -1425,6 +1444,10 @@ fn analyze_assignment_steps(
 					}
 					None => unreachable!(),
 				}
+				ReferenceStep::Element {
+					argument,
+					is_endless,
+				}
 			}
 			ReferenceStep::Member { member: _ } => unimplemented!(),
 			ReferenceStep::Autoderef => match current_type
@@ -1432,6 +1455,7 @@ fn analyze_assignment_steps(
 				ValueType::Pointer { deref_type } =>
 				{
 					current_type = *deref_type;
+					step
 				}
 				_ => unreachable!(),
 			},
@@ -1440,16 +1464,18 @@ fn analyze_assignment_steps(
 				ValueType::View { deref_type } =>
 				{
 					current_type = *deref_type;
+					step
 				}
 				_ => unreachable!(),
 			},
-			ReferenceStep::Autodeslice { offset: 0 } => (),
+			ReferenceStep::Autodeslice { offset: 0 } => step,
 			ReferenceStep::Autodeslice { offset: 1 } =>
 			{
 				current_type = ValueType::Usize;
+				step
 			}
 			ReferenceStep::Autodeslice { offset: _ } => unreachable!(),
-		}
+		};
 		steps.push(step);
 	}
 	for _i in 0..MAX_AUTODEREF_DEPTH
@@ -1719,7 +1745,7 @@ impl Reference
 					break;
 				}
 				(ct, ValueType::Pointer { deref_type }, None)
-					if ct.can_coerce_into(deref_type.as_ref())
+					if ct.can_coerce_address_into_pointer_to(deref_type)
 						&& self.address_depth > 0
 						&& !take_address =>
 				{
@@ -1730,16 +1756,21 @@ impl Reference
 					coercion = Some((current_type, target_type.clone()));
 					break;
 				}
+
 				(
 					ValueType::Pointer { deref_type },
 					_,
-					Some(ReferenceStep::Element { argument }),
+					Some(ReferenceStep::Element {
+						argument,
+						is_endless,
+					}),
 				) => match deref_type.as_ref()
 				{
-					ValueType::ExtArray { element_type } =>
+					ValueType::Arraylike { element_type } =>
 					{
 						let step = ReferenceStep::Element {
 							argument: argument.clone(),
+							is_endless: *is_endless,
 						};
 						taken_steps.push(step);
 						available_steps.next();
@@ -1752,16 +1783,21 @@ impl Reference
 						current_type = *deref_type;
 					}
 				},
+
 				(
 					ValueType::View { deref_type },
 					_,
-					Some(ReferenceStep::Element { argument }),
+					Some(ReferenceStep::Element {
+						argument,
+						is_endless,
+					}),
 				) => match deref_type.as_ref()
 				{
-					ValueType::ExtArray { element_type } =>
+					ValueType::Arraylike { element_type } =>
 					{
 						let step = ReferenceStep::Element {
 							argument: argument.clone(),
+							is_endless: *is_endless,
 						};
 						taken_steps.push(step);
 						available_steps.next();
@@ -1774,6 +1810,7 @@ impl Reference
 						current_type = *deref_type;
 					}
 				},
+
 				(ValueType::Pointer { deref_type }, _, _) =>
 				{
 					let step = ReferenceStep::Autoderef;
@@ -1786,26 +1823,53 @@ impl Reference
 					taken_steps.push(step);
 					current_type = *deref_type;
 				}
+
 				(
 					ValueType::Array {
 						element_type,
 						length: _,
 					},
 					_,
-					Some(ReferenceStep::Element { argument }),
+					Some(ReferenceStep::Element {
+						argument,
+						is_endless: _,
+					}),
 				) =>
 				{
 					let step = ReferenceStep::Element {
 						argument: argument.clone(),
+						is_endless: Some(false),
 					};
 					taken_steps.push(step);
 					available_steps.next();
 					current_type = *element_type;
 				}
+
+				(
+					ValueType::EndlessArray { element_type },
+					_,
+					Some(ReferenceStep::Element {
+						argument,
+						is_endless: _,
+					}),
+				) =>
+				{
+					let step = ReferenceStep::Element {
+						argument: argument.clone(),
+						is_endless: Some(true),
+					};
+					taken_steps.push(step);
+					available_steps.next();
+					current_type = *element_type;
+				}
+
 				(
 					ValueType::Slice { element_type },
 					_,
-					Some(ReferenceStep::Element { argument }),
+					Some(ReferenceStep::Element {
+						argument,
+						is_endless: _,
+					}),
 				) =>
 				{
 					let autostep = ReferenceStep::Autodeslice { offset: 0 };
@@ -1813,11 +1877,13 @@ impl Reference
 
 					let step = ReferenceStep::Element {
 						argument: argument.clone(),
+						is_endless: Some(false),
 					};
 					taken_steps.push(step);
 					available_steps.next();
 					current_type = *element_type;
 				}
+
 				(_, _, None) if self.address_depth >= 2 =>
 				{
 					// This is invalid, but we want a proper error, not an
@@ -1916,9 +1982,12 @@ fn build_type_of_ref1(
 	{
 		match step
 		{
-			ReferenceStep::Element { argument: _ } =>
+			ReferenceStep::Element {
+				argument: _,
+				is_endless: _,
+			} =>
 			{
-				full_type = ValueType::ExtArray {
+				full_type = ValueType::Arraylike {
 					element_type: Box::new(full_type),
 				};
 			}

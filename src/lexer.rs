@@ -32,6 +32,7 @@ pub enum Token
 	Modulo,
 	Colon,
 	Semicolon,
+	Dot,
 	Comma,
 	Assignment, // =
 
@@ -247,6 +248,7 @@ fn lex_line(
 			'%' => Ok(Token::Modulo),
 			':' => Ok(Token::Colon),
 			';' => Ok(Token::Semicolon),
+			'.' => Ok(Token::Dot),
 			',' => Ok(Token::Comma),
 			'=' => match iter.peek()
 			{

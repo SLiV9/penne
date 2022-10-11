@@ -641,10 +641,20 @@ impl Resolvable for ReferenceStep
 	{
 		match self
 		{
-			ReferenceStep::Element { argument } =>
+			ReferenceStep::Element {
+				argument,
+				is_endless,
+			} =>
 			{
 				let argument = argument.resolve()?;
-				Ok(resolved::ReferenceStep::Element { argument })
+				match is_endless
+				{
+					Some(is_endless) => Ok(resolved::ReferenceStep::Element {
+						argument,
+						is_endless,
+					}),
+					None => unreachable!(),
+				}
 			}
 			ReferenceStep::Member { member } =>
 			{
