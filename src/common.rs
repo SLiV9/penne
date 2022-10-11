@@ -199,6 +199,7 @@ impl Array
 			name: "(array)".to_string(),
 			location: self.location.clone(),
 			resolution_id: self.resolution_id,
+			is_authoritative: true,
 		}
 	}
 }
@@ -391,14 +392,24 @@ pub struct Identifier
 	pub name: String,
 	pub location: Location,
 	pub resolution_id: u32,
+	pub is_authoritative: bool,
 }
 
 impl Identifier
 {
+	pub fn inferred(&self) -> Self
+	{
+		Identifier {
+			is_authoritative: false,
+			..self.clone()
+		}
+	}
+
 	pub fn return_value(&self) -> Self
 	{
 		Identifier {
 			name: format!("(return value of '{}')", self.name),
+			is_authoritative: true,
 			..self.clone()
 		}
 	}

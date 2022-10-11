@@ -86,6 +86,7 @@ impl Analyzer
 
 		let identifier = Identifier {
 			resolution_id: self.resolution_id,
+			is_authoritative: true,
 			..identifier
 		};
 		self.resolution_id += 1;
@@ -121,6 +122,7 @@ impl Analyzer
 			{
 				return Ok(Identifier {
 					resolution_id: previous_identifier.resolution_id,
+					is_authoritative: false,
 					..identifier
 				});
 			}
@@ -152,6 +154,7 @@ impl Analyzer
 
 		let identifier = Identifier {
 			resolution_id: self.resolution_id,
+			is_authoritative: true,
 			..identifier
 		};
 		self.resolution_id += 1;
@@ -180,6 +183,7 @@ impl Analyzer
 		{
 			Ok(Identifier {
 				resolution_id: declaration_identifier.resolution_id,
+				is_authoritative: false,
 				..identifier
 			})
 		}
@@ -477,6 +481,7 @@ impl Analyzable for FunctionBody
 		// Return values need a resolution id to help with typing.
 		let return_value_identifier = Identifier {
 			resolution_id: analyzer.create_anonymous_resolution_id(),
+			is_authoritative: false,
 			..self.return_value_identifier
 		};
 
@@ -853,6 +858,7 @@ impl Analyzable for ReferenceStep
 				let offset = 0;
 				let member = Identifier {
 					resolution_id: offset,
+					is_authoritative: false,
 					..member
 				};
 				ReferenceStep::Member { member }

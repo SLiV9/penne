@@ -54,30 +54,47 @@ fn do_update_symbol(
 	vt: ValueType,
 ) -> Result<(), Error>
 {
-	match &symbol.value_type
+	let ot = match &symbol.value_type
 	{
-		Ok(ot) if ot == &vt => Ok(()),
-		Ok(ot) if ot.can_be_concretization_of(&vt) => Ok(()),
-		Ok(ot) if vt.can_be_declared_as(ot) =>
-		{
-			// Keep symbol.identifier the same.
-			symbol.value_type = Ok(vt);
-			Ok(())
-		}
-		Ok(ot) if vt.can_be_concretization_of(ot) =>
-		{
-			symbol.identifier = new_identifier.clone();
-			symbol.value_type = Ok(vt);
-			Ok(())
-		}
-		Ok(ot) => Err(Error::ConflictingTypes {
+		Ok(ot) => ot,
+		Err(_poison) => return Ok(()),
+	};
+
+	if ot == &vt
+	{
+		Ok(())
+	}
+	else if ot.can_be_concretization_of(&vt)
+	{
+		Ok(())
+	}
+	else if symbol.identifier.is_authoritative && vt.can_be_declared_as(ot)
+	{
+		// Keep symbol.identifier the same.
+		symbol.value_type = Ok(vt);
+		Ok(())
+	}
+	else if new_identifier.is_authoritative && vt.can_be_concretization_of(ot)
+	{
+		symbol.identifier = new_identifier.clone();
+		symbol.value_type = Ok(vt);
+		Ok(())
+	}
+	else if new_identifier.is_authoritative && vt.can_coerce_into(ot)
+	{
+		symbol.identifier = new_identifier.clone();
+		symbol.value_type = Ok(vt);
+		Ok(())
+	}
+	else
+	{
+		Err(Error::ConflictingTypes {
 			name: new_identifier.name.clone(),
 			current_type: vt,
 			previous_type: ot.clone(),
 			location: new_identifier.location.clone(),
 			previous: symbol.identifier.location.clone(),
-		}),
-		Err(_poison) => Ok(()),
+		})
 	}
 }
 
@@ -138,23 +155,15 @@ impl Typer
 	{
 		match self.symbols.get(&name.resolution_id)
 		{
+			Some(symbol) if name.is_authoritative =>
+			{
+				Some(symbol.value_type.clone())
+			}
 			Some(symbol) => match &symbol.value_type
 			{
 				Ok(vt) => Some(Ok(vt.clone())),
 				Err(_poison) => Some(Err(Poison::Poisoned)),
 			},
-			None => None,
-		}
-	}
-
-	fn get_symbol_back(
-		&self,
-		name: &Identifier,
-	) -> Option<Poisonable<ValueType>>
-	{
-		match self.symbols.get(&name.resolution_id)
-		{
-			Some(symbol) => Some(symbol.value_type.clone()),
 			None => None,
 		}
 	}
@@ -166,7 +175,7 @@ impl Typer
 	{
 		match base
 		{
-			Ok(base) => self.get_symbol(&base),
+			Ok(base) => self.get_symbol(&base.inferred()),
 			Err(_poison) => Some(Err(Poison::Poisoned)),
 		}
 	}
@@ -479,28 +488,10 @@ impl Analyzable for Declaration
 	{
 		match self
 		{
-			Declaration::Constant {
-				name,
-				value,
-				value_type,
-				flags,
-			} =>
+			Declaration::Constant { .. } =>
 			{
-				typer.contextual_type = Some(value_type.clone());
-				let value = value.analyze(typer);
-				let recoverable_error =
-					typer.put_symbol(&name, value.value_type());
-				let value_type = match recoverable_error
-				{
-					Ok(()) => value_type,
-					Err(error) => Err(error.into()),
-				};
-				Declaration::Constant {
-					name,
-					value,
-					value_type,
-					flags,
-				}
+				// Constants do not use type inference.
+				self
 			}
 			Declaration::Function {
 				name,
@@ -626,7 +617,7 @@ fn analyze_return_value(
 		}
 		(Some(rt), Some(_), Some(Ok(vt))) =>
 		{
-			let rv_identifier = function.return_value();
+			let rv_identifier = function.return_value().inferred();
 			match typer.put_symbol(&rv_identifier, Some(Ok(vt)))
 			{
 				Ok(()) => Ok(()),
@@ -689,7 +680,7 @@ impl Analyzable for Parameter
 				{
 					Ok(()) =>
 					{
-						let value_type = typer.get_symbol_back(name);
+						let value_type = typer.get_symbol(name);
 						value_type.unwrap_or(self.value_type)
 					}
 					Err(error) => Err(error.into()),
@@ -779,7 +770,7 @@ impl Analyzable for Statement
 				let recoverable_error =
 					typer.put_symbol(&name, Some(declared_type.clone()));
 				let declared_type =
-					typer.get_symbol_back(&name).unwrap_or(declared_type);
+					typer.get_symbol(&name).unwrap_or(declared_type);
 				typer.contextual_type = Some(declared_type.clone());
 				let value = value.analyze(typer);
 				typer.contextual_type = None;
@@ -789,8 +780,10 @@ impl Analyzable for Statement
 				}
 				else if let Some(inferred_type) = value.value_type()
 				{
-					let result =
-						typer.put_symbol(&name, Some(inferred_type.clone()));
+					let result = typer.put_symbol(
+						&name.inferred(),
+						Some(inferred_type.clone()),
+					);
 					match (result, inferred_type, declared_type)
 					{
 						(Err(error), _, _) => Some(Err(error.into())),
@@ -799,7 +792,7 @@ impl Analyzable for Statement
 						(Ok(()), Ok(_), Ok(declared_type)) =>
 						{
 							let resulting_type = typer
-								.get_symbol_back(&name)
+								.get_symbol(&name)
 								.unwrap_or(Ok(declared_type));
 							Some(resulting_type)
 						}
@@ -823,7 +816,7 @@ impl Analyzable for Statement
 				location,
 			} =>
 			{
-				typer.contextual_type = typer.get_symbol(&name);
+				typer.contextual_type = typer.get_symbol(&name.inferred());
 				let value = value.analyze(typer);
 				typer.contextual_type = None;
 				let value_type = value.value_type();
@@ -870,7 +863,7 @@ impl Analyzable for Statement
 				location,
 			} =>
 			{
-				let value_type = typer.get_symbol(&name);
+				let value_type = typer.get_symbol(&name.inferred());
 				let value_type = infer_for_declaration(value_type);
 				Statement::Declaration {
 					name,
@@ -986,7 +979,7 @@ impl Analyzable for Array
 {
 	fn analyze(self, typer: &mut Typer) -> Self
 	{
-		let name = self.get_identifier();
+		let name = self.get_identifier().inferred();
 		let elements: Vec<Expression> = self
 			.elements
 			.into_iter()
@@ -1185,7 +1178,7 @@ impl Analyzable for Expression
 				{
 					Ok(()) =>
 					{
-						let element_type = typer.get_symbol(&name);
+						let element_type = typer.get_symbol(&name.inferred());
 
 						Expression::ArrayLiteral {
 							array,
@@ -1330,7 +1323,7 @@ impl Analyzable for Expression
 				return_type,
 			} =>
 			{
-				let rv_identifier = name.return_value();
+				let rv_identifier = name.return_value().inferred();
 				let recoverable_error =
 					typer.put_symbol(&rv_identifier, return_type.clone());
 				let return_type = typer.get_symbol(&rv_identifier);
@@ -1380,6 +1373,25 @@ impl Analyzable for ReferenceStep
 			ReferenceStep::Autoview => ReferenceStep::Autoview,
 		}
 	}
+}
+
+fn are_simple_deref_steps_concrete(steps: &[ReferenceStep]) -> bool
+{
+	steps.iter().all(|step| match step
+	{
+		ReferenceStep::Element {
+			argument: _,
+			is_endless: Some(_),
+		} => true,
+		ReferenceStep::Element {
+			argument: _,
+			is_endless: None,
+		} => false,
+		ReferenceStep::Member { member: _ } => true,
+		ReferenceStep::Autodeslice { offset: _ } => true,
+		ReferenceStep::Autoderef => true,
+		ReferenceStep::Autoview => true,
+	})
 }
 
 fn analyze_assignment_steps(
@@ -1611,25 +1623,7 @@ impl Reference
 			{
 				let base_type = Some(Ok(x));
 				let deref_type = Some(Ok(y));
-				let full_type = build_type_of_reference(
-					base_type,
-					&self.steps,
-					self.address_depth,
-				);
-				match typer.put_symbol(base, full_type.clone())
-				{
-					Ok(()) => Expression::Deref {
-						reference: self,
-						deref_type,
-					},
-					Err(error) => Expression::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(Expression::Deref {
-							reference: self,
-							deref_type,
-						})),
-					}),
-				}
+				self.simple_deref(base_type, deref_type, typer)
 			}
 			(Some(Ok(x)), Some(Ok(y)), Some(Ok(ref_type)))
 				if x.can_autoderef_into(&y) =>
@@ -1640,6 +1634,12 @@ impl Reference
 			{
 				self.autoderef(ref_type, def, typer)
 			}
+			(Some(Ok(def)), _, _) =>
+			{
+				let base_type = Some(Ok(def));
+				let deref_type = base_type.clone();
+				self.simple_deref(base_type, deref_type, typer)
+			}
 			(Some(Err(Poison::Error { error, partial })), _, _) =>
 			{
 				// Keep the error.
@@ -1648,53 +1648,53 @@ impl Reference
 					deref_type: Some(Err(Poison::Error { error, partial })),
 				}
 			}
-			(Some(default_type_or_poisoned), _, _) =>
+			(Some(Err(Poison::Poisoned)), _, _) =>
 			{
-				let base_type = Some(default_type_or_poisoned);
+				let base_type = Some(Err(Poison::Poisoned));
 				let deref_type = base_type.clone();
-				let full_type = build_type_of_reference(
-					base_type,
-					&self.steps,
-					self.address_depth,
-				);
-				match typer.put_symbol(base, full_type.clone())
-				{
-					Ok(()) => Expression::Deref {
-						reference: self,
-						deref_type,
-					},
-					Err(error) => Expression::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(Expression::Deref {
-							reference: self,
-							deref_type,
-						})),
-					}),
-				}
+				self.simple_deref(base_type, deref_type, typer)
 			}
 			(None, deref_type, _) =>
 			{
 				let base_type = deref_type.clone();
-				let full_type = build_type_of_reference(
-					base_type,
-					&self.steps,
-					self.address_depth,
-				);
-				match typer.put_symbol(base, full_type.clone())
-				{
-					Ok(()) => Expression::Deref {
-						reference: self,
-						deref_type,
-					},
-					Err(error) => Expression::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(Expression::Deref {
-							reference: self,
-							deref_type,
-						})),
-					}),
+				self.simple_deref(base_type, deref_type, typer)
+			}
+		}
+	}
+
+	fn simple_deref(
+		self,
+		base_type: Option<Poisonable<ValueType>>,
+		deref_type: Option<Poisonable<ValueType>>,
+		typer: &mut Typer,
+	) -> Expression
+	{
+		let base = match &self.base
+		{
+			Ok(base) => base,
+			Err(_poison) => unreachable!(),
+		};
+
+		let full_type =
+			build_type_of_reference(base_type, &self.steps, self.address_depth);
+		match typer.put_symbol(base, full_type)
+		{
+			Ok(()) =>
+			{
+				let deref_type = deref_type
+					.filter(|_| are_simple_deref_steps_concrete(&self.steps));
+				Expression::Deref {
+					reference: self,
+					deref_type,
 				}
 			}
+			Err(error) => Expression::Poison(Poison::Error {
+				error,
+				partial: Some(Box::new(Expression::Deref {
+					reference: self,
+					deref_type,
+				})),
+			}),
 		}
 	}
 
@@ -1708,13 +1708,7 @@ impl Reference
 		let base = match &self.base
 		{
 			Ok(base) => base,
-			Err(_poison) =>
-			{
-				return Expression::Deref {
-					reference: self,
-					deref_type: Some(Ok(known_ref_type)),
-				};
-			}
+			Err(_poison) => unreachable!(),
 		};
 
 		let mut available_steps = self.steps.into_iter().peekable();

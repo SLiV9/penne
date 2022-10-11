@@ -50,6 +50,7 @@ impl Analyzer
 
 		let identifier = Identifier {
 			resolution_id: self.resolution_id,
+			is_authoritative: true,
 			..identifier
 		};
 		self.resolution_id += 1;
@@ -85,6 +86,7 @@ impl Analyzer
 			{
 				return Ok(Identifier {
 					resolution_id: previous_identifier.resolution_id,
+					is_authoritative: false,
 					..identifier
 				});
 			}

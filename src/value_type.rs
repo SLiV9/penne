@@ -234,6 +234,12 @@ impl ValueType
 				length: _,
 			} => match other
 			{
+				ValueType::Slice { element_type: b } => a == b,
+				ValueType::EndlessArray { element_type: b } => a == b,
+				_ => false,
+			},
+			ValueType::Slice { element_type: a } => match other
+			{
 				ValueType::EndlessArray { element_type: b } => a == b,
 				_ => false,
 			},

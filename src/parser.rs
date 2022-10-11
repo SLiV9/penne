@@ -170,6 +170,7 @@ fn extract_identifier(
 			name,
 			location,
 			resolution_id: 0,
+			is_authoritative: false,
 		}),
 		Some(LexedToken {
 			result: Ok(_),
@@ -657,6 +658,7 @@ fn parse_function_body(
 					name: function_name.to_string(),
 					location: tokens.last_location.clone(),
 					resolution_id: 0,
+					is_authoritative: false,
 				},
 			};
 			return Ok(body);
@@ -674,6 +676,7 @@ fn parse_function_body(
 						name: function_name.to_string(),
 						location: tokens.last_location.clone(),
 						resolution_id: 0,
+						is_authoritative: false,
 					},
 				};
 				return Err(Poison::Error {
@@ -710,6 +713,7 @@ fn parse_function_body(
 						name: function_name.to_string(),
 						location: return_value_location,
 						resolution_id: 0,
+						is_authoritative: false,
 					},
 				};
 				return Ok(body);
@@ -741,6 +745,7 @@ fn parse_function_body(
 						name: function_name.to_string(),
 						location: return_value_location,
 						resolution_id: 0,
+						is_authoritative: false,
 					},
 				};
 				return Ok(body);
@@ -883,6 +888,7 @@ fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 						name: x,
 						location: location.clone(),
 						resolution_id: 0,
+						is_authoritative: false,
 					},
 					location,
 				};
@@ -894,6 +900,7 @@ fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 					name: x,
 					location,
 					resolution_id: 0,
+					is_authoritative: false,
 				};
 				let arguments = parse_arguments(tokens)?;
 				let statement = Statement::MethodCall {
@@ -1444,6 +1451,7 @@ fn parse_primary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 					name,
 					location,
 					resolution_id: 0,
+					is_authoritative: false,
 				};
 				let arguments = parse_arguments(tokens)?;
 				Ok(Expression::FunctionCall {
@@ -1637,6 +1645,7 @@ fn parse_rest_of_reference(
 		name,
 		location: location.clone(),
 		resolution_id: 0,
+		is_authoritative: false,
 	};
 	let mut steps = Vec::new();
 	while let Some(Token::BracketLeft) = peek(tokens)

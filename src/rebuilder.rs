@@ -120,7 +120,7 @@ where
 			Poison::Error {
 				error: _,
 				partial: Some(x),
-			} => x.rebuild(indentation),
+			} => Ok(format!("☠ERROR {}☠", x.rebuild(indentation)?)),
 			Poison::Error {
 				error: _,
 				partial: None,
