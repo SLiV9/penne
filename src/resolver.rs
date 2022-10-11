@@ -627,13 +627,6 @@ impl Resolvable for Reference
 		// If the base reference is poisoned, there is no point in showing
 		// errors related to the reference steps.
 		let base = self.base.resolve()?;
-		let is_concrete = self.steps.iter().all(|step| step.is_concrete());
-		if !is_concrete
-		{
-			Err(Error::AmbiguousType {
-				location: self.location,
-			})?
-		}
 		let steps = self.steps.resolve()?;
 		Ok(resolved::Reference {
 			base,
@@ -657,14 +650,10 @@ impl Resolvable for ReferenceStep
 			} =>
 			{
 				let argument = argument.resolve()?;
-				match is_endless
-				{
-					Some(is_endless) => Ok(resolved::ReferenceStep::Element {
-						argument,
-						is_endless,
-					}),
-					None => unreachable!(),
-				}
+				Ok(resolved::ReferenceStep::Element {
+					argument,
+					is_endless: is_endless.unwrap_or(false),
+				})
 			}
 			ReferenceStep::Member { member } =>
 			{

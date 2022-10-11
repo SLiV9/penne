@@ -1641,9 +1641,9 @@ impl Error
 					.label_after_end()
 					.with_message(format!(
 						"Consider adding a type suffix like {}.",
-						show_type(suggested_type).fg(a)
+						show_type(suggested_type).fg(b)
 					))
-					.with_color(a),
+					.with_color(b),
 			)
 			.finish(),
 

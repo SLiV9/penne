@@ -488,10 +488,30 @@ impl Analyzable for Declaration
 	{
 		match self
 		{
-			Declaration::Constant { .. } =>
+			Declaration::Constant {
+				name,
+				value,
+				value_type,
+				flags,
+			} =>
 			{
-				// Constants do not use type inference.
-				self
+				typer.contextual_type = Some(value_type.clone());
+				let value = value.analyze(typer);
+				let value = match typer
+					.put_symbol(&name.inferred(), value.value_type())
+				{
+					Ok(()) => value,
+					Err(error) => Expression::Poison(Poison::Error {
+						error,
+						partial: Some(Box::new(value)),
+					}),
+				};
+				Declaration::Constant {
+					name,
+					value,
+					value_type,
+					flags,
+				}
 			}
 			Declaration::Function {
 				name,
