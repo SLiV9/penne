@@ -135,6 +135,16 @@ pub enum Error
 	{
 		location: Location
 	},
+	IllegalType
+	{
+		value_type: ValueType,
+		location: Location,
+	},
+	IllegalConstantType
+	{
+		value_type: ValueType,
+		location: Location,
+	},
 	IllegalVariableType
 	{
 		value_type: ValueType,
@@ -414,9 +424,11 @@ impl Error
 			Error::ConflictingReturnValue { .. } => 333,
 			Error::MissingReturnValue { .. } => 334,
 			Error::MissingReturnValueAfterStatement { .. } => 335,
-			Error::IllegalVariableType { .. } => 350,
-			Error::IllegalParameterType { .. } => 351,
-			Error::TypeNotAllowedInExtern { .. } => 352,
+			Error::IllegalType { .. } => 350,
+			Error::IllegalVariableType { .. } => 352,
+			Error::IllegalConstantType { .. } => 353,
+			Error::IllegalParameterType { .. } => 354,
+			Error::TypeNotAllowedInExtern { .. } => 355,
 			Error::FunctionInConstContext { .. } => 360,
 			Error::MaximumParseDepthExceeded { .. } => 390,
 			Error::UndefinedLabel { .. } => 400,
@@ -740,6 +752,27 @@ impl Error
 			)
 			.finish(),
 
+			Error::IllegalType {
+				value_type,
+				location,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Invalid type")
+			.with_label(
+				location
+					.label()
+					.with_message(format!(
+						"The type {} is invalid.",
+						show_type(value_type).fg(a)
+					))
+					.with_color(a),
+			)
+			.finish(),
+
 			Error::IllegalVariableType {
 				value_type,
 				location,
@@ -754,7 +787,7 @@ impl Error
 				location
 					.label()
 					.with_message(format!(
-						"The type {} cannot be assigned to a variable.",
+						"A value of type {} cannot be assigned to a variable.",
 						show_type(value_type).fg(a)
 					))
 					.with_color(a),
@@ -776,6 +809,27 @@ impl Error
 					.label()
 					.with_message(format!(
 						"The type {} is not allowed as a parameter.",
+						show_type(value_type).fg(a)
+					))
+					.with_color(a),
+			)
+			.finish(),
+
+			Error::IllegalConstantType {
+				value_type,
+				location,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Invalid constant type")
+			.with_label(
+				location
+					.label()
+					.with_message(format!(
+						"A value of type {} cannot be assigned to a constant.",
 						show_type(value_type).fg(a)
 					))
 					.with_color(a),

@@ -205,6 +205,18 @@ impl Analyzable for Declaration
 				let value = value.analyze(analyzer);
 				analyzer.is_const_evaluated = false;
 
+				let value_type = match value_type
+				{
+					Ok(vt) if !vt.can_be_constant() => Err(Poison::Error {
+						error: Error::IllegalConstantType {
+							value_type: vt.clone(),
+							location: name.location.clone(),
+						},
+						partial: Some(vt),
+					}),
+					_ => value_type,
+				};
+
 				Declaration::Constant {
 					name,
 					value,
@@ -268,7 +280,7 @@ impl Analyzable for Parameter
 		analyzer.is_immediate_function_argument = false;
 		let value_type = match &self.value_type
 		{
-			Ok(vt @ ValueType::Array { .. }) => match &self.name
+			Ok(vt) if !vt.can_be_parameter() => match &self.name
 			{
 				Ok(name) => Err(Poison::Error {
 					error: Error::IllegalParameterType {
@@ -340,23 +352,7 @@ impl Analyzable for Statement
 			{
 				let value_type = match value_type
 				{
-					Some(Ok(vt @ ValueType::Slice { .. })) =>
-					{
-						Some(Err(Error::IllegalVariableType {
-							value_type: vt,
-							location: name.location.clone(),
-						}
-						.into()))
-					}
-					Some(Ok(vt @ ValueType::EndlessArray { .. })) =>
-					{
-						Some(Err(Error::IllegalVariableType {
-							value_type: vt,
-							location: name.location.clone(),
-						}
-						.into()))
-					}
-					Some(Ok(vt @ ValueType::Arraylike { .. })) =>
+					Some(Ok(vt)) if !vt.can_be_variable() =>
 					{
 						Some(Err(Error::IllegalVariableType {
 							value_type: vt,

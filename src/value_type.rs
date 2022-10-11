@@ -266,19 +266,19 @@ impl ValueType
 			ValueType::View { deref_type } =>
 			{
 				deref_type.as_ref().can_be_used_as(other)
-					|| deref_type.can_autoderef_into(other)
+					|| deref_type.can_subautoderef_into(other)
 					|| other.get_viewee_type().map_or(false, |t| {
 						deref_type.as_ref().can_be_used_as(&t)
-							|| deref_type.can_autoderef_into(&t)
+							|| deref_type.can_subautoderef_into(&t)
 					})
 			}
 			ValueType::Pointer { deref_type } =>
 			{
 				deref_type.as_ref().can_be_used_as(other)
-					|| deref_type.can_autoderef_into(other)
+					|| deref_type.can_subautoderef_into(other)
 					|| other.get_pointee_type().map_or(false, |t| {
 						deref_type.as_ref().can_be_used_as(&t)
-							|| deref_type.can_autoderef_into(&t)
+							|| deref_type.can_subautoderef_into(&t)
 							|| deref_type.can_coerce_address_into_pointer_to(&t)
 					})
 			}
@@ -286,7 +286,7 @@ impl ValueType
 		}
 	}
 
-	pub fn can_subautoderef_into(&self, other: &ValueType) -> bool
+	fn can_subautoderef_into(&self, other: &ValueType) -> bool
 	{
 		match self
 		{
@@ -312,6 +312,90 @@ impl ValueType
 					})
 			}
 			_ => false,
+		}
+	}
+
+	pub fn is_wellformed(&self) -> bool
+	{
+		match self
+		{
+			ValueType::Array {
+				element_type,
+				length,
+			} => *length > 0 && element_type.is_wellformed_element(),
+			ValueType::Slice { element_type } =>
+			{
+				element_type.is_wellformed_element()
+			}
+			ValueType::EndlessArray { element_type } =>
+			{
+				element_type.is_wellformed_element()
+			}
+			ValueType::Arraylike { element_type } =>
+			{
+				element_type.is_wellformed_element()
+			}
+			ValueType::Pointer { deref_type } => deref_type.is_wellformed(),
+			ValueType::View { deref_type } => deref_type.is_wellformed(),
+			_ => true,
+		}
+	}
+
+	fn is_wellformed_element(&self) -> bool
+	{
+		match self
+		{
+			ValueType::Array { .. } => self.is_wellformed(),
+			ValueType::Slice { .. } => false,
+			ValueType::EndlessArray { .. } => false,
+			ValueType::Arraylike { .. } => false,
+			ValueType::Pointer { .. } => self.is_wellformed(),
+			ValueType::View { .. } => self.is_wellformed(),
+			_ => self.is_wellformed(),
+		}
+	}
+
+	pub fn can_be_constant(&self) -> bool
+	{
+		match self
+		{
+			ValueType::Slice { .. } =>
+			{
+				// Maybe yes?
+				false
+			}
+			ValueType::EndlessArray { .. } => false,
+			ValueType::Arraylike { .. } => false,
+			_ => self.is_wellformed(),
+		}
+	}
+
+	pub fn can_be_variable(&self) -> bool
+	{
+		match self
+		{
+			ValueType::Slice { .. } =>
+			{
+				// Maybe yes?
+				false
+			}
+			ValueType::EndlessArray { .. } => false,
+			ValueType::Arraylike { .. } => false,
+			ValueType::View { .. } =>
+			{
+				// Maybe yes?
+				false
+			}
+			_ => self.is_wellformed(),
+		}
+	}
+
+	pub fn can_be_parameter(&self) -> bool
+	{
+		match self
+		{
+			ValueType::Array { .. } => false,
+			_ => self.is_wellformed(),
 		}
 	}
 

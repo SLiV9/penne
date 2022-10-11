@@ -466,7 +466,7 @@ fn parse_rest_of_function_signature(
 	{
 		tokens.pop_front();
 
-		match parse_type(tokens)
+		match parse_wellformed_type(tokens)
 		{
 			Ok(value_type) => Some(value_type),
 			Err(error) =>
@@ -541,7 +541,7 @@ fn parse_colon_and_type(
 ) -> Poisonable<ValueType>
 {
 	consume(Token::Colon, "expected colon", tokens)?;
-	let value_type = parse_type(tokens)?;
+	let value_type = parse_wellformed_type(tokens)?;
 	let value_type = fix_type_for_flags(
 		value_type,
 		&flags,
@@ -549,6 +549,28 @@ fn parse_colon_and_type(
 		location_of_declaration,
 	)?;
 	Ok(value_type)
+}
+
+fn parse_wellformed_type(tokens: &mut Tokens) -> Result<ValueType, Error>
+{
+	let location = tokens.get_next_location();
+	let value_type = parse_type(tokens)?;
+	if value_type.is_wellformed()
+	{
+		Ok(value_type)
+	}
+	else
+	{
+		let location = match location
+		{
+			Some(location) => location.combined_with(&tokens.last_location),
+			None => tokens.last_location.clone(),
+		};
+		Err(Error::IllegalType {
+			value_type: value_type,
+			location,
+		})
+	}
 }
 
 fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
@@ -849,7 +871,7 @@ fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 			let value_type = if let Some(Token::Colon) = peek(tokens)
 			{
 				tokens.pop_front();
-				let value_type = parse_type(tokens)?;
+				let value_type = parse_wellformed_type(tokens)?;
 				Some(Ok(value_type))
 			}
 			else
@@ -1209,7 +1231,7 @@ fn parse_singular_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 		tokens.pop_front();
 
 		let location_of_type = tokens.get_next_location();
-		let coerced_type = parse_type(tokens)?;
+		let coerced_type = parse_wellformed_type(tokens)?;
 
 		let location_of_type = match location_of_type
 		{

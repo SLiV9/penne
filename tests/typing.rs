@@ -117,3 +117,15 @@ fn fail_to_type_index_into_int()
 {
 	compile_to_fail(&[501, 501], "tests/samples/invalid/index_into_int.pn")
 }
+
+#[test]
+fn fail_to_type_arraylike_of_arraylike()
+{
+	compile_to_fail(&[350], "tests/samples/invalid/arraylike_of_arraylike.pn")
+}
+
+#[test]
+fn fail_to_type_array_of_endless_array()
+{
+	compile_to_fail(&[350], "tests/samples/invalid/array_of_endless_array.pn")
+}
