@@ -471,7 +471,7 @@ fn parse_rest_of_function_signature(
 	{
 		tokens.pop_front();
 
-		match parse_wellformed_type(tokens)
+		match parse_return_type(&flags, &location_of_declaration, tokens)
 		{
 			Ok(value_type) => Some(value_type),
 			Err(error) =>
@@ -502,6 +502,40 @@ fn skip_rest_of_function_signature(tokens: &mut Tokens)
 			_ => (),
 		}
 		tokens.pop_front();
+	}
+}
+
+fn parse_return_type(
+	flags: &EnumSet<DeclarationFlag>,
+	location_of_declaration: &Location,
+	tokens: &mut Tokens,
+) -> Result<ValueType, Error>
+{
+	let location_of_type = tokens.get_next_location();
+	let value_type = parse_wellformed_type(tokens)?;
+	let location_of_type = match location_of_type
+	{
+		Some(location) => location.combined_with(&tokens.last_location),
+		None => tokens.last_location.clone(),
+	};
+
+	let value_type = fix_type_for_flags(
+		value_type,
+		flags,
+		&location_of_type,
+		location_of_declaration,
+	)?;
+
+	if value_type.can_be_returned()
+	{
+		Ok(value_type)
+	}
+	else
+	{
+		Err(Error::IllegalReturnType {
+			value_type: value_type,
+			location: location_of_type.clone(),
+		})
 	}
 }
 
@@ -1739,7 +1773,7 @@ fn fix_type_for_flags(
 	flags: &EnumSet<DeclarationFlag>,
 	location_of_type: &Location,
 	location_of_declaration: &Location,
-) -> Poisonable<ValueType>
+) -> Result<ValueType, Error>
 {
 	if flags.contains(DeclarationFlag::External)
 	{
@@ -1802,7 +1836,7 @@ fn externalize_type(
 	value_type: ValueType,
 	location_of_type: &Location,
 	location_of_declaration: &Location,
-) -> Poisonable<ValueType>
+) -> Result<ValueType, Error>
 {
 	match value_type
 	{
@@ -1851,13 +1885,10 @@ fn externalize_type(
 		ValueType::Uint128 => Ok(value_type),
 		ValueType::Usize => Ok(value_type),
 		ValueType::Bool => Ok(value_type),
-		_ => Err(Poison::Error {
-			error: Error::TypeNotAllowedInExtern {
-				value_type: value_type.clone(),
-				location_of_type: location_of_type.clone(),
-				location_of_declaration: location_of_declaration.clone(),
-			},
-			partial: Some(value_type),
+		_ => Err(Error::TypeNotAllowedInExtern {
+			value_type,
+			location_of_type: location_of_type.clone(),
+			location_of_declaration: location_of_declaration.clone(),
 		}),
 	}
 }

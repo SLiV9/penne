@@ -1,0 +1,12 @@
+
+fn foo(x: (i32)) -> (i32)
+{
+	return: x
+}
+
+fn main() -> i32
+{
+	var x: i32;
+	var y: i32 = foo(x);
+	return: y
+}

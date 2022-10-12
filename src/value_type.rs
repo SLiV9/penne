@@ -431,6 +431,23 @@ impl ValueType
 		}
 	}
 
+	pub fn can_be_returned(&self) -> bool
+	{
+		match self
+		{
+			ValueType::Array { .. } => false,
+			ValueType::Slice { .. } => false,
+			ValueType::EndlessArray { .. } => false,
+			ValueType::Arraylike { .. } => false,
+			ValueType::View { .. } =>
+			{
+				// Maybe yes?
+				false
+			}
+			_ => self.is_wellformed(),
+		}
+	}
+
 	pub fn get_element_type(&self) -> Option<ValueType>
 	{
 		match self

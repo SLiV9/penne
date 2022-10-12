@@ -75,6 +75,12 @@ fn fail_to_analyze_assign_array_to_array()
 }
 
 #[test]
+fn fail_to_analyze_return_array_by_value()
+{
+	compile_to_fail(&[355], "tests/samples/invalid/return_array_by_value.pn");
+}
+
+#[test]
 fn fail_to_analyze_skip_declaration()
 {
 	compile_to_fail(&[820], "tests/samples/invalid/skip_declaration.pn");

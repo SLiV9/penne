@@ -163,6 +163,11 @@ pub enum Error
 		value_type: ValueType,
 		location: Location,
 	},
+	IllegalReturnType
+	{
+		value_type: ValueType,
+		location: Location,
+	},
 	TypeNotAllowedInExtern
 	{
 		value_type: ValueType,
@@ -442,7 +447,8 @@ impl Error
 			Error::IllegalVariableType { .. } => 352,
 			Error::IllegalConstantType { .. } => 353,
 			Error::IllegalParameterType { .. } => 354,
-			Error::TypeNotAllowedInExtern { .. } => 355,
+			Error::IllegalReturnType { .. } => 355,
+			Error::TypeNotAllowedInExtern { .. } => 358,
 			Error::UnsupportedInConstContext { .. } => 360,
 			Error::FunctionInConstContext { .. } => 361,
 			Error::MaximumParseDepthExceeded { .. } => 390,
@@ -854,6 +860,27 @@ impl Error
 					.label()
 					.with_message(format!(
 						"The type {} is not allowed as a parameter.",
+						show_type(value_type).fg(a)
+					))
+					.with_color(a),
+			)
+			.finish(),
+
+			Error::IllegalReturnType {
+				value_type,
+				location,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Invalid return type")
+			.with_label(
+				location
+					.label()
+					.with_message(format!(
+						"The type {} is not allowed as a return value.",
 						show_type(value_type).fg(a)
 					))
 					.with_color(a),

@@ -1,0 +1,12 @@
+extern fn strstr(haystack: []u8, needle: []u8) -> &[]u8;
+extern fn strncpy(dst: &[]u8, src: []u8, num: usize) -> &[]u8;
+extern fn printf(format: []u8, text: []u8);
+
+fn main() -> i32
+{
+	// var buffer: [13]u8  = "Hello world!\0";
+	var buffer: [13]u8 = [72, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100, 33, 0];
+	strncpy(strstr(buffer, "world\0"), "Penne\0", 5);
+	printf("%s\n\0", buffer);
+	return: 0
+}
