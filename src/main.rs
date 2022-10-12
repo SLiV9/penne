@@ -27,11 +27,34 @@ use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 #[cfg(feature = "logging")]
 use env_logger;
 
-#[derive(Debug, Default, Deserialize, clap::Parser)]
-#[serde(default, deny_unknown_fields)]
-#[command(version)]
-struct Args
+#[derive(Debug, clap::Parser)]
+#[clap(version, propagate_version = true)]
+#[clap(args_conflicts_with_subcommands = true)]
+struct Cli
 {
+	#[clap(subcommand)]
+	sub: Option<Subcommand>,
+
+	#[clap(flatten)]
+	build: BuildArgs,
+}
+
+#[derive(Debug, Deserialize, clap::Subcommand)]
+enum Subcommand
+{
+	/// Compile one or more Penne source files into an executable (default)
+	Build(BuildArgs),
+	/// Generate LLVM IR from a Penne source file and execute it using lli
+	Run(RunArgs),
+	/// Generate LLVM IR from Penne source files
+	Emit(EmitArgs),
+}
+
+#[derive(Debug, Default, Deserialize, clap::Args)]
+#[serde(default, deny_unknown_fields)]
+struct BuildArgs
+{
+	/// One or more Penne source files
 	#[clap(value_parser, required(true))]
 	filepaths: Vec<std::path::PathBuf>,
 
@@ -44,7 +67,7 @@ struct Args
 	#[serde(deserialize_with = "deserialize_space_separated_string")]
 	backend_args: Option<Vec<String>>,
 
-	/// Load additional configurations from TOML file
+	/// Load additional build options from TOML file
 	#[clap(long)]
 	config: Option<std::path::PathBuf>,
 
@@ -61,15 +84,52 @@ struct Args
 	#[clap(long)]
 	out_dir: Option<std::path::PathBuf>,
 
-	/// Show the exitcode of the backend (useful when backend is 'lli')
-	#[clap(long)]
-	print_exitcode: bool,
+	/// Show a lot of intermediate output
+	#[clap(short, long)]
+	verbose: bool,
 
-	/// Do not create any binary output
+	/// Set target to 'wasm32-unknown-wasi'
+	#[clap(short, long)]
+	wasm: bool,
+}
+
+#[derive(Debug, Default, Deserialize, clap::Args)]
+#[serde(default, deny_unknown_fields)]
+struct RunArgs
+{
+	/// One or more Penne source files
+	#[clap(value_parser, required(true))]
+	filepaths: Vec<std::path::PathBuf>,
+
+	/// Which LLVM executable to pipe the generated IR into (default: 'lli')
+	#[clap(short, long)]
+	backend: Option<std::path::PathBuf>,
+
+	/// Pass one or more arguments, separated by spaces, to the backend
+	#[clap(long, value_delimiter(' '))]
+	#[serde(deserialize_with = "deserialize_space_separated_string")]
+	backend_args: Option<Vec<String>>,
+
+	/// Write binary output and generated IR to this directory
 	#[clap(long)]
-	#[clap(conflicts_with_all(["backend", "backend_args", "link_args"]))]
-	#[clap(conflicts_with_all(["output_filepath"]))]
-	skip_backend: bool,
+	out_dir: Option<std::path::PathBuf>,
+
+	/// Show a lot of intermediate output
+	#[clap(short, long)]
+	verbose: bool,
+}
+
+#[derive(Debug, Default, Deserialize, clap::Args)]
+#[serde(default, deny_unknown_fields)]
+struct EmitArgs
+{
+	/// One or more Penne source files
+	#[clap(value_parser, required(true))]
+	filepaths: Vec<std::path::PathBuf>,
+
+	/// Write binary output and generated IR to this directory
+	#[clap(long)]
+	out_dir: Option<std::path::PathBuf>,
 
 	/// Show a lot of intermediate output
 	#[clap(short, long)]
@@ -82,9 +142,7 @@ struct Args
 
 fn main() -> Result<(), anyhow::Error>
 {
-	let args = Args::parse();
-
-	let result = do_main(args);
+	let result = do_main();
 	if result.is_err()
 	{
 		let mut stdout = StandardStream::stdout(ColorChoice::Auto);
@@ -98,37 +156,127 @@ fn main() -> Result<(), anyhow::Error>
 	result
 }
 
-fn do_main(args: Args) -> Result<(), anyhow::Error>
+struct MainArgs
 {
-	let Args {
-		filepaths,
-		backend: arg_backend,
-		backend_args: arg_backend_args,
-		config,
-		link_args: arg_link_args,
-		output_filepath,
-		out_dir: arg_out_dir,
-		print_exitcode,
-		skip_backend,
-		verbose,
-		wasm: arg_wasm,
-	} = args;
-	let config: Args = if let Some(filename) = config
+	out_dir: Option<std::path::PathBuf>,
+	verbose: bool,
+	filepaths: Vec<std::path::PathBuf>,
+	is_lli: bool,
+	skip_backend: bool,
+	backend: String,
+	backend_args: Option<Vec<String>>,
+	link_args: Option<Vec<String>>,
+	output_filepath: Option<std::path::PathBuf>,
+	wasm: bool,
+}
+
+impl TryFrom<Cli> for MainArgs
+{
+	type Error = anyhow::Error;
+
+	fn try_from(cli: Cli) -> Result<Self, Self::Error>
 	{
-		let raw = std::fs::read_to_string(&filename)?;
-		toml::from_str(&raw).with_context(|| {
-			format!("failed to parse '{}'", filename.to_string_lossy())
-		})?
+		match cli
+		{
+			Cli {
+				sub: None,
+				build: args,
+			}
+			| Cli {
+				sub: Some(Subcommand::Build(args)),
+				build: _,
+			} =>
+			{
+				let config: BuildArgs = if let Some(filename) = args.config
+				{
+					let raw = std::fs::read_to_string(&filename)?;
+					toml::from_str(&raw).with_context(|| {
+						format!(
+							"failed to parse '{}'",
+							filename.to_string_lossy()
+						)
+					})?
+				}
+				else
+				{
+					Default::default()
+				};
+				let backend = get_backend(
+					args.backend,
+					"PENNEC_BACKEND",
+					config.backend,
+					"clang",
+				)?;
+				let backend_args = args.backend_args.or(config.backend_args);
+				let link_args = args.link_args.or(config.link_args);
+				let wasm = args.wasm || config.wasm;
+				Ok(MainArgs {
+					out_dir: args.out_dir,
+					verbose: args.verbose,
+					filepaths: args.filepaths,
+					is_lli: false,
+					skip_backend: false,
+					backend,
+					backend_args,
+					link_args,
+					output_filepath: args.output_filepath,
+					wasm,
+				})
+			}
+			Cli {
+				sub: Some(Subcommand::Run(args)),
+				build: _,
+			} =>
+			{
+				let backend =
+					get_backend(args.backend, "PENNE_LLI", None, "lli")?;
+				Ok(MainArgs {
+					out_dir: args.out_dir,
+					verbose: args.verbose,
+					filepaths: args.filepaths,
+					is_lli: true,
+					skip_backend: false,
+					backend,
+					backend_args: args.backend_args,
+					link_args: None,
+					output_filepath: None,
+					wasm: false,
+				})
+			}
+			Cli {
+				sub: Some(Subcommand::Emit(args)),
+				build: _,
+			} => Ok(MainArgs {
+				out_dir: args.out_dir,
+				verbose: args.verbose,
+				filepaths: args.filepaths,
+				is_lli: true,
+				skip_backend: true,
+				backend: String::new(),
+				backend_args: None,
+				link_args: None,
+				output_filepath: None,
+				wasm: args.wasm,
+			}),
+		}
 	}
-	else
-	{
-		Default::default()
-	};
-	let backend = get_backend(arg_backend, config.backend)?;
-	let out_dir = arg_out_dir.or(config.out_dir);
-	let backend_args = arg_backend_args.or(config.backend_args);
-	let link_args = arg_link_args.or(config.link_args);
-	let wasm = arg_wasm || config.wasm;
+}
+
+fn do_main() -> Result<(), anyhow::Error>
+{
+	let args = Cli::parse().try_into()?;
+	let MainArgs {
+		out_dir,
+		verbose,
+		filepaths,
+		is_lli,
+		skip_backend,
+		backend,
+		backend_args,
+		link_args,
+		output_filepath,
+		wasm,
+	} = args;
 
 	let output_filepath = output_filepath.or_else(|| {
 		filepaths
@@ -421,8 +569,11 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			}
 			BackendSource::Stdin(_) =>
 			{
-				cmd.arg("-x");
-				cmd.arg("ir");
+				if !is_lli
+				{
+					cmd.arg("-x");
+					cmd.arg("ir");
+				}
 				cmd.arg("-");
 				cmd.stdin(std::process::Stdio::piped());
 			}
@@ -443,7 +594,7 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			_ => (),
 		}
 		let status = cmd.wait()?;
-		if print_exitcode
+		if is_lli
 		{
 			let exitcode = status.code().context("no exitcode")?;
 			stdout.reset()?;
@@ -518,12 +669,14 @@ fn is_directive(declaration: &Declaration) -> bool
 
 fn get_backend(
 	arg_backend: Option<std::path::PathBuf>,
+	env_backend_var: &str,
 	config_backend: Option<std::path::PathBuf>,
+	default: &str,
 ) -> Result<String, anyhow::Error>
 {
 	arg_backend
 		.map(|x| x.to_str().map(|x| x.to_string()).context("invalid backend"))
-		.or_else(|| match std::env::var("PENNEC_BACKEND")
+		.or_else(|| match std::env::var(env_backend_var)
 		{
 			Ok(value) => Some(Ok(value.into())),
 			Err(std::env::VarError::NotPresent) => None,
@@ -534,7 +687,7 @@ fn get_backend(
 				.map(|x| x.to_string())
 				.context("invalid backend in config")
 		}))
-		.unwrap_or_else(|| Ok("clang".to_string()))
+		.unwrap_or_else(|| Ok(default.to_string()))
 }
 
 enum BackendSource

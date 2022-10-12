@@ -63,6 +63,7 @@ Syntax errors:
 	✔	Function return value cannot be array or large struct @done (2022-10-12 15:45)
 
 Linting errors:
+	These are lints because they only cause runtime problems.
 	☐	Unreachable code
 	✔	Loop as only statement in an if-branch @done (2021-01-09 12:45)
 	☐	Functions with side effects in if-statement conditions
@@ -87,6 +88,9 @@ Documentation:
 	✔ Move tests from lib.rs to *tests/* @done (2022-10-04 16:44)
 	☐	Reference of all current and unstable language features
 	☐	How to help out
+
+Development:
+	☐	Cleanup main.rs
 
 Theory:
 	☐	Prove Turing completeness

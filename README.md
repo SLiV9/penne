@@ -9,74 +9,49 @@ By applying modern sensibilities to the use of the `goto` statement instead of b
 
 Penne's general aesthetic is inspired by modern programming languages (in particular [Rust](https://www.rust-lang.org/)), with the notable exception of labels and the `goto` statement, which are (at least syntactically) taken from C, and the `loop` statement.
 
-_For demonstrative purposes, the following sample does not use multiplication, division or modulo operators._
-
 ```
-fn determine_collatz_number(x: i32) -> i32
+// Calculate the number of Collatz steps needed to reach 1.
+// The Collatz conjecture states that this function always terminates.
+fn determine_collatz_number(start: i32) -> i32
 {
+	var x = start;
 	var steps = 0;
 	{
 		if x == 1
 			goto return;
-		var y = x;
-		{
-			if y == 0
-			{
-				// x is even, divide it by 2
-				if y + y == x
-				{
-					x = y;
-					goto next;
-				}
-				y = y + 1;
-				loop;
-			}
-			else if y == 1
-			{
-				// x is odd, calculate 3 * x + 1
-				x = x + x + x + 1;
-				goto next;
-			}
-			y = y - 2;
-			loop;
-		}
-		next:
+		do_collatz_step(&x);
 		steps = steps + 1;
 		loop;
 	}
 
 	return: steps
 }
-```
 
-An equivalent implementation in C:
-
-```c
-int determine_collatz_number(int x)
+// If x is even, divide it by 2. Otherwise calculate 3 * x + 1.
+// Do this without division or modulo operators (for demonstrative purposes).
+fn do_collatz_step(x: &i32)
 {
-	int steps = 0;
-	while (x > 1)
+	var y = x;
 	{
-		for (int y = x; y > 1; y = y - 2)
+		if y == 0
 		{
-			if (y == 0)
+			if y + y == x
 			{
-				// x is even, divide it by 2
-				while (y + y != x)
-				{
-					y = y + 1;
-				}
 				x = y;
+				goto end;
 			}
-			else
-			{
-				// x is odd, calculate 3 * x + 1
-				x = x + x + x + 1;
-			}
+			y = y + 1;
+			loop;
 		}
-		steps = steps + 1;
+		else if y == 1
+		{
+			x = 3 * x + 1;
+			goto end;
+		}
+		y = y - 2;
+		loop;
 	}
-	return steps;
+	end:
 }
 ```
 
@@ -88,8 +63,8 @@ The compiler uses LLVM as its backend. It requires LLVM version 6.0 or newer to 
 # Compile a source file:
 pennec examples/addition.pn
 
-# Or run it directly:
-pennec --backend=lli --print-exitcode examples.addition.pn
+# Or run it directly (using lli):
+pennec run examples/addition.pn
 # Output: 10
 ```
 
