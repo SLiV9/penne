@@ -867,19 +867,43 @@ impl Generatable for Expression
 			} =>
 			{
 				let element_type: LLVMTypeRef = element_type.generate(llvm)?;
-				let mut values = Vec::with_capacity(elements.len());
-				for element in elements
+				let mut const_values = Vec::with_capacity(elements.len());
+				let mut inserts = Vec::with_capacity(0);
+				for (i, element) in elements.into_iter().enumerate()
 				{
 					let value: LLVMValueRef = element.generate(llvm)?;
-					values.push(value);
+					let is_const = unsafe { LLVMIsConstant(value) };
+					if is_const > 0
+					{
+						const_values.push(value);
+					}
+					else
+					{
+						let undef = unsafe { LLVMGetUndef(element_type) };
+						const_values.push(undef);
+						inserts.push((i as u32, value));
+					}
 				}
-				let result = unsafe {
+				let mut result = unsafe {
 					LLVMConstArray(
 						element_type,
-						values.as_mut_ptr(),
-						values.len() as u32,
+						const_values.as_mut_ptr(),
+						const_values.len() as u32,
 					)
 				};
+				for (i, v) in inserts.into_iter()
+				{
+					let tmpname = CString::new("")?;
+					result = unsafe {
+						LLVMBuildInsertValue(
+							llvm.builder,
+							result,
+							v,
+							i,
+							tmpname.as_ptr(),
+						)
+					};
+				}
 				Ok(result)
 			}
 			Expression::StringLiteral { bytes: _ } => unimplemented!(),

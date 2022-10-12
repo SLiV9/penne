@@ -34,6 +34,14 @@ fn execute_addition() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_collatz() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation("examples/collatz.pn")?;
+	assert_eq!(result, 111);
+	Ok(())
+}
+
+#[test]
 fn execute_bitwise_operations() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation("examples/bitwise_operations.pn")?;
@@ -122,6 +130,15 @@ fn execute_array_reference_by_reference() -> Result<(), anyhow::Error>
 fn execute_mutable_array() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation("tests/samples/valid/mutable_array.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn execute_assign_to_mutable_array_slice() -> Result<(), anyhow::Error>
+{
+	let result =
+		execute_calculation("examples/assign_to_mutable_array_slice.pn")?;
 	assert_eq!(result, 200);
 	Ok(())
 }
@@ -257,6 +274,14 @@ fn execute_is_even() -> Result<(), anyhow::Error>
 fn execute_label_hijacking() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation("tests/samples/valid/label_hijacking.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn execute_array_of_pointers() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation("examples/array_of_pointers.pn")?;
 	assert_eq!(result, 200);
 	Ok(())
 }
