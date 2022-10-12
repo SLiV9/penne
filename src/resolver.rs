@@ -174,36 +174,50 @@ impl Resolvable for Declaration
 				value,
 				value_type,
 				flags,
-			} => Ok(resolved::Declaration::Constant {
-				name: name.resolve()?,
-				value: value.resolve()?,
-				value_type: value_type.resolve()?,
-				flags,
-			}),
+			} =>
+			{
+				let (name, value, value_type) =
+					(name, value, value_type).resolve()?;
+				Ok(resolved::Declaration::Constant {
+					name,
+					value,
+					value_type,
+					flags,
+				})
+			}
 			Declaration::Function {
 				name,
 				parameters,
 				body,
 				return_type,
 				flags,
-			} => Ok(resolved::Declaration::Function {
-				name: name.resolve()?,
-				parameters: parameters.resolve()?,
-				body: body.resolve()?,
-				return_type,
-				flags,
-			}),
+			} =>
+			{
+				let (name, parameters, body) =
+					(name, parameters, body).resolve()?;
+				Ok(resolved::Declaration::Function {
+					name,
+					parameters,
+					body,
+					return_type,
+					flags,
+				})
+			}
 			Declaration::FunctionHead {
 				name,
 				parameters,
 				return_type,
 				flags,
-			} => Ok(resolved::Declaration::FunctionHead {
-				name: name.resolve()?,
-				parameters: parameters.resolve()?,
-				return_type,
-				flags,
-			}),
+			} =>
+			{
+				let (name, parameters) = (name, parameters).resolve()?;
+				Ok(resolved::Declaration::FunctionHead {
+					name,
+					parameters,
+					return_type,
+					flags,
+				})
+			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
 			Declaration::Poison(poison) => match poison.resolve()
 			{
@@ -220,10 +234,8 @@ impl Resolvable for Parameter
 
 	fn resolve(self) -> Result<Self::Item, Errors>
 	{
-		Ok(resolved::Parameter {
-			name: self.name.resolve()?,
-			value_type: self.value_type.resolve()?,
-		})
+		let (name, value_type) = (self.name, self.value_type).resolve()?;
+		Ok(resolved::Parameter { name, value_type })
 	}
 }
 

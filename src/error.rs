@@ -135,6 +135,14 @@ pub enum Error
 	{
 		location: Location
 	},
+	MissingConstantType
+	{
+		location: Location
+	},
+	MissingParameterType
+	{
+		location: Location
+	},
 	IllegalType
 	{
 		value_type: ValueType,
@@ -283,6 +291,10 @@ pub enum Error
 		location: Location,
 		location_of_declaration: Location,
 	},
+	UnsupportedInConstContext
+	{
+		location: Location
+	},
 	FunctionInConstContext
 	{
 		location: Location
@@ -424,12 +436,15 @@ impl Error
 			Error::ConflictingReturnValue { .. } => 333,
 			Error::MissingReturnValue { .. } => 334,
 			Error::MissingReturnValueAfterStatement { .. } => 335,
+			Error::MissingConstantType { .. } => 343,
+			Error::MissingParameterType { .. } => 344,
 			Error::IllegalType { .. } => 350,
 			Error::IllegalVariableType { .. } => 352,
 			Error::IllegalConstantType { .. } => 353,
 			Error::IllegalParameterType { .. } => 354,
 			Error::TypeNotAllowedInExtern { .. } => 355,
-			Error::FunctionInConstContext { .. } => 360,
+			Error::UnsupportedInConstContext { .. } => 360,
+			Error::FunctionInConstContext { .. } => 361,
 			Error::MaximumParseDepthExceeded { .. } => 390,
 			Error::UndefinedLabel { .. } => 400,
 			Error::UndefinedFunction { .. } => 401,
@@ -748,6 +763,36 @@ impl Error
 				location
 					.label()
 					.with_message("This is too complex to parse.")
+					.with_color(a),
+			)
+			.finish(),
+
+			Error::MissingConstantType { location } => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Missing type")
+			.with_label(
+				location
+					.label()
+					.with_message("Constants need an explicit type.")
+					.with_color(a),
+			)
+			.finish(),
+
+			Error::MissingParameterType { location } => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Missing type")
+			.with_label(
+				location
+					.label()
+					.with_message("Function parameters need an explicit type.")
 					.with_color(a),
 			)
 			.finish(),
@@ -1434,6 +1479,24 @@ impl Error
 					.label()
 					.with_message("Function declared here.")
 					.with_color(b),
+			)
+			.finish(),
+
+			Error::UnsupportedInConstContext { location } => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Unsupported expression in constant expression")
+			.with_label(
+				location
+					.label()
+					.with_message(
+						"This expression is not supported in constant \
+						 expressions.",
+					)
+					.with_color(a),
 			)
 			.finish(),
 

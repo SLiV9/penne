@@ -507,6 +507,22 @@ impl Analyzable for Expression
 				location_of_op,
 			} =>
 			{
+				if analyzer.is_const_evaluated
+				{
+					return Expression::Poison(Poison::Error {
+						error: Error::UnsupportedInConstContext {
+							location: location.clone(),
+						},
+						partial: Some(Box::new(Expression::Binary {
+							op,
+							left,
+							right,
+							location,
+							location_of_op,
+						})),
+					});
+				}
+
 				analyzer.is_immediate_function_argument = false;
 				let left = left.analyze(analyzer);
 				let right = right.analyze(analyzer);
@@ -525,6 +541,21 @@ impl Analyzable for Expression
 				location_of_op,
 			} =>
 			{
+				if analyzer.is_const_evaluated
+				{
+					return Expression::Poison(Poison::Error {
+						error: Error::UnsupportedInConstContext {
+							location: location.clone(),
+						},
+						partial: Some(Box::new(Expression::Unary {
+							op,
+							expression,
+							location,
+							location_of_op,
+						})),
+					});
+				}
+
 				analyzer.is_immediate_function_argument = false;
 				let expression = expression.analyze(analyzer);
 				Expression::Unary {
@@ -555,6 +586,19 @@ impl Analyzable for Expression
 				deref_type,
 			} =>
 			{
+				if analyzer.is_const_evaluated
+				{
+					return Expression::Poison(Poison::Error {
+						error: Error::UnsupportedInConstContext {
+							location: reference.location.clone(),
+						},
+						partial: Some(Box::new(Expression::Deref {
+							reference,
+							deref_type,
+						})),
+					});
+				}
+
 				let deref_type = match deref_type
 				{
 					Some(Ok(vt @ ValueType::Array { .. }))
@@ -627,6 +671,18 @@ impl Analyzable for Expression
 			}
 			Expression::LengthOfArray { reference } =>
 			{
+				if analyzer.is_const_evaluated
+				{
+					return Expression::Poison(Poison::Error {
+						error: Error::UnsupportedInConstContext {
+							location: reference.location.clone(),
+						},
+						partial: Some(Box::new(Expression::LengthOfArray {
+							reference,
+						})),
+					});
+				}
+
 				let reference = reference.analyze(analyzer);
 				Expression::LengthOfArray { reference }
 			}

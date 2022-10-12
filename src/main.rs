@@ -282,6 +282,18 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			writeln!(stdout, "{:?}", declarations)?;
 			writeln!(stdout)?;
 		}
+		if verbose
+		{
+			stdout.set_color(&colorspec_header)?;
+			writeln!(stdout, "Rebuilding {}...", filename)?;
+			let indentation = rebuilder::Indentation {
+				value: "\u{00a6}   ",
+				amount: 1,
+			};
+			let code = rebuilder::rebuild(&declarations, &indentation)?;
+			stdout.set_color(&colorspec_dump)?;
+			writeln!(stdout, "{}", code)?;
+		}
 		let stored_declarations = declarations.clone();
 		if verbose
 		{
@@ -294,8 +306,8 @@ fn do_main(args: Args) -> Result<(), anyhow::Error>
 			if !lints.is_empty()
 			{
 				stdout.set_color(&colorspec_warning)?;
+				// We show them after resolution, if there are no errors.
 				writeln!(stdout, "Linting raised some warnings.")?;
-			// We show them after resolution, if there are no errors.
 			}
 			else
 			{

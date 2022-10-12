@@ -319,8 +319,13 @@ fn parse_constant_declaration(
 	let name = extract_identifier("expected constant name", tokens)?;
 	let location_of_declaration =
 		location_of_declaration.combined_with(&tokens.last_location);
-	let value_type =
-		parse_colon_and_type(&flags, &location_of_declaration, tokens);
+	let value_type = parse_colon_and_type(
+		&flags,
+		&name.location,
+		&location_of_declaration,
+		tokens,
+		true,
+	);
 
 	let expression = match parse_assignment_and_expression(tokens)
 	{
@@ -507,8 +512,13 @@ fn parse_parameter(
 ) -> Result<Parameter, Error>
 {
 	let name = extract_identifier("expected parameter name", tokens)?;
-	let value_type =
-		parse_colon_and_type(flags, location_of_declaration, tokens);
+	let value_type = parse_colon_and_type(
+		flags,
+		&name.location,
+		location_of_declaration,
+		tokens,
+		false,
+	);
 
 	Ok(Parameter {
 		name: Ok(name),
@@ -536,16 +546,45 @@ fn skip_rest_of_parameters(tokens: &mut Tokens)
 
 fn parse_colon_and_type(
 	flags: &EnumSet<DeclarationFlag>,
+	location_of_identifier: &Location,
 	location_of_declaration: &Location,
 	tokens: &mut Tokens,
+	is_constant: bool,
 ) -> Poisonable<ValueType>
 {
-	consume(Token::Colon, "expected colon", tokens)?;
+	match peek(tokens)
+	{
+		Some(Token::Colon) =>
+		{
+			tokens.pop_front();
+		}
+		_ =>
+		{
+			let error = match is_constant
+			{
+				true => Error::MissingConstantType {
+					location: location_of_identifier.clone(),
+				},
+				false => Error::MissingParameterType {
+					location: location_of_identifier.clone(),
+				},
+			};
+			return Err(error.into());
+		}
+	};
+
+	let location_of_type = tokens.get_next_location();
 	let value_type = parse_wellformed_type(tokens)?;
+	let location_of_type = match location_of_type
+	{
+		Some(location) => location.combined_with(&tokens.last_location),
+		None => tokens.last_location.clone(),
+	};
+
 	let value_type = fix_type_for_flags(
 		value_type,
 		&flags,
-		&tokens.last_location,
+		&location_of_type,
 		location_of_declaration,
 	)?;
 	Ok(value_type)
