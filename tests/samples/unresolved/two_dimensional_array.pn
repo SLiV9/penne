@@ -1,4 +1,4 @@
-fn main()
+fn main() -> i32
 {
 	var grid: [2][3]i32 = [
 		[1, 2, 3],
@@ -6,7 +6,7 @@ fn main()
 	];
 	var r = 1;
 	var c = 2;
-	var top_row: [3]i32 = grid[0];
+	var top_row: &[3]i32 = &grid[0];
 	var value = top_row[0] + grid[r][c];
 	return: value
 }

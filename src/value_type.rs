@@ -253,31 +253,31 @@ impl ValueType
 		{
 			ValueType::Array { .. } =>
 			{
-				self.can_be_used_as(other) || self.can_coerce_into(other)
+				self == other || self.can_coerce_into(other)
 			}
 			ValueType::Slice { .. } =>
 			{
-				self.can_be_used_as(other) || self.can_coerce_into(other)
+				self == other || self.can_coerce_into(other)
 			}
 			ValueType::EndlessArray { .. } =>
 			{
-				self.can_be_used_as(other) || self.can_coerce_into(other)
+				self == other || self.can_coerce_into(other)
 			}
 			ValueType::View { deref_type } =>
 			{
-				deref_type.as_ref().can_be_used_as(other)
+				deref_type.as_ref() == other
 					|| deref_type.can_subautoderef_into(other)
 					|| other.get_viewee_type().map_or(false, |t| {
-						deref_type.as_ref().can_be_used_as(&t)
+						deref_type.as_ref() == &t
 							|| deref_type.can_subautoderef_into(&t)
 					})
 			}
 			ValueType::Pointer { deref_type } =>
 			{
-				deref_type.as_ref().can_be_used_as(other)
+				deref_type.as_ref() == other
 					|| deref_type.can_subautoderef_into(other)
 					|| other.get_pointee_type().map_or(false, |t| {
-						deref_type.as_ref().can_be_used_as(&t)
+						deref_type.as_ref() == &t
 							|| deref_type.can_subautoderef_into(&t)
 							|| deref_type.can_coerce_address_into_pointer_to(&t)
 					})
@@ -290,24 +290,24 @@ impl ValueType
 	{
 		match self
 		{
-			ValueType::Array { .. } => self.can_be_used_as(other),
-			ValueType::Slice { .. } => self.can_be_used_as(other),
-			ValueType::EndlessArray { .. } => self.can_be_used_as(other),
+			ValueType::Array { .. } => self == other,
+			ValueType::Slice { .. } => self == other,
+			ValueType::EndlessArray { .. } => self == other,
 			ValueType::View { deref_type } =>
 			{
-				deref_type.as_ref().can_be_used_as(other)
+				deref_type.as_ref() == other
 					|| deref_type.can_subautoderef_into(other)
 					|| other.get_viewee_type().map_or(false, |t| {
-						deref_type.as_ref().can_be_used_as(&t)
+						deref_type.as_ref() == &t
 							|| deref_type.can_subautoderef_into(&t)
 					})
 			}
 			ValueType::Pointer { deref_type } =>
 			{
-				deref_type.as_ref().can_be_used_as(other)
+				deref_type.as_ref() == other
 					|| deref_type.can_subautoderef_into(other)
 					|| other.get_pointee_type().map_or(false, |t| {
-						deref_type.as_ref().can_be_used_as(&t)
+						deref_type.as_ref() == &t
 							|| deref_type.can_subautoderef_into(&t)
 					})
 			}

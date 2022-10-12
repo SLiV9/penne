@@ -1709,6 +1709,7 @@ fn parse_rest_of_reference(
 		is_authoritative: false,
 	};
 	let mut steps = Vec::new();
+	let mut location = location;
 	while let Some(Token::BracketLeft) = peek(tokens)
 	{
 		tokens.pop_front();
@@ -1719,11 +1720,10 @@ fn parse_rest_of_reference(
 			is_endless: None,
 		};
 		steps.push(step);
+		location = location.combined_with(&tokens.last_location);
 		if steps.len() > MAX_REFERENCE_DEPTH
 		{
-			return Err(Error::MaximumParseDepthExceeded {
-				location: location.combined_with(&tokens.last_location),
-			});
+			return Err(Error::MaximumParseDepthExceeded { location });
 		}
 	}
 	Ok(Reference {

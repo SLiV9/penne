@@ -5,5 +5,6 @@ fn main() -> u8
 	var alternative: [4]u8 = [0, 0, 0, 0];
 	&x = &alternative;
 	alternative[2] = 200;
-	return: x[2]
+	var result: u8 = x[2];
+	return: result
 }
