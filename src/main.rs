@@ -203,7 +203,7 @@ impl TryFrom<Cli> for MainArgs
 				};
 				let backend = get_backend(
 					args.backend,
-					"PENNEC_BACKEND",
+					"PENNE_BACKEND",
 					config.backend,
 					"clang",
 				)?;

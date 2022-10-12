@@ -60,11 +60,14 @@ fn do_collatz_step(x: &i32)
 The compiler uses LLVM as its backend. It requires LLVM version 6.0 or newer to be installed.
 
 ```shell
+# Install it (requires Rust 1.60.0 or newer):
+cargo install penne
+
 # Compile a source file:
-pennec examples/addition.pn
+penne examples/addition.pn
 
 # Or run it directly (using lli):
-pennec run examples/addition.pn
+penne run examples/addition.pn
 # Output: 10
 ```
 
