@@ -186,6 +186,10 @@ fn set_to_zero(x: &[]i32)
 }
 ```
 
+## Contributing
+
+Penne and its compiler are still in development, and many language features (structs, enums, modules) are yet to be implemented. However it is my intention for any gaps in functionality to raise a proper error message until they are implemented. If you encounter a compiler segfault or panic (*not* a program segfault; memory safety is decidedly not a language feature), or if the compiler generates invalid LLVM IR, opening an issue with a minimal reproducible example would be much appreciated.
+
 ## License
 
 This library was created by Sander in 't Veld.

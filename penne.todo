@@ -83,11 +83,11 @@ Usability:
 	☐	Generate error index by formatting literate-style samples with ansi2html
 	✔	Color default terminal output differently from LLVM errors @done (2022-09-07 15:22)
 	☐	Allow goto to skip var declaration if short-lived (skip_shortlived_var.pn)
+	☐	Add options to disable color and unicode symbols in errors
 
 Documentation:
 	✔ Move tests from lib.rs to *tests/* @done (2022-10-04 16:44)
 	☐	Reference of all current and unstable language features
-	☐	How to help out
 
 Development:
 	☐	Cleanup main.rs
