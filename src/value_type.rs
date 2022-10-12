@@ -335,8 +335,11 @@ impl ValueType
 			{
 				element_type.is_wellformed_element()
 			}
-			ValueType::Pointer { deref_type } => deref_type.is_wellformed(),
-			ValueType::View { deref_type } => deref_type.is_wellformed(),
+			ValueType::Pointer { deref_type } =>
+			{
+				deref_type.is_wellformed_inner()
+			}
+			ValueType::View { deref_type } => deref_type.is_wellformed_inner(),
 			_ => true,
 		}
 	}
@@ -345,13 +348,42 @@ impl ValueType
 	{
 		match self
 		{
-			ValueType::Array { .. } => self.is_wellformed(),
+			ValueType::Array { .. } => self.is_wellformed_inner(),
 			ValueType::Slice { .. } => false,
 			ValueType::EndlessArray { .. } => false,
 			ValueType::Arraylike { .. } => false,
-			ValueType::Pointer { .. } => self.is_wellformed(),
-			ValueType::View { .. } => self.is_wellformed(),
-			_ => self.is_wellformed(),
+			ValueType::Pointer { .. } => self.is_wellformed_inner(),
+			ValueType::View { .. } => false,
+			_ => self.is_wellformed_inner(),
+		}
+	}
+
+	fn is_wellformed_inner(&self) -> bool
+	{
+		match self
+		{
+			ValueType::Array {
+				element_type,
+				length,
+			} => *length > 0 && element_type.is_wellformed_element(),
+			ValueType::Slice { element_type } =>
+			{
+				element_type.is_wellformed_element()
+			}
+			ValueType::EndlessArray { element_type } =>
+			{
+				element_type.is_wellformed_element()
+			}
+			ValueType::Arraylike { element_type } =>
+			{
+				element_type.is_wellformed_element()
+			}
+			ValueType::Pointer { deref_type } =>
+			{
+				deref_type.is_wellformed_inner()
+			}
+			ValueType::View { .. } => false,
+			_ => true,
 		}
 	}
 

@@ -28,7 +28,6 @@ Functionality:
 		☐	Think about natural stack alignment
 		☐	Think about isize
 		☐	Difference between usize and upointer
-	☐	Casting
 	☐	Strong enums
 	☐	Optional
 		☐	int types with niches
@@ -87,6 +86,8 @@ Usability:
 
 Documentation:
 	✔ Move tests from lib.rs to *tests/* @done (2022-10-04 16:44)
+	☐	Reference of all current and unstable language features
+	☐	How to help out
 
 Theory:
 	☐	Prove Turing completeness

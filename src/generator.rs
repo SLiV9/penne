@@ -909,7 +909,10 @@ impl Generatable for Expression
 				};
 				unsafe {
 					LLVMSetGlobalConstant(global, 1);
-					LLVMSetUnnamedAddr(global, 1);
+					LLVMSetUnnamedAddress(
+						global,
+						llvm_sys::LLVMUnnamedAddr::LLVMGlobalUnnamedAddr,
+					);
 					LLVMSetLinkage(global, LLVMLinkage::LLVMPrivateLinkage);
 					LLVMSetInitializer(global, initializer);
 				}
