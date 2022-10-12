@@ -3,12 +3,15 @@ name = "penne"
 version = "0.2.0"
 authors = ["Sander in 't Veld <sanderintveld@hotmail.com>"]
 edition = "2021"
-publish = false
+license = "MIT"
+readme = "README.md"
+description = "Penne is a pasta-oriented programming language that favors the goto-statement for flow control."
+repository = "https://github.com/SLiV9/penne"
 
 [dependencies]
 enumset = "1.0"
-anyhow = "^1.0"
-thiserror = "^1.0"
+anyhow = "1.0"
+thiserror = "1.0"
 ariadne = "0.1.5"
 termcolor = "1.1"
 serde = { version = "1.0", features = ["derive"] }
