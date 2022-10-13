@@ -11,50 +11,43 @@ env:
 
 jobs:
   release:    
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        include:
-          - os: ubuntu-latest
-            bin: penne
-            package: penne-linux-x86_64.tar.gz
-            llvm-path: ./llvm
-          - os: windows-latest
-            bin: penne.exe
-            package: penne-windows-x86_64.zip
-            llvm-path: C:/Program Files/LLVM
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
     - name: Cache LLVM
       id: cache-llvm
       uses: actions/cache@v2
       with:
-        path: ${{ matrix.llvm-path }}
-        key: llvm-10
+        path: ./llvm
+        key: llvm-10.0
     - name: Install LLVM
       uses: KyleMayes/install-llvm-action@v1
       with:
-        version: "10"
+        version: "10.0"
         cached: ${{ steps.cache-llvm.outputs.cache-hit }}
-    - name: Build
+    - name: Install windows target
+      run: rustup target add x86_64-pc-windows-gnu
+    - name: Build windows
+      run: cargo build --release --target x86_64-pc-windows-gnu
+    - name: Package windows
+      shell: bash
+      run: |
+        cd target/x86_64-pc-windows-gnu/release
+        7z a ../../../penne-windows-x86_64.zip penne.exe
+        cd -
+    - name: Build linux
       run: cargo build --release
-      env:
-        LLVM_SYS_60_PREFIX: ${{ matrix.llvm-path }}
-    - name: Package
+    - name: Package linux
       shell: bash
       run: |
         cd target/release
-        if [[ "${{ matrix.os }}" == "windows-latest" ]]
-        then
-          7z a ../../../${{ matrix.package }} ${{ matrix.bin }}
-        else
-          tar czvf ../../../${{ matrix.package }} ${{ matrix.bin }}
-        fi
+        tar czvf ../../../penne-linux-x86_64.tar.gz penne
         cd -
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
         generate_release_notes: true
         fail_on_unmatched_files: true
-        files: ${{ matrix.package }}
+        files: |
+          penne-linux-x86_64.tar.gz
+          penne-windows-x86_64.zip
