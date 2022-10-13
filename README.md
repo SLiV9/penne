@@ -71,6 +71,8 @@ penne run examples/addition.pn
 # Output: 10
 ```
 
+There are [precompiled binaries](https://github.com/SLiV9/penne/releases/latest) for Ubuntu 20.04.
+
 ## Language features
 
 A brief overview of the more unique language features of Penne:
