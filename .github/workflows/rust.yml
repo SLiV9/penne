@@ -10,34 +10,49 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-latest
+  release:    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            bin: penne
+            package: penne-linux-x86_64.tar.gz
+            llvm-path: ./llvm
+          - os: windows-latest
+            bin: penne.exe
+            package: penne-windows-x86_64.zip
+            llvm-path: C:/Program Files/LLVM
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
-    - name: Build linux
-      run: cargo build --release --verbose
-    - name: Run tests
-      run: cargo test --verbose
-    - name: Package linux
-      run: tar czvf penne-linux-x86_64.tar.gz target/release/penne
-    - name: Release linux
+    - name: Cache LLVM
+      id: cache-llvm
+      uses: actions/cache@v2
+      with:
+        path: ${{ matrix.llvm-path }}
+        key: llvm-10
+    - name: Install LLVM
+      uses: KyleMayes/install-llvm-action@v1
+      with:
+        version: "10"
+        cached: ${{ steps.cache-llvm.outputs.cache-hit }}
+    - name: Build
+      run: cargo build --release
+    - name: Package
+      shell: bash
+      run: |
+        cd target/release
+        if [[ "${{ matrix.os }}" == "windows-latest" ]]
+        then
+          7z a ../../../${{ matrix.package }} ${{ matrix.bin }}
+        else
+          tar czvf ../../../${{ matrix.package }} ${{ matrix.bin }}
+        fi
+        cd -
+    - name: Release
       uses: softprops/action-gh-release@v1
       with:
         generate_release_notes: true
         fail_on_unmatched_files: true
-        files: |
-          penne-linux-x86_64.tar.gz
-  build-windows:
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v3
-    - name: Build windows
-      run: cargo build --release --verbose
-    - name: Package windows
-      run: 7z a penne-windows-x86_64.zip target/release/penne.exe
-    - name: Release windows
-      uses: softprops/action-gh-release@v1
-      with:
-        fail_on_unmatched_files: true
-        files: |
-          penne-windows-x86_64.zip
+        files: ${{ matrix.package }}
