@@ -25,16 +25,6 @@ jobs:
       with:
         version: "10.0"
         cached: ${{ steps.cache-llvm.outputs.cache-hit }}
-    - name: Install windows target
-      run: rustup target add x86_64-pc-windows-gnu
-    - name: Build windows
-      run: cargo build --release --target x86_64-pc-windows-gnu
-    - name: Package windows
-      shell: bash
-      run: |
-        cd target/x86_64-pc-windows-gnu/release
-        7z a ../../../penne-windows-x86_64.zip penne.exe
-        cd -
     - name: Build linux
       run: cargo build --release
     - name: Package linux
@@ -50,4 +40,3 @@ jobs:
         fail_on_unmatched_files: true
         files: |
           penne-linux-x86_64.tar.gz
-          penne-windows-x86_64.zip
