@@ -26,9 +26,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
-    - name: 'Get previous tag'
-      id: previous_tag
-      uses: "WyriHaximus/github-action-get-previous-tag@v1"
     - name: Cache LLVM
       id: cache-llvm
       uses: actions/cache@v2
@@ -58,7 +55,6 @@ jobs:
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{steps.previous_tag.outputs.tag}}
         generate_release_notes: true
         fail_on_unmatched_files: true
         files: ${{ matrix.package }}
