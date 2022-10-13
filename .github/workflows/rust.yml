@@ -31,7 +31,7 @@ jobs:
       shell: bash
       run: |
         cd target/release
-        tar czvf ../../../penne-linux-x86_64.tar.gz penne
+        tar czvf ../../penne-linux-x86_64.tar.gz penne
         cd -
     - name: Release
       uses: softprops/action-gh-release@v1
