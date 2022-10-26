@@ -4,6 +4,8 @@
 // License: MIT
 //
 
+//! The lexer cuts each line of source code into a sequence of tokens.
+
 use ariadne::Label;
 
 use crate::common::*;

@@ -4,6 +4,8 @@
 // License: MIT
 //
 
+//! The IR generation stage turns the resolved AST into LLVM IR.
+
 use crate::resolved::*;
 
 use std::ffi::{CStr, CString};

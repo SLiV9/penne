@@ -4,6 +4,9 @@
 // License: MIT
 //
 
+//! During the analysis stage, the common AST is checked for any additional
+//! syntax or semantical errors.
+
 mod function_calls;
 mod mutability;
 mod syntax;

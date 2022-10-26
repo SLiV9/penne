@@ -4,6 +4,8 @@
 // License: MIT
 //
 
+//! Each variable, expression and return value has a [ValueType].
+
 #[must_use]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValueType

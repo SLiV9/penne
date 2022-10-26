@@ -4,6 +4,9 @@
 // License: MIT
 //
 
+//! During the type inference stage, the types of values and variables are
+//! determined, and `autoderef` expressions are inserted.
+
 use crate::common::*;
 use crate::error::Error;
 use crate::parser::{MAX_ADDRESS_DEPTH, MAX_REFERENCE_DEPTH};

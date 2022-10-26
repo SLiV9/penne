@@ -4,6 +4,8 @@
 // License: MIT
 //
 
+//! Compiler stages may generate syntax errors and semantical errors.
+
 pub use crate::lexer;
 pub use crate::lexer::Location;
 pub use crate::value_type::OperandValueType;

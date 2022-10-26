@@ -4,6 +4,8 @@
 // License: MIT
 //
 
+//! The parser takes lexed tokens and builds the common AST.
+
 use crate::common::*;
 use crate::error::Error;
 use crate::lexer::{LexedToken, Token};

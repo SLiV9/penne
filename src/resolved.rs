@@ -4,6 +4,9 @@
 // License: MIT
 //
 
+//! The resolved AST contain no syntax or semantic errors and is ready for
+//! IR generation.
+
 pub use crate::common::DeclarationFlag;
 pub use crate::common::PrimitiveLiteral;
 pub use crate::common::{BinaryOp, ComparisonOp, UnaryOp};

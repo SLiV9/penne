@@ -4,6 +4,9 @@
 // License: MIT
 //
 
+//! The optional linting stage analyzes the common AST and generates warnings
+//! for error-free code that may have unintended behavior at runtime.
+
 use crate::common::*;
 
 use ariadne::{Fmt, Report, ReportKind};

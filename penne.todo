@@ -88,9 +88,13 @@ Usability:
 Documentation:
 	✔ Move tests from lib.rs to *tests/* @done (2022-10-04 16:44)
 	☐	Reference of all current and unstable language features
+	☐	Changelog.md
+	☐	Tags for crates.io
+	☐	High def logo
 
 Development:
 	☐	Cleanup main.rs
+	☐	WASM-4 pull request
 
 Theory:
 	☐	Prove Turing completeness

@@ -4,6 +4,9 @@
 // License: MIT
 //
 
+//! During the scoping stage, the validity of variable references,
+//! function calls and goto statements is determined.
+
 mod label_references;
 mod variable_references;
 

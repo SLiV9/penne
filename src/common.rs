@@ -4,6 +4,8 @@
 // License: MIT
 //
 
+//! Most compiler stages share a common AST.
+
 use enumset::{EnumSet, EnumSetType};
 
 pub use crate::error::{Poison, Poisonable};

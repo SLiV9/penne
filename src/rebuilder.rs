@@ -4,6 +4,9 @@
 // License: MIT
 //
 
+//! As a debugging aid for compiler development, source code may be rebuilt
+//! from the common AST, potentially annotated with extra-syntactical markers.
+
 use crate::common::*;
 
 use std::fmt::Write;
