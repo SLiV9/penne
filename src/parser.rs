@@ -448,6 +448,8 @@ fn parse_rest_of_function_signature(
 				}
 				else
 				{
+					// Break now, we will try to consume a right parenthesis
+					// which will create an error.
 					break;
 				}
 			}
@@ -568,7 +570,6 @@ fn skip_rest_of_parameters(tokens: &mut Tokens)
 	{
 		match token
 		{
-			Token::ParenRight => return,
 			token if can_start_declaration(token) => return,
 			Token::BraceLeft => return,
 			Token::BraceRight => return,

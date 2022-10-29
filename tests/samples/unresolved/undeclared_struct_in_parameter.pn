@@ -1,0 +1,2 @@
+
+fn foo(explicit_view_into_struct: (UndeclaredStruct), dummy: i32);
