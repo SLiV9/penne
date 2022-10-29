@@ -8,8 +8,12 @@
 
 pub use crate::lexer;
 pub use crate::lexer::Location;
-pub use crate::value_type::OperandValueType;
-pub use crate::value_type::ValueType;
+
+use crate::common::Identifier;
+use crate::value_type;
+
+pub type OperandValueType = value_type::OperandValueType<Identifier>;
+pub type ValueType = value_type::ValueType<Identifier>;
 
 use ariadne::{Fmt, Report, ReportKind};
 
@@ -2041,6 +2045,25 @@ fn show_type_inner(value_type: &ValueType) -> String
 		{
 			format!("[]{}", show_type_inner(&element_type))
 		}
+		ValueType::Struct {
+			identifier,
+			size_in_bytes: _,
+		} =>
+		{
+			format!("{}", identifier.name)
+		}
+		ValueType::Word {
+			identifier,
+			size_in_bytes: _,
+		} =>
+		{
+			format!("{}", identifier.name)
+		}
+		ValueType::UnresolvedStructOrWord { identifier } => match identifier
+		{
+			Some(identifier) => format!("{}", identifier.name),
+			None => format!("struct"),
+		},
 		ValueType::Pointer { deref_type } =>
 		{
 			format!("&{}", show_type_inner(&deref_type))

@@ -6,9 +6,15 @@
 
 //! Each variable, expression and return value has a [ValueType].
 
+pub trait Identifier: Clone + PartialEq {}
+
+impl Identifier for String {}
+
 #[must_use]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ValueType
+#[derive(Debug, Clone, PartialEq)]
+pub enum ValueType<I>
+where
+	I: Identifier,
 {
 	Int8,
 	Int16,
@@ -26,41 +32,59 @@ pub enum ValueType
 	String,
 	Array
 	{
-		element_type: Box<ValueType>,
+		element_type: Box<ValueType<I>>,
 		length: usize,
 	},
 	Slice
 	{
-		element_type: Box<ValueType>,
+		element_type: Box<ValueType<I>>,
 	},
 	EndlessArray
 	{
-		element_type: Box<ValueType>,
+		element_type: Box<ValueType<I>>,
 	},
 	Arraylike
 	{
-		element_type: Box<ValueType>,
+		element_type: Box<ValueType<I>>,
+	},
+	Struct
+	{
+		identifier: I,
+		size_in_bytes: usize,
+	},
+	Word
+	{
+		identifier: I,
+		size_in_bytes: usize,
+	},
+	UnresolvedStructOrWord
+	{
+		identifier: Option<I>,
 	},
 	Pointer
 	{
-		deref_type: Box<ValueType>,
+		deref_type: Box<ValueType<I>>,
 	},
 	View
 	{
-		deref_type: Box<ValueType>,
+		deref_type: Box<ValueType<I>>,
 	},
 }
 
 #[derive(Debug, Clone)]
-pub enum OperandValueType
+pub enum OperandValueType<I>
+where
+	I: Identifier,
 {
-	ValueType(ValueType),
+	ValueType(ValueType<I>),
 	Pointer,
 }
 
-impl ValueType
+impl<I> ValueType<I>
+where
+	I: Identifier,
 {
-	pub fn for_byte_string() -> ValueType
+	pub fn for_byte_string() -> ValueType<I>
 	{
 		ValueType::Slice {
 			element_type: Box::new(ValueType::Uint8),
@@ -89,6 +113,9 @@ impl ValueType
 			ValueType::Slice { .. } => false,
 			ValueType::EndlessArray { .. } => false,
 			ValueType::Arraylike { .. } => false,
+			ValueType::Struct { .. } => false,
+			ValueType::Word { .. } => false,
+			ValueType::UnresolvedStructOrWord { .. } => false,
 			ValueType::Pointer { .. } => false,
 			ValueType::View { .. } => false,
 		}
@@ -108,6 +135,10 @@ impl ValueType
 			ValueType::Uint32 => 32,
 			ValueType::Uint64 => 64,
 			ValueType::Uint128 => 128,
+			ValueType::Word {
+				identifier: _,
+				size_in_bytes,
+			} => 8 * size_in_bytes,
 			_ => 0,
 		}
 	}
@@ -125,7 +156,7 @@ impl ValueType
 		}
 	}
 
-	pub fn can_be_used_as(&self, other: &ValueType) -> bool
+	pub fn can_be_used_as(&self, other: &ValueType<I>) -> bool
 	{
 		match self
 		{
@@ -146,7 +177,7 @@ impl ValueType
 		}
 	}
 
-	pub fn can_be_declared_as(&self, other: &ValueType) -> bool
+	pub fn can_be_declared_as(&self, other: &ValueType<I>) -> bool
 	{
 		match self
 		{
@@ -167,7 +198,7 @@ impl ValueType
 		}
 	}
 
-	pub fn can_be_concretization_of(&self, other: &ValueType) -> bool
+	pub fn can_be_concretization_of(&self, other: &ValueType<I>) -> bool
 	{
 		match self
 		{
@@ -196,7 +227,7 @@ impl ValueType
 		}
 	}
 
-	pub fn can_coerce_into(&self, other: &ValueType) -> bool
+	pub fn can_coerce_into(&self, other: &ValueType<I>) -> bool
 	{
 		match self
 		{
@@ -226,8 +257,10 @@ impl ValueType
 		}
 	}
 
-	pub fn can_coerce_address_into_pointer_to(&self, other: &ValueType)
-		-> bool
+	pub fn can_coerce_address_into_pointer_to(
+		&self,
+		other: &ValueType<I>,
+	) -> bool
 	{
 		match self
 		{
@@ -249,7 +282,7 @@ impl ValueType
 		}
 	}
 
-	pub fn can_autoderef_into(&self, other: &ValueType) -> bool
+	pub fn can_autoderef_into(&self, other: &ValueType<I>) -> bool
 	{
 		match self
 		{
@@ -288,7 +321,7 @@ impl ValueType
 		}
 	}
 
-	fn can_subautoderef_into(&self, other: &ValueType) -> bool
+	fn can_subautoderef_into(&self, other: &ValueType<I>) -> bool
 	{
 		match self
 		{
@@ -389,6 +422,38 @@ impl ValueType
 		}
 	}
 
+	pub fn can_be_struct_member(&self) -> bool
+	{
+		match self
+		{
+			ValueType::Slice { .. } =>
+			{
+				// Maybe yes?
+				false
+			}
+			ValueType::EndlessArray { .. } => false,
+			ValueType::Arraylike { .. } => false,
+			ValueType::View { .. } =>
+			{
+				// Maybe yes?
+				false
+			}
+			_ => self.is_wellformed(),
+		}
+	}
+
+	pub fn can_be_word_member(&self) -> bool
+	{
+		match self
+		{
+			ValueType::Slice { .. } => false,
+			ValueType::EndlessArray { .. } => false,
+			ValueType::Arraylike { .. } => false,
+			ValueType::View { .. } => false,
+			_ => self.is_wellformed(),
+		}
+	}
+
 	pub fn can_be_constant(&self) -> bool
 	{
 		match self
@@ -450,7 +515,7 @@ impl ValueType
 		}
 	}
 
-	pub fn get_element_type(&self) -> Option<ValueType>
+	pub fn get_element_type(&self) -> Option<ValueType<I>>
 	{
 		match self
 		{
@@ -474,7 +539,7 @@ impl ValueType
 		}
 	}
 
-	pub fn get_pointee_type(&self) -> Option<ValueType>
+	pub fn get_pointee_type(&self) -> Option<ValueType<I>>
 	{
 		match self
 		{
@@ -486,7 +551,7 @@ impl ValueType
 		}
 	}
 
-	pub fn get_viewee_type(&self) -> Option<ValueType>
+	pub fn get_viewee_type(&self) -> Option<ValueType<I>>
 	{
 		match self
 		{
@@ -495,7 +560,7 @@ impl ValueType
 		}
 	}
 
-	pub fn fully_dereferenced(&self) -> ValueType
+	pub fn fully_dereferenced(&self) -> ValueType<I>
 	{
 		match self
 		{

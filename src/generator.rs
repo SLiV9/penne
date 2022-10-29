@@ -1159,6 +1159,15 @@ impl Generatable for ValueType
 				let element_type = element_type.generate(llvm)?;
 				element_type
 			}
+			ValueType::Struct {
+				identifier,
+				size_in_bytes,
+			}
+			| ValueType::Word {
+				identifier,
+				size_in_bytes,
+			} => unimplemented!(),
+			ValueType::UnresolvedStructOrWord { .. } => unreachable!(),
 			ValueType::Pointer { deref_type }
 			| ValueType::View { deref_type } =>
 			{

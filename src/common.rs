@@ -10,7 +10,10 @@ use enumset::{EnumSet, EnumSetType};
 
 pub use crate::error::{Poison, Poisonable};
 pub use crate::lexer::Location;
-pub use crate::value_type::ValueType;
+
+use crate::value_type;
+
+pub type ValueType = value_type::ValueType<Identifier>;
 
 #[must_use]
 #[derive(Debug, Clone)]
@@ -436,5 +439,15 @@ impl Identifier
 			is_authoritative: true,
 			..self.clone()
 		}
+	}
+}
+
+impl value_type::Identifier for Identifier {}
+
+impl PartialEq for Identifier
+{
+	fn eq(&self, other: &Identifier) -> bool
+	{
+		self.resolution_id > 0 && self.resolution_id == other.resolution_id
 	}
 }

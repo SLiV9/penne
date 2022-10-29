@@ -12,10 +12,10 @@ use crate::common;
 use crate::common::*;
 use crate::error::Error;
 use crate::error::Errors;
+use crate::error::OperandValueType;
 use crate::error::{Poison, Poisonable};
 use crate::resolved;
 use crate::typer::Typed;
-use crate::value_type::OperandValueType;
 
 pub fn resolve(
 	program: Vec<common::Declaration>,
@@ -100,6 +100,23 @@ where
 		let (a, b, c) = self;
 		let ((a, b), c) = ((a, b), c).resolve()?;
 		Ok((a, b, c))
+	}
+}
+
+impl<T1, T2, T3, T4> Resolvable for (T1, T2, T3, T4)
+where
+	T1: Resolvable,
+	T2: Resolvable,
+	T3: Resolvable,
+	T4: Resolvable,
+{
+	type Item = (T1::Item, T2::Item, T3::Item, T4::Item);
+
+	fn resolve(self) -> Result<Self::Item, Errors>
+	{
+		let (a, b, c, d) = self;
+		let ((a, b), (c, d)) = ((a, b), (c, d)).resolve()?;
+		Ok((a, b, c, d))
 	}
 }
 
@@ -197,8 +214,8 @@ impl Resolvable for Declaration
 				flags,
 			} =>
 			{
-				let (name, parameters, body) =
-					(name, parameters, body).resolve()?;
+				let (name, parameters, body, return_type) =
+					(name, parameters, body, return_type).resolve()?;
 				Ok(resolved::Declaration::Function {
 					name,
 					parameters,
@@ -214,7 +231,8 @@ impl Resolvable for Declaration
 				flags,
 			} =>
 			{
-				let (name, parameters) = (name, parameters).resolve()?;
+				let (name, parameters, return_type) =
+					(name, parameters, return_type).resolve()?;
 				Ok(resolved::Declaration::FunctionHead {
 					name,
 					parameters,
@@ -523,11 +541,11 @@ impl Resolvable for Expression
 				location: _,
 			} => match value_type.resolve()?
 			{
-				ValueType::String =>
+				resolved::ValueType::String =>
 				{
 					Ok(resolved::Expression::StringLiteral { bytes })
 				}
-				ValueType::Slice { .. } =>
+				resolved::ValueType::Slice { .. } =>
 				{
 					Ok(resolved::Expression::ByteStringLiteral { bytes })
 				}
@@ -567,7 +585,8 @@ impl Resolvable for Expression
 			} =>
 			{
 				let from = expression.value_type();
-				let expression = expression.resolve()?;
+				let (expression, coerced_type) =
+					(expression, coerced_type).resolve()?;
 				assert!(from.is_some());
 				Ok(resolved::Expression::Autocoerce {
 					expression,
@@ -586,7 +605,8 @@ impl Resolvable for Expression
 					coerced_type.clone(),
 					&location_of_type,
 				);
-				let expression = expression.resolve()?;
+				let (expression, coerced_type) =
+					(expression, coerced_type).resolve()?;
 				// If the expression contains errors, type inference will
 				// fail, but there is not much point in reporting that.
 				let expression_type = expression_type?;
@@ -703,11 +723,84 @@ impl Resolvable for Identifier
 
 impl Resolvable for ValueType
 {
-	type Item = Self;
+	type Item = resolved::ValueType;
 
 	fn resolve(self) -> Result<Self::Item, Errors>
 	{
-		Ok(self)
+		match self
+		{
+			ValueType::Int8 => Ok(resolved::ValueType::Int8),
+			ValueType::Int16 => Ok(resolved::ValueType::Int16),
+			ValueType::Int32 => Ok(resolved::ValueType::Int32),
+			ValueType::Int64 => Ok(resolved::ValueType::Int64),
+			ValueType::Int128 => Ok(resolved::ValueType::Int128),
+			ValueType::Uint8 => Ok(resolved::ValueType::Uint8),
+			ValueType::Uint16 => Ok(resolved::ValueType::Uint16),
+			ValueType::Uint32 => Ok(resolved::ValueType::Uint32),
+			ValueType::Uint64 => Ok(resolved::ValueType::Uint64),
+			ValueType::Uint128 => Ok(resolved::ValueType::Uint128),
+			ValueType::Usize => Ok(resolved::ValueType::Usize),
+			ValueType::Bool => Ok(resolved::ValueType::Bool),
+			ValueType::Char => Ok(resolved::ValueType::Char),
+			ValueType::String => Ok(resolved::ValueType::String),
+			ValueType::Array {
+				element_type,
+				length,
+			} => Ok(resolved::ValueType::Array {
+				element_type: element_type.resolve()?,
+				length,
+			}),
+			ValueType::Slice { element_type } =>
+			{
+				Ok(resolved::ValueType::Slice {
+					element_type: element_type.resolve()?,
+				})
+			}
+			ValueType::EndlessArray { element_type } =>
+			{
+				Ok(resolved::ValueType::EndlessArray {
+					element_type: element_type.resolve()?,
+				})
+			}
+			ValueType::Arraylike { element_type } =>
+			{
+				Ok(resolved::ValueType::Arraylike {
+					element_type: element_type.resolve()?,
+				})
+			}
+			ValueType::Struct {
+				identifier,
+				size_in_bytes,
+			} => Ok(resolved::ValueType::Struct {
+				identifier: identifier.resolve()?,
+				size_in_bytes,
+			}),
+			ValueType::Word {
+				identifier,
+				size_in_bytes,
+			} => Ok(resolved::ValueType::Word {
+				identifier: identifier.resolve()?,
+				size_in_bytes,
+			}),
+			ValueType::UnresolvedStructOrWord { identifier } =>
+			{
+				match identifier.resolve()
+				{
+					Ok(Some(_)) => unreachable!(),
+					Ok(None) => unreachable!(),
+					Err(errors) => Err(errors),
+				}
+			}
+			ValueType::Pointer { deref_type } =>
+			{
+				Ok(resolved::ValueType::Pointer {
+					deref_type: deref_type.resolve()?,
+				})
+			}
+			ValueType::View { deref_type } => Ok(resolved::ValueType::View {
+				deref_type: deref_type.resolve()?,
+			}),
+		}
 	}
 }
 
@@ -716,7 +809,7 @@ fn resolve_compared_type(
 	left: &Expression,
 	right: &Expression,
 	location_of_op: &Location,
-) -> Result<ValueType, Errors>
+) -> Result<resolved::ValueType, Errors>
 {
 	let vt = match left.value_type()
 	{
@@ -755,7 +848,7 @@ fn resolve_compared_type(
 	Ok(value_type)
 }
 
-const VALID_TYPES_FOR_EQUALITY: [OperandValueType; 14] = [
+const VALID_TYPES_FOR_EQUALITY: &'static [OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Int8),
 	OperandValueType::ValueType(ValueType::Int16),
 	OperandValueType::ValueType(ValueType::Int32),
@@ -772,7 +865,7 @@ const VALID_TYPES_FOR_EQUALITY: [OperandValueType; 14] = [
 	OperandValueType::Pointer,
 ];
 
-const VALID_TYPES_FOR_IS_GREATER: [OperandValueType; 13] = [
+const VALID_TYPES_FOR_IS_GREATER: &'static [OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Int8),
 	OperandValueType::ValueType(ValueType::Int16),
 	OperandValueType::ValueType(ValueType::Int32),
@@ -809,7 +902,7 @@ fn resolve_binary_op_type(
 	left: &Expression,
 	right: &Expression,
 	location_of_op: &Location,
-) -> Result<ValueType, Errors>
+) -> Result<resolved::ValueType, Errors>
 {
 	let vt = match left.value_type()
 	{
@@ -848,7 +941,7 @@ fn resolve_binary_op_type(
 	Ok(value_type)
 }
 
-const VALID_TYPES_FOR_ARITHMETIC: [OperandValueType; 11] = [
+const VALID_TYPES_FOR_ARITHMETIC: &'static [OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Int8),
 	OperandValueType::ValueType(ValueType::Int16),
 	OperandValueType::ValueType(ValueType::Int32),
@@ -861,14 +954,14 @@ const VALID_TYPES_FOR_ARITHMETIC: [OperandValueType; 11] = [
 	OperandValueType::ValueType(ValueType::Uint128),
 	OperandValueType::ValueType(ValueType::Usize),
 ];
-const VALID_TYPES_FOR_BITWISE: [OperandValueType; 5] = [
+const VALID_TYPES_FOR_BITWISE: &'static [OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Uint8),
 	OperandValueType::ValueType(ValueType::Uint16),
 	OperandValueType::ValueType(ValueType::Uint32),
 	OperandValueType::ValueType(ValueType::Uint64),
 	OperandValueType::ValueType(ValueType::Uint128),
 ];
-const VALID_TYPES_FOR_BITSHIFT: [OperandValueType; 5] = [
+const VALID_TYPES_FOR_BITSHIFT: &'static [OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Uint8),
 	OperandValueType::ValueType(ValueType::Uint16),
 	OperandValueType::ValueType(ValueType::Uint32),
@@ -900,7 +993,7 @@ fn resolve_unary_op_type(
 	op: UnaryOp,
 	operand: &Expression,
 	location_of_op: &Location,
-) -> Result<ValueType, Errors>
+) -> Result<resolved::ValueType, Errors>
 {
 	let vt = match operand.value_type()
 	{
@@ -920,14 +1013,14 @@ fn resolve_unary_op_type(
 	Ok(value_type)
 }
 
-const VALID_TYPES_FOR_NEGATIVE: [OperandValueType; 5] = [
+const VALID_TYPES_FOR_NEGATIVE: &'static [OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Int8),
 	OperandValueType::ValueType(ValueType::Int16),
 	OperandValueType::ValueType(ValueType::Int32),
 	OperandValueType::ValueType(ValueType::Int64),
 	OperandValueType::ValueType(ValueType::Int128),
 ];
-const VALID_TYPES_FOR_COMPLEMENT: [OperandValueType; 6] = [
+const VALID_TYPES_FOR_COMPLEMENT: &'static [OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Bool),
 	OperandValueType::ValueType(ValueType::Uint8),
 	OperandValueType::ValueType(ValueType::Uint16),
@@ -953,7 +1046,7 @@ fn analyze_operand_type(
 	valid_types: &[OperandValueType],
 	location_of_op: &Location,
 	location_of_operand: &Location,
-) -> Result<ValueType, Error>
+) -> Result<resolved::ValueType, Errors>
 {
 	let is_valid = valid_types.iter().any(|valid_type| match valid_type
 	{
@@ -967,7 +1060,7 @@ fn analyze_operand_type(
 	});
 	if is_valid
 	{
-		Ok(value_type)
+		value_type.resolve()
 	}
 	else
 	{
@@ -984,7 +1077,7 @@ fn analyze_primitive_cast(
 	expression: &Expression,
 	coerced_type: ValueType,
 	location_of_type: &Location,
-) -> Result<ValueType, Errors>
+) -> Result<resolved::ValueType, Errors>
 {
 	let value_type = match expression.value_type()
 	{
@@ -996,7 +1089,7 @@ fn analyze_primitive_cast(
 	};
 	if is_valid_primitive_cast(&value_type, &coerced_type)
 	{
-		Ok(value_type)
+		value_type.resolve()
 	}
 	else
 	{

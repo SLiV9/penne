@@ -10,7 +10,7 @@ use ariadne::Label;
 
 use crate::common::*;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub enum Token
 {
 	// Single-character tokens.

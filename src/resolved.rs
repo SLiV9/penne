@@ -10,7 +10,10 @@
 pub use crate::common::DeclarationFlag;
 pub use crate::common::PrimitiveLiteral;
 pub use crate::common::{BinaryOp, ComparisonOp, UnaryOp};
-pub use crate::value_type::ValueType;
+
+use crate::value_type;
+
+pub type ValueType = value_type::ValueType<Identifier>;
 
 use enumset::EnumSet;
 
@@ -217,4 +220,14 @@ pub struct Identifier
 {
 	pub name: String,
 	pub resolution_id: u32,
+}
+
+impl value_type::Identifier for Identifier {}
+
+impl PartialEq for Identifier
+{
+	fn eq(&self, other: &Identifier) -> bool
+	{
+		self.resolution_id > 0 && self.resolution_id == other.resolution_id
+	}
 }

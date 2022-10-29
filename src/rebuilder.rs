@@ -734,6 +734,25 @@ impl Rebuildable for ValueType
 			{
 				Ok(format!("[]{}", element_type.rebuild(indentation)?))
 			}
+			ValueType::Struct {
+				identifier,
+				size_in_bytes: _,
+			} => Ok(format!("{}", identify(identifier))),
+			ValueType::Word {
+				identifier,
+				size_in_bytes: _,
+			} => Ok(format!("{}", identify(identifier))),
+			ValueType::UnresolvedStructOrWord { identifier } =>
+			{
+				match identifier
+				{
+					Some(identifier) =>
+					{
+						Ok(format!("{}#?", identify(identifier)))
+					}
+					None => Ok(format!("struct")),
+				}
+			}
 			ValueType::Pointer { deref_type } =>
 			{
 				Ok(format!("&{}", deref_type.rebuild(indentation)?))
