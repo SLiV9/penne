@@ -1,0 +1,4 @@
+struct SmallVec
+{
+	illegal_because_unknown_size: []i32,
+}

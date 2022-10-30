@@ -232,6 +232,12 @@ pub enum Error
 		location: Location,
 		previous: Location,
 	},
+	DuplicateDeclarationStruct
+	{
+		name: String,
+		location: Location,
+		previous: Location,
+	},
 	DuplicateDeclarationLabel
 	{
 		name: String,
@@ -243,6 +249,10 @@ pub enum Error
 		name: String, location: Location
 	},
 	UndefinedFunction
+	{
+		name: String, location: Location
+	},
+	UndefinedStruct
 	{
 		name: String, location: Location
 	},
@@ -461,10 +471,12 @@ impl Error
 			Error::UndefinedLabel { .. } => 400,
 			Error::UndefinedFunction { .. } => 401,
 			Error::UndefinedVariable { .. } => 402,
+			Error::UndefinedStruct { .. } => 404,
 			Error::DuplicateDeclarationLabel { .. } => 420,
 			Error::DuplicateDeclarationFunction { .. } => 421,
 			Error::DuplicateDeclarationVariable { .. } => 422,
 			Error::DuplicateDeclarationConstant { .. } => 423,
+			Error::DuplicateDeclarationStruct { .. } => 424,
 			Error::ConflictingTypes { .. } => 500,
 			Error::NotAnArray { .. } => 501,
 			Error::NotAnArrayWithLength { .. } => 502,
@@ -1194,6 +1206,34 @@ impl Error
 			)
 			.finish(),
 
+			Error::DuplicateDeclarationStruct {
+				name,
+				location,
+				previous,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Duplicate struct")
+			.with_label(
+				location
+					.label()
+					.with_message(format!(
+						"A struct or word named '{}' is already defined.",
+						name.fg(a)
+					))
+					.with_color(a),
+			)
+			.with_label(
+				previous
+					.label()
+					.with_message("Previously defined here.")
+					.with_color(b),
+			)
+			.finish(),
+
 			Error::DuplicateDeclarationLabel {
 				name,
 				location,
@@ -1252,6 +1292,24 @@ impl Error
 					.label()
 					.with_message(format!(
 						"Reference to undefined function named '{}'.",
+						name.fg(a)
+					))
+					.with_color(a),
+			)
+			.finish(),
+
+			Error::UndefinedStruct { name, location } => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Undefined reference")
+			.with_label(
+				location
+					.label()
+					.with_message(format!(
+						"Reference to undefined struct named '{}'.",
 						name.fg(a)
 					))
 					.with_color(a),

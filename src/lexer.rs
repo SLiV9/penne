@@ -58,6 +58,12 @@ pub enum Token
 	As,
 	Pub,
 	Extern,
+	Struct,
+	Word8,
+	Word16,
+	Word32,
+	Word64,
+	Word128,
 
 	// Literals.
 	Identifier(String),
@@ -99,7 +105,7 @@ pub enum Error
 	InvalidMixedString,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Location
 {
 	pub source_filename: String,
@@ -323,6 +329,12 @@ fn lex_line(
 					"char" => Token::Type(ValueType::Char),
 					"pub" => Token::Pub,
 					"extern" => Token::Extern,
+					"struct" => Token::Struct,
+					"word8" => Token::Word8,
+					"word16" => Token::Word16,
+					"word32" => Token::Word32,
+					"word64" => Token::Word64,
+					"word128" => Token::Word128,
 					_ => Token::Identifier(identifier),
 				};
 				Ok(token)

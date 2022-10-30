@@ -448,6 +448,13 @@ impl PartialEq for Identifier
 {
 	fn eq(&self, other: &Identifier) -> bool
 	{
-		self.resolution_id > 0 && self.resolution_id == other.resolution_id
+		if self.resolution_id > 0
+		{
+			self.resolution_id == other.resolution_id
+		}
+		else
+		{
+			self.location == other.location
+		}
 	}
 }

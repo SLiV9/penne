@@ -13,6 +13,7 @@ pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 	let mut analyzer = Analyzer {
 		variable_stack: Vec::new(),
 		function_list: Vec::new(),
+		struct_list: Vec::new(),
 		resolution_id: 1,
 	};
 	// Predeclare all functions so that they can reference each other.
@@ -31,6 +32,7 @@ struct Analyzer
 {
 	variable_stack: Vec<Vec<Identifier>>,
 	function_list: Vec<Identifier>,
+	struct_list: Vec<Identifier>,
 	resolution_id: u32,
 }
 
@@ -199,6 +201,66 @@ impl Analyzer
 		}
 	}
 
+	fn declare_struct(
+		&mut self,
+		identifier: Identifier,
+	) -> Partiable<Identifier>
+	{
+		let recoverable_error = self
+			.struct_list
+			.iter()
+			.find(|x| x.name == identifier.name)
+			.map(|previous_identifier| Error::DuplicateDeclarationStruct {
+				name: identifier.name.clone(),
+				location: identifier.location.clone(),
+				previous: previous_identifier.location.clone(),
+			});
+
+		let identifier = Identifier {
+			resolution_id: self.resolution_id,
+			is_authoritative: true,
+			..identifier
+		};
+		self.resolution_id += 1;
+
+		self.struct_list.push(identifier.clone());
+
+		if let Some(error) = recoverable_error
+		{
+			Err(Partial {
+				error,
+				partial: identifier,
+			})
+		}
+		else
+		{
+			Ok(identifier)
+		}
+	}
+
+	fn use_struct(&self, identifier: Identifier) -> Partiable<Identifier>
+	{
+		if let Some(declaration_identifier) =
+			self.struct_list.iter().find(|x| x.name == identifier.name)
+		{
+			Ok(Identifier {
+				resolution_id: declaration_identifier.resolution_id,
+				is_authoritative: false,
+				..identifier
+			})
+		}
+		else
+		{
+			Err(Partial {
+				error: Error::UndefinedStruct {
+					name: identifier.name.clone(),
+					location: identifier.location.clone(),
+				},
+				partial: identifier,
+			})
+		}
+	}
+
 	fn create_anonymous_resolution_id(&mut self) -> u32
 	{
 		let id = self.resolution_id;
@@ -322,6 +384,7 @@ impl Analyzable for Declaration
 			} =>
 			{
 				let value = value.analyze(analyzer);
+				let value_type = value_type.analyze(analyzer);
 				// Declare the constant after analyzing its definition,
 				// to disallow reflexive definitions.
 				match analyzer.declare_constant(name)
@@ -370,13 +433,36 @@ impl Analyzable for Declaration
 
 				match name
 				{
-					Ok(name) => Declaration::Function {
-						name,
-						parameters,
-						body,
-						return_type,
-						flags,
-					},
+					Ok(name) =>
+					{
+						let return_type =
+							return_type.map(|x| analyze_type(x, analyzer));
+						match return_type.transpose()
+						{
+							Ok(return_type) => Declaration::Function {
+								name,
+								parameters,
+								body,
+								return_type,
+								flags,
+							},
+							Err(Partial {
+								error,
+								partial: return_type,
+							}) => Declaration::Poison(Poison::Error {
+								error,
+								partial: Some(Box::new(
+									Declaration::Function {
+										name,
+										parameters,
+										body,
+										return_type: Some(return_type),
+										flags,
+									},
+								)),
+							}),
+						}
+					}
 					Err(Partial {
 						error,
 						partial: name,
@@ -410,12 +496,34 @@ impl Analyzable for Declaration
 
 				match name
 				{
-					Ok(name) => Declaration::FunctionHead {
-						name,
-						parameters,
-						return_type,
-						flags,
-					},
+					Ok(name) =>
+					{
+						let return_type =
+							return_type.map(|x| analyze_type(x, analyzer));
+						match return_type.transpose()
+						{
+							Ok(return_type) => Declaration::FunctionHead {
+								name,
+								parameters,
+								return_type,
+								flags,
+							},
+							Err(Partial {
+								error,
+								partial: return_type,
+							}) => Declaration::Poison(Poison::Error {
+								error,
+								partial: Some(Box::new(
+									Declaration::FunctionHead {
+										name,
+										parameters,
+										return_type: Some(return_type),
+										flags,
+									},
+								)),
+							}),
+						}
+					}
 					Err(Partial {
 						error,
 						partial: name,
@@ -458,10 +566,8 @@ impl Analyzable for Parameter
 		let name = self.name.and_then(|name| {
 			analyzer.declare_variable(name).map_err(|e| e.into())
 		});
-		Parameter {
-			name,
-			value_type: self.value_type,
-		}
+		let value_type = self.value_type.analyze(analyzer);
+		Parameter { name, value_type }
 	}
 }
 
@@ -526,6 +632,7 @@ impl Analyzable for Statement
 			} =>
 			{
 				let value = value.map(|x| x.analyze(analyzer));
+				let value_type = value_type.map(|x| x.analyze(analyzer));
 				// Declare the variable after analyzing its definition,
 				// to disallow reflexive definitions.
 				match analyzer.declare_variable(name)
@@ -867,5 +974,120 @@ impl Analyzable for ReferenceStep
 			ReferenceStep::Autoderef => ReferenceStep::Autoderef,
 			ReferenceStep::Autoview => ReferenceStep::Autoview,
 		}
+	}
+}
+
+impl Analyzable for Poisonable<ValueType>
+{
+	fn analyze(self, analyzer: &mut Analyzer) -> Self
+	{
+		self.and_then(|x| analyze_type(x, analyzer).map_err(|e| e.into()))
+	}
+}
+
+fn analyze_type(
+	value_type: ValueType,
+	analyzer: &mut Analyzer,
+) -> Partiable<ValueType>
+{
+	match value_type
+	{
+		ValueType::UnresolvedStructOrWord {
+			identifier: Some(identifier),
+		} =>
+		{
+			let identifier = analyzer.use_struct(identifier);
+			apply_regardless(identifier, |identifier| {
+				ValueType::UnresolvedStructOrWord {
+					identifier: Some(identifier),
+				}
+			})
+		}
+		ValueType::UnresolvedStructOrWord { identifier: None } =>
+		{
+			Ok(ValueType::UnresolvedStructOrWord { identifier: None })
+		}
+		ValueType::Struct {
+			identifier,
+			size_in_bytes,
+		} => Ok(ValueType::Struct {
+			identifier,
+			size_in_bytes,
+		}),
+		ValueType::Word {
+			identifier,
+			size_in_bytes,
+		} => Ok(ValueType::Word {
+			identifier,
+			size_in_bytes,
+		}),
+		ValueType::Int8 => Ok(ValueType::Int8),
+		ValueType::Int16 => Ok(ValueType::Int16),
+		ValueType::Int32 => Ok(ValueType::Int32),
+		ValueType::Int64 => Ok(ValueType::Int64),
+		ValueType::Int128 => Ok(ValueType::Int128),
+		ValueType::Uint8 => Ok(ValueType::Uint8),
+		ValueType::Uint16 => Ok(ValueType::Uint16),
+		ValueType::Uint32 => Ok(ValueType::Uint32),
+		ValueType::Uint64 => Ok(ValueType::Uint64),
+		ValueType::Uint128 => Ok(ValueType::Uint128),
+		ValueType::Usize => Ok(ValueType::Usize),
+		ValueType::Bool => Ok(ValueType::Bool),
+		ValueType::Char => Ok(ValueType::Char),
+		ValueType::String => Ok(ValueType::String),
+		ValueType::Array {
+			element_type,
+			length,
+		} => apply_regardless(
+			analyze_type(*element_type, analyzer),
+			|element_type| ValueType::Array {
+				element_type: Box::new(element_type),
+				length,
+			},
+		),
+		ValueType::Slice { element_type } => apply_regardless(
+			analyze_type(*element_type, analyzer),
+			|element_type| ValueType::Slice {
+				element_type: Box::new(element_type),
+			},
+		),
+		ValueType::EndlessArray { element_type } => apply_regardless(
+			analyze_type(*element_type, analyzer),
+			|element_type| ValueType::EndlessArray {
+				element_type: Box::new(element_type),
+			},
+		),
+		ValueType::Arraylike { element_type } => apply_regardless(
+			analyze_type(*element_type, analyzer),
+			|element_type| ValueType::Arraylike {
+				element_type: Box::new(element_type),
+			},
+		),
+		ValueType::Pointer { deref_type } => apply_regardless(
+			analyze_type(*deref_type, analyzer),
+			|deref_type| ValueType::Pointer {
+				deref_type: Box::new(deref_type),
+			},
+		),
+		ValueType::View { deref_type } => apply_regardless(
+			analyze_type(*deref_type, analyzer),
+			|deref_type| ValueType::View {
+				deref_type: Box::new(deref_type),
+			},
+		),
+	}
+}
+
+fn apply_regardless<T, U, F>(partiable: Partiable<T>, op: F) -> Partiable<U>
+where
+	F: FnOnce(T) -> U,
+{
+	match partiable
+	{
+		Ok(x) => Ok(op(x)),
+		Err(Partial { error, partial }) => Err(Partial {
+			error,
+			partial: op(partial),
+		}),
 	}
 }

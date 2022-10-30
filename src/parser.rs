@@ -655,6 +655,18 @@ fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 	match token
 	{
 		Token::Type(value_type) => Ok(value_type),
+		Token::Identifier(name) =>
+		{
+			let identifier = Identifier {
+				name,
+				location,
+				resolution_id: 0,
+				is_authoritative: false,
+			};
+			Ok(ValueType::UnresolvedStructOrWord {
+				identifier: Some(identifier),
+			})
+		}
 		Token::Ampersand =>
 		{
 			let deref_type = parse_type(tokens)?;

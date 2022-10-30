@@ -74,6 +74,7 @@ Linting errors:
 Usability:
 	✔	Error recovery @done (2022-10-09 22:24)
 		☐	Better error recovery for unmatched parentheses
+		☐	Prevent duplicate "reference to undefined struct" errors?
 	✔	Switch to custom error printed with ariadne @done (2022-10-09 22:24)
 	☐	Debug symbols in the resulting IR/executable
 	☐	Add helpful note when trying to jump backwards
