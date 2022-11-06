@@ -225,11 +225,23 @@ pub enum Error
 		value_type: ValueType,
 		location: Location,
 	},
+	IllegalMemberType
+	{
+		value_type: ValueType,
+		location: Location,
+	},
 	TypeNotAllowedInExtern
 	{
 		value_type: ValueType,
 		location_of_type: Location,
 		location_of_declaration: Location,
+	},
+	WordSizeMismatch
+	{
+		inferred_size_in_bits: usize,
+		declared_size_in_bits: usize,
+		location_of_identifier: Location,
+		location_of_keyword: Location,
 	},
 	MissingReturnType
 	{
@@ -515,9 +527,11 @@ impl Error
 			Error::IllegalConstantType { .. } => 353,
 			Error::IllegalParameterType { .. } => 354,
 			Error::IllegalReturnType { .. } => 355,
+			Error::IllegalMemberType { .. } => 356,
 			Error::TypeNotAllowedInExtern { .. } => 358,
 			Error::UnsupportedInConstContext { .. } => 360,
 			Error::FunctionInConstContext { .. } => 361,
+			Error::WordSizeMismatch { .. } => 380,
 			Error::MaximumParseDepthExceeded { .. } => 390,
 			Error::UndefinedLabel { .. } => 400,
 			Error::UndefinedFunction { .. } => 401,
@@ -956,6 +970,28 @@ impl Error
 			)
 			.finish(),
 
+			Error::IllegalMemberType {
+				value_type,
+				location,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Invalid member type")
+			.with_label(
+				location
+					.label()
+					.with_message(format!(
+						"The type {} is not allowed as a member of a \
+						 structure.",
+						show_type(value_type).fg(a)
+					))
+					.with_color(a),
+			)
+			.finish(),
+
 			Error::IllegalConstantType {
 				value_type,
 				location,
@@ -1001,6 +1037,41 @@ impl Error
 				location_of_declaration
 					.label()
 					.with_message("Declaration marked external here.")
+					.with_color(b),
+			)
+			.finish(),
+
+			Error::WordSizeMismatch {
+				inferred_size_in_bits,
+				declared_size_in_bits,
+				location_of_identifier,
+				location_of_keyword,
+			} => Report::build(
+				ReportKind::Error,
+				&location_of_keyword.source_filename,
+				location_of_keyword.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Conflicting type sizes")
+			.with_label(
+				location_of_identifier
+					.label()
+					.with_message(format!(
+						"The combined size of the members of this structure \
+						 is {} bits.",
+						inferred_size_in_bits.to_string().fg(a)
+					))
+					.with_color(a),
+			)
+			.with_label(
+				location_of_keyword
+					.label()
+					.with_message(format!(
+						"The structure is declared with {} and therefore has \
+						 a maximum size of {} bits.",
+						format!("`word{}`", declared_size_in_bits).fg(b),
+						declared_size_in_bits.to_string().fg(b),
+					))
 					.with_color(b),
 			)
 			.finish(),

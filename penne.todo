@@ -37,6 +37,7 @@ Functionality:
 		☐	Allow declaring struct types in any order
 		☐	Prevent illformed recursive struct
 		☐	Determine the types of structs *before* typing statements
+		☐	Structs should not be packed by default
 	☐	Vec and String
 	✘	Explicit mutable parameters @cancelled (2022-09-03 16:04)
 	☐	Modules

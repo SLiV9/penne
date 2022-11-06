@@ -238,10 +238,28 @@ fn declare(
 		Declaration::Structure {
 			name,
 			members,
-			flags,
+			flags: _,
 		} =>
 		{
-			// TODO implement
+			let name = CString::new(&name.name as &str)?;
+			let struct_type =
+				unsafe { LLVMStructCreateNamed(llvm.context, name.as_ptr()) };
+
+			let member_types: Result<Vec<LLVMTypeRef>, anyhow::Error> = members
+				.iter()
+				.map(|m| m.value_type.generate(llvm))
+				.collect();
+			let mut member_types = member_types?;
+			let is_packed = 1;
+
+			unsafe {
+				LLVMStructSetBody(
+					struct_type,
+					member_types.as_mut_ptr(),
+					member_types.len() as u32,
+					is_packed,
+				);
+			}
 			Ok(())
 		}
 	}
@@ -356,12 +374,12 @@ impl Generatable for Declaration
 				Ok(())
 			}
 			Declaration::Structure {
-				name,
-				members,
-				flags,
+				name: _,
+				members: _,
+				flags: _,
 			} =>
 			{
-				// TODO implement
+				// We already declared this.
 				Ok(())
 			}
 		}
@@ -1179,12 +1197,16 @@ impl Generatable for ValueType
 			}
 			ValueType::Struct {
 				identifier,
-				size_in_bytes,
+				size_in_bytes: _,
 			}
 			| ValueType::Word {
 				identifier,
-				size_in_bytes,
-			} => unimplemented!(),
+				size_in_bytes: _,
+			} =>
+			{
+				let struct_name = CString::new(&identifier.name as &str)?;
+				unsafe { LLVMGetTypeByName(llvm.module, struct_name.as_ptr()) }
+			}
 			ValueType::UnresolvedStructOrWord { .. } => unreachable!(),
 			ValueType::Pointer { deref_type }
 			| ValueType::View { deref_type } =>

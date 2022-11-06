@@ -129,3 +129,24 @@ fn fail_to_type_array_of_endless_array()
 {
 	compile_to_fail(&[350], "tests/samples/invalid/array_of_endless_array.pn")
 }
+
+#[test]
+fn fail_to_type_endless_array_as_variable()
+{
+	compile_to_fail(
+		&[352],
+		"tests/samples/invalid/endless_array_as_variable.pn",
+	)
+}
+
+#[test]
+fn fail_to_type_endless_array_as_member()
+{
+	compile_to_fail(&[356], "tests/samples/invalid/endless_array_as_member.pn")
+}
+
+#[test]
+fn fail_to_type_word_size_exceeded()
+{
+	compile_to_fail(&[380], "tests/samples/invalid/word_size_exceeded.pn")
+}

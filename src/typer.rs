@@ -352,33 +352,38 @@ impl Typer
 				size_in_bytes,
 			} =>
 			{
-				if size_in_bytes == aligned_size_in_bytes
-				{
-					Ok(ValueType::Struct {
-						identifier,
-						size_in_bytes,
-					})
-				}
-				else
-				{
-					unimplemented!()
-				}
+				assert_eq!(size_in_bytes, aligned_size_in_bytes);
+				Ok(ValueType::Struct {
+					identifier,
+					size_in_bytes,
+				})
 			}
 			ValueType::Word {
 				identifier,
-				size_in_bytes,
+				size_in_bytes: declared_size_in_bytes,
 			} =>
 			{
-				if size_in_bytes == aligned_size_in_bytes
+				if declared_size_in_bytes == aligned_size_in_bytes
 				{
 					Ok(ValueType::Word {
 						identifier,
-						size_in_bytes,
+						size_in_bytes: declared_size_in_bytes,
 					})
 				}
 				else
 				{
-					unimplemented!()
+					Err(Poison::Error {
+						error: Error::WordSizeMismatch {
+							inferred_size_in_bits: 8 * aligned_size_in_bytes,
+							declared_size_in_bits: 8 * declared_size_in_bytes,
+							location_of_identifier: identifier.location.clone(),
+							location_of_keyword: identifier.location.clone(),
+						},
+						partial: Some(ValueType::Word {
+							identifier,
+							size_in_bytes: declared_size_in_bytes,
+						}),
+					})
 				}
 			}
 			ValueType::UnresolvedStructOrWord { .. } => Ok(ValueType::Struct {
@@ -539,7 +544,10 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 		{
 			let members: Vec<Member> = members
 				.into_iter()
-				.map(|x| x.clone().analyze(typer))
+				.map(|x| {
+					typer.contextual_type = Some(structural_type.clone());
+					x.clone().analyze(typer)
+				})
 				.collect();
 
 			let structural_type =
@@ -729,38 +737,11 @@ impl Analyzable for Declaration
 					flags,
 				}
 			}
-			Declaration::Structure {
-				name,
-				members,
-				structural_type,
-				flags,
-			} =>
+			Declaration::Structure { .. } =>
 			{
-				let members: Vec<Member> = members
-					.into_iter()
-					.map(|x| x.clone().analyze(typer))
-					.collect();
-
-				let structural_type =
-					typer.align_struct(&name, &members, structural_type);
-				let result =
-					typer.put_symbol(&name, Some(structural_type.clone()));
-				let structural_type = match (result, structural_type)
-				{
-					(Ok(()), structural_type) => structural_type,
-					(Err(error), Ok(structural_type)) => Err(Poison::Error {
-						error: dbg!(error),
-						partial: Some(structural_type),
-					}),
-					(Err(_error), structural_type) => structural_type,
-				};
-
-				Declaration::Structure {
-					name,
-					members,
-					structural_type,
-					flags,
-				}
+				// Structures are typed before anything else, because they are
+				// types that may appear through the other declarations.
+				self
 			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
 			Declaration::Poison(Poison::Error {
@@ -854,11 +835,47 @@ impl Analyzable for Member
 {
 	fn analyze(self, typer: &mut Typer) -> Self
 	{
+		let contextual_structure_type = typer.contextual_type.take();
 		let value_type = match &self.name
 		{
 			Ok(name) =>
 			{
 				let value_type = self.value_type.analyze(typer);
+				let is_legal = match (contextual_structure_type, &value_type)
+				{
+					(Some(Ok(_)), Err(_)) => true,
+					(Some(Ok(ValueType::Struct { .. })), Ok(vt)) =>
+					{
+						vt.can_be_struct_member()
+					}
+					(Some(Ok(ValueType::Word { .. })), Ok(vt)) =>
+					{
+						vt.can_be_word_member()
+					}
+					(
+						Some(Ok(ValueType::UnresolvedStructOrWord { .. })),
+						Ok(vt),
+					) => vt.can_be_struct_member(),
+					(Some(Ok(_)), _) => unreachable!(),
+					(Some(Err(_)), _) => true,
+					(None, _) => unreachable!(),
+				};
+				let value_type = value_type.and_then(|vt| {
+					if is_legal
+					{
+						Ok(vt)
+					}
+					else
+					{
+						Err(Poison::Error {
+							error: Error::IllegalMemberType {
+								value_type: vt.clone(),
+								location: name.location.clone(),
+							},
+							partial: Some(vt.clone()),
+						})
+					}
+				});
 				match typer.put_symbol(name, Some(value_type.clone()))
 				{
 					Ok(()) => typer.get_symbol(name).unwrap_or(value_type),
