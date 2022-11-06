@@ -345,6 +345,12 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 				})),
 			}),
 		},
+		Declaration::Structure { .. } =>
+		{
+			// Structs have to be declared from top to bottom, just to avoid
+			// having to deal with cyclical definitions.
+			declaration
+		}
 		Declaration::PreprocessorDirective { .. } => unreachable!(),
 		Declaration::Poison(Poison::Error {
 			error,
@@ -538,6 +544,43 @@ impl Analyzable for Declaration
 					}),
 				}
 			}
+			Declaration::Structure {
+				name,
+				members,
+				structural_type,
+				flags,
+			} =>
+			{
+				analyzer.push_scope();
+				let members: Vec<Member> =
+					members.into_iter().map(|x| x.analyze(analyzer)).collect();
+				analyzer.pop_scope();
+				// Declare the struct after analyzing its definition,
+				// to disallow reflexive definitions.
+				let name = analyzer.declare_struct(name.clone());
+				let structural_type = structural_type.analyze(analyzer);
+				match name
+				{
+					Ok(name) => Declaration::Structure {
+						name,
+						members,
+						structural_type,
+						flags,
+					},
+					Err(Partial {
+						error,
+						partial: name,
+					}) => Declaration::Poison(Poison::Error {
+						error,
+						partial: Some(Box::new(Declaration::Structure {
+							name,
+							members,
+							structural_type,
+							flags,
+						})),
+					}),
+				}
+			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
 			Declaration::Poison(Poison::Error {
 				error,
@@ -556,6 +599,18 @@ impl Analyzable for Declaration
 			}) => self,
 			Declaration::Poison(Poison::Poisoned) => self,
 		}
+	}
+}
+
+impl Analyzable for Member
+{
+	fn analyze(self, analyzer: &mut Analyzer) -> Self
+	{
+		let name = self.name.and_then(|name| {
+			analyzer.declare_variable(name).map_err(|e| e.into())
+		});
+		let value_type = self.value_type.analyze(analyzer);
+		Member { name, value_type }
 	}
 }
 
@@ -997,7 +1052,7 @@ fn analyze_type(
 		} =>
 		{
 			let identifier = analyzer.use_struct(identifier);
-			apply_regardless(identifier, |identifier| {
+			Partial::apply_regardless(identifier, |identifier| {
 				ValueType::UnresolvedStructOrWord {
 					identifier: Some(identifier),
 				}
@@ -1010,17 +1065,29 @@ fn analyze_type(
 		ValueType::Struct {
 			identifier,
 			size_in_bytes,
-		} => Ok(ValueType::Struct {
-			identifier,
-			size_in_bytes,
-		}),
+		} =>
+		{
+			let identifier = analyzer.use_struct(identifier);
+			Partial::apply_regardless(identifier, |identifier| {
+				ValueType::Struct {
+					identifier,
+					size_in_bytes,
+				}
+			})
+		}
 		ValueType::Word {
 			identifier,
 			size_in_bytes,
-		} => Ok(ValueType::Word {
-			identifier,
-			size_in_bytes,
-		}),
+		} =>
+		{
+			let identifier = analyzer.use_struct(identifier);
+			Partial::apply_regardless(identifier, |identifier| {
+				ValueType::Word {
+					identifier,
+					size_in_bytes,
+				}
+			})
+		}
 		ValueType::Int8 => Ok(ValueType::Int8),
 		ValueType::Int16 => Ok(ValueType::Int16),
 		ValueType::Int32 => Ok(ValueType::Int32),
@@ -1038,56 +1105,42 @@ fn analyze_type(
 		ValueType::Array {
 			element_type,
 			length,
-		} => apply_regardless(
+		} => Partial::apply_regardless(
 			analyze_type(*element_type, analyzer),
 			|element_type| ValueType::Array {
 				element_type: Box::new(element_type),
 				length,
 			},
 		),
-		ValueType::Slice { element_type } => apply_regardless(
+		ValueType::Slice { element_type } => Partial::apply_regardless(
 			analyze_type(*element_type, analyzer),
 			|element_type| ValueType::Slice {
 				element_type: Box::new(element_type),
 			},
 		),
-		ValueType::EndlessArray { element_type } => apply_regardless(
+		ValueType::EndlessArray { element_type } => Partial::apply_regardless(
 			analyze_type(*element_type, analyzer),
 			|element_type| ValueType::EndlessArray {
 				element_type: Box::new(element_type),
 			},
 		),
-		ValueType::Arraylike { element_type } => apply_regardless(
+		ValueType::Arraylike { element_type } => Partial::apply_regardless(
 			analyze_type(*element_type, analyzer),
 			|element_type| ValueType::Arraylike {
 				element_type: Box::new(element_type),
 			},
 		),
-		ValueType::Pointer { deref_type } => apply_regardless(
+		ValueType::Pointer { deref_type } => Partial::apply_regardless(
 			analyze_type(*deref_type, analyzer),
 			|deref_type| ValueType::Pointer {
 				deref_type: Box::new(deref_type),
 			},
 		),
-		ValueType::View { deref_type } => apply_regardless(
+		ValueType::View { deref_type } => Partial::apply_regardless(
 			analyze_type(*deref_type, analyzer),
 			|deref_type| ValueType::View {
 				deref_type: Box::new(deref_type),
 			},
 		),
-	}
-}
-
-fn apply_regardless<T, U, F>(partiable: Partiable<T>, op: F) -> Partiable<U>
-where
-	F: FnOnce(T) -> U,
-{
-	match partiable
-	{
-		Ok(x) => Ok(op(x)),
-		Err(Partial { error, partial }) => Err(Partial {
-			error,
-			partial: op(partial),
-		}),
 	}
 }

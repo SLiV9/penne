@@ -34,6 +34,9 @@ Functionality:
 	✔	Function calls @done (2021-01-16 18:03)
 	✔	Function parameters @done (2021-01-16 18:03)
 	☐	Structs
+		☐	Allow declaring struct types in any order
+		☐	Prevent illformed recursive struct
+		☐	Determine the types of structs *before* typing statements
 	☐	Vec and String
 	✘	Explicit mutable parameters @cancelled (2022-09-03 16:04)
 	☐	Modules
@@ -75,6 +78,8 @@ Usability:
 	✔	Error recovery @done (2022-10-09 22:24)
 		☐	Better error recovery for unmatched parentheses
 		☐	Prevent duplicate "reference to undefined struct" errors?
+		☐	Better "duplicate variable" error text for parameters and members
+			And simularly MissingConstantType
 	✔	Switch to custom error printed with ariadne @done (2022-10-09 22:24)
 	☐	Debug symbols in the resulting IR/executable
 	☐	Add helpful note when trying to jump backwards

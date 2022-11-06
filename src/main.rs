@@ -396,6 +396,18 @@ fn do_main() -> Result<(), anyhow::Error>
 		if verbose
 		{
 			stdout.set_color(&colorspec_header)?;
+			writeln!(stdout, "Rebuilding {}...", filename)?;
+			let indentation = rebuilder::Indentation {
+				value: "\u{00a6}   ",
+				amount: 1,
+			};
+			let code = rebuilder::rebuild(&declarations, &indentation)?;
+			stdout.set_color(&colorspec_dump)?;
+			writeln!(stdout, "{}", code)?;
+		}
+		if verbose
+		{
+			stdout.set_color(&colorspec_header)?;
 			writeln!(stdout, "Typing {}...", filename)?;
 		}
 		let declarations = typer::analyze(declarations);

@@ -277,6 +277,30 @@ fn parse_declaration(tokens: &mut Tokens) -> Result<Declaration, Error>
 		{
 			parse_function_declaration(flags, location_of_declaration, tokens)
 		}
+		Token::Struct =>
+		{
+			parse_struct_declaration(flags, location_of_declaration, tokens)
+		}
+		Token::Word8 =>
+		{
+			parse_word_declaration(1, flags, location_of_declaration, tokens)
+		}
+		Token::Word16 =>
+		{
+			parse_word_declaration(2, flags, location_of_declaration, tokens)
+		}
+		Token::Word32 =>
+		{
+			parse_word_declaration(4, flags, location_of_declaration, tokens)
+		}
+		Token::Word64 =>
+		{
+			parse_word_declaration(8, flags, location_of_declaration, tokens)
+		}
+		Token::Word128 =>
+		{
+			parse_word_declaration(16, flags, location_of_declaration, tokens)
+		}
 		Token::DebugDollar =>
 		{
 			let (token, location) = extract("expected path", tokens)?;
@@ -360,6 +384,119 @@ fn parse_assignment_and_expression(
 	consume(Token::Assignment, "expected assignment", tokens)?;
 	let expression = parse_expression(tokens)?;
 	Ok(expression)
+}
+
+fn parse_word_declaration(
+	size_in_bytes: usize,
+	flags: EnumSet<DeclarationFlag>,
+	location_of_declaration: Location,
+	tokens: &mut Tokens,
+) -> Result<Declaration, Error>
+{
+	let name = extract_identifier("expected structure name", tokens)?;
+	let structural_type = Ok(ValueType::Word {
+		identifier: name.clone(),
+		size_in_bytes,
+	});
+	parse_rest_of_struct(
+		name,
+		structural_type,
+		flags,
+		location_of_declaration,
+		tokens,
+	)
+}
+
+fn parse_struct_declaration(
+	flags: EnumSet<DeclarationFlag>,
+	location_of_declaration: Location,
+	tokens: &mut Tokens,
+) -> Result<Declaration, Error>
+{
+	let name = extract_identifier("expected structure name", tokens)?;
+	let structural_type = Ok(ValueType::UnresolvedStructOrWord {
+		identifier: Some(name.clone()),
+	});
+	parse_rest_of_struct(
+		name,
+		structural_type,
+		flags,
+		location_of_declaration,
+		tokens,
+	)
+}
+
+fn parse_rest_of_struct(
+	name: Identifier,
+	structural_type: Poisonable<ValueType>,
+	flags: EnumSet<DeclarationFlag>,
+	location_of_declaration: Location,
+	tokens: &mut Tokens,
+) -> Result<Declaration, Error>
+{
+	match parse_struct_members(flags, location_of_declaration, tokens)
+	{
+		Ok(members) => Ok(Declaration::Structure {
+			name,
+			members,
+			structural_type,
+			flags,
+		}),
+		Err(error) => Ok(Declaration::Poison(Poison::Error {
+			error,
+			partial: Some(Box::new(Declaration::Structure {
+				name,
+				members: Vec::new(),
+				structural_type,
+				flags,
+			})),
+		})),
+	}
+}
+
+fn parse_struct_members(
+	flags: EnumSet<DeclarationFlag>,
+	location_of_declaration: Location,
+	tokens: &mut Tokens,
+) -> Result<Vec<Member>, Error>
+{
+	consume(Token::BraceLeft, "expected left brace", tokens)?;
+
+	let mut members = Vec::new();
+	loop
+	{
+		if let Some(Token::BraceRight) = peek(tokens)
+		{
+			break;
+		}
+
+		match parse_member(&flags, &location_of_declaration, tokens)
+		{
+			Ok(member) =>
+			{
+				members.push(member);
+
+				if let Some(Token::Comma) = peek(tokens)
+				{
+					tokens.pop_front();
+				}
+				else
+				{
+					// Break now, we will try to consume a right brace
+					// which will create an error.
+					break;
+				}
+			}
+			Err(error) =>
+			{
+				skip_until_next_declaration(tokens);
+				return Err(error);
+			}
+		}
+	}
+
+	consume(Token::BraceRight, "expected right brace", tokens)?;
+	Ok(members)
 }
 
 fn parse_function_declaration(
@@ -541,6 +678,27 @@ fn parse_return_type(
 			location: location_of_type.clone(),
 		})
 	}
+}
+
+fn parse_member(
+	flags: &EnumSet<DeclarationFlag>,
+	location_of_declaration: &Location,
+	tokens: &mut Tokens,
+) -> Result<Member, Error>
+{
+	let name = extract_identifier("expected member name", tokens)?;
+	let value_type = parse_colon_and_type(
+		flags,
+		&name.location,
+		location_of_declaration,
+		tokens,
+		false,
+	);
+
+	Ok(Member {
+		name: Ok(name),
+		value_type,
+	})
 }
 
 fn parse_parameter(

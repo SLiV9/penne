@@ -240,6 +240,33 @@ impl Resolvable for Declaration
 					flags,
 				})
 			}
+			Declaration::Structure {
+				name,
+				members,
+				structural_type,
+				flags,
+			} =>
+			{
+				let (name, members, structural_type) =
+					(name, members, structural_type).resolve()?;
+				match structural_type
+				{
+					resolved::ValueType::Struct {
+						identifier: _,
+						size_in_bytes,
+					} => assert!(size_in_bytes > 0),
+					resolved::ValueType::Word {
+						identifier: _,
+						size_in_bytes,
+					} => assert!(size_in_bytes > 0),
+					_ => unreachable!(),
+				}
+				Ok(resolved::Declaration::Structure {
+					name,
+					members,
+					flags,
+				})
+			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
 			Declaration::Poison(poison) => match poison.resolve()
 			{
@@ -247,6 +274,17 @@ impl Resolvable for Declaration
 				Err(e) => Err(e),
 			},
 		}
+	}
+}
+
+impl Resolvable for Member
+{
+	type Item = resolved::Member;
+
+	fn resolve(self) -> Result<Self::Item, Errors>
+	{
+		let (name, value_type) = (self.name, self.value_type).resolve()?;
+		Ok(resolved::Member { name, value_type })
 	}
 }
 

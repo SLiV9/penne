@@ -43,6 +43,20 @@ pub enum Declaration
 		return_type: Option<ValueType>,
 		flags: EnumSet<DeclarationFlag>,
 	},
+	Structure
+	{
+		name: Identifier,
+		members: Vec<Member>,
+		flags: EnumSet<DeclarationFlag>,
+	},
+}
+
+#[must_use]
+#[derive(Debug, Clone)]
+pub struct Member
+{
+	pub name: Identifier,
+	pub value_type: ValueType,
 }
 
 #[must_use]

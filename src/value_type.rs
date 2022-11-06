@@ -121,6 +121,55 @@ where
 		}
 	}
 
+	pub fn known_aligned_size_in_bytes(&self) -> Option<usize>
+	{
+		match self
+		{
+			ValueType::Int8 => Some(1),
+			ValueType::Int16 => Some(2),
+			ValueType::Int32 => Some(4),
+			ValueType::Int64 => Some(8),
+			ValueType::Int128 => Some(16),
+			ValueType::Uint8 => Some(1),
+			ValueType::Uint16 => Some(2),
+			ValueType::Uint32 => Some(4),
+			ValueType::Uint64 => Some(8),
+			ValueType::Uint128 => Some(16),
+			ValueType::Usize =>
+			{
+				// TODO think about this again
+				Some(8)
+			}
+			ValueType::Bool => Some(1),
+			ValueType::Char => None,
+			ValueType::String => None,
+			ValueType::Array {
+				element_type,
+				length,
+			} => element_type
+				.known_aligned_size_in_bytes()
+				.and_then(|x| Some(length * x)),
+			ValueType::Slice { .. } => None,
+			ValueType::EndlessArray { .. } => None,
+			ValueType::Arraylike { .. } => None,
+			ValueType::Struct {
+				identifier: _,
+				size_in_bytes,
+			} => Some(*size_in_bytes),
+			ValueType::Word {
+				identifier: _,
+				size_in_bytes,
+			} => Some(*size_in_bytes),
+			ValueType::UnresolvedStructOrWord { .. } => None,
+			ValueType::Pointer { .. } =>
+			{
+				// TODO think about this again
+				Some(8)
+			}
+			ValueType::View { .. } => None,
+		}
+	}
+
 	pub fn fixed_bit_length(&self) -> usize
 	{
 		match self
@@ -206,6 +255,26 @@ where
 			{
 				ValueType::Arraylike { element_type: b } => a.can_be_used_as(b),
 				_ => self.can_be_used_as(other),
+			},
+			ValueType::Struct {
+				identifier: a,
+				size_in_bytes: _,
+			} => match other
+			{
+				ValueType::UnresolvedStructOrWord {
+					identifier: Some(b),
+				} => a == b,
+				_ => self == other,
+			},
+			ValueType::Word {
+				identifier: a,
+				size_in_bytes: _,
+			} => match other
+			{
+				ValueType::UnresolvedStructOrWord {
+					identifier: Some(b),
+				} => a == b,
+				_ => self == other,
 			},
 			ValueType::View { deref_type: a } => match other
 			{

@@ -1,3 +1,9 @@
+word64 Position
+{
+	x: i32,
+	y: i32,
+}
+
 struct SmallVec
 {
 	buffer_is_array_with_fixed_len: [100]i32,
@@ -5,12 +11,6 @@ struct SmallVec
 	data_is_pointer_to_explicit_endless_array: &[...]i32,
 	length: usize,
 	position: Position,
-}
-
-word64 Position
-{
-	x: i32,
-	y: i32,
 }
 
 fn foo()

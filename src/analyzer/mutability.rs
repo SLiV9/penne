@@ -138,9 +138,41 @@ impl Analyzable for Declaration
 					flags,
 				}
 			}
+			Declaration::Structure {
+				name,
+				members,
+				structural_type,
+				flags,
+			} =>
+			{
+				let members =
+					members.into_iter().map(|x| x.analyze(analyzer)).collect();
+				Declaration::Structure {
+					name,
+					members,
+					structural_type,
+					flags,
+				}
+			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
 			Declaration::Poison(_) => self,
 		}
+	}
+}
+
+impl Analyzable for Member
+{
+	fn analyze(self, analyzer: &mut Analyzer) -> Self
+	{
+		match &self.name
+		{
+			Ok(name) =>
+			{
+				analyzer.declare_variable(name, true);
+			}
+			Err(_poison) => (),
+		}
+		self
 	}
 }
 

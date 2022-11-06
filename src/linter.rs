@@ -172,6 +172,12 @@ impl Lintable for Declaration
 				return_type: _,
 				flags: _,
 			} => (),
+			Declaration::Structure {
+				name: _,
+				members: _,
+				structural_type: _,
+				flags: _,
+			} => (),
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
 			Declaration::Poison(_) => (),
 		}

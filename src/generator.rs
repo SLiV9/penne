@@ -235,6 +235,15 @@ fn declare(
 
 			Ok(())
 		}
+		Declaration::Structure {
+			name,
+			members,
+			flags,
+		} =>
+		{
+			// TODO implement
+			Ok(())
+		}
 	}
 }
 
@@ -344,6 +353,15 @@ impl Generatable for Declaration
 						);
 					}
 				}
+				Ok(())
+			}
+			Declaration::Structure {
+				name,
+				members,
+				flags,
+			} =>
+			{
+				// TODO implement
 				Ok(())
 			}
 		}

@@ -297,6 +297,97 @@ impl Typer
 			.collect();
 		arguments
 	}
+
+	fn align_struct(
+		&mut self,
+		identifier: &Identifier,
+		members: &[Member],
+		structural_type: Poisonable<ValueType>,
+	) -> Poisonable<ValueType>
+	{
+		let structural_type = structural_type?;
+
+		// TODO determine alignment of struct / of its members
+		let alignment = 1;
+
+		let mut total_size_in_bytes = 0;
+		// TODO check can_be_struct_member and can_be_word_member
+		for member in members
+		{
+			match &member.value_type
+			{
+				Ok(vt) => match vt.known_aligned_size_in_bytes()
+				{
+					Some(size_in_bytes) =>
+					{
+						total_size_in_bytes += size_in_bytes;
+					}
+					None =>
+					{
+						// We do not yet have enough type information.
+						return Ok(structural_type);
+					}
+				},
+				Err(_poison) =>
+				{
+					return Err(Poison::Poisoned);
+				}
+			}
+		}
+
+		// A struct without members has to be at least 1 byte.
+		if total_size_in_bytes == 0
+		{
+			total_size_in_bytes = 1;
+		}
+
+		// Round up to the nearest alignment.
+		let aligned_size_in_bytes =
+			(total_size_in_bytes + alignment - 1) / alignment;
+
+		match structural_type
+		{
+			ValueType::Struct {
+				identifier,
+				size_in_bytes,
+			} =>
+			{
+				if size_in_bytes == aligned_size_in_bytes
+				{
+					Ok(ValueType::Struct {
+						identifier,
+						size_in_bytes,
+					})
+				}
+				else
+				{
+					unimplemented!()
+				}
+			}
+			ValueType::Word {
+				identifier,
+				size_in_bytes,
+			} =>
+			{
+				if size_in_bytes == aligned_size_in_bytes
+				{
+					Ok(ValueType::Word {
+						identifier,
+						size_in_bytes,
+					})
+				}
+				else
+				{
+					unimplemented!()
+				}
+			}
+			ValueType::UnresolvedStructOrWord { .. } => Ok(ValueType::Struct {
+				identifier: identifier.clone(),
+				size_in_bytes: aligned_size_in_bytes,
+			}),
+			_ => unreachable!(),
+		}
+	}
 }
 
 pub trait Typed
@@ -439,6 +530,38 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 				}),
 			}
 		}
+		Declaration::Structure {
+			name,
+			members,
+			structural_type,
+			flags,
+		} =>
+		{
+			let members: Vec<Member> = members
+				.into_iter()
+				.map(|x| x.clone().analyze(typer))
+				.collect();
+
+			let structural_type =
+				typer.align_struct(&name, &members, structural_type);
+			let result = typer.put_symbol(&name, Some(structural_type.clone()));
+			let structural_type = match (result, structural_type)
+			{
+				(Ok(()), structural_type) => structural_type,
+				(Err(error), Ok(structural_type)) => Err(Poison::Error {
+					error,
+					partial: Some(structural_type),
+				}),
+				(Err(_error), structural_type) => structural_type,
+			};
+
+			Declaration::Structure {
+				name,
+				members,
+				structural_type,
+				flags,
+			}
+		}
 		Declaration::PreprocessorDirective { .. } => unreachable!(),
 		Declaration::Poison(Poison::Error {
 			error,
@@ -479,6 +602,9 @@ impl Typed for Declaration
 			{
 				return_type.clone().map(|x| Ok(x))
 			}
+			Declaration::Structure {
+				structural_type, ..
+			} => Some(structural_type.clone()),
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
 			Declaration::Poison(_) => Some(Err(Poison::Poisoned)),
 		}
@@ -603,6 +729,39 @@ impl Analyzable for Declaration
 					flags,
 				}
 			}
+			Declaration::Structure {
+				name,
+				members,
+				structural_type,
+				flags,
+			} =>
+			{
+				let members: Vec<Member> = members
+					.into_iter()
+					.map(|x| x.clone().analyze(typer))
+					.collect();
+
+				let structural_type =
+					typer.align_struct(&name, &members, structural_type);
+				let result =
+					typer.put_symbol(&name, Some(structural_type.clone()));
+				let structural_type = match (result, structural_type)
+				{
+					(Ok(()), structural_type) => structural_type,
+					(Err(error), Ok(structural_type)) => Err(Poison::Error {
+						error: dbg!(error),
+						partial: Some(structural_type),
+					}),
+					(Err(_error), structural_type) => structural_type,
+				};
+
+				Declaration::Structure {
+					name,
+					members,
+					structural_type,
+					flags,
+				}
+			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
 			Declaration::Poison(Poison::Error {
 				error,
@@ -691,6 +850,30 @@ fn analyze_return_value(
 	}
 }
 
+impl Analyzable for Member
+{
+	fn analyze(self, typer: &mut Typer) -> Self
+	{
+		let value_type = match &self.name
+		{
+			Ok(name) =>
+			{
+				let value_type = self.value_type.analyze(typer);
+				match typer.put_symbol(name, Some(value_type.clone()))
+				{
+					Ok(()) => typer.get_symbol(name).unwrap_or(value_type),
+					Err(error) => Err(error.into()),
+				}
+			}
+			Err(_poison) => self.value_type,
+		};
+		Member {
+			name: self.name,
+			value_type,
+		}
+	}
+}
+
 impl Analyzable for Parameter
 {
 	fn analyze(self, typer: &mut Typer) -> Self
@@ -699,13 +882,10 @@ impl Analyzable for Parameter
 		{
 			Ok(name) =>
 			{
-				match typer.put_symbol(name, Some(self.value_type.clone()))
+				let value_type = self.value_type.analyze(typer);
+				match typer.put_symbol(name, Some(value_type.clone()))
 				{
-					Ok(()) =>
-					{
-						let value_type = typer.get_symbol(name);
-						value_type.unwrap_or(self.value_type)
-					}
+					Ok(()) => typer.get_symbol(name).unwrap_or(value_type),
 					Err(error) => Err(error.into()),
 				}
 			}
@@ -790,6 +970,7 @@ impl Analyzable for Statement
 				location,
 			} =>
 			{
+				let declared_type = declared_type.analyze(typer);
 				let recoverable_error =
 					typer.put_symbol(&name, Some(declared_type.clone()));
 				let declared_type =
@@ -861,15 +1042,16 @@ impl Analyzable for Statement
 			Statement::Declaration {
 				name,
 				value: None,
-				value_type: Some(value_type),
+				value_type: Some(declared_type),
 				location,
 			} =>
 			{
+				let declared_type = declared_type.analyze(typer);
 				let recoverable_error =
-					typer.put_symbol(&name, Some(value_type.clone()));
+					typer.put_symbol(&name, Some(declared_type.clone()));
 				let value_type = match recoverable_error
 				{
-					Ok(()) => Some(value_type),
+					Ok(()) => Some(declared_type),
 					Err(error) => Some(Err(error.into())),
 				};
 				Statement::Declaration {
@@ -2096,5 +2278,104 @@ fn coerce_for_string_literal(
 		Some(Ok(_)) => (Some(Ok(ValueType::String)), None),
 		Some(Err(_poison)) => (Some(Err(Poison::Poisoned)), None),
 		None => (None, None),
+	}
+}
+
+impl Analyzable for Poisonable<ValueType>
+{
+	fn analyze(self, typer: &mut Typer) -> Self
+	{
+		self.and_then(|x| analyze_type(x, typer).map_err(|e| e.into()))
+	}
+}
+
+fn analyze_type(
+	value_type: ValueType,
+	typer: &mut Typer,
+) -> Poisonable<ValueType>
+{
+	match value_type
+	{
+		ValueType::UnresolvedStructOrWord {
+			identifier: Some(identifier),
+		} => match typer.get_symbol(&identifier)
+		{
+			Some(result) => result,
+			None => Ok(ValueType::UnresolvedStructOrWord {
+				identifier: Some(identifier),
+			}),
+		},
+		ValueType::UnresolvedStructOrWord { identifier: None } =>
+		{
+			Ok(ValueType::UnresolvedStructOrWord { identifier: None })
+		}
+		ValueType::Struct {
+			identifier,
+			size_in_bytes,
+		} => Ok(ValueType::Struct {
+			identifier,
+			size_in_bytes,
+		}),
+		ValueType::Word {
+			identifier,
+			size_in_bytes,
+		} => Ok(ValueType::Word {
+			identifier,
+			size_in_bytes,
+		}),
+		ValueType::Int8 => Ok(ValueType::Int8),
+		ValueType::Int16 => Ok(ValueType::Int16),
+		ValueType::Int32 => Ok(ValueType::Int32),
+		ValueType::Int64 => Ok(ValueType::Int64),
+		ValueType::Int128 => Ok(ValueType::Int128),
+		ValueType::Uint8 => Ok(ValueType::Uint8),
+		ValueType::Uint16 => Ok(ValueType::Uint16),
+		ValueType::Uint32 => Ok(ValueType::Uint32),
+		ValueType::Uint64 => Ok(ValueType::Uint64),
+		ValueType::Uint128 => Ok(ValueType::Uint128),
+		ValueType::Usize => Ok(ValueType::Usize),
+		ValueType::Bool => Ok(ValueType::Bool),
+		ValueType::Char => Ok(ValueType::Char),
+		ValueType::String => Ok(ValueType::String),
+		ValueType::Array {
+			element_type,
+			length,
+		} => Poison::apply_regardless(
+			analyze_type(*element_type, typer),
+			|element_type| ValueType::Array {
+				element_type: Box::new(element_type),
+				length,
+			},
+		),
+		ValueType::Slice { element_type } => Poison::apply_regardless(
+			analyze_type(*element_type, typer),
+			|element_type| ValueType::Slice {
+				element_type: Box::new(element_type),
+			},
+		),
+		ValueType::EndlessArray { element_type } => Poison::apply_regardless(
+			analyze_type(*element_type, typer),
+			|element_type| ValueType::EndlessArray {
+				element_type: Box::new(element_type),
+			},
+		),
+		ValueType::Arraylike { element_type } => Poison::apply_regardless(
+			analyze_type(*element_type, typer),
+			|element_type| ValueType::Arraylike {
+				element_type: Box::new(element_type),
+			},
+		),
+		ValueType::Pointer { deref_type } => Poison::apply_regardless(
+			analyze_type(*deref_type, typer),
+			|deref_type| ValueType::Pointer {
+				deref_type: Box::new(deref_type),
+			},
+		),
+		ValueType::View { deref_type } => Poison::apply_regardless(
+			analyze_type(*deref_type, typer),
+			|deref_type| ValueType::View {
+				deref_type: Box::new(deref_type),
+			},
+		),
 	}
 }

@@ -129,6 +129,12 @@ impl Analyzable for Declaration
 				return_type: _,
 				flags: _,
 			} => self,
+			Declaration::Structure {
+				name: _,
+				members: _,
+				structural_type: _,
+				flags: _,
+			} => self,
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
 			Declaration::Poison(_) => self,
 		}

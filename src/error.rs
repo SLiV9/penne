@@ -73,6 +73,26 @@ pub struct Partial<T>
 	pub partial: T,
 }
 
+impl<T> Partial<T>
+{
+	pub fn apply_regardless<U, F>(
+		partiable: Partiable<T>,
+		op: F,
+	) -> Partiable<U>
+	where
+		F: FnOnce(T) -> U,
+	{
+		match partiable
+		{
+			Ok(x) => Ok(op(x)),
+			Err(Partial { error, partial }) => Err(Partial {
+				error,
+				partial: op(partial),
+			}),
+		}
+	}
+}
+
 pub type Poisonable<T> = Result<T, Poison<T>>;
 
 #[derive(Debug, Clone)]
@@ -105,6 +125,37 @@ impl<T> From<Partial<T>> for Poison<T>
 		Poison::Error {
 			error,
 			partial: Some(partial),
+		}
+	}
+}
+
+impl<T> Poison<T>
+{
+	pub fn apply_regardless<U, F>(
+		poisonable: Poisonable<T>,
+		op: F,
+	) -> Poisonable<U>
+	where
+		F: FnOnce(T) -> U,
+	{
+		match poisonable
+		{
+			Ok(x) => Ok(op(x)),
+			Err(Poison::Error {
+				error,
+				partial: Some(partial),
+			}) => Err(Poison::Error {
+				error,
+				partial: Some(op(partial)),
+			}),
+			Err(Poison::Error {
+				error,
+				partial: None,
+			}) => Err(Poison::Error {
+				error,
+				partial: None,
+			}),
+			Err(Poison::Poisoned) => Err(Poison::Poisoned),
 		}
 	}
 }

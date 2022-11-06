@@ -146,6 +146,7 @@ impl Analyzable for Declaration
 				}
 			}
 			Declaration::FunctionHead { .. } => self,
+			Declaration::Structure { .. } => self,
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
 			Declaration::Poison(Poison::Error {
 				error,

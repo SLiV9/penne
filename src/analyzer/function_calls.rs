@@ -169,6 +169,7 @@ fn declare(declaration: &Declaration, analyzer: &mut Analyzer)
 			return_type: _,
 			flags: _,
 		} => analyzer.declare_function(name, parameters),
+		Declaration::Structure { .. } => (),
 		Declaration::PreprocessorDirective { .. } => unreachable!(),
 		Declaration::Poison(Poison::Error {
 			error: _,
@@ -267,6 +268,12 @@ impl Analyzable for Declaration
 					flags,
 				}
 			}
+			Declaration::Structure {
+				name: _,
+				members: _,
+				structural_type: _,
+				flags: _,
+			} => self,
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
 			Declaration::Poison(_) => self,
 		}

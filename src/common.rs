@@ -41,6 +41,13 @@ pub enum Declaration
 		return_type: Option<ValueType>,
 		flags: EnumSet<DeclarationFlag>,
 	},
+	Structure
+	{
+		name: Identifier,
+		members: Vec<Member>,
+		structural_type: Poisonable<ValueType>,
+		flags: EnumSet<DeclarationFlag>,
+	},
 	PreprocessorDirective
 	{
 		directive: String,
@@ -55,6 +62,14 @@ pub enum DeclarationFlag
 {
 	Public,
 	External,
+}
+
+#[must_use]
+#[derive(Debug, Clone)]
+pub struct Member
+{
+	pub name: Poisonable<Identifier>,
+	pub value_type: Poisonable<ValueType>,
 }
 
 #[must_use]

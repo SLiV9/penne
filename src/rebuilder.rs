@@ -279,9 +279,106 @@ impl Rebuildable for Declaration
 				writeln!(&mut buffer, ";")?;
 				Ok(buffer)
 			}
+			Declaration::Structure {
+				name,
+				members,
+				structural_type,
+				flags,
+			} =>
+			{
+				let mut buffer = String::new();
+				write!(&mut buffer, "{}", indentation)?;
+				if flags.contains(DeclarationFlag::Public)
+				{
+					write!(&mut buffer, "pub ")?;
+				}
+				if flags.contains(DeclarationFlag::External)
+				{
+					write!(&mut buffer, "extern ")?;
+				}
+				match structural_type
+				{
+					Ok(ValueType::Struct {
+						identifier,
+						size_in_bytes: _,
+					}) =>
+					{
+						write!(&mut buffer, "struct#{}", identify(identifier))?;
+					}
+					Ok(ValueType::Word {
+						identifier,
+						size_in_bytes,
+					}) =>
+					{
+						write!(
+							&mut buffer,
+							"word{}#{}",
+							8 * size_in_bytes,
+							identify(identifier)
+						)?;
+					}
+					Ok(ValueType::UnresolvedStructOrWord {
+						identifier: Some(identifier),
+					}) =>
+					{
+						write!(
+							&mut buffer,
+							"struct#?#{}",
+							identify(identifier)
+						)?;
+					}
+					Ok(ValueType::UnresolvedStructOrWord {
+						identifier: None,
+					}) =>
+					{
+						write!(&mut buffer, "struct#?")?;
+					}
+					Ok(_other) => unreachable!(),
+					Err(_poison) =>
+					{
+						write!(
+							&mut buffer,
+							"{}",
+							structural_type
+								.rebuild(&indentation.increased())?
+						)?;
+					}
+				}
+				writeln!(&mut buffer, " {}", identify(name))?;
+				writeln!(&mut buffer, "{}{{", indentation)?;
+				for member in members
+				{
+					writeln!(
+						&mut buffer,
+						"{},",
+						member.rebuild(&indentation.increased())?
+					)?;
+				}
+				writeln!(&mut buffer, "{}}}", indentation)?;
+				Ok(buffer)
+			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
 			Declaration::Poison(poison) => poison.rebuild(indentation),
 		}
+	}
+}
+
+impl Rebuildable for Member
+{
+	fn rebuild(
+		&self,
+		indentation: &Indentation,
+	) -> Result<String, anyhow::Error>
+	{
+		let mut buffer = String::new();
+		write!(
+			&mut buffer,
+			"{}{}: {}",
+			indentation,
+			self.name.rebuild(&indentation)?,
+			self.value_type.rebuild(&indentation.increased())?
+		)?;
+		Ok(buffer)
 	}
 }
 
@@ -750,7 +847,7 @@ impl Rebuildable for ValueType
 					{
 						Ok(format!("{}#?", identify(identifier)))
 					}
-					None => Ok(format!("struct")),
+					None => Ok(format!("structure")),
 				}
 			}
 			ValueType::Pointer { deref_type } =>
