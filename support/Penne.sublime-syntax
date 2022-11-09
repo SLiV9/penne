@@ -65,7 +65,7 @@ contexts:
       scope: punctuation.definition.string.begin.penne
       push: single_quoted_string
 
-    - match: '\b((-)?[0-9.]+)({{int_suffixes}})?\b'
+    - match: '\b((-)?[0-9][.0-9]*)({{int_suffixes}})?\b'
       captures:
         1: constant.numeric.penne
         3: storage.type.penne
@@ -78,6 +78,15 @@ contexts:
 
     - match: '\b(true|false)\b'
       scope: constant.language.penne
+
+    - match: '\b([.])({{identifier}})\b'
+      captures:
+        1: punctuation.accessor.penne
+
+    - match: '\b({{identifier}})(?=\s*(\{))\b'
+      captures:
+        3: punctuation.definition.block.begin.penne
+      push: struct_initialization
 
     - match: '\b(as)\b\s*'
       scope: keyword.operator.word.penne
@@ -266,6 +275,35 @@ contexts:
         - match: ':'
           scope: punctuation.separator.penne
         - include: type
+    - match: '(?=\S)'
+      # Abort for an invalid match.
+      pop: true
+
+  struct_initialization:
+    - match: '\}'
+      scope: meta.block.penne punctuation.definition.block.end.penne
+      pop: true
+    - match: '\{'
+      scope: meta.block.penne punctuation.definition.block.begin.penne
+      push: struct_member_initialization
+    - match: '(?=\S)'
+      # Abort for an invalid match.
+      pop: true
+
+  struct_member_initialization:
+    - meta_scope: meta.block.penne
+    - match: '(?=\})'
+      pop: true
+    - include: comments
+    - match: '{{identifier}}'
+      scope: variable.other.member.penne
+      push:
+        - match: ',|(?=\})'
+          pop: true
+        - include: comments
+        - match: ':'
+          scope: punctuation.separator.penne
+        - include: expression
     - match: '(?=\S)'
       # Abort for an invalid match.
       pop: true

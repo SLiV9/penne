@@ -1,0 +1,18 @@
+word64 Position
+{
+	x: i32,
+	y: i32,
+}
+
+fn sum(pos: Position) -> i32
+{
+	return: pos.x + pos.y
+}
+
+fn main() -> i32
+{
+	var pos = Position { x: 10, y: 10 };
+	pos.y = 190;
+	var result = sum(pos);
+	return: result
+}
