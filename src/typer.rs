@@ -1380,6 +1380,9 @@ impl Typed for Expression
 				None => None,
 			},
 			Expression::StringLiteral { value_type, .. } => value_type.clone(),
+			Expression::Structural {
+				structural_type, ..
+			} => Some(structural_type.clone()),
 			Expression::Deref {
 				reference: _,
 				deref_type,
@@ -1452,7 +1455,7 @@ impl Analyzable for Expression
 				let value_type = match value_type
 				{
 					Some(Ok(vt)) => Some(Ok(vt.clone())),
-					Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
+					Some(Err(poison)) => Some(Err(poison)),
 					None =>
 					{
 						let contextual_type = typer.contextual_type.take();
@@ -1474,7 +1477,7 @@ impl Analyzable for Expression
 				let value_type = match value_type
 				{
 					Some(Ok(vt)) => Some(Ok(vt.clone())),
-					Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
+					Some(Err(poison)) => Some(Err(poison)),
 					None =>
 					{
 						let contextual_type = typer.contextual_type.take();
@@ -1586,6 +1589,11 @@ impl Analyzable for Expression
 					expr
 				}
 			}
+			Expression::Structural {
+				members,
+				structural_type,
+				location,
+			} => analyze_structural(members, structural_type, location, typer),
 			Expression::Deref {
 				reference: _,
 				deref_type: Some(_),
@@ -1688,6 +1696,102 @@ impl Analyzable for Expression
 				}
 			}
 			Expression::Poison(_) => self,
+		}
+	}
+}
+
+fn analyze_structural(
+	members: Vec<MemberExpression>,
+	structural_type: Poisonable<ValueType>,
+	location: Location,
+	typer: &mut Typer,
+) -> Expression
+{
+	match structural_type.analyze(typer)
+	{
+		Ok(structural_type) =>
+		{
+			let structure_identifier = match &structural_type
+			{
+				ValueType::Struct { identifier, .. } => identifier,
+				ValueType::Word { identifier, .. } => identifier,
+				_ => unreachable!(),
+			};
+			let members = members
+				.into_iter()
+				.map(|member| {
+					let mut contextual_type = None;
+					let (name, offset) = match member.name
+					{
+						Ok(mut name) =>
+						{
+							let offset = typer.analyze_member_access(
+								structure_identifier,
+								&mut name,
+							);
+							contextual_type = typer.get_symbol(&name);
+							match offset
+							{
+								Ok(offset) => (Ok(name), Some(offset)),
+								Err(poison) =>
+								{
+									let poison = match poison
+									{
+										Poison::Error { error, partial: _ } =>
+										{
+											Poison::Error {
+												error,
+												partial: Some(name),
+											}
+										}
+										Poison::Poisoned => Poison::Poisoned,
+									};
+									(Err(poison), None)
+								}
+							}
+						}
+						Err(poison) => (Err(poison), None),
+					};
+					typer.contextual_type = contextual_type;
+					let expression = member.expression.analyze(typer);
+					MemberExpression {
+						name,
+						offset,
+						expression,
+					}
+				})
+				.collect();
+			Expression::Structural {
+				members,
+				structural_type: Ok(structural_type),
+				location,
+			}
+		}
+		Err(poison) =>
+		{
+			let poison = match poison
+			{
+				Poison::Error {
+					error,
+					partial: Some(structural_type),
+				} => Poison::Error {
+					error,
+					partial: Some(Box::new(Expression::Structural {
+						members,
+						structural_type: Ok(structural_type),
+						location,
+					})),
+				},
+				Poison::Error {
+					error,
+					partial: None,
+				} => Poison::Error {
+					error,
+					partial: None,
+				},
+				Poison::Poisoned => Poison::Poisoned,
+			};
+			Expression::Poison(poison)
 		}
 	}
 }

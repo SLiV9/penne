@@ -84,6 +84,15 @@ pub struct Block
 
 #[must_use]
 #[derive(Debug, Clone)]
+pub struct MemberExpression
+{
+	pub name: Identifier,
+	pub offset: usize,
+	pub expression: Expression,
+}
+
+#[must_use]
+#[derive(Debug, Clone)]
 pub enum Statement
 {
 	Declaration
@@ -170,6 +179,11 @@ pub enum Expression
 		elements: Vec<Expression>,
 		element_type: ValueType,
 	},
+	Structural
+	{
+		members: Vec<MemberExpression>,
+		structural_type: ValueType,
+	},
 	Deref
 	{
 		reference: Reference,
@@ -218,7 +232,7 @@ pub enum ReferenceStep
 	},
 	Member
 	{
-		offset: i32,
+		offset: usize,
 	},
 	Autodeslice
 	{

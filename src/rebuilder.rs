@@ -692,6 +692,31 @@ impl Rebuildable for Expression
 					Ok(format!("\"{}\"", value))
 				}
 			},
+			Expression::Structural {
+				members,
+				structural_type,
+				location: _,
+			} =>
+			{
+				let mut buffer = String::new();
+				write!(
+					&mut buffer,
+					"{} {{\n",
+					structural_type.rebuild(indentation)?
+				)?;
+				for member in members
+				{
+					write!(
+						&mut buffer,
+						"{}{}: {},\n",
+						indentation.increased(),
+						member.name.rebuild(&indentation.increased())?,
+						member.expression.rebuild(&indentation.increased())?
+					)?;
+				}
+				write!(&mut buffer, "{}}}", indentation)?;
+				Ok(buffer)
+			}
 			Expression::Deref {
 				reference,
 				deref_type: None,

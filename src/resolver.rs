@@ -447,6 +447,26 @@ impl Resolvable for Comparison
 	}
 }
 
+impl Resolvable for MemberExpression
+{
+	type Item = resolved::MemberExpression;
+
+	fn resolve(self) -> Result<Self::Item, Errors>
+	{
+		let (name, expression) = (self.name, self.expression).resolve()?;
+		let offset = match self.offset
+		{
+			Some(offset) => offset,
+			None => unreachable!(),
+		};
+		Ok(resolved::MemberExpression {
+			name,
+			offset,
+			expression,
+		})
+	}
+}
+
 impl Resolvable for Expression
 {
 	type Item = resolved::Expression;
@@ -585,6 +605,21 @@ impl Resolvable for Expression
 				value_type: _,
 				location,
 			} => Err(Error::AmbiguousTypeOfStringLiteral { location })?,
+			Expression::Structural {
+				members,
+				structural_type,
+				location: _,
+			} =>
+			{
+				// If the structure itself was not found or not well-defined,
+				// there is no point in reporting about members.
+				let structural_type = structural_type.resolve()?;
+				let members = members.resolve()?;
+				Ok(resolved::Expression::Structural {
+					structural_type,
+					members,
+				})
+			}
 			Expression::Deref {
 				reference,
 				deref_type,
@@ -723,12 +758,7 @@ impl Resolvable for ReferenceStep
 			ReferenceStep::Member {
 				member: _,
 				offset: Some(offset),
-			} =>
-			{
-				assert!(offset < i32::MAX as usize);
-				let offset = offset as i32;
-				Ok(resolved::ReferenceStep::Member { offset })
-			}
+			} => Ok(resolved::ReferenceStep::Member { offset }),
 			ReferenceStep::Member {
 				member: _,
 				offset: None,

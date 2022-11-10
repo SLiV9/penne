@@ -226,6 +226,15 @@ impl Array
 
 #[must_use]
 #[derive(Debug, Clone)]
+pub struct MemberExpression
+{
+	pub name: Poisonable<Identifier>,
+	pub offset: Option<usize>,
+	pub expression: Expression,
+}
+
+#[must_use]
+#[derive(Debug, Clone)]
 pub enum Expression
 {
 	Binary
@@ -271,6 +280,12 @@ pub enum Expression
 		array: Array,
 		element_type: Option<Poisonable<ValueType>>,
 	},
+	Structural
+	{
+		members: Vec<MemberExpression>,
+		structural_type: Poisonable<ValueType>,
+		location: Location,
+	},
 	Deref
 	{
 		reference: Reference,
@@ -314,6 +329,7 @@ impl Expression
 			Expression::BitIntegerLiteral { location, .. } => location,
 			Expression::StringLiteral { location, .. } => location,
 			Expression::ArrayLiteral { array, .. } => &array.location,
+			Expression::Structural { location, .. } => location,
 			Expression::Deref { reference, .. } => &reference.location,
 			Expression::Autocoerce { expression, .. } => expression.location(),
 			Expression::PrimitiveCast { location, .. } => location,

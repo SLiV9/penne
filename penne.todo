@@ -34,6 +34,7 @@ Functionality:
 	✔	Function calls @done (2021-01-16 18:03)
 	✔	Function parameters @done (2021-01-16 18:03)
 	☐	Structs
+		☐	Struct parameters should be in views
 		☐	Allow declaring struct types in any order
 		☐	Prevent illformed recursive struct
 		☐	Determine the types of structs *before* typing statements
@@ -74,6 +75,7 @@ Linting errors:
 	☐	Var declaration with undefined value in some/all branches
 	☐	Non-extern function without body
 	☐	Returning pointer, slice or view of temporary
+	☐	Missing members in structure initialization
 
 Usability:
 	✔	Error recovery @done (2022-10-09 22:24)

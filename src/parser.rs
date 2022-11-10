@@ -1699,6 +1699,25 @@ fn parse_primary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 					return_type: None,
 				})
 			}
+			else if let Some(Token::BraceLeft) = peek(tokens)
+			{
+				let identifier = Identifier {
+					name,
+					location: location.clone(),
+					resolution_id: 0,
+					is_authoritative: false,
+				};
+				let structural_type = Ok(ValueType::UnresolvedStructOrWord {
+					identifier: Some(identifier),
+				});
+				let members = parse_body_of_structural(tokens)?;
+				let location = location.combined_with(&tokens.last_location);
+				Ok(Expression::Structural {
+					structural_type,
+					members,
+					location,
+				})
+			}
 			else
 			{
 				let reference =
@@ -1807,6 +1826,65 @@ fn parse_rest_of_array(
 	array.location = array.location.combined_with(&tokens.last_location);
 
 	Ok(array)
+}
+
+fn parse_body_of_structural(
+	tokens: &mut Tokens,
+) -> Result<Vec<MemberExpression>, Error>
+{
+	consume(Token::BraceLeft, "expected left brace", tokens)?;
+
+	if let Some(Token::BraceRight) = peek(tokens)
+	{
+		tokens.pop_front();
+		return Ok(Vec::new());
+	}
+
+	let mut members = Vec::new();
+	loop
+	{
+		let name = extract_identifier("expected member name", tokens)?;
+
+		let expression = if let Some(Token::Colon) = peek(tokens)
+		{
+			tokens.pop_front();
+
+			let expression = parse_expression(tokens)?;
+			expression
+		}
+		else
+		{
+			// Field Init Shorthand
+			let reference = Reference {
+				base: Ok(name.clone()),
+				steps: Vec::new(),
+				address_depth: 0,
+				location: name.location.clone(),
+			};
+			Expression::Deref {
+				reference,
+				deref_type: None,
+			}
+		};
+
+		members.push(MemberExpression {
+			name: Ok(name),
+			offset: None,
+			expression,
+		});
+
+		if let Some(Token::Comma) = peek(tokens)
+		{
+			tokens.pop_front();
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	consume(Token::BraceRight, "expected right brace", tokens)?;
+	Ok(members)
 }
 
 fn parse_addressed_reference(

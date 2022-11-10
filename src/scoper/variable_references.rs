@@ -872,6 +872,33 @@ impl Analyzable for Expression
 				}
 			}
 			Expression::StringLiteral { .. } => self,
+			Expression::Structural {
+				members,
+				structural_type,
+				location,
+			} =>
+			{
+				let members: Vec<MemberExpression> = members
+					.into_iter()
+					.map(|member| {
+						// TODO we could analyze name here
+						let name = member.name;
+						let offset = member.offset;
+						let expression = member.expression.analyze(analyzer);
+						MemberExpression {
+							name,
+							offset,
+							expression,
+						}
+					})
+					.collect();
+				let structural_type = structural_type.analyze(analyzer);
+				Expression::Structural {
+					members,
+					structural_type,
+					location,
+				}
+			}
 			Expression::Deref {
 				reference,
 				deref_type,

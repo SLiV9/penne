@@ -295,15 +295,7 @@ contexts:
     - match: '(?=\})'
       pop: true
     - include: comments
-    - match: '{{identifier}}'
-      scope: variable.other.member.penne
-      push:
-        - match: ',|(?=\})'
-          pop: true
-        - include: comments
-        - match: ':'
-          scope: punctuation.separator.penne
-        - include: expression
+    - include: expressions
     - match: '(?=\S)'
       # Abort for an invalid match.
       pop: true

@@ -429,6 +429,28 @@ impl Analyzable for Expression
 				}
 			}
 			Expression::StringLiteral { .. } => self,
+			Expression::Structural {
+				members,
+				structural_type,
+				location,
+			} =>
+			{
+				let members = members
+					.into_iter()
+					.map(|member| {
+						let expression = member.expression.analyze(analyzer);
+						MemberExpression {
+							expression,
+							..member
+						}
+					})
+					.collect();
+				Expression::Structural {
+					members,
+					structural_type,
+					location,
+				}
+			}
 			Expression::Autocoerce {
 				expression,
 				coerced_type,

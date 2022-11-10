@@ -521,6 +521,8 @@ where
 			ValueType::EndlessArray { .. } => false,
 			ValueType::Arraylike { .. } => false,
 			ValueType::View { .. } => false,
+			ValueType::Pointer { .. } => false,
+			ValueType::Usize { .. } => false,
 			_ => self.is_wellformed(),
 		}
 	}

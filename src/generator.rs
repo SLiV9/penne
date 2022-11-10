@@ -977,6 +977,10 @@ impl Generatable for Expression
 				}
 				Ok(global)
 			}
+			Expression::Structural {
+				structural_type,
+				members,
+			} => generate_structure_literal(structural_type, members, llvm),
 			Expression::Deref {
 				reference,
 				deref_type,
@@ -1230,30 +1234,10 @@ impl Reference
 		let id = &self.base.resolution_id;
 		if let Some(param) = llvm.local_parameters.get(id)
 		{
-			if self.steps.len() <= 1
+			match self.generate_word_deref(*param, llvm)?
 			{
-				match self.steps.iter().next()
-				{
-					None =>
-					{
-						return Ok(*param);
-					}
-					Some(ReferenceStep::Autodeslice { offset: 1 }) =>
-					{
-						let tmpname = CString::new("")?;
-						let addr = *param;
-						let value = unsafe {
-							LLVMBuildExtractValue(
-								llvm.builder,
-								addr,
-								1,
-								tmpname.as_ptr(),
-							)
-						};
-						return Ok(value);
-					}
-					Some(_) => (),
-				}
+				Some(value) => return Ok(value),
+				None => (),
 			}
 		}
 
@@ -1268,6 +1252,55 @@ impl Reference
 			unsafe { LLVMBuildLoad(llvm.builder, address, tmpname.as_ptr()) }
 		};
 		Ok(result)
+	}
+
+	fn generate_word_deref(
+		&self,
+		from: LLVMValueRef,
+		llvm: &mut Generator,
+	) -> Result<Option<LLVMValueRef>, anyhow::Error>
+	{
+		let mut value = from;
+		for step in self.steps.iter()
+		{
+			match step
+			{
+				ReferenceStep::Autodeslice { offset } =>
+				{
+					let tmpname = CString::new("")?;
+					let addr = value;
+					let offset: u8 = *offset;
+					let offset: u32 = offset.into();
+					value = unsafe {
+						LLVMBuildExtractValue(
+							llvm.builder,
+							addr,
+							offset,
+							tmpname.as_ptr(),
+						)
+					};
+				}
+				ReferenceStep::Member { offset } =>
+				{
+					let tmpname = CString::new("")?;
+					let addr = value;
+					let offset: usize = *offset;
+					let offset: u32 = offset.try_into()?;
+					value = unsafe {
+						LLVMBuildExtractValue(
+							llvm.builder,
+							addr,
+							offset,
+							tmpname.as_ptr(),
+						)
+					};
+				}
+				ReferenceStep::Element { .. } => return Ok(None),
+				ReferenceStep::Autoderef => return Ok(None),
+				ReferenceStep::Autoview => return Ok(None),
+			}
+		}
+		return Ok(Some(value));
 	}
 
 	fn generate_storage_address(
@@ -1340,7 +1373,8 @@ impl Reference
 				}
 				ReferenceStep::Member { offset } =>
 				{
-					let offset: i32 = *offset;
+					let offset: usize = *offset;
+					let offset: i32 = offset.try_into()?;
 					indices.push(llvm.const_i32(offset));
 				}
 				ReferenceStep::Autoderef | ReferenceStep::Autoview =>
@@ -1553,6 +1587,32 @@ fn generate_array_slice(
 		)
 	};
 	Ok(slice)
+}
+
+fn generate_structure_literal(
+	structural_type: &ValueType,
+	members: &[MemberExpression],
+	llvm: &mut Generator,
+) -> Result<LLVMValueRef, anyhow::Error>
+{
+	let tmpname = CString::new("")?;
+	let structure_type = structural_type.generate(llvm)?;
+	let mut structure = unsafe { LLVMGetUndef(structure_type) };
+	for member in members
+	{
+		let value = member.expression.generate(llvm)?;
+		let offset: u32 = member.offset.try_into()?;
+		structure = unsafe {
+			LLVMBuildInsertValue(
+				llvm.builder,
+				structure,
+				value,
+				offset,
+				tmpname.as_ptr(),
+			)
+		};
+	}
+	Ok(structure)
 }
 
 fn generate_autocoerce(
