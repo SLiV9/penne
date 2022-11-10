@@ -79,3 +79,12 @@ fn fail_to_resolve_invalid_casts()
 		"tests/samples/invalid/invalid_casts.pn",
 	)
 }
+
+#[test]
+fn fail_to_resolve_multiple_errors()
+{
+	compile_to_fail(
+		&[581, 581, 402, 402],
+		"tests/samples/invalid/multiple_errors.pn",
+	)
+}

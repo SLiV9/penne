@@ -136,3 +136,12 @@ fn fail_to_parse_empty_return_in_void()
 {
 	compile_to_fail(&[335], "tests/samples/invalid/empty_return_in_void.pn")
 }
+
+#[test]
+fn fail_to_parse_missing_closing_parenthesis_after_parameters()
+{
+	compile_to_fail(
+		&[300],
+		"tests/samples/invalid/missing_closing_parenthesis_after_parameters.pn",
+	)
+}

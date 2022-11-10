@@ -507,26 +507,25 @@ fn parse_function_declaration(
 {
 	let name = extract_identifier("expected function name", tokens)?;
 	consume(Token::ParenLeft, "expected left parenthesis", tokens)?;
-	let (parameters, return_type, recoverable_error) =
-		parse_rest_of_function_signature(
-			&flags,
-			location_of_declaration,
-			tokens,
-		);
-	if recoverable_error.is_some()
+	let (parameters, return_type) = parse_rest_of_function_signature(
+		&flags,
+		location_of_declaration,
+		tokens,
+	);
+	if let Some(Err(_)) = &return_type
 	{
 		skip_rest_of_function_signature(tokens);
 	}
 
-	let declaration = if peek(tokens) == Some(&Token::Semicolon)
+	if peek(tokens) == Some(&Token::Semicolon)
 	{
 		tokens.pop_front();
-		Declaration::FunctionHead {
+		Ok(Declaration::FunctionHead {
 			name,
 			parameters,
 			return_type,
 			flags,
-		}
+		})
 	}
 	else
 	{
@@ -539,21 +538,13 @@ fn parse_function_declaration(
 				Err(poison)
 			}
 		};
-		Declaration::Function {
+		Ok(Declaration::Function {
 			name,
 			parameters,
 			body,
 			return_type,
 			flags,
-		}
-	};
-	match recoverable_error
-	{
-		None => Ok(declaration),
-		Some(error) => Ok(Declaration::Poison(Poison::Error {
-			error,
-			partial: Some(Box::new(declaration)),
-		})),
+		})
 	}
 }
 
@@ -561,10 +552,8 @@ fn parse_rest_of_function_signature(
 	flags: &EnumSet<DeclarationFlag>,
 	location_of_declaration: Location,
 	tokens: &mut Tokens,
-) -> (Vec<Parameter>, Option<ValueType>, Option<Error>)
+) -> (Vec<Parameter>, Option<Poisonable<ValueType>>)
 {
-	let mut recoverable_error = None;
-
 	let mut parameters = Vec::new();
 	loop
 	{
@@ -592,9 +581,9 @@ fn parse_rest_of_function_signature(
 			}
 			Err(error) =>
 			{
-				skip_rest_of_parameters(tokens);
-				recoverable_error = Some(error);
-				break;
+				// An error during parameter parsing is indistinguishable from
+				// an error during return type parsing.
+				return (parameters, Some(Err(error.into())));
 			}
 		}
 	}
@@ -604,7 +593,10 @@ fn parse_rest_of_function_signature(
 		Ok(()) => (),
 		Err(error) =>
 		{
-			recoverable_error.get_or_insert(error);
+			// If the closing parenthesis is missing we cannot parse the
+			// return type, because any type we find might be part of
+			// an unfinished parameter.
+			return (parameters, Some(Err(error.into())));
 		}
 	}
 
@@ -614,12 +606,8 @@ fn parse_rest_of_function_signature(
 
 		match parse_return_type(&flags, &location_of_declaration, tokens)
 		{
-			Ok(value_type) => Some(value_type),
-			Err(error) =>
-			{
-				recoverable_error.get_or_insert(error);
-				None
-			}
+			Ok(return_type) => Some(Ok(return_type)),
+			Err(error) => Some(Err(error.into())),
 		}
 	}
 	else
@@ -627,7 +615,7 @@ fn parse_rest_of_function_signature(
 		None
 	};
 
-	(parameters, return_type, recoverable_error)
+	(parameters, return_type)
 }
 
 fn skip_rest_of_function_signature(tokens: &mut Tokens)
@@ -720,23 +708,6 @@ fn parse_parameter(
 		name: Ok(name),
 		value_type,
 	})
-}
-
-fn skip_rest_of_parameters(tokens: &mut Tokens)
-{
-	while let Some(token) = peek(tokens)
-	{
-		match token
-		{
-			token if can_start_declaration(token) => return,
-			Token::BraceLeft => return,
-			Token::BraceRight => return,
-			Token::Arrow => return,
-			Token::Semicolon => return,
-			_ => (),
-		}
-		tokens.pop_front();
-	}
 }
 
 fn parse_colon_and_type(

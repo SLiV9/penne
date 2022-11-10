@@ -31,14 +31,14 @@ pub enum Declaration
 		name: Identifier,
 		parameters: Vec<Parameter>,
 		body: Poisonable<FunctionBody>,
-		return_type: Option<ValueType>,
+		return_type: Option<Poisonable<ValueType>>,
 		flags: EnumSet<DeclarationFlag>,
 	},
 	FunctionHead
 	{
 		name: Identifier,
 		parameters: Vec<Parameter>,
-		return_type: Option<ValueType>,
+		return_type: Option<Poisonable<ValueType>>,
 		flags: EnumSet<DeclarationFlag>,
 	},
 	Structure

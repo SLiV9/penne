@@ -1,0 +1,5 @@
+fn foo(bar: Bar) -> i32
+{
+	var result = bar.baz;
+	return: bar.baz
+}

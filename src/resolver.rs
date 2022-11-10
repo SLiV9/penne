@@ -169,16 +169,7 @@ where
 
 	fn resolve(self) -> Result<Self::Item, Errors>
 	{
-		match self
-		{
-			Poison::Error { error, partial: _ } => Err(error.into()),
-			Poison::Poisoned =>
-			{
-				// Do not show any errors because this thing was poisoned by
-				// a different error, and cascading errors are unreliable.
-				Err(Errors { errors: Vec::new() })
-			}
-		}
+		Err(self.into())
 	}
 }
 
@@ -442,8 +433,8 @@ impl Resolvable for Comparison
 		);
 		// If the left hand size contains errors, there is not much point in
 		// reporting errors about the right side because type inference failed.
-		let left = self.left.resolve()?;
-		let right = self.right.resolve()?;
+		// On the other hand, the errors may be unrelated to type inference.
+		let (left, right) = (self.left, self.right).resolve()?;
 		// If either side contains errors, type inference will probably fail,
 		// but there is not much point in reporting that.
 		let compared_type = compared_type?;
@@ -476,9 +467,9 @@ impl Resolvable for Expression
 					resolve_binary_op_type(op, &left, &right, &location_of_op);
 				// If the left hand size contains errors, there is not much
 				// point in reporting errors about the right side because
-				// type inference failed.
-				let left = left.resolve()?;
-				let right = right.resolve()?;
+				// type inference failed. On the other hand, the errors may be
+				// unrelated to type inference.
+				let (left, right) = (left, right).resolve()?;
 				// If either side contains errors, type inference will probably
 				// fail, but there is not much point in reporting that.
 				let value_type = value_type?;
@@ -856,41 +847,8 @@ fn resolve_compared_type(
 	location_of_op: &Location,
 ) -> Result<resolved::ValueType, Errors>
 {
-	let vt = match left.value_type()
-	{
-		Some(Ok(vt)) => vt,
-		Some(Err(poison)) => return poison.resolve(),
-		None => Err(Error::AmbiguousType {
-			location: left.location().clone(),
-		})?,
-	};
-	match right.value_type()
-	{
-		Some(Ok(rvt)) if rvt == vt => (),
-		Some(Ok(rvt)) =>
-		{
-			return Err(Error::MismatchedOperandTypes {
-				type_of_left: vt,
-				type_of_right: rvt,
-				location_of_op: location_of_op.clone(),
-				location_of_left: left.location().clone(),
-				location_of_right: right.location().clone(),
-			}
-			.into())
-		}
-		Some(Err(poison)) => return poison.resolve(),
-		None => Err(Error::AmbiguousType {
-			location: right.location().clone(),
-		})?,
-	}
-
-	let value_type = analyze_operand_type(
-		vt,
-		op.valid_types(),
-		location_of_op,
-		left.location(),
-	)?;
-	Ok(value_type)
+	let vt = match_type_of_operands(left, right, location_of_op)?;
+	analyze_operand_type(vt, op.valid_types(), location_of_op, left.location())
 }
 
 const VALID_TYPES_FOR_EQUALITY: &'static [OperandValueType] = &[
@@ -942,6 +900,47 @@ impl ComparisonOp
 	}
 }
 
+fn match_type_of_operands(
+	left: &Expression,
+	right: &Expression,
+	location_of_op: &Location,
+) -> Result<common::ValueType, Errors>
+{
+	let lvt = left.value_type().transpose();
+	let rvt = right.value_type().transpose();
+	// Return errors for both operands if they were found in earlier stages.
+	let (lvt, rvt) = match (lvt, rvt)
+	{
+		(Err(left), Err(right)) => Err((left, right))?,
+		(Err(poison), Ok(_)) => Err(poison)?,
+		(Ok(_), Err(poison)) => Err(poison)?,
+		(Ok(lvt), Ok(rvt)) => (lvt, rvt),
+	};
+	// Return an error if either type is ambiguous (but not both).
+	let (lvt, rvt) = match (lvt, rvt)
+	{
+		(None, _) => Err(Error::AmbiguousType {
+			location: left.location().clone(),
+		})?,
+		(_, None) => Err(Error::AmbiguousType {
+			location: right.location().clone(),
+		})?,
+		(Some(lvt), Some(rvt)) => (lvt, rvt),
+	};
+	// Return an error if the operand types mismatch.
+	match (lvt, rvt)
+	{
+		(vt, rvt) if rvt == vt => Ok(vt),
+		(lvt, rvt) => Err(Error::MismatchedOperandTypes {
+			type_of_left: lvt,
+			type_of_right: rvt,
+			location_of_op: location_of_op.clone(),
+			location_of_left: left.location().clone(),
+			location_of_right: right.location().clone(),
+		})?,
+	}
+}
+
 fn resolve_binary_op_type(
 	op: BinaryOp,
 	left: &Expression,
@@ -949,41 +948,8 @@ fn resolve_binary_op_type(
 	location_of_op: &Location,
 ) -> Result<resolved::ValueType, Errors>
 {
-	let vt = match left.value_type()
-	{
-		Some(Ok(vt)) => vt,
-		Some(Err(poison)) => return poison.resolve(),
-		None => Err(Error::AmbiguousType {
-			location: left.location().clone(),
-		})?,
-	};
-	match right.value_type()
-	{
-		Some(Ok(rvt)) if rvt == vt => (),
-		Some(Ok(rvt)) =>
-		{
-			return Err(Error::MismatchedOperandTypes {
-				type_of_left: vt,
-				type_of_right: rvt,
-				location_of_op: location_of_op.clone(),
-				location_of_left: left.location().clone(),
-				location_of_right: right.location().clone(),
-			}
-			.into())
-		}
-		Some(Err(poison)) => return poison.resolve(),
-		None => Err(Error::AmbiguousType {
-			location: right.location().clone(),
-		})?,
-	}
-
-	let value_type = analyze_operand_type(
-		vt,
-		op.valid_types(),
-		location_of_op,
-		left.location(),
-	)?;
-	Ok(value_type)
+	let vt = match_type_of_operands(left, right, location_of_op)?;
+	analyze_operand_type(vt, op.valid_types(), location_of_op, left.location())
 }
 
 const VALID_TYPES_FOR_ARITHMETIC: &'static [OperandValueType] = &[
@@ -1043,19 +1009,18 @@ fn resolve_unary_op_type(
 	let vt = match operand.value_type()
 	{
 		Some(Ok(vt)) => vt,
-		Some(Err(poison)) => return poison.resolve(),
+		Some(Err(poison)) => Err(poison)?,
 		None => Err(Error::AmbiguousType {
 			location: operand.location().clone(),
 		})?,
 	};
 
-	let value_type = analyze_operand_type(
+	analyze_operand_type(
 		vt,
 		op.valid_types(),
 		location_of_op,
 		operand.location(),
-	)?;
-	Ok(value_type)
+	)
 }
 
 const VALID_TYPES_FOR_NEGATIVE: &'static [OperandValueType] = &[

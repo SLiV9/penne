@@ -1,0 +1,5 @@
+fn foo() -> i32
+{
+	var x = 17i32.nonsense;
+	return: 400
+}

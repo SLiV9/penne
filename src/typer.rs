@@ -251,7 +251,7 @@ impl Typer
 				}
 				ReferenceStep::Member { member, offset } =>
 				{
-					let base = match &x
+					let structure = match &x
 					{
 						ValueType::Struct {
 							identifier,
@@ -261,16 +261,29 @@ impl Typer
 							identifier,
 							size_in_bytes: _,
 						} => identifier,
+						ValueType::UnresolvedStructOrWord {
+							identifier: Some(_),
+						} => return Some(Err(Poison::Poisoned)),
+						ValueType::UnresolvedStructOrWord {
+							identifier: None,
+						} => return None,
 						_ =>
 						{
-							// If we failed to resolve the structure type,
-							// we cannot know the type of its members.
-							return None;
+							// TODO use num_step_taken to cut off reference
+							let _ = num_steps_taken;
+							let location = reference.location.clone();
+							let error = Error::NotAStructure {
+								current_type: x,
+								location,
+								previous: old_identifier.location.clone(),
+							};
+							reference.base = Err(error.into());
+							return Some(Err(Poison::Poisoned));
 						}
 					};
 					// Set resolution id and offset now, because we could
 					// not know the type of this structure during scoping.
-					match self.analyze_member_access(&base, member)
+					match self.analyze_member_access(&structure, member)
 					{
 						Ok(i) =>
 						{
@@ -278,15 +291,15 @@ impl Typer
 						}
 						Err(poison) =>
 						{
-							let poison = match poison
+							reference.base = match poison
 							{
 								Poison::Error { error, partial: _ } =>
 								{
-									error.into()
+									Err(error.into())
 								}
-								Poison::Poisoned => Poison::Poisoned,
+								Poison::Poisoned => Err(Poison::Poisoned),
 							};
-							return Some(Err(poison));
+							return Some(Err(Poison::Poisoned));
 						}
 					};
 					// Once we have scoped the member, we can get its type.
@@ -304,7 +317,7 @@ impl Typer
 						}
 						None =>
 						{
-							return None;
+							return Some(Err(Poison::Poisoned));
 						}
 					}
 				}
@@ -587,7 +600,7 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 			typer.declare_function_parameters(&name, &parameters);
 
 			let rv_identifier = name.return_value();
-			let rv_type = return_type.clone().map(|x| Ok(x));
+			let rv_type = return_type.clone();
 			match typer.put_symbol(&rv_identifier, rv_type)
 			{
 				Ok(()) => Declaration::Function {
@@ -622,7 +635,7 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 			typer.declare_function_parameters(&name, &parameters);
 
 			let rv_identifier = name.return_value();
-			let rv_type = return_type.clone().map(|x| Ok(x));
+			let rv_type = return_type.clone();
 			match typer.put_symbol(&rv_identifier, rv_type)
 			{
 				Ok(()) => Declaration::FunctionHead {
@@ -712,10 +725,10 @@ impl Typed for Declaration
 			{
 				Some(value_type.clone())
 			}
-			Declaration::Function { return_type, .. }
-			| Declaration::FunctionHead { return_type, .. } =>
+			Declaration::Function { return_type, .. } => return_type.clone(),
+			Declaration::FunctionHead { return_type, .. } =>
 			{
-				return_type.clone().map(|x| Ok(x))
+				return_type.clone()
 			}
 			Declaration::Structure {
 				structural_type, ..
@@ -790,41 +803,30 @@ impl Analyzable for Declaration
 				// Pre-analyze the function body because it might contain
 				// untyped declarations, e.g. "var x;", whose types won't be
 				// determined in the first pass.
-				typer.contextual_type = return_type.clone().map(|x| Ok(x));
+				typer.contextual_type = return_type.clone();
 				let prebody: FunctionBody = body.clone().analyze(typer);
 				// Pre-analyze the statements in reverse, because there might
 				// be chains of untyped declarations, e.g.
 				//   var x = 1;
 				//   var y = x;
 				// whose types won't be determined in the forward pass.
-				typer.contextual_type = return_type.clone().map(|x| Ok(x));
+				typer.contextual_type = return_type.clone();
 				for statement in prebody.statements.into_iter().rev()
 				{
 					let _unused: Statement = statement.analyze(typer);
 				}
 
-				typer.contextual_type = return_type.clone().map(|x| Ok(x));
+				typer.contextual_type = return_type.clone();
 				let body = body.analyze(typer);
 
-				match analyze_return_value(&name, &return_type, &body, typer)
-				{
-					Ok(()) => Declaration::Function {
-						name,
-						parameters,
-						body: Ok(body),
-						return_type,
-						flags,
-					},
-					Err(error) => Declaration::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(Declaration::Function {
-							name,
-							parameters,
-							body: Ok(body),
-							return_type,
-							flags,
-						})),
-					}),
+				let return_type =
+					analyze_return_value(&name, return_type, &body, typer);
+				Declaration::Function {
+					name,
+					parameters,
+					body: Ok(body),
+					return_type,
+					flags,
 				}
 			}
 			Declaration::FunctionHead {
@@ -873,19 +875,24 @@ impl Analyzable for Declaration
 
 fn analyze_return_value(
 	function: &Identifier,
-	return_type: &Option<ValueType>,
+	return_type: Option<Poisonable<ValueType>>,
 	body: &FunctionBody,
 	typer: &mut Typer,
-) -> Result<(), Error>
+) -> Option<Poisonable<ValueType>>
 {
-	match (return_type, &body.return_value, body.value_type())
+	let return_type = match return_type.transpose()
 	{
-		(_, _, Some(Err(_poison))) =>
-		{
-			// This error will already be thrown by the body.
-			Ok(())
-		}
-		(Some(rt), Some(_), Some(Ok(vt))) =>
+		Ok(x) => x,
+		Err(poison) => return Some(Err(poison)),
+	};
+	let body_value_type = match body.value_type().transpose()
+	{
+		Ok(x) => x,
+		Err(_poison) => return Some(Err(Poison::Poisoned)),
+	};
+	let result = match (&return_type, &body.return_value, body_value_type)
+	{
+		(Some(rt), Some(_), Some(vt)) =>
 		{
 			let rv_identifier = function.return_value().inferred();
 			match typer.put_symbol(&rv_identifier, Some(Ok(vt)))
@@ -918,7 +925,7 @@ fn analyze_return_value(
 			location: body.return_value_identifier.location.clone(),
 			location_of_declaration: function.location.clone(),
 		}),
-		(None, Some(_), Some(Ok(rvt))) => Err(Error::MissingReturnType {
+		(None, Some(_), Some(rvt)) => Err(Error::MissingReturnType {
 			inferred_type: rvt.clone(),
 			location_of_return_value: body
 				.return_value_identifier
@@ -933,8 +940,13 @@ fn analyze_return_value(
 				.clone(),
 			location_of_declaration: function.location.clone(),
 		}),
-		(None, None, Some(Ok(_))) => unreachable!(),
+		(None, None, Some(_)) => unreachable!(),
 		(None, None, None) => Ok(()),
+	};
+	match result
+	{
+		Ok(()) => Ok(return_type).transpose(),
+		Err(error) => Some(Err(error.into())),
 	}
 }
 
@@ -1989,19 +2001,21 @@ impl Reference
 				let deref_type = base_type.clone();
 				self.simple_deref(base_type, deref_type, typer)
 			}
-			(Some(Err(Poison::Error { error, partial })), _, _) =>
+			(Some(Err(base_type_poison)), _, _) =>
 			{
 				// Keep the error.
-				Expression::Deref {
-					reference: self,
-					deref_type: Some(Err(Poison::Error { error, partial })),
-				}
-			}
-			(Some(Err(Poison::Poisoned)), _, _) =>
-			{
-				let base_type = Some(Err(Poison::Poisoned));
-				let deref_type = base_type.clone();
-				self.simple_deref(base_type, deref_type, typer)
+				let poison = match base_type_poison
+				{
+					Poison::Error { error, partial: _ } => Poison::Error {
+						error,
+						partial: Some(Box::new(Expression::Deref {
+							reference: self,
+							deref_type: Some(Err(Poison::Poisoned)),
+						})),
+					},
+					Poison::Poisoned => Poison::Poisoned,
+				};
+				Expression::Poison(poison)
 			}
 			(None, deref_type, _) =>
 			{
@@ -2235,11 +2249,6 @@ impl Reference
 				)
 				| (
 					ValueType::Word { .. },
-					_,
-					Some(ReferenceStep::Member { member, offset }),
-				)
-				| (
-					ValueType::UnresolvedStructOrWord { .. },
 					_,
 					Some(ReferenceStep::Member { member, offset }),
 				) =>
@@ -2491,13 +2500,23 @@ fn analyze_type(
 	{
 		ValueType::UnresolvedStructOrWord {
 			identifier: Some(identifier),
-		} => match typer.get_symbol(&identifier)
+		} =>
 		{
-			Some(result) => result,
-			None => Ok(ValueType::UnresolvedStructOrWord {
-				identifier: Some(identifier),
-			}),
-		},
+			let current_type = ValueType::UnresolvedStructOrWord {
+				identifier: Some(identifier.clone()),
+			};
+			match typer.put_symbol(&identifier, Some(Ok(current_type)))
+			{
+				Ok(()) => match typer.get_symbol(&identifier)
+				{
+					Some(result) => result,
+					None => Ok(ValueType::UnresolvedStructOrWord {
+						identifier: Some(identifier),
+					}),
+				},
+				Err(error) => Err(error.into()),
+			}
+		}
 		ValueType::UnresolvedStructOrWord { identifier: None } =>
 		{
 			Ok(ValueType::UnresolvedStructOrWord { identifier: None })

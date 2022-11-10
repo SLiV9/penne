@@ -33,6 +33,38 @@ impl From<Error> for Errors
 	}
 }
 
+impl<T> From<Poison<T>> for Errors
+{
+	fn from(poison: Poison<T>) -> Self
+	{
+		match poison
+		{
+			Poison::Error { error, partial: _ } => error.into(),
+			Poison::Poisoned =>
+			{
+				// Do not show any errors because this thing was poisoned by
+				// a different error, and cascading errors are unreliable.
+				Errors { errors: Vec::new() }
+			}
+		}
+	}
+}
+
+impl<T1, T2> From<(T1, T2)> for Errors
+where
+	T1: Into<Errors>,
+	T2: Into<Errors>,
+{
+	fn from(ab: (T1, T2)) -> Self
+	{
+		let (a, b) = ab;
+		let mut errors = a.into();
+		let mut more = b.into();
+		errors.errors.append(&mut more.errors);
+		errors
+	}
+}
+
 impl Errors
 {
 	pub fn panic(self) -> Never
@@ -372,6 +404,12 @@ pub enum Error
 		location: Location,
 		previous: Location,
 	},
+	NotAStructure
+	{
+		current_type: ValueType,
+		location: Location,
+		previous: Location,
+	},
 	TooFewArguments
 	{
 		location: Location,
@@ -554,6 +592,7 @@ impl Error
 			Error::NotAnArray { .. } => 501,
 			Error::NotAnArrayWithLength { .. } => 502,
 			Error::IndexTypeMismatch { .. } => 503,
+			Error::NotAStructure { .. } => 506,
 			Error::TooFewArguments { .. } => 510,
 			Error::TooManyArguments { .. } => 511,
 			Error::ArgumentTypeMismatch { .. } => 512,
@@ -1462,8 +1501,9 @@ impl Error
 				location
 					.label()
 					.with_message(format!(
-						"Reference to undefined structure member named '{}'.",
-						name_of_member.fg(a)
+						"No member '{}' exists for structure '{}'.",
+						name_of_member.fg(a),
+						name_of_structure.fg(b),
 					))
 					.with_color(a),
 			)
@@ -1471,9 +1511,8 @@ impl Error
 				location_of_declaration
 					.label()
 					.with_message(format!(
-						"The structure '{}' has no member named '{}'.",
+						"The structure '{}' is defined here.",
 						name_of_structure.fg(b),
-						name_of_member.fg(a)
 					))
 					.with_color(b),
 			)
@@ -1676,6 +1715,34 @@ impl Error
 					.label()
 					.with_message(format!(
 						"Cannot take length of value of non-array type {}.",
+						show_type(current_type).fg(a)
+					))
+					.with_color(a),
+			)
+			.with_label(
+				previous
+					.label()
+					.with_message("Type previously determined here.")
+					.with_color(b),
+			)
+			.finish(),
+
+			Error::NotAStructure {
+				current_type,
+				location,
+				previous,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Conflicting types")
+			.with_label(
+				location
+					.label()
+					.with_message(format!(
+						"Cannot access member of non-structure type {}.",
 						show_type(current_type).fg(a)
 					))
 					.with_color(a),

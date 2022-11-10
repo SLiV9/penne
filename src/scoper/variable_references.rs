@@ -441,32 +441,18 @@ impl Analyzable for Declaration
 				{
 					Ok(name) =>
 					{
-						let return_type =
-							return_type.map(|x| analyze_type(x, analyzer));
-						match return_type.transpose()
-						{
-							Ok(return_type) => Declaration::Function {
-								name,
-								parameters,
-								body,
-								return_type,
-								flags,
-							},
-							Err(Partial {
-								error,
-								partial: return_type,
-							}) => Declaration::Poison(Poison::Error {
-								error,
-								partial: Some(Box::new(
-									Declaration::Function {
-										name,
-										parameters,
-										body,
-										return_type: Some(return_type),
-										flags,
-									},
-								)),
-							}),
+						let return_type = return_type.map(|x| {
+							x.and_then(|x| {
+								let return_type = analyze_type(x, analyzer)?;
+								Ok(return_type)
+							})
+						});
+						Declaration::Function {
+							name,
+							parameters,
+							body,
+							return_type,
+							flags,
 						}
 					}
 					Err(Partial {
@@ -504,30 +490,17 @@ impl Analyzable for Declaration
 				{
 					Ok(name) =>
 					{
-						let return_type =
-							return_type.map(|x| analyze_type(x, analyzer));
-						match return_type.transpose()
-						{
-							Ok(return_type) => Declaration::FunctionHead {
-								name,
-								parameters,
-								return_type,
-								flags,
-							},
-							Err(Partial {
-								error,
-								partial: return_type,
-							}) => Declaration::Poison(Poison::Error {
-								error,
-								partial: Some(Box::new(
-									Declaration::FunctionHead {
-										name,
-										parameters,
-										return_type: Some(return_type),
-										flags,
-									},
-								)),
-							}),
+						let return_type = return_type.map(|x| {
+							x.and_then(|x| {
+								let return_type = analyze_type(x, analyzer)?;
+								Ok(return_type)
+							})
+						});
+						Declaration::FunctionHead {
+							name,
+							parameters,
+							return_type,
+							flags,
 						}
 					}
 					Err(Partial {

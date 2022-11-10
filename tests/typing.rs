@@ -150,3 +150,15 @@ fn fail_to_type_word_size_exceeded()
 {
 	compile_to_fail(&[380], "tests/samples/invalid/word_size_exceeded.pn")
 }
+
+#[test]
+fn fail_to_scope_member_of_int()
+{
+	compile_to_fail(&[506], "tests/samples/invalid/member_of_int.pn")
+}
+
+#[test]
+fn fail_to_scope_member_of_int_literal()
+{
+	compile_to_fail(&[300], "tests/samples/invalid/member_of_int_literal.pn")
+}

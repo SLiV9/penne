@@ -1,0 +1,6 @@
+fn foo() -> i32
+{
+	var result: i32 = 400;
+	var x = result.foo;
+	return: result
+}

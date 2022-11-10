@@ -1,0 +1,10 @@
+word16 Bar
+{
+	a: u8,
+	b: u8,
+}
+
+fn foo(x: Bar) -> u8
+{
+	return: x.a + x.c
+}

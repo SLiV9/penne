@@ -79,3 +79,15 @@ fn fail_to_scope_outscoped_variable()
 {
 	compile_to_fail(&[402], "tests/samples/invalid/outscoped_variable.pn")
 }
+
+#[test]
+fn fail_to_scope_missing_structure()
+{
+	compile_to_fail(&[404], "tests/samples/invalid/missing_structure.pn")
+}
+
+#[test]
+fn fail_to_scope_missing_member()
+{
+	compile_to_fail(&[406], "tests/samples/invalid/missing_member.pn")
+}
