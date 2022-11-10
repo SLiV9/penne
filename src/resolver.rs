@@ -729,12 +729,19 @@ impl Resolvable for ReferenceStep
 					is_endless: is_endless.unwrap_or(false),
 				})
 			}
-			ReferenceStep::Member { member } =>
+			ReferenceStep::Member {
+				member: _,
+				offset: Some(offset),
+			} =>
 			{
-				Ok(resolved::ReferenceStep::Member {
-					member: member.resolve()?,
-				})
+				assert!(offset < i32::MAX as usize);
+				let offset = offset as i32;
+				Ok(resolved::ReferenceStep::Member { offset })
 			}
+			ReferenceStep::Member {
+				member: _,
+				offset: None,
+			} => unreachable!(),
 			ReferenceStep::Autodeslice { offset } =>
 			{
 				Ok(resolved::ReferenceStep::Autodeslice { offset })

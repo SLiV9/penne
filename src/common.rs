@@ -386,6 +386,7 @@ pub enum ReferenceStep
 	Member
 	{
 		member: Identifier,
+		offset: Option<usize>,
 	},
 	Autodeslice
 	{
@@ -403,13 +404,9 @@ impl ReferenceStep
 		{
 			ReferenceStep::Element {
 				argument: _,
-				is_endless: Some(_),
-			} => true,
-			ReferenceStep::Element {
-				argument: _,
-				is_endless: None,
-			} => false,
-			ReferenceStep::Member { member: _ } => true,
+				is_endless,
+			} => is_endless.is_some(),
+			ReferenceStep::Member { member: _, offset } => offset.is_some(),
 			ReferenceStep::Autodeslice { offset: _ } => true,
 			ReferenceStep::Autoderef => true,
 			ReferenceStep::Autoview => true,

@@ -319,6 +319,13 @@ pub enum Error
 	{
 		name: String, location: Location
 	},
+	UndefinedMember
+	{
+		name_of_member: String,
+		name_of_structure: String,
+		location: Location,
+		location_of_declaration: Location,
+	},
 	UndefinedLabel
 	{
 		name: String, location: Location
@@ -537,6 +544,7 @@ impl Error
 			Error::UndefinedFunction { .. } => 401,
 			Error::UndefinedVariable { .. } => 402,
 			Error::UndefinedStruct { .. } => 404,
+			Error::UndefinedMember { .. } => 406,
 			Error::DuplicateDeclarationLabel { .. } => 420,
 			Error::DuplicateDeclarationFunction { .. } => 421,
 			Error::DuplicateDeclarationVariable { .. } => 422,
@@ -1435,6 +1443,39 @@ impl Error
 						name.fg(a)
 					))
 					.with_color(a),
+			)
+			.finish(),
+
+			Error::UndefinedMember {
+				name_of_member,
+				name_of_structure,
+				location,
+				location_of_declaration,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Undefined member")
+			.with_label(
+				location
+					.label()
+					.with_message(format!(
+						"Reference to undefined structure member named '{}'.",
+						name_of_member.fg(a)
+					))
+					.with_color(a),
+			)
+			.with_label(
+				location_of_declaration
+					.label()
+					.with_message(format!(
+						"The structure '{}' has no member named '{}'.",
+						name_of_structure.fg(b),
+						name_of_member.fg(a)
+					))
+					.with_color(b),
 			)
 			.finish(),
 

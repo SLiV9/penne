@@ -261,6 +261,7 @@ where
 				size_in_bytes: _,
 			} => match other
 			{
+				ValueType::UnresolvedStructOrWord { identifier: None } => true,
 				ValueType::UnresolvedStructOrWord {
 					identifier: Some(b),
 				} => a == b,
@@ -271,6 +272,7 @@ where
 				size_in_bytes: _,
 			} => match other
 			{
+				ValueType::UnresolvedStructOrWord { identifier: None } => true,
 				ValueType::UnresolvedStructOrWord {
 					identifier: Some(b),
 				} => a == b,

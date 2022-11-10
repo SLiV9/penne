@@ -218,7 +218,7 @@ pub enum ReferenceStep
 	},
 	Member
 	{
-		member: Identifier,
+		offset: i32,
 	},
 	Autodeslice
 	{

@@ -1014,16 +1014,12 @@ impl Analyzable for ReferenceStep
 					is_endless,
 				}
 			}
-			ReferenceStep::Member { member } =>
+			ReferenceStep::Member { member, offset } =>
 			{
-				// TODO determine offset of member in struct
-				let offset = 0;
-				let member = Identifier {
-					resolution_id: offset,
-					is_authoritative: false,
-					..member
-				};
-				ReferenceStep::Member { member }
+				// We cannot determine the offset of this member until we
+				// have done typing, because an expression could be multiple
+				// types that have the same member name at different offsets.
+				ReferenceStep::Member { member, offset }
 			}
 			ReferenceStep::Autodeslice { .. } => self,
 			ReferenceStep::Autoderef => ReferenceStep::Autoderef,

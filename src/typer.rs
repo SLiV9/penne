@@ -19,6 +19,7 @@ pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 	let mut typer = Typer {
 		symbols: std::collections::HashMap::new(),
 		functions: std::collections::HashMap::new(),
+		structures: std::collections::HashMap::new(),
 		contextual_type: None,
 	};
 	// Predeclare all functions so that they can reference each other.
@@ -37,6 +38,7 @@ struct Typer
 {
 	symbols: std::collections::HashMap<u32, Symbol>,
 	functions: std::collections::HashMap<u32, Function>,
+	structures: std::collections::HashMap<u32, Structure>,
 	contextual_type: Option<Poisonable<ValueType>>,
 }
 
@@ -49,6 +51,12 @@ struct Symbol
 struct Function
 {
 	parameter_types: Vec<Poisonable<ValueType>>,
+}
+
+struct Structure
+{
+	identifier: Identifier,
+	members: Vec<Member>,
 }
 
 fn do_update_symbol(
@@ -185,7 +193,7 @@ impl Typer
 
 	fn get_type_of_reference(
 		&self,
-		reference: &Reference,
+		reference: &mut Reference,
 	) -> Option<Poisonable<ValueType>>
 	{
 		let resolution_id = match &reference.base
@@ -194,70 +202,125 @@ impl Typer
 			Err(_poison) => return Some(Err(Poison::Poisoned)),
 		};
 
-		if let Some(symbol) = self.symbols.get(&resolution_id)
+		let base = match self.symbols.get(&resolution_id)
 		{
-			let Symbol {
-				identifier: old_identifier,
-				value_type: base_type,
-			} = symbol;
-			let mut x = match base_type
+			Some(base) => base,
+			None => return None,
+		};
+		let Symbol {
+			identifier: old_identifier,
+			value_type: base_type,
+		} = base;
+
+		let mut x = match base_type
+		{
+			Ok(base_type) => base_type.fully_dereferenced(),
+			Err(_poison) => return Some(Err(Poison::Poisoned)),
+		};
+		let mut num_steps_taken = 0;
+		for step in &mut reference.steps
+		{
+			match step
 			{
-				Ok(base_type) => base_type.fully_dereferenced(),
-				Err(_poison) => return Some(Err(Poison::Poisoned)),
-			};
-			let mut num_steps_taken = 0;
-			for step in reference.steps.iter()
-			{
-				match step
+				ReferenceStep::Element {
+					argument: _,
+					is_endless: _,
+				} =>
 				{
-					ReferenceStep::Element {
-						argument: _,
-						is_endless: _,
-					} =>
+					match x.get_element_type()
 					{
-						match x.get_element_type()
+						Some(element_type) =>
 						{
-							Some(element_type) =>
-							{
-								x = element_type.fully_dereferenced();
-							}
-							None =>
-							{
-								// TODO use num_step_taken to cut off reference
-								let _ = num_steps_taken;
-								let location = reference.location.clone();
-								return Some(Err(Poison::Error {
-									error: Error::NotAnArray {
-										current_type: x,
-										location,
-										previous: old_identifier
-											.location
-											.clone(),
-									},
-									partial: None,
-								}));
-							}
+							x = element_type.fully_dereferenced();
+						}
+						None =>
+						{
+							// TODO use num_step_taken to cut off reference
+							let _ = num_steps_taken;
+							let location = reference.location.clone();
+							return Some(Err(Poison::Error {
+								error: Error::NotAnArray {
+									current_type: x,
+									location,
+									previous: old_identifier.location.clone(),
+								},
+								partial: None,
+							}));
 						}
 					}
-					ReferenceStep::Member { .. } => (),
-					ReferenceStep::Autodeslice { .. } => (),
-					ReferenceStep::Autoderef => (),
-					ReferenceStep::Autoview => (),
 				}
-				num_steps_taken += 1;
+				ReferenceStep::Member { member, offset } =>
+				{
+					let base = match &x
+					{
+						ValueType::Struct {
+							identifier,
+							size_in_bytes: _,
+						} => identifier,
+						ValueType::Word {
+							identifier,
+							size_in_bytes: _,
+						} => identifier,
+						_ =>
+						{
+							// If we failed to resolve the structure type,
+							// we cannot know the type of its members.
+							return None;
+						}
+					};
+					// Set resolution id and offset now, because we could
+					// not know the type of this structure during scoping.
+					match self.analyze_member_access(&base, member)
+					{
+						Ok(i) =>
+						{
+							*offset = Some(i);
+						}
+						Err(poison) =>
+						{
+							let poison = match poison
+							{
+								Poison::Error { error, partial: _ } =>
+								{
+									error.into()
+								}
+								Poison::Poisoned => Poison::Poisoned,
+							};
+							return Some(Err(poison));
+						}
+					};
+					// Once we have scoped the member, we can get its type.
+					match self.get_symbol(&member)
+					{
+						Some(Ok(member_type)) =>
+						{
+							x = member_type.fully_dereferenced();
+						}
+						Some(Err(poison)) =>
+						{
+							// TODO use num_step_taken to cut off reference
+							let _ = num_steps_taken;
+							return Some(Err(poison));
+						}
+						None =>
+						{
+							return None;
+						}
+					}
+				}
+				ReferenceStep::Autodeslice { .. } => (),
+				ReferenceStep::Autoderef => (),
+				ReferenceStep::Autoview => (),
 			}
-			for _i in 0..reference.address_depth
-			{
-				x = ValueType::Pointer {
-					deref_type: Box::new(x),
-				};
-			}
-			Some(Ok(x))
+			num_steps_taken += 1;
 		}
-		else
+		for _i in 0..reference.address_depth
 		{
-			None
+			x = ValueType::Pointer {
+				deref_type: Box::new(x),
+			};
 		}
+		Some(Ok(x))
 	}
 
 	fn declare_function_parameters(
@@ -305,13 +368,22 @@ impl Typer
 		structural_type: Poisonable<ValueType>,
 	) -> Poisonable<ValueType>
 	{
-		let structural_type = structural_type?;
+		let structure = Structure {
+			identifier: identifier.clone(),
+			members: members.to_vec(),
+		};
+		self.structures.insert(identifier.resolution_id, structure);
+
+		let structural_type = match structural_type
+		{
+			Ok(x) => x,
+			Err(error) => return Err(error),
+		};
 
 		// TODO determine alignment of struct / of its members
 		let alignment = 1;
 
 		let mut total_size_in_bytes = 0;
-		// TODO check can_be_struct_member and can_be_word_member
 		for member in members
 		{
 			match &member.value_type
@@ -393,6 +465,45 @@ impl Typer
 			_ => unreachable!(),
 		}
 	}
+
+	fn analyze_member_access(
+		&self,
+		base: &Identifier,
+		access: &mut Identifier,
+	) -> Result<usize, Poison>
+	{
+		let structure = match self.structures.get(&base.resolution_id)
+		{
+			Some(structure) => structure,
+			None => unreachable!(),
+		};
+		for (offset, member) in structure.members.iter().enumerate()
+		{
+			let name = match &member.name
+			{
+				Ok(name) => name,
+				Err(_poison) => return Err(Poison::Poisoned),
+			};
+			if name.name == access.name
+			{
+				// Set resolution id now, because we could not know the
+				// type of this structure during scoping.
+				access.resolution_id = name.resolution_id;
+
+				return Ok(offset);
+			}
+		}
+		let error = Error::UndefinedMember {
+			name_of_member: access.name.clone(),
+			name_of_structure: base.name.clone(),
+			location: access.location.clone(),
+			location_of_declaration: structure.identifier.location.clone(),
+		};
+		Err(Poison::Error {
+			error,
+			partial: None,
+		})
+	}
 }
 
 pub trait Typed
@@ -470,10 +581,8 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 			flags,
 		} =>
 		{
-			let parameters: Vec<Parameter> = parameters
-				.into_iter()
-				.map(|x| x.clone().analyze(typer))
-				.collect();
+			let parameters: Vec<Parameter> =
+				parameters.into_iter().map(|x| x.analyze(typer)).collect();
 
 			typer.declare_function_parameters(&name, &parameters);
 
@@ -507,10 +616,8 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 			flags,
 		} =>
 		{
-			let parameters: Vec<Parameter> = parameters
-				.into_iter()
-				.map(|x| x.clone().analyze(typer))
-				.collect();
+			let parameters: Vec<Parameter> =
+				parameters.into_iter().map(|x| x.analyze(typer)).collect();
 
 			typer.declare_function_parameters(&name, &parameters);
 
@@ -546,7 +653,7 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 				.into_iter()
 				.map(|x| {
 					typer.contextual_type = Some(structural_type.clone());
-					x.clone().analyze(typer)
+					x.analyze(typer)
 				})
 				.collect();
 
@@ -1095,12 +1202,12 @@ impl Analyzable for Statement
 				}
 			}
 			Statement::Assignment {
-				reference,
+				mut reference,
 				value,
 				location,
 			} =>
 			{
-				let ref_type = typer.get_type_of_reference(&reference);
+				let ref_type = typer.get_type_of_reference(&mut reference);
 				typer.contextual_type = ref_type;
 				let value = value.analyze(typer);
 				typer.contextual_type = None;
@@ -1497,10 +1604,10 @@ impl Analyzable for Expression
 					location_of_type,
 				}
 			}
-			Expression::LengthOfArray { reference } =>
+			Expression::LengthOfArray { mut reference } =>
 			{
 				let base_type = typer.get_type_of_base(&reference.base);
-				let array_type = typer.get_type_of_reference(&reference);
+				let array_type = typer.get_type_of_reference(&mut reference);
 				match array_type
 				{
 					Some(Ok(ValueType::Array { .. })) =>
@@ -1592,7 +1699,10 @@ impl Analyzable for ReferenceStep
 					is_endless,
 				}
 			}
-			ReferenceStep::Member { member: _ } => self,
+			ReferenceStep::Member {
+				member: _,
+				offset: _,
+			} => self,
 			ReferenceStep::Autodeslice { offset: _ } => self,
 			ReferenceStep::Autoderef => ReferenceStep::Autoderef,
 			ReferenceStep::Autoview => ReferenceStep::Autoview,
@@ -1601,6 +1711,7 @@ impl Analyzable for ReferenceStep
 }
 
 fn analyze_assignment_steps(
+	typer: &mut Typer,
 	base_type: ValueType,
 	previous_steps: Vec<ReferenceStep>,
 	value_type: &Option<Poisonable<ValueType>>,
@@ -1667,7 +1778,38 @@ fn analyze_assignment_steps(
 					is_endless,
 				}
 			}
-			ReferenceStep::Member { member: _ } => unimplemented!(),
+			ReferenceStep::Member { member, offset } =>
+			{
+				for _i in 0..MAX_AUTODEREF_DEPTH
+				{
+					match current_type
+					{
+						ValueType::Pointer { deref_type } =>
+						{
+							let step = ReferenceStep::Autoderef;
+							steps.push(step);
+							current_type = *deref_type;
+						}
+						ValueType::View { deref_type } =>
+						{
+							let step = ReferenceStep::Autoview;
+							steps.push(step);
+							current_type = *deref_type;
+						}
+						_ => break,
+					}
+				}
+				match typer.get_symbol(&member)
+				{
+					Some(Ok(member_type)) =>
+					{
+						current_type = member_type;
+					}
+					Some(Err(_poison)) => unreachable!(),
+					None => unreachable!(),
+				}
+				ReferenceStep::Member { member, offset }
+			}
 			ReferenceStep::Autoderef => match current_type
 			{
 				ValueType::Pointer { deref_type } =>
@@ -1767,6 +1909,7 @@ impl Reference
 		let (steps, address_depth) = match base_type
 		{
 			Some(Ok(base_type)) => analyze_assignment_steps(
+				typer,
 				base_type,
 				steps,
 				&value_type,
@@ -1797,7 +1940,7 @@ impl Reference
 
 	fn analyze_deref_expression(mut self, typer: &mut Typer) -> Expression
 	{
-		let known_type = typer.get_type_of_reference(&self);
+		let known_type = typer.get_type_of_reference(&mut self);
 		let contextual_type = typer.contextual_type.take();
 
 		self.steps = self
@@ -2085,6 +2228,37 @@ impl Reference
 					current_type = *element_type;
 				}
 
+				(
+					ValueType::Struct { .. },
+					_,
+					Some(ReferenceStep::Member { member, offset }),
+				)
+				| (
+					ValueType::Word { .. },
+					_,
+					Some(ReferenceStep::Member { member, offset }),
+				)
+				| (
+					ValueType::UnresolvedStructOrWord { .. },
+					_,
+					Some(ReferenceStep::Member { member, offset }),
+				) =>
+				{
+					let member_type = match typer.get_symbol(&member)
+					{
+						Some(Ok(member_type)) => member_type,
+						Some(Err(_)) => unreachable!(),
+						None => unreachable!(),
+					};
+					let step = ReferenceStep::Member {
+						member: member.clone(),
+						offset: offset.clone(),
+					};
+					taken_steps.push(step);
+					available_steps.next();
+					current_type = member_type;
+				}
+
 				(_, _, None) if self.address_depth >= 2 =>
 				{
 					// This is invalid, but we want a proper error, not an
@@ -2100,6 +2274,7 @@ impl Reference
 					};
 					return expr;
 				}
+
 				(ct, tt, step) => panic!(
 					"failed to autoderef {}, target type: {:?}, current type: \
 					 {:?}, available step: {:?}, ad: {:?}, taken address: {:?}",
@@ -2183,16 +2358,17 @@ fn build_type_of_ref1(
 	{
 		match step
 		{
-			ReferenceStep::Element {
-				argument: _,
-				is_endless: _,
-			} =>
+			ReferenceStep::Element { .. } =>
 			{
 				full_type = ValueType::Arraylike {
 					element_type: Box::new(full_type),
 				};
 			}
-			ReferenceStep::Member { member: _ } => unimplemented!(),
+			ReferenceStep::Member { .. } =>
+			{
+				full_type =
+					ValueType::UnresolvedStructOrWord { identifier: None };
+			}
 			ReferenceStep::Autoderef =>
 			{
 				full_type = ValueType::Pointer {

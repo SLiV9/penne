@@ -1917,14 +1917,31 @@ fn parse_rest_of_reference(
 	};
 	let mut steps = Vec::new();
 	let mut location = location;
-	while let Some(Token::BracketLeft) = peek(tokens)
+	loop
 	{
-		tokens.pop_front();
-		let argument = parse_expression(tokens)?;
-		consume(Token::BracketRight, "expected right bracket", tokens)?;
-		let step = ReferenceStep::Element {
-			argument: Box::new(argument),
-			is_endless: None,
+		let step = match peek(tokens)
+		{
+			Some(Token::BracketLeft) =>
+			{
+				tokens.pop_front();
+				let argument = parse_expression(tokens)?;
+				consume(Token::BracketRight, "expected right bracket", tokens)?;
+				ReferenceStep::Element {
+					argument: Box::new(argument),
+					is_endless: None,
+				}
+			}
+			Some(Token::Dot) =>
+			{
+				tokens.pop_front();
+				let member =
+					extract_identifier("expected member name", tokens)?;
+				ReferenceStep::Member {
+					member,
+					offset: None,
+				}
+			}
+			_ => break,
 		};
 		steps.push(step);
 		location = location.combined_with(&tokens.last_location);

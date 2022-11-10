@@ -903,9 +903,16 @@ impl Rebuildable for Reference
 					"[{}]",
 					argument.rebuild(&indentation.increased())?
 				)?,
-				ReferenceStep::Member { member } =>
+				ReferenceStep::Member { member, offset } =>
 				{
-					write!(&mut buffer, ".{}", identify(&member))?
+					if let Some(offset) = offset
+					{
+						write!(&mut buffer, ".{}_{}", offset, member.name)?;
+					}
+					else
+					{
+						write!(&mut buffer, ".{}", identify(&member))?
+					}
 				}
 				ReferenceStep::Autodeslice { offset } =>
 				{

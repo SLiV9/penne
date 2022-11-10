@@ -1338,9 +1338,9 @@ impl Reference
 					let argument: LLVMValueRef = argument.generate(llvm)?;
 					indices.push(argument)
 				}
-				ReferenceStep::Member { member } =>
+				ReferenceStep::Member { offset } =>
 				{
-					let offset: i32 = member.resolution_id.try_into()?;
+					let offset: i32 = *offset;
 					indices.push(llvm.const_i32(offset));
 				}
 				ReferenceStep::Autoderef | ReferenceStep::Autoview =>
