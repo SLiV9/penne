@@ -148,7 +148,13 @@ fn fail_to_type_endless_array_as_member()
 #[test]
 fn fail_to_type_word_size_exceeded()
 {
-	compile_to_fail(&[380], "tests/samples/invalid/word_size_exceeded.pn")
+	compile_to_fail(&[380, 380], "tests/samples/invalid/word_size_exceeded.pn")
+}
+
+#[test]
+fn fail_to_type_pointer_in_word()
+{
+	compile_to_fail(&[356], "tests/samples/invalid/pointer_in_word.pn")
 }
 
 #[test]

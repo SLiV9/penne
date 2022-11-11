@@ -50,6 +50,7 @@ struct Tokens
 {
 	tokens: VecDeque<LexedToken>,
 	last_location: Location,
+	reserved_token: Option<Token>,
 }
 
 impl From<Vec<LexedToken>> for Tokens
@@ -67,6 +68,7 @@ impl From<Vec<LexedToken>> for Tokens
 		Tokens {
 			tokens: VecDeque::from(tokens),
 			last_location,
+			reserved_token: None,
 		}
 	}
 }
@@ -106,6 +108,30 @@ impl Tokens
 			None => None,
 		}
 	}
+
+	fn with_reservation(&mut self, token: Token) -> TokenReservation
+	{
+		self.reserved_token.get_or_insert(token);
+		TokenReservation(self)
+	}
+}
+
+struct TokenReservation<'a>(&'a mut Tokens);
+
+impl<'a> AsMut<Tokens> for TokenReservation<'a>
+{
+	fn as_mut(&mut self) -> &mut Tokens
+	{
+		self.0
+	}
+}
+
+impl<'a> Drop for TokenReservation<'a>
+{
+	fn drop(&mut self)
+	{
+		self.0.reserved_token = None;
+	}
 }
 
 fn peek(tokens: &mut Tokens) -> Option<&Token>
@@ -115,7 +141,12 @@ fn peek(tokens: &mut Tokens) -> Option<&Token>
 		Some(LexedToken {
 			result: Ok(token),
 			location: _,
-		}) => Some(token),
+		}) => match &tokens.reserved_token
+		{
+			Some(x) if x == token => None,
+			Some(_) => Some(token),
+			None => Some(token),
+		},
 		Some(LexedToken {
 			result: Err(_),
 			location: _,
@@ -1035,7 +1066,13 @@ fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 		}
 		Token::If =>
 		{
-			let condition = parse_comparison(tokens)?;
+			let condition = {
+				// Parse the comparison while preventing peek() lookahead from
+				// seeing the opening brace, as this should be parsed by the
+				// "then" statement instead.
+				let mut tokens = tokens.with_reservation(Token::BraceLeft);
+				parse_comparison(tokens.as_mut())?
+			};
 			let then_stmt = parse_statement(tokens)?;
 			let then_branch = Box::new(then_stmt);
 

@@ -4,3 +4,8 @@ word32 Foo
 	b: u16,
 	c: u16,
 }
+
+word32 Bar
+{
+	a: [5]u8,
+}

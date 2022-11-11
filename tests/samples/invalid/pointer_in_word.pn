@@ -1,0 +1,5 @@
+word128 Foo
+{
+	bar: &u8,
+	baz: u32,
+}
