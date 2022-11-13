@@ -436,6 +436,10 @@ pub enum Error
 	{
 		location: Location
 	},
+	CannotCopyStruct
+	{
+		location: Location
+	},
 	NotMutable
 	{
 		location: Location,
@@ -601,6 +605,7 @@ impl Error
 			Error::CannotCopyArray { .. } => 531,
 			Error::CannotCopySlice { .. } => 532,
 			Error::AddressOfTemporaryAddress { .. } => 533,
+			Error::CannotCopyStruct { .. } => 534,
 			Error::InvalidOperandType { .. } => 550,
 			Error::MismatchedOperandTypes { .. } => 551,
 			Error::InvalidPrimitiveCast { .. } => 552,
@@ -1864,6 +1869,21 @@ impl Error
 				location
 					.label()
 					.with_message("Cannot copy this slice.")
+					.with_color(a),
+			)
+			.finish(),
+
+			Error::CannotCopyStruct { location } => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Cannot copy struct")
+			.with_label(
+				location
+					.label()
+					.with_message("Cannot copy this struct.")
 					.with_color(a),
 			)
 			.finish(),

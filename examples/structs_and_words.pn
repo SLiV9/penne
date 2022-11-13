@@ -4,7 +4,7 @@ word64 Position
 	y: i32,
 }
 
-fn sum(pos: Position) -> i32
+fn sum_of_position(pos: Position) -> i32
 {
 	return: pos.x + pos.y
 }
@@ -17,15 +17,49 @@ word128 Line
 
 fn sum_of_end_points(line: Line) -> i32
 {
-	var result = sum(line.from) + sum(line.to);
+	var result = sum_of_position(line.from) + sum_of_position(line.to);
 	return: result
+}
+
+fn sum_of_lines(lines: []Line) -> i32
+{
+	var total = 0;
+	var i = 0;
+	{
+		if i == |lines|
+			goto return;
+		total = total + sum_of_end_points(lines[i]);
+		i = i + 1;
+		loop;
+	}
+	return: total
+}
+
+struct FourLines
+{
+	lines: [4]Line,
+}
+
+fn sum_of_four_lines(four_lines: FourLines) -> i32
+{
+	return: sum_of_lines(four_lines.lines)
 }
 
 fn main() -> i32
 {
 	var from = Position { x: 10, y: 10 };
 	var line = Line { from, to: Position { x: 10, y: 0 } };
-	line.to.y = 170;
-	var result = sum_of_end_points(line);
+	line.to.y = 10;
+	var four_lines = FourLines {
+		lines: [
+			Line { from: Position { x: 0, y: 0 }, to: from },
+			line,
+			line,
+			line,
+		],
+	};
+	four_lines.lines[0].from = Position { x: 20, y: 20 };
+	four_lines.lines[3].to.y = 50;
+	var result = sum_of_four_lines(four_lines);
 	return: result
 }

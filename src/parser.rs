@@ -1798,16 +1798,15 @@ fn parse_arguments(tokens: &mut Tokens) -> Result<Vec<Expression>, Error>
 {
 	consume(Token::ParenLeft, "expected argument list", tokens)?;
 
-	if let Some(Token::ParenRight) = peek(tokens)
-	{
-		tokens.pop_front();
-		return Ok(Vec::new());
-	}
-
 	let mut arguments = Vec::new();
 
 	loop
 	{
+		if let Some(Token::ParenRight) = peek(tokens)
+		{
+			break;
+		}
+
 		let expression = parse_expression(tokens)?;
 		arguments.push(expression);
 
@@ -1871,15 +1870,14 @@ fn parse_body_of_structural(
 {
 	consume(Token::BraceLeft, "expected left brace", tokens)?;
 
-	if let Some(Token::BraceRight) = peek(tokens)
-	{
-		tokens.pop_front();
-		return Ok(Vec::new());
-	}
-
 	let mut members = Vec::new();
 	loop
 	{
+		if let Some(Token::BraceRight) = peek(tokens)
+		{
+			break;
+		}
+
 		let name = extract_identifier("expected member name", tokens)?;
 
 		let expression = if let Some(Token::Colon) = peek(tokens)

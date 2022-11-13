@@ -664,6 +664,22 @@ impl Analyzable for Expression
 							Some(Ok(vt))
 						}
 					}
+					Some(Ok(vt @ ValueType::Struct { .. })) =>
+					{
+						if !analyzer.is_immediate_function_argument
+						{
+							Some(Err(Poison::Error {
+								error: Error::CannotCopyStruct {
+									location: reference.location.clone(),
+								},
+								partial: Some(vt),
+							}))
+						}
+						else
+						{
+							Some(Ok(vt))
+						}
+					}
 					_ => deref_type,
 				};
 				let reference = reference.analyze(analyzer);

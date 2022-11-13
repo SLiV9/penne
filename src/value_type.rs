@@ -517,6 +517,7 @@ where
 	{
 		match self
 		{
+			ValueType::Array { .. } => false,
 			ValueType::Slice { .. } => false,
 			ValueType::EndlessArray { .. } => false,
 			ValueType::Arraylike { .. } => false,
@@ -567,6 +568,7 @@ where
 		match self
 		{
 			ValueType::Array { .. } => false,
+			ValueType::Struct { .. } => false,
 			_ => self.is_wellformed(),
 		}
 	}
@@ -579,6 +581,7 @@ where
 			ValueType::Slice { .. } => false,
 			ValueType::EndlessArray { .. } => false,
 			ValueType::Arraylike { .. } => false,
+			ValueType::Struct { .. } => false,
 			ValueType::View { .. } =>
 			{
 				// Maybe yes?

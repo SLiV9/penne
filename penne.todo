@@ -34,16 +34,18 @@ Functionality:
 	✔	Function calls @done (2021-01-16 18:03)
 	✔	Function parameters @done (2021-01-16 18:03)
 	☐	Structs
+		☐	Determine the types of structs *before* typing statements
 		☐	Struct parameters should be in views
+			This requires knowing whether it is a struct or a view
 		☐	Allow declaring struct types in any order
 		☐	Prevent illformed recursive struct
-		☐	Determine the types of structs *before* typing statements
 		☐	Structs should not be packed by default
 	☐	Vec and String
 	✘	Explicit mutable parameters @cancelled (2022-09-03 16:04)
 	☐	Modules
 		☐	pragma once
 		☐	Public vs private
+	☐	Heap allocation
 	☐	stdlib
 		☐	print()
 		☐	fopen(), fclose()
