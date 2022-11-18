@@ -303,6 +303,24 @@ fn execute_integer_casting() -> Result<(), anyhow::Error>
 	Ok(())
 }
 
+#[test]
+fn execute_disorganized_structures() -> Result<(), anyhow::Error>
+{
+	let result =
+		execute_calculation("tests/samples/valid/disorganized_structures.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn execute_same_size_structures() -> Result<(), anyhow::Error>
+{
+	let result =
+		execute_calculation("tests/samples/valid/same_size_structures.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
 fn execute_calculation(filename: &str) -> Result<i32, anyhow::Error>
 {
 	let source = std::fs::read_to_string(&filename)?;

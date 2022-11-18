@@ -1,0 +1,5 @@
+struct Tree
+{
+	left: &Tree,
+	right: &Tree,
+}

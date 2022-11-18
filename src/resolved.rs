@@ -48,6 +48,7 @@ pub enum Declaration
 		name: Identifier,
 		members: Vec<Member>,
 		flags: EnumSet<DeclarationFlag>,
+		size_in_bytes: usize,
 	},
 }
 

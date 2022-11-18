@@ -1,0 +1,25 @@
+fn main() -> i32
+{
+	var from = Position { x: 0, y: 0 };
+	var to = Position { x: 20, y: 180 };
+	var line = Line { from, to };
+	var x = FourLines { lines: [line, line, line, line] };
+	return: x.lines[0].from.x + x.lines[1].to.y + x.lines[3].to.x
+}
+
+struct FourLines
+{
+	lines: [4]Line,
+}
+
+word128 Line
+{
+	from: Position,
+	to: Position,
+}
+
+word64 Position
+{
+	x: i32,
+	y: i32,
+}

@@ -87,6 +87,15 @@ fn fail_to_scope_missing_structure()
 }
 
 #[test]
+fn fail_to_scope_cyclical_structures()
+{
+	compile_to_fail(
+		&[414, 414, 414],
+		"tests/samples/invalid/cyclical_structures.pn",
+	)
+}
+
+#[test]
 fn fail_to_scope_missing_member()
 {
 	compile_to_fail(&[406], "tests/samples/invalid/missing_member.pn")

@@ -240,22 +240,24 @@ impl Resolvable for Declaration
 			{
 				let (name, members, structural_type) =
 					(name, members, structural_type).resolve()?;
-				match structural_type
+				let size_in_bytes = match structural_type
 				{
-					resolved::ValueType::Struct {
-						identifier: _,
-						size_in_bytes,
-					} => assert!(size_in_bytes > 0),
-					resolved::ValueType::Word {
-						identifier: _,
-						size_in_bytes,
-					} => assert!(size_in_bytes > 0),
+					resolved::ValueType::Struct { size_in_bytes, .. } =>
+					{
+						size_in_bytes
+					}
+					resolved::ValueType::Word { size_in_bytes, .. } =>
+					{
+						size_in_bytes
+					}
 					_ => unreachable!(),
-				}
+				};
+				assert!(size_in_bytes > 0);
 				Ok(resolved::Declaration::Structure {
 					name,
 					members,
 					flags,
+					size_in_bytes,
 				})
 			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),

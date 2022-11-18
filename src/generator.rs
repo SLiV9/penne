@@ -31,7 +31,7 @@ pub fn generate(
 		generator.for_wasm()?;
 	}
 
-	for declaration in program
+	for declaration in organize(program)
 	{
 		declare(declaration, &mut generator)?;
 	}
@@ -177,6 +177,33 @@ impl Drop for Generator
 	}
 }
 
+fn organize(declarations: &[Declaration]) -> Vec<&Declaration>
+{
+	let mut declarations: Vec<&Declaration> = declarations.iter().collect();
+	// Sort structure declarations (false) before other declarations (true).
+	declarations.sort_by_key(|x| get_structure_size(x) == 0);
+	// Get the initial slice that contains all the structures.
+	let n = declarations.partition_point(|x| get_structure_size(x) > 0);
+	let structures = &mut declarations[0..n];
+	// Sort the structure declarations by their size in bytes, from low to high.
+	// Note that if structure A contains structure B somewhere in its layout,
+	// the size of A cannot possibly be less than the size of B.
+	structures.sort_by_key(|x| get_structure_size(x));
+	// Return the sorted list of declarations.
+	declarations
+}
+
+fn get_structure_size(declaration: &Declaration) -> usize
+{
+	match declaration
+	{
+		Declaration::Constant { .. } => 0,
+		Declaration::Function { .. } => 0,
+		Declaration::FunctionHead { .. } => 0,
+		Declaration::Structure { size_in_bytes, .. } => *size_in_bytes,
+	}
+}
+
 fn declare(
 	declaration: &Declaration,
 	llvm: &mut Generator,
@@ -239,6 +266,7 @@ fn declare(
 			name,
 			members,
 			flags: _,
+			size_in_bytes: _,
 		} =>
 		{
 			let name = CString::new(&name.name as &str)?;
@@ -377,6 +405,7 @@ impl Generatable for Declaration
 				name: _,
 				members: _,
 				flags: _,
+				size_in_bytes: _,
 			} =>
 			{
 				// We already declared this.

@@ -34,11 +34,11 @@ Functionality:
 	✔	Function calls @done (2021-01-16 18:03)
 	✔	Function parameters @done (2021-01-16 18:03)
 	☐	Structs
-		☐	Determine the types of structs *before* typing statements
+		✔	Determine the types of structs *before* typing statements @done (2022-11-18 15:36)
 		☐	Struct parameters should be in views
 			This requires knowing whether it is a struct or a view
-		☐	Allow declaring struct types in any order
-		☐	Prevent illformed recursive struct
+		✔	Allow declaring struct types in any order @done (2022-11-18 15:36)
+		✔	Prevent illformed recursive struct @done (2022-11-18 15:36)
 		☐	Structs should not be packed by default
 	☐	Vec and String
 	✘	Explicit mutable parameters @cancelled (2022-09-03 16:04)

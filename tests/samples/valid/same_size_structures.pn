@@ -1,0 +1,15 @@
+struct Foo
+{
+	bar: Bar,
+}
+
+struct Bar
+{
+	data: [4]i32,
+}
+
+fn main() -> i32
+{
+	var foo = Foo { bar: Bar { data: [0, 50, 100, 150] } };
+	return: foo.bar.data[1] + foo.bar.data[3]
+}
