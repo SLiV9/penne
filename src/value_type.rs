@@ -251,9 +251,40 @@ where
 	{
 		match self
 		{
+			ValueType::Array {
+				element_type: a,
+				length: la,
+			} => match other
+			{
+				ValueType::Array {
+					element_type: b,
+					length: lb,
+				} => la == lb && a.can_be_concretization_of(b),
+				_ => self.can_be_used_as(other),
+			},
 			ValueType::Slice { element_type: a } => match other
 			{
+				ValueType::Slice { element_type: b } =>
+				{
+					a.can_be_concretization_of(b)
+				}
 				ValueType::Arraylike { element_type: b } => a.can_be_used_as(b),
+				_ => self.can_be_used_as(other),
+			},
+			ValueType::EndlessArray { element_type: a } => match other
+			{
+				ValueType::EndlessArray { element_type: b } =>
+				{
+					a.can_be_concretization_of(b)
+				}
+				_ => self.can_be_used_as(other),
+			},
+			ValueType::Arraylike { element_type: a } => match other
+			{
+				ValueType::Arraylike { element_type: b } =>
+				{
+					a.can_be_concretization_of(b)
+				}
 				_ => self.can_be_used_as(other),
 			},
 			ValueType::Struct {
@@ -521,6 +552,7 @@ where
 			ValueType::Slice { .. } => false,
 			ValueType::EndlessArray { .. } => false,
 			ValueType::Arraylike { .. } => false,
+			ValueType::Struct { .. } => false,
 			ValueType::View { .. } => false,
 			ValueType::Pointer { .. } => false,
 			ValueType::Usize { .. } => false,

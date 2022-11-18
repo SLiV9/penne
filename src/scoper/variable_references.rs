@@ -13,7 +13,7 @@ pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 	let mut analyzer = Analyzer {
 		variable_stack: Vec::new(),
 		function_list: Vec::new(),
-		struct_list: Vec::new(),
+		structures: Vec::new(),
 		resolution_id: 1,
 	};
 	// Predeclare all functions so that they can reference each other.
@@ -32,8 +32,14 @@ struct Analyzer
 {
 	variable_stack: Vec<Vec<Identifier>>,
 	function_list: Vec<Identifier>,
-	struct_list: Vec<Identifier>,
+	structures: Vec<Structure>,
 	resolution_id: u32,
+}
+
+struct Structure
+{
+	identifier: Identifier,
+	contained_structure_ids: std::collections::HashSet<u32>,
 }
 
 impl Analyzer
@@ -207,10 +213,11 @@ impl Analyzer
 	) -> Partiable<Identifier>
 	{
 		let recoverable_error = self
-			.struct_list
+			.structures
 			.iter()
+			.map(|x| &x.identifier)
 			.find(|x| x.name == identifier.name)
-			.map(|previous_identifier| Error::DuplicateDeclarationStruct {
+			.map(|previous_identifier| Error::DuplicateDeclarationStructure {
 				name: identifier.name.clone(),
 				location: identifier.location.clone(),
 				previous: previous_identifier.location.clone(),
@@ -223,7 +230,10 @@ impl Analyzer
 		};
 		self.resolution_id += 1;
 
-		self.struct_list.push(identifier.clone());
+		self.structures.push(Structure {
+			identifier: identifier.clone(),
+			contained_structure_ids: Default::default(),
+		});
 
 		if let Some(error) = recoverable_error
 		{
@@ -240,8 +250,11 @@ impl Analyzer
 
 	fn use_struct(&self, identifier: Identifier) -> Partiable<Identifier>
 	{
-		if let Some(declaration_identifier) =
-			self.struct_list.iter().find(|x| x.name == identifier.name)
+		if let Some(declaration_identifier) = self
+			.structures
+			.iter()
+			.map(|x| &x.identifier)
+			.find(|x| x.name == identifier.name)
 		{
 			Ok(Identifier {
 				resolution_id: declaration_identifier.resolution_id,
@@ -252,13 +265,198 @@ impl Analyzer
 		else
 		{
 			Err(Partial {
-				error: Error::UndefinedStruct {
+				error: Error::UndefinedStructure {
 					name: identifier.name.clone(),
 					location: identifier.location.clone(),
 				},
 				partial: identifier,
 			})
 		}
+	}
+
+	fn found_structure_member(
+		&mut self,
+		name_of_structure: &Identifier,
+		name_of_member: &Identifier,
+		member_type: Poisonable<ValueType>,
+	) -> Poisonable<ValueType>
+	{
+		match member_type
+		{
+			Ok(value_type) => match value_type
+			{
+				ValueType::Int8 => Ok(value_type),
+				ValueType::Int16 => Ok(value_type),
+				ValueType::Int32 => Ok(value_type),
+				ValueType::Int64 => Ok(value_type),
+				ValueType::Int128 => Ok(value_type),
+				ValueType::Uint8 => Ok(value_type),
+				ValueType::Uint16 => Ok(value_type),
+				ValueType::Uint32 => Ok(value_type),
+				ValueType::Uint64 => Ok(value_type),
+				ValueType::Uint128 => Ok(value_type),
+				ValueType::Usize => Ok(value_type),
+				ValueType::Bool => Ok(value_type),
+				ValueType::Char => Ok(value_type),
+				ValueType::String => Ok(value_type),
+				ValueType::Array {
+					element_type,
+					length,
+				} => Poison::apply_regardless(
+					self.found_structure_member(
+						name_of_structure,
+						name_of_member,
+						Ok(*element_type),
+					),
+					|element_type| ValueType::Array {
+						element_type: Box::new(element_type),
+						length,
+					},
+				),
+				ValueType::Slice { element_type } => Poison::apply_regardless(
+					self.found_structure_member(
+						name_of_structure,
+						name_of_member,
+						Ok(*element_type),
+					),
+					|element_type| ValueType::Slice {
+						element_type: Box::new(element_type),
+					},
+				),
+				ValueType::EndlessArray { element_type } =>
+				{
+					Poison::apply_regardless(
+						self.found_structure_member(
+							name_of_structure,
+							name_of_member,
+							Ok(*element_type),
+						),
+						|element_type| ValueType::EndlessArray {
+							element_type: Box::new(element_type),
+						},
+					)
+				}
+				ValueType::Arraylike { element_type } =>
+				{
+					Poison::apply_regardless(
+						self.found_structure_member(
+							name_of_structure,
+							name_of_member,
+							Ok(*element_type),
+						),
+						|element_type| ValueType::Arraylike {
+							element_type: Box::new(element_type),
+						},
+					)
+				}
+				ValueType::Struct {
+					identifier,
+					size_in_bytes,
+				} => Poison::apply_regardless(
+					self.found_structure_member_1(
+						name_of_structure,
+						name_of_member,
+						identifier,
+					),
+					|identifier| ValueType::Struct {
+						identifier,
+						size_in_bytes,
+					},
+				),
+				ValueType::Word {
+					identifier,
+					size_in_bytes,
+				} => Poison::apply_regardless(
+					self.found_structure_member_1(
+						name_of_structure,
+						name_of_member,
+						identifier,
+					),
+					|identifier| ValueType::Word {
+						identifier,
+						size_in_bytes,
+					},
+				),
+				ValueType::UnresolvedStructOrWord {
+					identifier: Some(identifier),
+				} => Poison::apply_regardless(
+					self.found_structure_member_1(
+						name_of_structure,
+						name_of_member,
+						identifier,
+					),
+					|identifier| ValueType::UnresolvedStructOrWord {
+						identifier: Some(identifier),
+					},
+				),
+				ValueType::UnresolvedStructOrWord { identifier: None } =>
+				{
+					unreachable!()
+				}
+				ValueType::Pointer { .. } => Ok(value_type),
+				ValueType::View { .. } => Ok(value_type),
+			},
+			Err(poison) => Err(poison),
+		}
+	}
+
+	fn found_structure_member_1(
+		&mut self,
+		name_of_container: &Identifier,
+		name_of_member: &Identifier,
+		name_of_containee: Identifier,
+	) -> Poisonable<Identifier>
+	{
+		let container_id = name_of_container.resolution_id;
+		let containee_id = name_of_containee.resolution_id;
+
+		let transitive_ids = self
+			.structures
+			.iter()
+			.find(|x| x.identifier.resolution_id == containee_id)
+			.map(|x| {
+				let mut ids = x.contained_structure_ids.clone();
+				ids.insert(containee_id);
+				ids
+			})
+			.unwrap_or_else(|| unreachable!());
+
+		let mut container = self
+			.structures
+			.iter_mut()
+			.find(|x| x.identifier.resolution_id == container_id)
+			.unwrap_or_else(|| unreachable!());
+
+		if container.contained_structure_ids.contains(&container_id)
+		{
+			return Err(Poison::Poisoned);
+		}
+
+		container.contained_structure_ids =
+			&container.contained_structure_ids | &transitive_ids;
+
+		if container.contained_structure_ids.contains(&container_id)
+		{
+			return Err(Poison::Error {
+				error: Error::CyclicalStructure {
+					name: name_of_container.name.clone(),
+					location_of_member: name_of_member.location.clone(),
+					location_of_declaration: name_of_container.location.clone(),
+				},
+				partial: Some(name_of_containee),
+			});
+		}
+
+		for other in &mut self.structures
+		{
+			if other.contained_structure_ids.contains(&container_id)
+			{
+				other.contained_structure_ids =
+					&other.contained_structure_ids | &transitive_ids;
+			}
+		}
+
+		Ok(name_of_containee)
 	}
 
 	fn create_anonymous_resolution_id(&mut self) -> u32
@@ -296,7 +494,7 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 			body,
 			return_type,
 			flags,
-		} => match analyzer.declare_function(name.clone())
+		} => match analyzer.declare_function(name)
 		{
 			Ok(name) => Declaration::Function {
 				name,
@@ -324,7 +522,7 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 			parameters,
 			return_type,
 			flags,
-		} => match analyzer.declare_function(name.clone())
+		} => match analyzer.declare_function(name)
 		{
 			Ok(name) => Declaration::FunctionHead {
 				name,
@@ -345,12 +543,32 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 				})),
 			}),
 		},
-		Declaration::Structure { .. } =>
+		Declaration::Structure {
+			name,
+			members,
+			structural_type,
+			flags,
+		} => match analyzer.declare_struct(name)
 		{
-			// Structs have to be declared from top to bottom, just to avoid
-			// having to deal with cyclical definitions.
-			declaration
-		}
+			Ok(name) => Declaration::Structure {
+				name,
+				members,
+				structural_type,
+				flags,
+			},
+			Err(Partial {
+				error,
+				partial: name,
+			}) => Declaration::Poison(Poison::Error {
+				error,
+				partial: Some(Box::new(Declaration::Structure {
+					name,
+					members,
+					structural_type,
+					flags,
+				})),
+			}),
+		},
 		Declaration::PreprocessorDirective { .. } => unreachable!(),
 		Declaration::Poison(Poison::Error {
 			error,
@@ -525,33 +743,21 @@ impl Analyzable for Declaration
 			} =>
 			{
 				analyzer.push_scope();
-				let members: Vec<Member> =
-					members.into_iter().map(|x| x.analyze(analyzer)).collect();
+				let members: Vec<Member> = members
+					.into_iter()
+					.map(|x| {
+						x.analyze(analyzer)
+							.analyze_wellfoundedness(&name, analyzer)
+					})
+					.collect();
 				analyzer.pop_scope();
-				// Declare the struct after analyzing its definition,
-				// to disallow reflexive definitions.
-				let name = analyzer.declare_struct(name.clone());
+
 				let structural_type = structural_type.analyze(analyzer);
-				match name
-				{
-					Ok(name) => Declaration::Structure {
-						name,
-						members,
-						structural_type,
-						flags,
-					},
-					Err(Partial {
-						error,
-						partial: name,
-					}) => Declaration::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(Declaration::Structure {
-							name,
-							members,
-							structural_type,
-							flags,
-						})),
-					}),
+				Declaration::Structure {
+					name,
+					members,
+					structural_type,
+					flags,
 				}
 			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
@@ -584,6 +790,33 @@ impl Analyzable for Member
 		});
 		let value_type = self.value_type.analyze(analyzer);
 		Member { name, value_type }
+	}
+}
+
+impl Member
+{
+	fn analyze_wellfoundedness(
+		self,
+		name_of_structure: &Identifier,
+		analyzer: &mut Analyzer,
+	) -> Self
+	{
+		let value_type = if let Ok(name) = &self.name
+		{
+			analyzer.found_structure_member(
+				name_of_structure,
+				name,
+				self.value_type,
+			)
+		}
+		else
+		{
+			self.value_type
+		};
+		Member {
+			name: self.name,
+			value_type,
+		}
 	}
 }
 

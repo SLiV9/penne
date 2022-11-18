@@ -1,0 +1,21 @@
+struct Foo
+{
+	bar: Bar,
+}
+
+struct Bar
+{
+	baz: Baz,
+	foo: Foo,
+}
+
+struct Baz
+{
+	foo: Foo,
+}
+
+struct Tree
+{
+	left: Tree,
+	right: Tree,
+}

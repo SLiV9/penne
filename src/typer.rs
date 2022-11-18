@@ -22,8 +22,24 @@ pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 		structures: std::collections::HashMap::new(),
 		contextual_type: None,
 	};
+	// Prealign all structures so that their use as a value type is defined.
+	// Structures may be declared in any order, so aligning nested structures
+	// may take multiple steps.
+	let mut declarations = program;
+	let max_prealign_steps = declarations.len();
+	for _ in 0..max_prealign_steps
+	{
+		declarations = declarations
+			.into_iter()
+			.map(|x| prealign(x, &mut typer))
+			.collect();
+		if !declarations.iter().any(|x| needs_aligning(x))
+		{
+			break;
+		}
+	}
 	// Predeclare all functions so that they can reference each other.
-	let declarations: Vec<Declaration> = program
+	declarations = declarations
 		.into_iter()
 		.map(|x| predeclare(x, &mut typer))
 		.collect();
@@ -706,6 +722,78 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 			error: _,
 			partial: None,
 		}) => declaration,
+		Declaration::Poison(Poison::Poisoned) => declaration,
+	}
+}
+
+fn needs_aligning(declaration: &Declaration) -> bool
+{
+	match declaration
+	{
+		Declaration::Constant { .. } => false,
+		Declaration::Function { .. } => false,
+		Declaration::FunctionHead { .. } => true,
+		Declaration::Structure {
+			name: _,
+			members: _,
+			structural_type,
+			flags: _,
+		} => match structural_type
+		{
+			Ok(ValueType::UnresolvedStructOrWord { .. }) => true,
+			Ok(_) => false,
+			Err(_) => false,
+		},
+		Declaration::PreprocessorDirective { .. } => unreachable!(),
+		Declaration::Poison(Poison::Error { .. }) => false,
+		Declaration::Poison(Poison::Poisoned) => false,
+	}
+}
+
+fn prealign(declaration: Declaration, typer: &mut Typer) -> Declaration
+{
+	match declaration
+	{
+		Declaration::Constant { .. } => declaration,
+		Declaration::Function { .. } => declaration,
+		Declaration::FunctionHead { .. } => declaration,
+		Declaration::Structure {
+			name,
+			members,
+			structural_type,
+			flags,
+		} =>
+		{
+			let members: Vec<Member> = members
+				.into_iter()
+				.map(|x| {
+					typer.contextual_type = Some(structural_type.clone());
+					x.analyze(typer)
+				})
+				.collect();
+
+			let structural_type =
+				typer.align_struct(&name, &members, structural_type);
+			let result = typer.put_symbol(&name, Some(structural_type.clone()));
+			let structural_type = match (result, structural_type)
+			{
+				(Ok(()), structural_type) => structural_type,
+				(Err(error), Ok(structural_type)) => Err(Poison::Error {
+					error,
+					partial: Some(structural_type),
+				}),
+				(Err(_error), structural_type) => structural_type,
+			};
+
+			Declaration::Structure {
+				name,
+				members,
+				structural_type,
+				flags,
+			}
+		}
+		Declaration::PreprocessorDirective { .. } => unreachable!(),
+		Declaration::Poison(Poison::Error { .. }) => declaration,
 		Declaration::Poison(Poison::Poisoned) => declaration,
 	}
 }

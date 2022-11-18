@@ -327,7 +327,7 @@ pub enum Error
 		location: Location,
 		previous: Location,
 	},
-	DuplicateDeclarationStruct
+	DuplicateDeclarationStructure
 	{
 		name: String,
 		location: Location,
@@ -339,6 +339,16 @@ pub enum Error
 		location: Location,
 		previous: Location,
 	},
+	CyclicalConstant
+	{
+		name: String, location: Location
+	},
+	CyclicalStructure
+	{
+		name: String,
+		location_of_member: Location,
+		location_of_declaration: Location,
+	},
 	UndefinedVariable
 	{
 		name: String, location: Location
@@ -347,7 +357,7 @@ pub enum Error
 	{
 		name: String, location: Location
 	},
-	UndefinedStruct
+	UndefinedStructure
 	{
 		name: String, location: Location
 	},
@@ -585,13 +595,15 @@ impl Error
 			Error::UndefinedLabel { .. } => 400,
 			Error::UndefinedFunction { .. } => 401,
 			Error::UndefinedVariable { .. } => 402,
-			Error::UndefinedStruct { .. } => 404,
+			Error::UndefinedStructure { .. } => 404,
 			Error::UndefinedMember { .. } => 406,
+			Error::CyclicalConstant { .. } => 413,
+			Error::CyclicalStructure { .. } => 414,
 			Error::DuplicateDeclarationLabel { .. } => 420,
 			Error::DuplicateDeclarationFunction { .. } => 421,
 			Error::DuplicateDeclarationVariable { .. } => 422,
 			Error::DuplicateDeclarationConstant { .. } => 423,
-			Error::DuplicateDeclarationStruct { .. } => 424,
+			Error::DuplicateDeclarationStructure { .. } => 424,
 			Error::ConflictingTypes { .. } => 500,
 			Error::NotAnArray { .. } => 501,
 			Error::NotAnArrayWithLength { .. } => 502,
@@ -1380,7 +1392,7 @@ impl Error
 			)
 			.finish(),
 
-			Error::DuplicateDeclarationStruct {
+			Error::DuplicateDeclarationStructure {
 				name,
 				location,
 				previous,
@@ -1390,7 +1402,7 @@ impl Error
 				location.span.start,
 			)
 			.with_code(format!("E{}", self.code()))
-			.with_message("Duplicate struct")
+			.with_message("Duplicate structure")
 			.with_label(
 				location
 					.label()
@@ -1436,6 +1448,56 @@ impl Error
 			)
 			.finish(),
 
+			Error::CyclicalConstant { name, location } => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Cyclical definition")
+			.with_label(
+				location
+					.label()
+					.with_message(format!(
+						"The definition of constant '{}' depends on itself.",
+						name.fg(a)
+					))
+					.with_color(a),
+			)
+			.finish(),
+
+			Error::CyclicalStructure {
+				name,
+				location_of_member,
+				location_of_declaration,
+			} => Report::build(
+				ReportKind::Error,
+				&location_of_declaration.source_filename,
+				location_of_declaration.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Cyclical definition")
+			.with_label(
+				location_of_declaration
+					.label()
+					.with_message(format!(
+						"Cannot determine size of structure '{}' that \
+						 contains itself.",
+						name.fg(a)
+					))
+					.with_color(a),
+			)
+			.with_label(
+				location_of_member
+					.label()
+					.with_message(format!(
+						"This member contains '{}'.",
+						name.fg(a)
+					))
+					.with_color(b),
+			)
+			.finish(),
+
 			Error::UndefinedVariable { name, location } => Report::build(
 				ReportKind::Error,
 				&location.source_filename,
@@ -1472,7 +1534,7 @@ impl Error
 			)
 			.finish(),
 
-			Error::UndefinedStruct { name, location } => Report::build(
+			Error::UndefinedStructure { name, location } => Report::build(
 				ReportKind::Error,
 				&location.source_filename,
 				location.span.start,
@@ -1483,7 +1545,7 @@ impl Error
 				location
 					.label()
 					.with_message(format!(
-						"Reference to undefined struct named '{}'.",
+						"Reference to undefined struct or word named '{}'.",
 						name.fg(a)
 					))
 					.with_color(a),
