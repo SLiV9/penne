@@ -177,6 +177,7 @@ impl Lintable for Declaration
 				members: _,
 				structural_type: _,
 				flags: _,
+				depth: _,
 			} => (),
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
 			Declaration::Poison(_) => (),

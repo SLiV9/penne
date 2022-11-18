@@ -23,20 +23,10 @@ pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 		contextual_type: None,
 	};
 	// Prealign all structures so that their use as a value type is defined.
-	// Structures may be declared in any order, so aligning nested structures
-	// may take multiple steps.
 	let mut declarations = program;
-	let max_prealign_steps = declarations.len();
-	for _ in 0..max_prealign_steps
+	for declaration in visit_structures(&mut declarations)
 	{
-		declarations = declarations
-			.into_iter()
-			.map(|x| prealign(x, &mut typer))
-			.collect();
-		if !declarations.iter().any(|x| needs_aligning(x))
-		{
-			break;
-		}
+		prealign(declaration, &mut typer);
 	}
 	// Predeclare all functions so that they can reference each other.
 	declarations = declarations
@@ -48,6 +38,37 @@ pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 		.into_iter()
 		.map(|x| x.analyze(&mut typer))
 		.collect()
+}
+
+fn visit_structures(declarations: &mut [Declaration]) -> Vec<&mut Declaration>
+{
+	let mut declarations: Vec<&mut Declaration> = declarations
+		.iter_mut()
+		.filter(|x| get_structure_depth(x).is_some())
+		.collect();
+	// Sort structure declarations (Some) before other declarations (None),
+	// and sort the structure declarations by their depth, from low to high.
+	declarations.sort_by_key(|x| get_structure_depth(x));
+	declarations
+}
+
+fn get_structure_depth(declaration: &Declaration) -> Option<u32>
+{
+	match declaration
+	{
+		Declaration::Constant { .. } => None,
+		Declaration::Function { .. } => None,
+		Declaration::FunctionHead { .. } => None,
+		Declaration::Structure { depth, .. } => match depth
+		{
+			Some(Ok(depth)) => Some(*depth),
+			Some(Err(_poison)) => Some(0),
+			None => unreachable!(),
+		},
+		Declaration::PreprocessorDirective { .. } => unreachable!(),
+		Declaration::Poison(Poison::Error { .. }) => None,
+		Declaration::Poison(Poison::Poisoned) => None,
+	}
 }
 
 struct Typer
@@ -156,25 +177,32 @@ impl Typer
 			}
 			Some(Err(poison)) =>
 			{
-				if let Some(symbol) =
-					self.symbols.get_mut(&identifier.resolution_id)
-				{
-					symbol.value_type = Err(poison);
-					Ok(())
-				}
-				else
-				{
-					self.symbols.insert(
-						identifier.resolution_id,
-						Symbol {
-							identifier: identifier.clone(),
-							value_type: Err(poison),
-						},
-					);
-					Ok(())
-				}
+				self.poison_symbol(identifier, poison);
+				Ok(())
 			}
 			None => Ok(()),
+		}
+	}
+
+	fn poison_symbol(
+		&mut self,
+		identifier: &Identifier,
+		poison: Poison<ValueType>,
+	)
+	{
+		if let Some(symbol) = self.symbols.get_mut(&identifier.resolution_id)
+		{
+			symbol.value_type = Err(poison);
+		}
+		else
+		{
+			self.symbols.insert(
+				identifier.resolution_id,
+				Symbol {
+					identifier: identifier.clone(),
+					value_type: Err(poison),
+				},
+			);
 		}
 	}
 
@@ -676,6 +704,7 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 			members,
 			structural_type,
 			flags,
+			depth,
 		} =>
 		{
 			let members: Vec<Member> = members
@@ -704,6 +733,7 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 				members,
 				structural_type,
 				flags,
+				depth,
 			}
 		}
 		Declaration::PreprocessorDirective { .. } => unreachable!(),
@@ -726,45 +756,32 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 	}
 }
 
-fn needs_aligning(declaration: &Declaration) -> bool
+fn prealign(declaration: &mut Declaration, typer: &mut Typer)
 {
 	match declaration
 	{
-		Declaration::Constant { .. } => false,
-		Declaration::Function { .. } => false,
-		Declaration::FunctionHead { .. } => true,
+		Declaration::Constant { .. } => (),
+		Declaration::Function { .. } => (),
+		Declaration::FunctionHead { .. } => (),
 		Declaration::Structure {
-			name: _,
+			name,
 			members: _,
-			structural_type,
+			structural_type: _,
 			flags: _,
-		} => match structural_type
+			depth: Some(Err(_poison)),
+		} =>
 		{
-			Ok(ValueType::UnresolvedStructOrWord { .. }) => true,
-			Ok(_) => false,
-			Err(_) => false,
-		},
-		Declaration::PreprocessorDirective { .. } => unreachable!(),
-		Declaration::Poison(Poison::Error { .. }) => false,
-		Declaration::Poison(Poison::Poisoned) => false,
-	}
-}
-
-fn prealign(declaration: Declaration, typer: &mut Typer) -> Declaration
-{
-	match declaration
-	{
-		Declaration::Constant { .. } => declaration,
-		Declaration::Function { .. } => declaration,
-		Declaration::FunctionHead { .. } => declaration,
+			typer.poison_symbol(&name, Poison::Poisoned);
+		}
 		Declaration::Structure {
 			name,
 			members,
 			structural_type,
-			flags,
+			flags: _,
+			depth: _,
 		} =>
 		{
-			let members: Vec<Member> = members
+			*members = std::mem::take(members)
 				.into_iter()
 				.map(|x| {
 					typer.contextual_type = Some(structural_type.clone());
@@ -772,10 +789,10 @@ fn prealign(declaration: Declaration, typer: &mut Typer) -> Declaration
 				})
 				.collect();
 
-			let structural_type =
-				typer.align_struct(&name, &members, structural_type);
-			let result = typer.put_symbol(&name, Some(structural_type.clone()));
-			let structural_type = match (result, structural_type)
+			let aligned_type =
+				typer.align_struct(&name, &members, structural_type.clone());
+			let result = typer.put_symbol(&name, Some(aligned_type.clone()));
+			*structural_type = match (result, aligned_type)
 			{
 				(Ok(()), structural_type) => structural_type,
 				(Err(error), Ok(structural_type)) => Err(Poison::Error {
@@ -784,17 +801,10 @@ fn prealign(declaration: Declaration, typer: &mut Typer) -> Declaration
 				}),
 				(Err(_error), structural_type) => structural_type,
 			};
-
-			Declaration::Structure {
-				name,
-				members,
-				structural_type,
-				flags,
-			}
 		}
 		Declaration::PreprocessorDirective { .. } => unreachable!(),
-		Declaration::Poison(Poison::Error { .. }) => declaration,
-		Declaration::Poison(Poison::Poisoned) => declaration,
+		Declaration::Poison(Poison::Error { .. }) => (),
+		Declaration::Poison(Poison::Poisoned) => (),
 	}
 }
 
@@ -1048,24 +1058,25 @@ impl Analyzable for Member
 			Ok(name) =>
 			{
 				let value_type = self.value_type.analyze(typer);
-				let is_legal = match (contextual_structure_type, &value_type)
+
+				let (is_struct, is_word) = match contextual_structure_type
 				{
-					(Some(Ok(_)), Err(_)) => true,
-					(Some(Ok(ValueType::Struct { .. })), Ok(vt)) =>
+					Some(Ok(ValueType::Struct { .. })) => (true, false),
+					Some(Ok(ValueType::Word { .. })) => (false, true),
+					Some(Ok(ValueType::UnresolvedStructOrWord { .. })) =>
 					{
-						vt.can_be_struct_member()
+						(true, false)
 					}
-					(Some(Ok(ValueType::Word { .. })), Ok(vt)) =>
-					{
-						vt.can_be_word_member()
-					}
-					(
-						Some(Ok(ValueType::UnresolvedStructOrWord { .. })),
-						Ok(vt),
-					) => vt.can_be_struct_member(),
-					(Some(Ok(_)), _) => unreachable!(),
-					(Some(Err(_)), _) => true,
-					(None, _) => unreachable!(),
+					Some(Ok(_)) => unreachable!(),
+					Some(Err(_)) => (false, false),
+					None => unreachable!(),
+				};
+				let is_legal = match &value_type
+				{
+					Err(_) => true,
+					Ok(vt) if is_word => vt.can_be_word_member(),
+					Ok(vt) if is_struct => vt.can_be_struct_member(),
+					Ok(_) => true,
 				};
 				let value_type = value_type.and_then(|vt| {
 					if is_legal
@@ -1077,6 +1088,7 @@ impl Analyzable for Member
 						Err(Poison::Error {
 							error: Error::IllegalMemberType {
 								value_type: vt.clone(),
+								is_word,
 								location: name.location.clone(),
 							},
 							partial: Some(vt.clone()),

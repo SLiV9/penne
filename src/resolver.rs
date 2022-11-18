@@ -236,6 +236,7 @@ impl Resolvable for Declaration
 				members,
 				structural_type,
 				flags,
+				depth,
 			} =>
 			{
 				let (name, members, structural_type) =
@@ -253,10 +254,17 @@ impl Resolvable for Declaration
 					_ => unreachable!(),
 				};
 				assert!(size_in_bytes > 0);
+				let depth = match depth
+				{
+					Some(Ok(depth)) => depth,
+					Some(Err(_poisoned)) => unreachable!(),
+					None => unreachable!(),
+				};
 				Ok(resolved::Declaration::Structure {
 					name,
 					members,
 					flags,
+					depth,
 					size_in_bytes,
 				})
 			}

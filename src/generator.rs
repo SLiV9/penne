@@ -180,27 +180,20 @@ impl Drop for Generator
 fn organize(declarations: &[Declaration]) -> Vec<&Declaration>
 {
 	let mut declarations: Vec<&Declaration> = declarations.iter().collect();
-	// Sort structure declarations (false) before other declarations (true).
-	declarations.sort_by_key(|x| get_structure_size(x) == 0);
-	// Get the initial slice that contains all the structures.
-	let n = declarations.partition_point(|x| get_structure_size(x) > 0);
-	let structures = &mut declarations[0..n];
-	// Sort the structure declarations by their size in bytes, from low to high.
-	// Note that if structure A contains structure B somewhere in its layout,
-	// the size of A cannot possibly be less than the size of B.
-	structures.sort_by_key(|x| get_structure_size(x));
-	// Return the sorted list of declarations.
+	// Sort structure declarations (Some) before other declarations (None),
+	// and sort the structure declarations by their depth, from low to high.
+	declarations.sort_by_key(|x| get_structure_depth(x));
 	declarations
 }
 
-fn get_structure_size(declaration: &Declaration) -> usize
+fn get_structure_depth(declaration: &Declaration) -> Option<u32>
 {
 	match declaration
 	{
-		Declaration::Constant { .. } => 0,
-		Declaration::Function { .. } => 0,
-		Declaration::FunctionHead { .. } => 0,
-		Declaration::Structure { size_in_bytes, .. } => *size_in_bytes,
+		Declaration::Constant { .. } => None,
+		Declaration::Function { .. } => None,
+		Declaration::FunctionHead { .. } => None,
+		Declaration::Structure { depth, .. } => Some(*depth),
 	}
 }
 
@@ -267,6 +260,7 @@ fn declare(
 			members,
 			flags: _,
 			size_in_bytes: _,
+			depth: _,
 		} =>
 		{
 			let name = CString::new(&name.name as &str)?;
@@ -401,12 +395,7 @@ impl Generatable for Declaration
 				}
 				Ok(())
 			}
-			Declaration::Structure {
-				name: _,
-				members: _,
-				flags: _,
-				size_in_bytes: _,
-			} =>
+			Declaration::Structure { .. } =>
 			{
 				// We already declared this.
 				Ok(())

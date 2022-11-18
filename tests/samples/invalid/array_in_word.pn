@@ -1,0 +1,4 @@
+word32 Bar
+{
+	data: [4]u8,
+}

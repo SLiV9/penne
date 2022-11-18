@@ -7,5 +7,9 @@ word32 Foo
 
 word32 Bar
 {
-	a: [5]u8,
+	a: u8,
+	b: u8,
+	c: u8,
+	d: u8,
+	e: u8,
 }

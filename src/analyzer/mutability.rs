@@ -143,6 +143,7 @@ impl Analyzable for Declaration
 				members,
 				structural_type,
 				flags,
+				depth,
 			} =>
 			{
 				let members =
@@ -152,6 +153,7 @@ impl Analyzable for Declaration
 					members,
 					structural_type,
 					flags,
+					depth,
 				}
 			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),

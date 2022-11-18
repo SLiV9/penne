@@ -152,14 +152,8 @@ where
 			ValueType::Slice { .. } => None,
 			ValueType::EndlessArray { .. } => None,
 			ValueType::Arraylike { .. } => None,
-			ValueType::Struct {
-				identifier: _,
-				size_in_bytes,
-			} => Some(*size_in_bytes),
-			ValueType::Word {
-				identifier: _,
-				size_in_bytes,
-			} => Some(*size_in_bytes),
+			ValueType::Struct { size_in_bytes, .. } => Some(*size_in_bytes),
+			ValueType::Word { size_in_bytes, .. } => Some(*size_in_bytes),
 			ValueType::UnresolvedStructOrWord { .. } => None,
 			ValueType::Pointer { .. } =>
 			{
@@ -184,10 +178,7 @@ where
 			ValueType::Uint32 => 32,
 			ValueType::Uint64 => 64,
 			ValueType::Uint128 => 128,
-			ValueType::Word {
-				identifier: _,
-				size_in_bytes,
-			} => 8 * size_in_bytes,
+			ValueType::Word { size_in_bytes, .. } => 8 * size_in_bytes,
 			_ => 0,
 		}
 	}
@@ -287,10 +278,7 @@ where
 				}
 				_ => self.can_be_used_as(other),
 			},
-			ValueType::Struct {
-				identifier: a,
-				size_in_bytes: _,
-			} => match other
+			ValueType::Struct { identifier: a, .. } => match other
 			{
 				ValueType::UnresolvedStructOrWord { identifier: None } => true,
 				ValueType::UnresolvedStructOrWord {
@@ -298,10 +286,7 @@ where
 				} => a == b,
 				_ => self == other,
 			},
-			ValueType::Word {
-				identifier: a,
-				size_in_bytes: _,
-			} => match other
+			ValueType::Word { identifier: a, .. } => match other
 			{
 				ValueType::UnresolvedStructOrWord { identifier: None } => true,
 				ValueType::UnresolvedStructOrWord {

@@ -260,6 +260,7 @@ pub enum Error
 	IllegalMemberType
 	{
 		value_type: ValueType,
+		is_word: bool,
 		location: Location,
 	},
 	TypeNotAllowedInExtern
@@ -1036,6 +1037,7 @@ impl Error
 
 			Error::IllegalMemberType {
 				value_type,
+				is_word: false,
 				location,
 			} => Report::build(
 				ReportKind::Error,
@@ -1048,9 +1050,30 @@ impl Error
 				location
 					.label()
 					.with_message(format!(
-						"The type {} is not allowed as a member of a \
-						 structure.",
-						show_type(value_type).fg(a)
+						"The type {} is not allowed as a member of a struct.",
+						show_type(value_type).fg(a),
+					))
+					.with_color(a),
+			)
+			.finish(),
+
+			Error::IllegalMemberType {
+				value_type,
+				is_word: true,
+				location,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Invalid member type")
+			.with_label(
+				location
+					.label()
+					.with_message(format!(
+						"The type {} is not allowed as a member of a word.",
+						show_type(value_type).fg(a),
 					))
 					.with_color(a),
 			)

@@ -284,6 +284,7 @@ impl Rebuildable for Declaration
 				members,
 				structural_type,
 				flags,
+				depth: _,
 			} =>
 			{
 				let mut buffer = String::new();

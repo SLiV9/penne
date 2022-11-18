@@ -472,6 +472,7 @@ fn parse_rest_of_struct(
 			members,
 			structural_type,
 			flags,
+			depth: None,
 		}),
 		Err(error) => Ok(Declaration::Poison(Poison::Error {
 			error,
@@ -480,6 +481,7 @@ fn parse_rest_of_struct(
 				members: Vec::new(),
 				structural_type,
 				flags,
+				depth: None,
 			})),
 		})),
 	}

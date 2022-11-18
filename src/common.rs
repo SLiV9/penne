@@ -47,6 +47,7 @@ pub enum Declaration
 		members: Vec<Member>,
 		structural_type: Poisonable<ValueType>,
 		flags: EnumSet<DeclarationFlag>,
+		depth: Option<Poisonable<u32>>,
 	},
 	PreprocessorDirective
 	{

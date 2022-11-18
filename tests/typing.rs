@@ -152,6 +152,12 @@ fn fail_to_type_word_size_exceeded()
 }
 
 #[test]
+fn fail_to_type_array_in_word()
+{
+	compile_to_fail(&[356], "tests/samples/invalid/array_in_word.pn")
+}
+
+#[test]
 fn fail_to_type_pointer_in_word()
 {
 	compile_to_fail(&[356], "tests/samples/invalid/pointer_in_word.pn")

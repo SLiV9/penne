@@ -134,6 +134,7 @@ impl Analyzable for Declaration
 				members: _,
 				structural_type: _,
 				flags: _,
+				depth: _,
 			} => self,
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
 			Declaration::Poison(_) => self,

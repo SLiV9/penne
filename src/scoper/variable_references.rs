@@ -16,16 +16,24 @@ pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 		structures: Vec::new(),
 		resolution_id: 1,
 	};
-	// Predeclare all functions so that they can reference each other.
-	let declarations: Vec<Declaration> = program
+	let mut declarations: Vec<Declaration> = program;
+	// Predeclare all declarations so that they can reference each other.
+	declarations = declarations
 		.into_iter()
 		.map(|x| predeclare(x, &mut analyzer))
 		.collect();
-	// After collecting all declarations, analyze the function bodies.
-	declarations
+	// After collecting, analyze function bodies and structure members.
+	declarations = declarations
 		.into_iter()
 		.map(|x| x.analyze(&mut analyzer))
-		.collect()
+		.collect();
+	// After collecting again, store the priority of structures.
+	analyzer.determine_structure_depths();
+	declarations = declarations
+		.into_iter()
+		.map(|x| postanalyze(x, &mut analyzer))
+		.collect();
+	declarations
 }
 
 struct Analyzer
@@ -40,6 +48,7 @@ struct Structure
 {
 	identifier: Identifier,
 	contained_structure_ids: std::collections::HashSet<u32>,
+	depth: Option<Poisonable<u32>>,
 }
 
 impl Analyzer
@@ -233,6 +242,7 @@ impl Analyzer
 		self.structures.push(Structure {
 			identifier: identifier.clone(),
 			contained_structure_ids: Default::default(),
+			depth: None,
 		});
 
 		if let Some(error) = recoverable_error
@@ -459,6 +469,53 @@ impl Analyzer
 		Ok(name_of_containee)
 	}
 
+	fn determine_structure_depths(&mut self)
+	{
+		assert!(self.structures.len() < u32::MAX as usize);
+		let len = self.structures.len() as u32;
+		for depth in 0..len
+		{
+			let mut resolved = std::collections::HashSet::new();
+			for structure in &mut self.structures
+			{
+				if structure.depth.is_none()
+					&& structure.contained_structure_ids.is_empty()
+				{
+					structure.depth = Some(Ok(depth));
+					resolved.insert(structure.identifier.resolution_id);
+				}
+			}
+			if resolved.is_empty()
+			{
+				break;
+			}
+			for structure in &mut self.structures
+			{
+				structure.contained_structure_ids =
+					&structure.contained_structure_ids - &resolved;
+			}
+		}
+		for structure in &mut self.structures
+		{
+			if structure.depth.is_none()
+			{
+				structure.depth = Some(Err(Poison::Poisoned));
+			}
+		}
+	}
+
+	fn determine_structure_depth(
+		&self,
+		identifier: &Identifier,
+	) -> Option<Poisonable<u32>>
+	{
+		self.structures
+			.iter()
+			.find(|x| x.identifier.resolution_id == identifier.resolution_id)
+			.map(|x| x.depth.clone())
+			.flatten()
+	}
+
 	fn create_anonymous_resolution_id(&mut self) -> u32
 	{
 		let id = self.resolution_id;
@@ -548,6 +605,7 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 			members,
 			structural_type,
 			flags,
+			depth,
 		} => match analyzer.declare_struct(name)
 		{
 			Ok(name) => Declaration::Structure {
@@ -555,6 +613,7 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 				members,
 				structural_type,
 				flags,
+				depth,
 			},
 			Err(Partial {
 				error,
@@ -566,6 +625,7 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 					members,
 					structural_type,
 					flags,
+					depth,
 				})),
 			}),
 		},
@@ -585,6 +645,37 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 			error: _,
 			partial: None,
 		}) => declaration,
+		Declaration::Poison(Poison::Poisoned) => declaration,
+	}
+}
+
+fn postanalyze(declaration: Declaration, analyzer: &mut Analyzer)
+	-> Declaration
+{
+	match declaration
+	{
+		Declaration::Constant { .. } => declaration,
+		Declaration::Function { .. } => declaration,
+		Declaration::FunctionHead { .. } => declaration,
+		Declaration::Structure {
+			name,
+			members,
+			structural_type,
+			flags,
+			depth: _,
+		} =>
+		{
+			let depth = analyzer.determine_structure_depth(&name);
+			Declaration::Structure {
+				name,
+				members,
+				structural_type,
+				flags,
+				depth,
+			}
+		}
+		Declaration::PreprocessorDirective { .. } => unreachable!(),
+		Declaration::Poison(Poison::Error { .. }) => declaration,
 		Declaration::Poison(Poison::Poisoned) => declaration,
 	}
 }
@@ -740,6 +831,7 @@ impl Analyzable for Declaration
 				members,
 				structural_type,
 				flags,
+				depth,
 			} =>
 			{
 				analyzer.push_scope();
@@ -758,6 +850,7 @@ impl Analyzable for Declaration
 					members,
 					structural_type,
 					flags,
+					depth,
 				}
 			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
