@@ -151,6 +151,8 @@ impl Lintable for Declaration
 				value: _,
 				value_type: _,
 				flags: _,
+				location_of_declaration: _,
+				location_of_type: _,
 			} => (),
 			Declaration::Function {
 				name: _,
@@ -158,6 +160,8 @@ impl Lintable for Declaration
 				body: Ok(body),
 				return_type: _,
 				flags: _,
+				location_of_declaration: _,
+				location_of_return_type: _,
 			} => body.lint(linter),
 			Declaration::Function {
 				name: _,
@@ -165,12 +169,16 @@ impl Lintable for Declaration
 				body: Err(_poison),
 				return_type: _,
 				flags: _,
+				location_of_declaration: _,
+				location_of_return_type: _,
 			} => (),
 			Declaration::FunctionHead {
 				name: _,
 				parameters: _,
 				return_type: _,
 				flags: _,
+				location_of_declaration: _,
+				location_of_return_type: _,
 			} => (),
 			Declaration::Structure {
 				name: _,
@@ -178,6 +186,7 @@ impl Lintable for Declaration
 				structural_type: _,
 				flags: _,
 				depth: _,
+				location_of_declaration: _,
 			} => (),
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
 			Declaration::Poison(_) => (),

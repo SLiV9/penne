@@ -186,6 +186,8 @@ impl Resolvable for Declaration
 				value,
 				value_type,
 				flags,
+				location_of_declaration: _,
+				location_of_type: _,
 			} =>
 			{
 				let (name, value, value_type) =
@@ -203,6 +205,8 @@ impl Resolvable for Declaration
 				body,
 				return_type,
 				flags,
+				location_of_declaration: _,
+				location_of_return_type: _,
 			} =>
 			{
 				let (name, parameters, body, return_type) =
@@ -220,6 +224,8 @@ impl Resolvable for Declaration
 				parameters,
 				return_type,
 				flags,
+				location_of_declaration: _,
+				location_of_return_type: _,
 			} =>
 			{
 				let (name, parameters, return_type) =
@@ -237,6 +243,7 @@ impl Resolvable for Declaration
 				structural_type,
 				flags,
 				depth,
+				location_of_declaration: _,
 			} =>
 			{
 				let (name, members, structural_type) =

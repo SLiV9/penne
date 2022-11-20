@@ -161,6 +161,8 @@ impl Rebuildable for Declaration
 				value,
 				value_type,
 				flags,
+				location_of_declaration: _,
+				location_of_type: _,
 			} =>
 			{
 				let mut buffer = String::new();
@@ -188,6 +190,8 @@ impl Rebuildable for Declaration
 				body,
 				return_type,
 				flags,
+				location_of_declaration: _,
+				location_of_return_type: _,
 			} =>
 			{
 				let mut buffer = String::new();
@@ -238,6 +242,8 @@ impl Rebuildable for Declaration
 				parameters,
 				return_type,
 				flags,
+				location_of_declaration: _,
+				location_of_return_type: _,
 			} =>
 			{
 				let mut buffer = String::new();
@@ -285,6 +291,7 @@ impl Rebuildable for Declaration
 				structural_type,
 				flags,
 				depth: _,
+				location_of_declaration: _,
 			} =>
 			{
 				let mut buffer = String::new();

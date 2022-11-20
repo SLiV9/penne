@@ -97,7 +97,7 @@ impl Tokens
 		popped
 	}
 
-	fn get_next_location(&self) -> Option<Location>
+	fn start_location_span(&self) -> Option<Location>
 	{
 		match self.tokens.front()
 		{
@@ -106,6 +106,15 @@ impl Tokens
 				location,
 			}) => Some(location.clone()),
 			None => None,
+		}
+	}
+
+	fn location_of_span(&self, start: Option<Location>) -> Location
+	{
+		match start
+		{
+			Some(location) => location.combined_with(&self.last_location),
+			None => self.last_location.clone(),
 		}
 	}
 
@@ -376,13 +385,21 @@ fn parse_constant_declaration(
 	let name = extract_identifier("expected constant name", tokens)?;
 	let location_of_declaration =
 		location_of_declaration.combined_with(&tokens.last_location);
-	let value_type = parse_colon_and_type(
-		&flags,
-		&name.location,
-		&location_of_declaration,
-		tokens,
-		true,
-	);
+
+	let start = tokens.start_location_span();
+	let value_type = if let Some(Token::Colon) = peek(tokens)
+	{
+		tokens.pop_front();
+		parse_wellformed_type(tokens)
+	}
+	else
+	{
+		Err(Error::MissingConstantType {
+			location: name.location.clone(),
+		})
+	};
+	let value_type = value_type.map_err(|e| e.into());
+	let location_of_type = tokens.location_of_span(start);
 
 	let expression = match parse_assignment_and_expression(tokens)
 	{
@@ -404,6 +421,8 @@ fn parse_constant_declaration(
 		value: expression,
 		value_type,
 		flags,
+		location_of_declaration,
+		location_of_type,
 	};
 	Ok(declaration)
 }
@@ -465,7 +484,7 @@ fn parse_rest_of_struct(
 	tokens: &mut Tokens,
 ) -> Result<Declaration, Error>
 {
-	match parse_struct_members(flags, location_of_declaration, tokens)
+	match parse_struct_members(tokens)
 	{
 		Ok(members) => Ok(Declaration::Structure {
 			name,
@@ -473,6 +492,7 @@ fn parse_rest_of_struct(
 			structural_type,
 			flags,
 			depth: None,
+			location_of_declaration,
 		}),
 		Err(error) => Ok(Declaration::Poison(Poison::Error {
 			error,
@@ -482,16 +502,13 @@ fn parse_rest_of_struct(
 				structural_type,
 				flags,
 				depth: None,
+				location_of_declaration,
 			})),
 		})),
 	}
 }
 
-fn parse_struct_members(
-	flags: EnumSet<DeclarationFlag>,
-	location_of_declaration: Location,
-	tokens: &mut Tokens,
-) -> Result<Vec<Member>, Error>
+fn parse_struct_members(tokens: &mut Tokens) -> Result<Vec<Member>, Error>
 {
 	consume(Token::BraceLeft, "expected left brace", tokens)?;
 
@@ -503,7 +520,7 @@ fn parse_struct_members(
 			break;
 		}
 
-		match parse_member(&flags, &location_of_declaration, tokens)
+		match parse_member(tokens)
 		{
 			Ok(member) =>
 			{
@@ -540,11 +557,10 @@ fn parse_function_declaration(
 {
 	let name = extract_identifier("expected function name", tokens)?;
 	consume(Token::ParenLeft, "expected left parenthesis", tokens)?;
-	let (parameters, return_type) = parse_rest_of_function_signature(
-		&flags,
-		location_of_declaration,
-		tokens,
-	);
+	let signature = parse_rest_of_function_signature(tokens);
+	let (parameters, return_type, location_of_return_type) = signature;
+	let location_of_return_type =
+		location_of_return_type.unwrap_or_else(|| tokens.last_location.clone());
 	if let Some(Err(_)) = &return_type
 	{
 		skip_rest_of_function_signature(tokens);
@@ -558,6 +574,8 @@ fn parse_function_declaration(
 			parameters,
 			return_type,
 			flags,
+			location_of_declaration,
+			location_of_return_type,
 		})
 	}
 	else
@@ -577,15 +595,19 @@ fn parse_function_declaration(
 			body,
 			return_type,
 			flags,
+			location_of_declaration,
+			location_of_return_type,
 		})
 	}
 }
 
 fn parse_rest_of_function_signature(
-	flags: &EnumSet<DeclarationFlag>,
-	location_of_declaration: Location,
 	tokens: &mut Tokens,
-) -> (Vec<Parameter>, Option<Poisonable<ValueType>>)
+) -> (
+	Vec<Parameter>,
+	Option<Poisonable<ValueType>>,
+	Option<Location>,
+)
 {
 	let mut parameters = Vec::new();
 	loop
@@ -595,7 +617,7 @@ fn parse_rest_of_function_signature(
 			break;
 		}
 
-		match parse_parameter(flags, &location_of_declaration, tokens)
+		match parse_parameter(tokens)
 		{
 			Ok(parameter) =>
 			{
@@ -616,7 +638,7 @@ fn parse_rest_of_function_signature(
 			{
 				// An error during parameter parsing is indistinguishable from
 				// an error during return type parsing.
-				return (parameters, Some(Err(error.into())));
+				return (parameters, Some(Err(error.into())), None);
 			}
 		}
 	}
@@ -629,26 +651,23 @@ fn parse_rest_of_function_signature(
 			// If the closing parenthesis is missing we cannot parse the
 			// return type, because any type we find might be part of
 			// an unfinished parameter.
-			return (parameters, Some(Err(error.into())));
+			return (parameters, Some(Err(error.into())), None);
 		}
 	}
 
-	let return_type = if let Some(Token::Arrow) = peek(tokens)
+	if let Some(Token::Arrow) = peek(tokens)
 	{
 		tokens.pop_front();
 
-		match parse_return_type(&flags, &location_of_declaration, tokens)
-		{
-			Ok(return_type) => Some(Ok(return_type)),
-			Err(error) => Some(Err(error.into())),
-		}
+		let start = tokens.start_location_span();
+		let return_type = parse_wellformed_type(tokens).map_err(|e| e.into());
+		let location = tokens.location_of_span(start);
+		(parameters, Some(return_type), Some(location))
 	}
 	else
 	{
-		None
-	};
-
-	(parameters, return_type)
+		(parameters, None, None)
+	}
 }
 
 fn skip_rest_of_function_signature(tokens: &mut Tokens)
@@ -667,131 +686,61 @@ fn skip_rest_of_function_signature(tokens: &mut Tokens)
 	}
 }
 
-fn parse_return_type(
-	flags: &EnumSet<DeclarationFlag>,
-	location_of_declaration: &Location,
-	tokens: &mut Tokens,
-) -> Result<ValueType, Error>
+fn parse_member(tokens: &mut Tokens) -> Result<Member, Error>
 {
-	let location_of_type = tokens.get_next_location();
-	let value_type = parse_wellformed_type(tokens)?;
-	let location_of_type = match location_of_type
-	{
-		Some(location) => location.combined_with(&tokens.last_location),
-		None => tokens.last_location.clone(),
-	};
+	let name = extract_identifier("expected member name", tokens)?;
 
-	let value_type = fix_type_for_flags(
-		value_type,
-		flags,
-		&location_of_type,
-		location_of_declaration,
-	)?;
-
-	if value_type.can_be_returned()
+	let start = tokens.start_location_span();
+	let value_type = if let Some(Token::Colon) = peek(tokens)
 	{
-		Ok(value_type)
+		tokens.pop_front();
+		parse_wellformed_type(tokens)
 	}
 	else
 	{
-		Err(Error::IllegalReturnType {
-			value_type: value_type,
-			location: location_of_type.clone(),
+		Err(Error::MissingMemberType {
+			location: name.location.clone(),
 		})
-	}
-}
-
-fn parse_member(
-	flags: &EnumSet<DeclarationFlag>,
-	location_of_declaration: &Location,
-	tokens: &mut Tokens,
-) -> Result<Member, Error>
-{
-	let name = extract_identifier("expected member name", tokens)?;
-	let value_type = parse_colon_and_type(
-		flags,
-		&name.location,
-		location_of_declaration,
-		tokens,
-		false,
-	);
+	};
+	let value_type = value_type.map_err(|e| e.into());
+	let location_of_type = tokens.location_of_span(start);
 
 	Ok(Member {
 		name: Ok(name),
 		value_type,
+		location_of_type,
 	})
 }
 
-fn parse_parameter(
-	flags: &EnumSet<DeclarationFlag>,
-	location_of_declaration: &Location,
-	tokens: &mut Tokens,
-) -> Result<Parameter, Error>
+fn parse_parameter(tokens: &mut Tokens) -> Result<Parameter, Error>
 {
 	let name = extract_identifier("expected parameter name", tokens)?;
-	let value_type = parse_colon_and_type(
-		flags,
-		&name.location,
-		location_of_declaration,
-		tokens,
-		false,
-	);
+
+	let start = tokens.start_location_span();
+	let value_type = if let Some(Token::Colon) = peek(tokens)
+	{
+		tokens.pop_front();
+		parse_wellformed_type(tokens)
+	}
+	else
+	{
+		Err(Error::MissingParameterType {
+			location: name.location.clone(),
+		})
+	};
+	let value_type = value_type.map_err(|e| e.into());
+	let location_of_type = tokens.location_of_span(start);
 
 	Ok(Parameter {
 		name: Ok(name),
 		value_type,
+		location_of_type,
 	})
-}
-
-fn parse_colon_and_type(
-	flags: &EnumSet<DeclarationFlag>,
-	location_of_identifier: &Location,
-	location_of_declaration: &Location,
-	tokens: &mut Tokens,
-	is_constant: bool,
-) -> Poisonable<ValueType>
-{
-	match peek(tokens)
-	{
-		Some(Token::Colon) =>
-		{
-			tokens.pop_front();
-		}
-		_ =>
-		{
-			let error = match is_constant
-			{
-				true => Error::MissingConstantType {
-					location: location_of_identifier.clone(),
-				},
-				false => Error::MissingParameterType {
-					location: location_of_identifier.clone(),
-				},
-			};
-			return Err(error.into());
-		}
-	};
-
-	let location_of_type = tokens.get_next_location();
-	let value_type = parse_wellformed_type(tokens)?;
-	let location_of_type = match location_of_type
-	{
-		Some(location) => location.combined_with(&tokens.last_location),
-		None => tokens.last_location.clone(),
-	};
-
-	let value_type = fix_type_for_flags(
-		value_type,
-		&flags,
-		&location_of_type,
-		location_of_declaration,
-	)?;
-	Ok(value_type)
 }
 
 fn parse_wellformed_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 {
-	let location = tokens.get_next_location();
+	let start = tokens.start_location_span();
 	let value_type = parse_type(tokens)?;
 	if value_type.is_wellformed()
 	{
@@ -799,11 +748,7 @@ fn parse_wellformed_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 	}
 	else
 	{
-		let location = match location
-		{
-			Some(location) => location.combined_with(&tokens.last_location),
-			None => tokens.last_location.clone(),
-		};
+		let location = tokens.location_of_span(start);
 		Err(Error::IllegalType {
 			value_type: value_type,
 			location,
@@ -1486,14 +1431,9 @@ fn parse_singular_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 		};
 		tokens.pop_front();
 
-		let location_of_type = tokens.get_next_location();
+		let start = tokens.start_location_span();
 		let coerced_type = parse_wellformed_type(tokens)?;
-
-		let location_of_type = match location_of_type
-		{
-			Some(location) => location.combined_with(&tokens.last_location),
-			None => tokens.last_location.clone(),
-		};
+		let location_of_type = tokens.location_of_span(start);
 		location = location.combined_with(&location_of_type);
 
 		expression = Expression::PrimitiveCast {
@@ -2042,129 +1982,4 @@ fn parse_rest_of_reference(
 		address_depth: 0,
 		location,
 	})
-}
-
-fn fix_type_for_flags(
-	value_type: ValueType,
-	flags: &EnumSet<DeclarationFlag>,
-	location_of_type: &Location,
-	location_of_declaration: &Location,
-) -> Result<ValueType, Error>
-{
-	if flags.contains(DeclarationFlag::External)
-	{
-		match value_type
-		{
-			ValueType::Arraylike { element_type } =>
-			{
-				let element_type = externalize_type(
-					*element_type,
-					location_of_type,
-					location_of_declaration,
-				)?;
-				Ok(ValueType::View {
-					deref_type: Box::new(ValueType::EndlessArray {
-						element_type: Box::new(element_type),
-					}),
-				})
-			}
-			_ => externalize_type(
-				value_type,
-				location_of_type,
-				location_of_declaration,
-			),
-		}
-	}
-	else
-	{
-		match value_type
-		{
-			ValueType::Arraylike { element_type } =>
-			{
-				Ok(ValueType::Slice { element_type })
-			}
-			ValueType::Pointer { deref_type } => match *deref_type
-			{
-				ValueType::Arraylike { element_type } =>
-				{
-					let deref_type =
-						Box::new(ValueType::Slice { element_type });
-					Ok(ValueType::Pointer { deref_type })
-				}
-				_ => Ok(ValueType::Pointer { deref_type }),
-			},
-			ValueType::View { deref_type } => match *deref_type
-			{
-				ValueType::Arraylike { element_type } =>
-				{
-					let deref_type =
-						Box::new(ValueType::Slice { element_type });
-					Ok(ValueType::View { deref_type })
-				}
-				_ => Ok(ValueType::View { deref_type }),
-			},
-			_ => Ok(value_type),
-		}
-	}
-}
-
-fn externalize_type(
-	value_type: ValueType,
-	location_of_type: &Location,
-	location_of_declaration: &Location,
-) -> Result<ValueType, Error>
-{
-	match value_type
-	{
-		ValueType::Arraylike { element_type } =>
-		{
-			let element_type = externalize_type(
-				*element_type,
-				location_of_type,
-				location_of_declaration,
-			)?;
-			Ok(ValueType::EndlessArray {
-				element_type: Box::new(element_type),
-			})
-		}
-		ValueType::Pointer { deref_type } =>
-		{
-			let deref_type = externalize_type(
-				*deref_type,
-				location_of_type,
-				location_of_declaration,
-			)?;
-			Ok(ValueType::Pointer {
-				deref_type: Box::new(deref_type),
-			})
-		}
-		ValueType::View { deref_type } =>
-		{
-			let deref_type = externalize_type(
-				*deref_type,
-				location_of_type,
-				location_of_declaration,
-			)?;
-			Ok(ValueType::View {
-				deref_type: Box::new(deref_type),
-			})
-		}
-		ValueType::Int8 => Ok(value_type),
-		ValueType::Int16 => Ok(value_type),
-		ValueType::Int32 => Ok(value_type),
-		ValueType::Int64 => Ok(value_type),
-		ValueType::Int128 => Ok(value_type),
-		ValueType::Uint8 => Ok(value_type),
-		ValueType::Uint16 => Ok(value_type),
-		ValueType::Uint32 => Ok(value_type),
-		ValueType::Uint64 => Ok(value_type),
-		ValueType::Uint128 => Ok(value_type),
-		ValueType::Usize => Ok(value_type),
-		ValueType::Bool => Ok(value_type),
-		_ => Err(Error::TypeNotAllowedInExtern {
-			value_type,
-			location_of_type: location_of_type.clone(),
-			location_of_declaration: location_of_declaration.clone(),
-		}),
-	}
 }

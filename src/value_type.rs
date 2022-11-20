@@ -599,6 +599,8 @@ where
 			ValueType::EndlessArray { .. } => false,
 			ValueType::Arraylike { .. } => false,
 			ValueType::Struct { .. } => false,
+			ValueType::Word { .. } => true,
+			ValueType::UnresolvedStructOrWord { .. } => false,
 			ValueType::View { .. } =>
 			{
 				// Maybe yes?

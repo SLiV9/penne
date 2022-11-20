@@ -232,6 +232,10 @@ pub enum Error
 	{
 		location: Location
 	},
+	MissingMemberType
+	{
+		location: Location
+	},
 	IllegalType
 	{
 		value_type: ValueType,
@@ -260,7 +264,7 @@ pub enum Error
 	IllegalMemberType
 	{
 		value_type: ValueType,
-		is_word: bool,
+		in_word: bool,
 		location: Location,
 	},
 	TypeNotAllowedInExtern
@@ -582,6 +586,7 @@ impl Error
 			Error::MissingReturnValueAfterStatement { .. } => 335,
 			Error::MissingConstantType { .. } => 343,
 			Error::MissingParameterType { .. } => 344,
+			Error::MissingMemberType { .. } => 346,
 			Error::IllegalType { .. } => 350,
 			Error::IllegalVariableType { .. } => 352,
 			Error::IllegalConstantType { .. } => 353,
@@ -951,6 +956,21 @@ impl Error
 			)
 			.finish(),
 
+			Error::MissingMemberType { location } => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Missing type")
+			.with_label(
+				location
+					.label()
+					.with_message("Structure members need an explicit type.")
+					.with_color(a),
+			)
+			.finish(),
+
 			Error::IllegalType {
 				value_type,
 				location,
@@ -1037,7 +1057,7 @@ impl Error
 
 			Error::IllegalMemberType {
 				value_type,
-				is_word: false,
+				in_word: false,
 				location,
 			} => Report::build(
 				ReportKind::Error,
@@ -1059,7 +1079,7 @@ impl Error
 
 			Error::IllegalMemberType {
 				value_type,
-				is_word: true,
+				in_word: true,
 				location,
 			} => Report::build(
 				ReportKind::Error,

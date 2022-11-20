@@ -551,6 +551,8 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 			body,
 			return_type,
 			flags,
+			location_of_declaration,
+			location_of_return_type,
 		} => match analyzer.declare_function(name)
 		{
 			Ok(name) => Declaration::Function {
@@ -559,6 +561,8 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 				body,
 				return_type,
 				flags,
+				location_of_declaration,
+				location_of_return_type,
 			},
 			Err(Partial {
 				error,
@@ -571,6 +575,8 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 					body,
 					return_type,
 					flags,
+					location_of_declaration,
+					location_of_return_type,
 				})),
 			}),
 		},
@@ -579,6 +585,8 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 			parameters,
 			return_type,
 			flags,
+			location_of_declaration,
+			location_of_return_type,
 		} => match analyzer.declare_function(name)
 		{
 			Ok(name) => Declaration::FunctionHead {
@@ -586,6 +594,8 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 				parameters,
 				return_type,
 				flags,
+				location_of_declaration,
+				location_of_return_type,
 			},
 			Err(Partial {
 				error,
@@ -597,6 +607,8 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 					parameters,
 					return_type,
 					flags,
+					location_of_declaration,
+					location_of_return_type,
 				})),
 			}),
 		},
@@ -606,6 +618,7 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 			structural_type,
 			flags,
 			depth,
+			location_of_declaration,
 		} => match analyzer.declare_struct(name)
 		{
 			Ok(name) => Declaration::Structure {
@@ -614,6 +627,7 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 				structural_type,
 				flags,
 				depth,
+				location_of_declaration,
 			},
 			Err(Partial {
 				error,
@@ -626,6 +640,7 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 					structural_type,
 					flags,
 					depth,
+					location_of_declaration,
 				})),
 			}),
 		},
@@ -663,6 +678,7 @@ fn postanalyze(declaration: Declaration, analyzer: &mut Analyzer)
 			structural_type,
 			flags,
 			depth: _,
+			location_of_declaration,
 		} =>
 		{
 			let depth = analyzer.determine_structure_depth(&name);
@@ -672,6 +688,7 @@ fn postanalyze(declaration: Declaration, analyzer: &mut Analyzer)
 				structural_type,
 				flags,
 				depth,
+				location_of_declaration,
 			}
 		}
 		Declaration::PreprocessorDirective { .. } => unreachable!(),
@@ -696,6 +713,8 @@ impl Analyzable for Declaration
 				value,
 				value_type,
 				flags,
+				location_of_declaration,
+				location_of_type,
 			} =>
 			{
 				let value = value.analyze(analyzer);
@@ -709,6 +728,8 @@ impl Analyzable for Declaration
 						value,
 						value_type,
 						flags,
+						location_of_declaration,
+						location_of_type,
 					},
 					Err(Partial {
 						error,
@@ -720,6 +741,8 @@ impl Analyzable for Declaration
 							value,
 							value_type,
 							flags,
+							location_of_declaration,
+							location_of_type,
 						})),
 					}),
 				}
@@ -730,6 +753,8 @@ impl Analyzable for Declaration
 				body,
 				return_type,
 				flags,
+				location_of_declaration,
+				location_of_return_type,
 			} =>
 			{
 				let name = analyzer.use_function(name);
@@ -762,6 +787,8 @@ impl Analyzable for Declaration
 							body,
 							return_type,
 							flags,
+							location_of_declaration,
+							location_of_return_type,
 						}
 					}
 					Err(Partial {
@@ -775,6 +802,8 @@ impl Analyzable for Declaration
 							body,
 							return_type,
 							flags,
+							location_of_declaration,
+							location_of_return_type,
 						})),
 					}),
 				}
@@ -784,6 +813,8 @@ impl Analyzable for Declaration
 				parameters,
 				return_type,
 				flags,
+				location_of_declaration,
+				location_of_return_type,
 			} =>
 			{
 				let name = analyzer.use_function(name);
@@ -810,6 +841,8 @@ impl Analyzable for Declaration
 							parameters,
 							return_type,
 							flags,
+							location_of_declaration,
+							location_of_return_type,
 						}
 					}
 					Err(Partial {
@@ -822,6 +855,8 @@ impl Analyzable for Declaration
 							parameters,
 							return_type,
 							flags,
+							location_of_declaration,
+							location_of_return_type,
 						})),
 					}),
 				}
@@ -832,6 +867,7 @@ impl Analyzable for Declaration
 				structural_type,
 				flags,
 				depth,
+				location_of_declaration,
 			} =>
 			{
 				analyzer.push_scope();
@@ -851,6 +887,7 @@ impl Analyzable for Declaration
 					structural_type,
 					flags,
 					depth,
+					location_of_declaration,
 				}
 			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
@@ -882,7 +919,11 @@ impl Analyzable for Member
 			analyzer.declare_variable(name).map_err(|e| e.into())
 		});
 		let value_type = self.value_type.analyze(analyzer);
-		Member { name, value_type }
+		Member {
+			name,
+			value_type,
+			location_of_type: self.location_of_type,
+		}
 	}
 }
 
@@ -906,10 +947,7 @@ impl Member
 		{
 			self.value_type
 		};
-		Member {
-			name: self.name,
-			value_type,
-		}
+		Member { value_type, ..self }
 	}
 }
 
@@ -921,7 +959,11 @@ impl Analyzable for Parameter
 			analyzer.declare_variable(name).map_err(|e| e.into())
 		});
 		let value_type = self.value_type.analyze(analyzer);
-		Parameter { name, value_type }
+		Parameter {
+			name,
+			value_type,
+			location_of_type: self.location_of_type,
+		}
 	}
 }
 

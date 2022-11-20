@@ -162,12 +162,16 @@ fn declare(declaration: &Declaration, analyzer: &mut Analyzer)
 			body: _,
 			return_type: _,
 			flags: _,
+			location_of_declaration: _,
+			location_of_return_type: _,
 		} => analyzer.declare_function(name, parameters),
 		Declaration::FunctionHead {
 			name,
 			parameters,
 			return_type: _,
 			flags: _,
+			location_of_declaration: _,
+			location_of_return_type: _,
 		} => analyzer.declare_function(name, parameters),
 		Declaration::Structure { .. } => (),
 		Declaration::PreprocessorDirective { .. } => unreachable!(),
@@ -200,6 +204,8 @@ impl Analyzable for Declaration
 				value,
 				value_type,
 				flags,
+				location_of_declaration,
+				location_of_type,
 			} =>
 			{
 				analyzer.is_const_evaluated = true;
@@ -223,6 +229,8 @@ impl Analyzable for Declaration
 					value,
 					value_type,
 					flags,
+					location_of_declaration,
+					location_of_type,
 				}
 			}
 			Declaration::Function {
@@ -231,12 +239,10 @@ impl Analyzable for Declaration
 				body,
 				return_type,
 				flags,
+				location_of_declaration,
+				location_of_return_type,
 			} =>
 			{
-				let parameters = parameters
-					.into_iter()
-					.map(|x| x.analyze(analyzer))
-					.collect();
 				let body = match body
 				{
 					Ok(body) => Ok(body.analyze(analyzer)),
@@ -248,62 +254,28 @@ impl Analyzable for Declaration
 					body,
 					return_type,
 					flags,
+					location_of_declaration,
+					location_of_return_type,
 				}
 			}
 			Declaration::FunctionHead {
-				name,
-				parameters,
-				return_type,
-				flags,
-			} =>
-			{
-				let parameters = parameters
-					.into_iter()
-					.map(|x| x.analyze(analyzer))
-					.collect();
-				Declaration::FunctionHead {
-					name,
-					parameters,
-					return_type,
-					flags,
-				}
-			}
+				name: _,
+				parameters: _,
+				return_type: _,
+				flags: _,
+				location_of_declaration: _,
+				location_of_return_type: _,
+			} => self,
 			Declaration::Structure {
 				name: _,
 				members: _,
 				structural_type: _,
 				flags: _,
 				depth: _,
+				location_of_declaration: _,
 			} => self,
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
 			Declaration::Poison(_) => self,
-		}
-	}
-}
-
-impl Analyzable for Parameter
-{
-	fn analyze(self, analyzer: &mut Analyzer) -> Self
-	{
-		analyzer.is_immediate_function_argument = false;
-		let value_type = match &self.value_type
-		{
-			Ok(vt) if !vt.can_be_parameter() => match &self.name
-			{
-				Ok(name) => Err(Poison::Error {
-					error: Error::IllegalParameterType {
-						value_type: vt.clone(),
-						location: name.location.clone(),
-					},
-					partial: Some(vt.clone()),
-				}),
-				Err(_poison) => self.value_type,
-			},
-			_ => self.value_type,
-		};
-		Parameter {
-			name: self.name,
-			value_type,
 		}
 	}
 }

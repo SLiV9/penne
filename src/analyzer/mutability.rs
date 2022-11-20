@@ -84,6 +84,8 @@ impl Analyzable for Declaration
 				value,
 				value_type,
 				flags,
+				location_of_declaration,
+				location_of_type,
 			} =>
 			{
 				analyzer.declare_variable(&name, false);
@@ -93,6 +95,8 @@ impl Analyzable for Declaration
 					value,
 					value_type,
 					flags,
+					location_of_declaration,
+					location_of_type,
 				}
 			}
 			Declaration::Function {
@@ -101,6 +105,8 @@ impl Analyzable for Declaration
 				body,
 				return_type,
 				flags,
+				location_of_declaration,
+				location_of_return_type,
 			} =>
 			{
 				let parameters = parameters
@@ -118,6 +124,8 @@ impl Analyzable for Declaration
 					body,
 					return_type,
 					flags,
+					location_of_declaration,
+					location_of_return_type,
 				}
 			}
 			Declaration::FunctionHead {
@@ -125,6 +133,8 @@ impl Analyzable for Declaration
 				parameters,
 				return_type,
 				flags,
+				location_of_declaration,
+				location_of_return_type,
 			} =>
 			{
 				let parameters = parameters
@@ -136,6 +146,8 @@ impl Analyzable for Declaration
 					parameters,
 					return_type,
 					flags,
+					location_of_declaration,
+					location_of_return_type,
 				}
 			}
 			Declaration::Structure {
@@ -144,6 +156,7 @@ impl Analyzable for Declaration
 				structural_type,
 				flags,
 				depth,
+				location_of_declaration,
 			} =>
 			{
 				let members =
@@ -154,6 +167,7 @@ impl Analyzable for Declaration
 					structural_type,
 					flags,
 					depth,
+					location_of_declaration,
 				}
 			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),

@@ -101,6 +101,8 @@ impl Analyzable for Declaration
 				value: _,
 				value_type: _,
 				flags: _,
+				location_of_declaration: _,
+				location_of_type: _,
 			} => self,
 			Declaration::Function {
 				name,
@@ -108,6 +110,8 @@ impl Analyzable for Declaration
 				body,
 				return_type,
 				flags,
+				location_of_declaration,
+				location_of_return_type,
 			} =>
 			{
 				let body = match body
@@ -121,6 +125,8 @@ impl Analyzable for Declaration
 					body,
 					return_type,
 					flags,
+					location_of_declaration,
+					location_of_return_type,
 				}
 			}
 			Declaration::FunctionHead {
@@ -128,6 +134,8 @@ impl Analyzable for Declaration
 				parameters: _,
 				return_type: _,
 				flags: _,
+				location_of_declaration: _,
+				location_of_return_type: _,
 			} => self,
 			Declaration::Structure {
 				name: _,
@@ -135,6 +143,7 @@ impl Analyzable for Declaration
 				structural_type: _,
 				flags: _,
 				depth: _,
+				location_of_declaration: _,
 			} => self,
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
 			Declaration::Poison(_) => self,

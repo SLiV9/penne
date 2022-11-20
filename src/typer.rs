@@ -11,6 +11,8 @@ use crate::common::*;
 use crate::error::Error;
 use crate::parser::{MAX_ADDRESS_DEPTH, MAX_REFERENCE_DEPTH};
 
+use enumset::EnumSet;
+
 pub const MAX_AUTODEREF_DEPTH: usize =
 	MAX_REFERENCE_DEPTH + MAX_ADDRESS_DEPTH as usize;
 
@@ -612,36 +614,73 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 			value,
 			value_type,
 			flags,
-		} => match typer.put_symbol(&name, Some(value_type.clone()))
+			location_of_declaration,
+			location_of_type,
+		} =>
 		{
-			Ok(()) => Declaration::Constant {
-				name,
-				value,
-				value_type,
-				flags,
-			},
-			Err(error) => Declaration::Poison(Poison::Error {
-				error,
-				partial: Some(Box::new(Declaration::Constant {
+			let value_type = match value_type.analyze(typer)
+			{
+				Ok(value_type) => match fix_type_for_flags(
+					value_type,
+					&flags,
+					&location_of_type,
+					&location_of_declaration,
+				)
+				{
+					Ok(value_type) => Ok(value_type),
+					Err(error) => Err(error.into()),
+				},
+				Err(poison) => Err(poison),
+			};
+
+			match typer.put_symbol(&name, Some(value_type.clone()))
+			{
+				Ok(()) => Declaration::Constant {
 					name,
 					value,
 					value_type,
 					flags,
-				})),
-			}),
-		},
+					location_of_declaration,
+					location_of_type,
+				},
+				Err(error) => Declaration::Poison(Poison::Error {
+					error,
+					partial: Some(Box::new(Declaration::Constant {
+						name,
+						value,
+						value_type,
+						flags,
+						location_of_declaration,
+						location_of_type,
+					})),
+				}),
+			}
+		}
 		Declaration::Function {
 			name,
 			parameters,
 			body,
 			return_type,
 			flags,
+			location_of_declaration,
+			location_of_return_type,
 		} =>
 		{
-			let parameters: Vec<Parameter> =
-				parameters.into_iter().map(|x| x.analyze(typer)).collect();
+			let parameters: Vec<Parameter> = parameters
+				.into_iter()
+				.map(|x| {
+					x.analyze_and_fix(&flags, &location_of_declaration, typer)
+				})
+				.collect();
 
 			typer.declare_function_parameters(&name, &parameters);
+
+			let return_type = fix_return_type_for_flags(
+				return_type.map(|x| x.analyze(typer)),
+				&flags,
+				&location_of_declaration,
+				&location_of_return_type,
+			);
 
 			let rv_identifier = name.return_value();
 			let rv_type = return_type.clone();
@@ -653,6 +692,8 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 					body,
 					return_type,
 					flags,
+					location_of_declaration,
+					location_of_return_type,
 				},
 				Err(error) => Declaration::Poison(Poison::Error {
 					error,
@@ -662,6 +703,8 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 						body,
 						return_type,
 						flags,
+						location_of_declaration,
+						location_of_return_type,
 					})),
 				}),
 			}
@@ -671,12 +714,25 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 			parameters,
 			return_type,
 			flags,
+			location_of_declaration,
+			location_of_return_type,
 		} =>
 		{
-			let parameters: Vec<Parameter> =
-				parameters.into_iter().map(|x| x.analyze(typer)).collect();
+			let parameters: Vec<Parameter> = parameters
+				.into_iter()
+				.map(|x| {
+					x.analyze_and_fix(&flags, &location_of_declaration, typer)
+				})
+				.collect();
 
 			typer.declare_function_parameters(&name, &parameters);
+
+			let return_type = fix_return_type_for_flags(
+				return_type.map(|x| x.analyze(typer)),
+				&flags,
+				&location_of_declaration,
+				&location_of_return_type,
+			);
 
 			let rv_identifier = name.return_value();
 			let rv_type = return_type.clone();
@@ -687,6 +743,8 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 					parameters,
 					return_type,
 					flags,
+					location_of_declaration,
+					location_of_return_type,
 				},
 				Err(error) => Declaration::Poison(Poison::Error {
 					error,
@@ -695,6 +753,8 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 						parameters,
 						return_type,
 						flags,
+						location_of_declaration,
+						location_of_return_type,
 					})),
 				}),
 			}
@@ -705,13 +765,16 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 			structural_type,
 			flags,
 			depth,
+			location_of_declaration,
 		} =>
 		{
+			// Analyze the members again because cyclical structures will have
+			// members with type UnresolvedStructOrWord instead of Poisoned.
 			let members: Vec<Member> = members
 				.into_iter()
 				.map(|x| {
 					typer.contextual_type = Some(structural_type.clone());
-					x.analyze(typer)
+					x.analyze_and_fix(&flags, &location_of_declaration, typer)
 				})
 				.collect();
 
@@ -734,6 +797,7 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 				structural_type,
 				flags,
 				depth,
+				location_of_declaration,
 			}
 		}
 		Declaration::PreprocessorDirective { .. } => unreachable!(),
@@ -769,6 +833,7 @@ fn prealign(declaration: &mut Declaration, typer: &mut Typer)
 			structural_type: _,
 			flags: _,
 			depth: Some(Err(_poison)),
+			location_of_declaration: _,
 		} =>
 		{
 			typer.poison_symbol(&name, Poison::Poisoned);
@@ -777,15 +842,16 @@ fn prealign(declaration: &mut Declaration, typer: &mut Typer)
 			name,
 			members,
 			structural_type,
-			flags: _,
+			flags,
 			depth: _,
+			location_of_declaration,
 		} =>
 		{
 			*members = std::mem::take(members)
 				.into_iter()
 				.map(|x| {
 					typer.contextual_type = Some(structural_type.clone());
-					x.analyze(typer)
+					x.analyze_and_fix(&flags, &location_of_declaration, typer)
 				})
 				.collect();
 
@@ -848,6 +914,8 @@ impl Analyzable for Declaration
 				value,
 				value_type,
 				flags,
+				location_of_declaration,
+				location_of_type,
 			} =>
 			{
 				typer.contextual_type = Some(value_type.clone());
@@ -866,6 +934,8 @@ impl Analyzable for Declaration
 					value,
 					value_type,
 					flags,
+					location_of_declaration,
+					location_of_type,
 				}
 			}
 			Declaration::Function {
@@ -874,29 +944,28 @@ impl Analyzable for Declaration
 				body: Err(poisoned_body),
 				return_type,
 				flags,
-			} =>
-			{
-				let parameters: Vec<Parameter> =
-					parameters.into_iter().map(|x| x.analyze(typer)).collect();
-
-				Declaration::Function {
-					name,
-					parameters,
-					body: Err(poisoned_body),
-					return_type,
-					flags,
-				}
-			}
+				location_of_declaration,
+				location_of_return_type,
+			} => Declaration::Function {
+				name,
+				parameters,
+				body: Err(poisoned_body),
+				return_type,
+				flags,
+				location_of_declaration,
+				location_of_return_type,
+			},
 			Declaration::Function {
 				name,
 				parameters,
 				body: Ok(body),
 				return_type,
 				flags,
+				location_of_declaration,
+				location_of_return_type,
 			} =>
 			{
-				let parameters: Vec<Parameter> =
-					parameters.into_iter().map(|x| x.analyze(typer)).collect();
+				// All parameters are analyzed before any function bodies.
 
 				// Pre-analyze the function body because it might contain
 				// untyped declarations, e.g. "var x;", whose types won't be
@@ -925,24 +994,14 @@ impl Analyzable for Declaration
 					body: Ok(body),
 					return_type,
 					flags,
+					location_of_declaration,
+					location_of_return_type,
 				}
 			}
-			Declaration::FunctionHead {
-				name,
-				parameters,
-				return_type,
-				flags,
-			} =>
+			Declaration::FunctionHead { .. } =>
 			{
-				let parameters: Vec<Parameter> =
-					parameters.into_iter().map(|x| x.analyze(typer)).collect();
-
-				Declaration::FunctionHead {
-					name,
-					parameters,
-					return_type,
-					flags,
-				}
+				// All parameters are analyzed before any function bodies.
+				self
 			}
 			Declaration::Structure { .. } =>
 			{
@@ -1048,88 +1107,131 @@ fn analyze_return_value(
 	}
 }
 
-impl Analyzable for Member
+impl Member
 {
-	fn analyze(self, typer: &mut Typer) -> Self
+	fn analyze_and_fix(
+		self,
+		flags: &EnumSet<DeclarationFlag>,
+		location_of_declaration: &Location,
+		typer: &mut Typer,
+	) -> Self
 	{
 		let contextual_structure_type = typer.contextual_type.take();
-		let value_type = match &self.name
+		let (in_struct, in_word) = match contextual_structure_type
 		{
-			Ok(name) =>
-			{
-				let value_type = self.value_type.analyze(typer);
+			Some(Ok(ValueType::Struct { .. })) => (true, false),
+			Some(Ok(ValueType::Word { .. })) => (false, true),
+			Some(Ok(ValueType::UnresolvedStructOrWord { .. })) => (true, false),
+			Some(Ok(_)) => unreachable!(),
+			Some(Err(_)) => (false, false),
+			None => unreachable!(),
+		};
 
-				let (is_struct, is_word) = match contextual_structure_type
-				{
-					Some(Ok(ValueType::Struct { .. })) => (true, false),
-					Some(Ok(ValueType::Word { .. })) => (false, true),
-					Some(Ok(ValueType::UnresolvedStructOrWord { .. })) =>
-					{
-						(true, false)
-					}
-					Some(Ok(_)) => unreachable!(),
-					Some(Err(_)) => (false, false),
-					None => unreachable!(),
-				};
+		let value_type = match self.value_type.analyze(typer)
+		{
+			Ok(value_type) =>
+			{
+				let value_type = fix_type_for_flags(
+					value_type,
+					flags,
+					&self.location_of_type,
+					location_of_declaration,
+				);
 				let is_legal = match &value_type
 				{
 					Err(_) => true,
-					Ok(vt) if is_word => vt.can_be_word_member(),
-					Ok(vt) if is_struct => vt.can_be_struct_member(),
+					Ok(vt) if in_word => vt.can_be_word_member(),
+					Ok(vt) if in_struct => vt.can_be_struct_member(),
 					Ok(_) => true,
 				};
-				let value_type = value_type.and_then(|vt| {
-					if is_legal
+				match value_type
+				{
+					Ok(vt) if is_legal => Ok(vt),
+					Ok(vt) => match &self.name
 					{
-						Ok(vt)
-					}
-					else
-					{
-						Err(Poison::Error {
+						Ok(name) => Err(Poison::Error {
 							error: Error::IllegalMemberType {
 								value_type: vt.clone(),
-								is_word,
+								in_word,
 								location: name.location.clone(),
 							},
-							partial: Some(vt.clone()),
-						})
-					}
-				});
-				match typer.put_symbol(name, Some(value_type.clone()))
-				{
-					Ok(()) => typer.get_symbol(name).unwrap_or(value_type),
+							partial: Some(vt),
+						}),
+						Err(_poison) => Err(Poison::Poisoned),
+					},
 					Err(error) => Err(error.into()),
 				}
 			}
-			Err(_poison) => self.value_type,
+			Err(poison) => Err(poison),
+		};
+		let value_type = match &self.name
+		{
+			Ok(name) => match typer.put_symbol(name, Some(value_type.clone()))
+			{
+				Ok(()) => typer.get_symbol(name).unwrap_or(value_type),
+				Err(error) => Err(error.into()),
+			},
+			Err(_poison) => Err(Poison::Poisoned),
 		};
 		Member {
 			name: self.name,
 			value_type,
+			location_of_type: self.location_of_type,
 		}
 	}
 }
 
-impl Analyzable for Parameter
+impl Parameter
 {
-	fn analyze(self, typer: &mut Typer) -> Self
+	fn analyze_and_fix(
+		self,
+		flags: &EnumSet<DeclarationFlag>,
+		location_of_declaration: &Location,
+		typer: &mut Typer,
+	) -> Self
 	{
-		let value_type = match &self.name
+		let value_type = match self.value_type.analyze(typer)
 		{
-			Ok(name) =>
+			Ok(value_type) =>
 			{
-				let value_type = self.value_type.analyze(typer);
-				match typer.put_symbol(name, Some(value_type.clone()))
+				let value_type = fix_type_for_flags(
+					value_type,
+					flags,
+					&self.location_of_type,
+					location_of_declaration,
+				);
+				match value_type
 				{
-					Ok(()) => typer.get_symbol(name).unwrap_or(value_type),
+					Ok(vt) if vt.can_be_parameter() => Ok(vt),
+					Ok(vt) => match &self.name
+					{
+						Ok(name) => Err(Poison::Error {
+							error: Error::IllegalParameterType {
+								value_type: vt.clone(),
+								location: name.location.clone(),
+							},
+							partial: Some(vt),
+						}),
+						Err(_poison) => Err(Poison::Poisoned),
+					},
 					Err(error) => Err(error.into()),
 				}
 			}
-			Err(_poison) => self.value_type,
+			Err(poison) => Err(poison),
+		};
+		let value_type = match &self.name
+		{
+			Ok(name) => match typer.put_symbol(name, Some(value_type.clone()))
+			{
+				Ok(()) => typer.get_symbol(name).unwrap_or(value_type),
+				Err(error) => Err(error.into()),
+			},
+			Err(_poison) => Err(Poison::Poisoned),
 		};
 		Parameter {
 			name: self.name,
 			value_type,
+			location_of_type: self.location_of_type,
 		}
 	}
 }
@@ -2793,5 +2895,176 @@ fn analyze_type(
 				deref_type: Box::new(deref_type),
 			},
 		),
+	}
+}
+
+fn fix_return_type_for_flags(
+	return_type: Option<Poisonable<ValueType>>,
+	flags: &EnumSet<DeclarationFlag>,
+	location_of_type: &Location,
+	location_of_declaration: &Location,
+) -> Option<Poisonable<ValueType>>
+{
+	let value_type = match return_type
+	{
+		Some(Ok(value_type)) => value_type,
+		Some(Err(poison)) => return Some(Err(poison)),
+		None => return None,
+	};
+
+	let fixed_type = fix_type_for_flags(
+		value_type,
+		flags,
+		&location_of_type,
+		&location_of_declaration,
+	);
+
+	let value_type = match fixed_type
+	{
+		Ok(value_type) => value_type,
+		Err(error) => return Some(Err(error.into())),
+	};
+
+	if value_type.can_be_returned()
+	{
+		Some(Ok(value_type))
+	}
+	else
+	{
+		let error = Error::IllegalReturnType {
+			value_type: value_type,
+			location: location_of_type.clone(),
+		};
+		Some(Err(error.into()))
+	}
+}
+
+fn fix_type_for_flags(
+	value_type: ValueType,
+	flags: &EnumSet<DeclarationFlag>,
+	location_of_type: &Location,
+	location_of_declaration: &Location,
+) -> Result<ValueType, Error>
+{
+	if flags.contains(DeclarationFlag::External)
+	{
+		match value_type
+		{
+			ValueType::Arraylike { element_type } =>
+			{
+				let element_type = externalize_type(
+					*element_type,
+					location_of_type,
+					location_of_declaration,
+				)?;
+				Ok(ValueType::View {
+					deref_type: Box::new(ValueType::EndlessArray {
+						element_type: Box::new(element_type),
+					}),
+				})
+			}
+			_ => externalize_type(
+				value_type,
+				location_of_type,
+				location_of_declaration,
+			),
+		}
+	}
+	else
+	{
+		match value_type
+		{
+			ValueType::Arraylike { element_type } =>
+			{
+				Ok(ValueType::Slice { element_type })
+			}
+			ValueType::Struct { .. } =>
+			{
+				let deref_type = Box::new(value_type);
+				Ok(ValueType::View { deref_type })
+			}
+			ValueType::Pointer { deref_type } => match *deref_type
+			{
+				ValueType::Arraylike { element_type } =>
+				{
+					let deref_type =
+						Box::new(ValueType::Slice { element_type });
+					Ok(ValueType::Pointer { deref_type })
+				}
+				_ => Ok(ValueType::Pointer { deref_type }),
+			},
+			ValueType::View { deref_type } => match *deref_type
+			{
+				ValueType::Arraylike { element_type } =>
+				{
+					let deref_type =
+						Box::new(ValueType::Slice { element_type });
+					Ok(ValueType::View { deref_type })
+				}
+				_ => Ok(ValueType::View { deref_type }),
+			},
+			_ => Ok(value_type),
+		}
+	}
+}
+
+fn externalize_type(
+	value_type: ValueType,
+	location_of_type: &Location,
+	location_of_declaration: &Location,
+) -> Result<ValueType, Error>
+{
+	match value_type
+	{
+		ValueType::Arraylike { element_type } =>
+		{
+			let element_type = externalize_type(
+				*element_type,
+				location_of_type,
+				location_of_declaration,
+			)?;
+			Ok(ValueType::EndlessArray {
+				element_type: Box::new(element_type),
+			})
+		}
+		ValueType::Pointer { deref_type } =>
+		{
+			let deref_type = externalize_type(
+				*deref_type,
+				location_of_type,
+				location_of_declaration,
+			)?;
+			Ok(ValueType::Pointer {
+				deref_type: Box::new(deref_type),
+			})
+		}
+		ValueType::View { deref_type } =>
+		{
+			let deref_type = externalize_type(
+				*deref_type,
+				location_of_type,
+				location_of_declaration,
+			)?;
+			Ok(ValueType::View {
+				deref_type: Box::new(deref_type),
+			})
+		}
+		ValueType::Int8 => Ok(value_type),
+		ValueType::Int16 => Ok(value_type),
+		ValueType::Int32 => Ok(value_type),
+		ValueType::Int64 => Ok(value_type),
+		ValueType::Int128 => Ok(value_type),
+		ValueType::Uint8 => Ok(value_type),
+		ValueType::Uint16 => Ok(value_type),
+		ValueType::Uint32 => Ok(value_type),
+		ValueType::Uint64 => Ok(value_type),
+		ValueType::Uint128 => Ok(value_type),
+		ValueType::Usize => Ok(value_type),
+		ValueType::Bool => Ok(value_type),
+		_ => Err(Error::TypeNotAllowedInExtern {
+			value_type,
+			location_of_type: location_of_type.clone(),
+			location_of_declaration: location_of_declaration.clone(),
+		}),
 	}
 }

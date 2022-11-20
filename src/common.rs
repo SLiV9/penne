@@ -25,6 +25,8 @@ pub enum Declaration
 		value: Expression,
 		value_type: Poisonable<ValueType>,
 		flags: EnumSet<DeclarationFlag>,
+		location_of_declaration: Location,
+		location_of_type: Location,
 	},
 	Function
 	{
@@ -33,6 +35,8 @@ pub enum Declaration
 		body: Poisonable<FunctionBody>,
 		return_type: Option<Poisonable<ValueType>>,
 		flags: EnumSet<DeclarationFlag>,
+		location_of_declaration: Location,
+		location_of_return_type: Location,
 	},
 	FunctionHead
 	{
@@ -40,6 +44,8 @@ pub enum Declaration
 		parameters: Vec<Parameter>,
 		return_type: Option<Poisonable<ValueType>>,
 		flags: EnumSet<DeclarationFlag>,
+		location_of_declaration: Location,
+		location_of_return_type: Location,
 	},
 	Structure
 	{
@@ -48,6 +54,7 @@ pub enum Declaration
 		structural_type: Poisonable<ValueType>,
 		flags: EnumSet<DeclarationFlag>,
 		depth: Option<Poisonable<u32>>,
+		location_of_declaration: Location,
 	},
 	PreprocessorDirective
 	{
@@ -71,6 +78,7 @@ pub struct Member
 {
 	pub name: Poisonable<Identifier>,
 	pub value_type: Poisonable<ValueType>,
+	pub location_of_type: Location,
 }
 
 #[must_use]
@@ -79,6 +87,7 @@ pub struct Parameter
 {
 	pub name: Poisonable<Identifier>,
 	pub value_type: Poisonable<ValueType>,
+	pub location_of_type: Location,
 }
 
 #[must_use]

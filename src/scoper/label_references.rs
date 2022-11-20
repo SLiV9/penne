@@ -130,6 +130,8 @@ impl Analyzable for Declaration
 				body,
 				return_type,
 				flags,
+				location_of_declaration,
+				location_of_return_type,
 			} =>
 			{
 				let body = match body
@@ -143,6 +145,8 @@ impl Analyzable for Declaration
 					body,
 					return_type,
 					flags,
+					location_of_declaration,
+					location_of_return_type,
 				}
 			}
 			Declaration::FunctionHead { .. } => self,
