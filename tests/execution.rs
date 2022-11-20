@@ -304,6 +304,14 @@ fn execute_integer_casting() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_structs_and_words() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation("examples/structs_and_words.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_disorganized_structures() -> Result<(), anyhow::Error>
 {
 	let result =
@@ -317,6 +325,15 @@ fn execute_same_size_structures() -> Result<(), anyhow::Error>
 {
 	let result =
 		execute_calculation("tests/samples/valid/same_size_structures.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn execute_word_literal_as_argument() -> Result<(), anyhow::Error>
+{
+	let result =
+		execute_calculation("tests/samples/valid/word_literal_as_argument.pn")?;
 	assert_eq!(result, 200);
 	Ok(())
 }

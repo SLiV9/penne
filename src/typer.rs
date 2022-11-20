@@ -622,6 +622,7 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 			{
 				Ok(value_type) => match fix_type_for_flags(
 					value_type,
+					false,
 					&flags,
 					&location_of_type,
 					&location_of_declaration,
@@ -1133,6 +1134,7 @@ impl Member
 			{
 				let value_type = fix_type_for_flags(
 					value_type,
+					true,
 					flags,
 					&self.location_of_type,
 					location_of_declaration,
@@ -1196,6 +1198,7 @@ impl Parameter
 			{
 				let value_type = fix_type_for_flags(
 					value_type,
+					false,
 					flags,
 					&self.location_of_type,
 					location_of_declaration,
@@ -2914,6 +2917,7 @@ fn fix_return_type_for_flags(
 
 	let fixed_type = fix_type_for_flags(
 		value_type,
+		false,
 		flags,
 		&location_of_type,
 		&location_of_declaration,
@@ -2941,6 +2945,7 @@ fn fix_return_type_for_flags(
 
 fn fix_type_for_flags(
 	value_type: ValueType,
+	in_structure: bool,
 	flags: &EnumSet<DeclarationFlag>,
 	location_of_type: &Location,
 	location_of_declaration: &Location,
@@ -2978,7 +2983,7 @@ fn fix_type_for_flags(
 			{
 				Ok(ValueType::Slice { element_type })
 			}
-			ValueType::Struct { .. } =>
+			ValueType::Struct { .. } if !in_structure =>
 			{
 				let deref_type = Box::new(value_type);
 				Ok(ValueType::View { deref_type })

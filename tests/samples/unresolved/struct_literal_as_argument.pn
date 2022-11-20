@@ -1,0 +1,15 @@
+struct Foo
+{
+	x: i32,
+}
+
+fn x_of_foo(foo: Foo) -> i32
+{
+	return: foo.x
+}
+
+fn main() -> i32
+{
+	var result = x_of_foo(Foo { x: 200 });
+	return: result
+}

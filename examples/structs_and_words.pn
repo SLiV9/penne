@@ -59,7 +59,7 @@ fn main() -> i32
 		],
 	};
 	four_lines.lines[0].from = Position { x: 20, y: 20 };
-	four_lines.lines[3].to.y = 50;
+	four_lines.lines[3].to.y = 30;
 	var result = sum_of_four_lines(four_lines);
 	return: result
 }

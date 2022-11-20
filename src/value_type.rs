@@ -340,6 +340,11 @@ where
 				},
 				_ => false,
 			},
+			ValueType::Struct { .. } => match other
+			{
+				ValueType::View { deref_type } => deref_type.as_ref() == self,
+				_ => false,
+			},
 			_ => false,
 		}
 	}
@@ -382,6 +387,10 @@ where
 				self == other || self.can_coerce_into(other)
 			}
 			ValueType::EndlessArray { .. } =>
+			{
+				self == other || self.can_coerce_into(other)
+			}
+			ValueType::Struct { .. } =>
 			{
 				self == other || self.can_coerce_into(other)
 			}
@@ -601,11 +610,7 @@ where
 			ValueType::Struct { .. } => false,
 			ValueType::Word { .. } => true,
 			ValueType::UnresolvedStructOrWord { .. } => false,
-			ValueType::View { .. } =>
-			{
-				// Maybe yes?
-				false
-			}
+			ValueType::View { .. } => false,
 			_ => self.is_wellformed(),
 		}
 	}

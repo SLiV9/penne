@@ -180,20 +180,21 @@ impl Drop for Generator
 fn organize(declarations: &[Declaration]) -> Vec<&Declaration>
 {
 	let mut declarations: Vec<&Declaration> = declarations.iter().collect();
-	// Sort structure declarations (Some) before other declarations (None),
+	// Sort structure declarations before other declarations (infty),
 	// and sort the structure declarations by their depth, from low to high.
-	declarations.sort_by_key(|x| get_structure_depth(x));
+	let n = declarations.len();
+	declarations.sort_by_key(|x| get_structure_depth(x, n));
 	declarations
 }
 
-fn get_structure_depth(declaration: &Declaration) -> Option<u32>
+fn get_structure_depth(declaration: &Declaration, max: usize) -> usize
 {
 	match declaration
 	{
-		Declaration::Constant { .. } => None,
-		Declaration::Function { .. } => None,
-		Declaration::FunctionHead { .. } => None,
-		Declaration::Structure { depth, .. } => Some(*depth),
+		Declaration::Constant { .. } => max,
+		Declaration::Function { .. } => max,
+		Declaration::FunctionHead { .. } => max,
+		Declaration::Structure { depth, .. } => *depth as usize,
 	}
 }
 
@@ -1535,6 +1536,26 @@ impl Reference
 	}
 }
 
+fn generate_view(
+	address: LLVMValueRef,
+	viewed_type: &ValueType,
+	llvm: &mut Generator,
+) -> Result<LLVMValueRef, anyhow::Error>
+{
+	let tmpname = CString::new("")?;
+	let pointee_type = viewed_type.generate(llvm)?;
+	let pointer_type = unsafe { LLVMPointerType(pointee_type, 0u32) };
+	let address_value = unsafe {
+		LLVMBuildPointerCast(
+			llvm.builder,
+			address,
+			pointer_type,
+			tmpname.as_ptr(),
+		)
+	};
+	Ok(address_value)
+}
+
 fn generate_ext_array_view(
 	address: LLVMValueRef,
 	element_type: &ValueType,
@@ -1687,7 +1708,18 @@ fn generate_autocoerce(
 				}
 				_ => unimplemented!(),
 			},
-			_ => unimplemented!(),
+			viewed_type => match expression
+			{
+				Expression::Deref {
+					reference,
+					deref_type: _,
+				} =>
+				{
+					let address = reference.generate_storage_address(llvm)?;
+					generate_view(address, &viewed_type, llvm)
+				}
+				_ => unimplemented!(),
+			},
 		},
 		ValueType::Pointer { deref_type } => match deref_type.as_ref()
 		{
