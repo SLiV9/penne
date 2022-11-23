@@ -206,13 +206,13 @@ impl Analyzable for Declaration
 
 				let value_type = match value_type
 				{
-					Ok(vt) if !vt.can_be_constant() => Err(Poison::Error {
-						error: Error::IllegalConstantType {
-							value_type: vt.clone(),
+					Ok(vt) if !vt.can_be_constant() =>
+					{
+						Err(Poison::Error(Error::IllegalConstantType {
+							value_type: vt,
 							location: name.location.clone(),
-						},
-						partial: Some(vt),
-					}),
+						}))
+					}
 					_ => value_type,
 				};
 
@@ -360,15 +360,10 @@ impl Analyzable for Statement
 			{
 				if analyzer.is_const_evaluated
 				{
-					return Statement::Poison(Poison::Error {
-						error: Error::FunctionInConstContext {
-							location: name.location.clone(),
-						},
-						partial: Some(Box::new(Statement::MethodCall {
-							name,
-							arguments,
-						})),
-					});
+					let error = Error::FunctionInConstContext {
+						location: name.location.clone(),
+					};
+					return Statement::Poison(Poison::Error(error));
 				}
 
 				let recoverable_error =
@@ -385,13 +380,7 @@ impl Analyzable for Statement
 				match recoverable_error
 				{
 					Ok(()) => Statement::MethodCall { name, arguments },
-					Err(error) => Statement::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(Statement::MethodCall {
-							name,
-							arguments,
-						})),
-					}),
+					Err(error) => Statement::Poison(Poison::Error(error)),
 				}
 			}
 			Statement::Loop { .. } => self,
@@ -481,18 +470,10 @@ impl Analyzable for Expression
 			{
 				if analyzer.is_const_evaluated
 				{
-					return Expression::Poison(Poison::Error {
-						error: Error::UnsupportedInConstContext {
-							location: location.clone(),
-						},
-						partial: Some(Box::new(Expression::Binary {
-							op,
-							left,
-							right,
-							location,
-							location_of_op,
-						})),
-					});
+					let error = Error::UnsupportedInConstContext {
+						location: location.clone(),
+					};
+					return Expression::Poison(Poison::Error(error));
 				}
 
 				analyzer.is_immediate_function_argument = false;
@@ -515,17 +496,10 @@ impl Analyzable for Expression
 			{
 				if analyzer.is_const_evaluated
 				{
-					return Expression::Poison(Poison::Error {
-						error: Error::UnsupportedInConstContext {
-							location: location.clone(),
-						},
-						partial: Some(Box::new(Expression::Unary {
-							op,
-							expression,
-							location,
-							location_of_op,
-						})),
-					});
+					let error = Error::UnsupportedInConstContext {
+						location: location.clone(),
+					};
+					return Expression::Poison(Poison::Error(error));
 				}
 
 				analyzer.is_immediate_function_argument = false;
@@ -582,15 +556,10 @@ impl Analyzable for Expression
 			{
 				if analyzer.is_const_evaluated
 				{
-					return Expression::Poison(Poison::Error {
-						error: Error::UnsupportedInConstContext {
-							location: reference.location.clone(),
-						},
-						partial: Some(Box::new(Expression::Deref {
-							reference,
-							deref_type,
-						})),
-					});
+					let error = Error::UnsupportedInConstContext {
+						location: reference.location.clone(),
+					};
+					return Expression::Poison(Poison::Error(error));
 				}
 
 				let deref_type = match deref_type
@@ -600,12 +569,9 @@ impl Analyzable for Expression
 					{
 						if !analyzer.is_immediate_function_argument
 						{
-							Some(Err(Poison::Error {
-								error: Error::CannotCopyArray {
-									location: reference.location.clone(),
-								},
-								partial: Some(vt),
-							}))
+							Some(Err(Poison::Error(Error::CannotCopyArray {
+								location: reference.location.clone(),
+							})))
 						}
 						else
 						{
@@ -617,12 +583,9 @@ impl Analyzable for Expression
 					{
 						if !analyzer.is_immediate_function_argument
 						{
-							Some(Err(Poison::Error {
-								error: Error::CannotCopySlice {
-									location: reference.location.clone(),
-								},
-								partial: Some(vt),
-							}))
+							Some(Err(Poison::Error(Error::CannotCopySlice {
+								location: reference.location.clone(),
+							})))
 						}
 						else
 						{
@@ -633,12 +596,9 @@ impl Analyzable for Expression
 					{
 						if !analyzer.is_immediate_function_argument
 						{
-							Some(Err(Poison::Error {
-								error: Error::CannotCopyStruct {
-									location: reference.location.clone(),
-								},
-								partial: Some(vt),
-							}))
+							Some(Err(Poison::Error(Error::CannotCopyStruct {
+								location: reference.location.clone(),
+							})))
 						}
 						else
 						{
@@ -683,14 +643,10 @@ impl Analyzable for Expression
 			{
 				if analyzer.is_const_evaluated
 				{
-					return Expression::Poison(Poison::Error {
-						error: Error::UnsupportedInConstContext {
-							location: reference.location.clone(),
-						},
-						partial: Some(Box::new(Expression::LengthOfArray {
-							reference,
-						})),
-					});
+					let error = Error::UnsupportedInConstContext {
+						location: reference.location.clone(),
+					};
+					return Expression::Poison(Poison::Error(error));
 				}
 
 				let reference = reference.analyze(analyzer);
@@ -704,16 +660,10 @@ impl Analyzable for Expression
 			{
 				if analyzer.is_const_evaluated
 				{
-					return Expression::Poison(Poison::Error {
-						error: Error::FunctionInConstContext {
-							location: name.location.clone(),
-						},
-						partial: Some(Box::new(Expression::FunctionCall {
-							name,
-							arguments,
-							return_type,
-						})),
-					});
+					let error = Error::UnsupportedInConstContext {
+						location: name.location.clone(),
+					};
+					return Expression::Poison(Poison::Error(error));
 				}
 
 				let recoverable_error =
@@ -734,14 +684,7 @@ impl Analyzable for Expression
 						arguments,
 						return_type,
 					},
-					Err(error) => Expression::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(Expression::FunctionCall {
-							name,
-							arguments,
-							return_type,
-						})),
-					}),
+					Err(error) => Expression::Poison(Poison::Error(error)),
 				}
 			}
 			Expression::Poison(_) => self,
@@ -766,14 +709,13 @@ impl Analyzable for ReferenceStep
 				let argument = match argument.value_type()
 				{
 					Some(Ok(ValueType::Usize)) => argument,
-					Some(Ok(other_type)) => Expression::Poison(Poison::Error {
-						error: Error::IndexTypeMismatch {
+					Some(Ok(other_type)) => Expression::Poison(Poison::Error(
+						Error::IndexTypeMismatch {
 							argument_type: other_type,
 							index_type: ValueType::Usize,
 							location: argument.location().clone(),
 						},
-						partial: Some(Box::new(argument)),
-					}),
+					)),
 					Some(Err(_)) => argument,
 					None => argument,
 				};

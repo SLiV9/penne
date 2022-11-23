@@ -6,7 +6,6 @@
 
 use crate::common::*;
 use crate::error::Error;
-use crate::error::{Partiable, Partial};
 
 pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 {
@@ -28,8 +27,10 @@ struct Analyzer
 
 impl Analyzer
 {
-	fn declare_label(&mut self, identifier: Identifier)
-		-> Partiable<Identifier>
+	fn declare_label(
+		&mut self,
+		identifier: Identifier,
+	) -> Result<Identifier, Error>
 	{
 		let mut recoverable_error = None;
 		for scope in &self.label_stack
@@ -66,10 +67,7 @@ impl Analyzer
 
 		if let Some(error) = recoverable_error
 		{
-			Err(Partial {
-				error,
-				partial: identifier,
-			})
+			Err(error)
 		}
 		else
 		{
@@ -77,7 +75,7 @@ impl Analyzer
 		}
 	}
 
-	fn use_label(&self, identifier: Identifier) -> Partiable<Identifier>
+	fn use_label(&self, identifier: Identifier) -> Result<Identifier, Error>
 	{
 		for scope in &self.label_stack
 		{
@@ -92,12 +90,9 @@ impl Analyzer
 			}
 		}
 
-		Err(Partial {
-			error: Error::UndefinedLabel {
-				name: identifier.name.clone(),
-				location: identifier.location.clone(),
-			},
-			partial: identifier,
+		Err(Error::UndefinedLabel {
+			name: identifier.name.clone(),
+			location: identifier.location.clone(),
 		})
 	}
 
@@ -219,16 +214,7 @@ impl Analyzable for Statement
 				match analyzer.use_label(label)
 				{
 					Ok(label) => Statement::Goto { label, location },
-					Err(Partial {
-						error,
-						partial: label,
-					}) => Statement::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(Statement::Goto {
-							label,
-							location,
-						})),
-					}),
+					Err(error) => Statement::Poison(Poison::Error(error)),
 				}
 			}
 			Statement::Label { label, location } =>
@@ -236,16 +222,7 @@ impl Analyzable for Statement
 				match analyzer.declare_label(label)
 				{
 					Ok(label) => Statement::Label { label, location },
-					Err(Partial {
-						error,
-						partial: label,
-					}) => Statement::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(Statement::Label {
-							label,
-							location,
-						})),
-					}),
+					Err(error) => Statement::Poison(Poison::Error(error)),
 				}
 			}
 			Statement::If {

@@ -185,11 +185,7 @@ impl Typer
 		}
 	}
 
-	fn poison_symbol(
-		&mut self,
-		identifier: &Identifier,
-		poison: Poison<ValueType>,
-	)
+	fn poison_symbol(&mut self, identifier: &Identifier, poison: Poison)
 	{
 		if let Some(symbol) = self.symbols.get_mut(&identifier.resolution_id)
 		{
@@ -283,14 +279,12 @@ impl Typer
 							// TODO use num_step_taken to cut off reference
 							let _ = num_steps_taken;
 							let location = reference.location.clone();
-							return Some(Err(Poison::Error {
-								error: Error::NotAnArray {
-									current_type: x,
-									location,
-									previous: old_identifier.location.clone(),
-								},
-								partial: None,
-							}));
+							let error = Error::NotAnArray {
+								current_type: x,
+								location,
+								previous: old_identifier.location.clone(),
+							};
+							return Some(Err(Poison::Error(error)));
 						}
 					}
 				}
@@ -336,14 +330,7 @@ impl Typer
 						}
 						Err(poison) =>
 						{
-							reference.base = match poison
-							{
-								Poison::Error { error, partial: _ } =>
-								{
-									Err(error.into())
-								}
-								Poison::Poisoned => Err(Poison::Poisoned),
-							};
+							reference.base = Err(poison);
 							return Some(Err(Poison::Poisoned));
 						}
 					};
@@ -502,18 +489,13 @@ impl Typer
 				}
 				else
 				{
-					Err(Poison::Error {
-						error: Error::WordSizeMismatch {
-							inferred_size_in_bits: 8 * aligned_size_in_bytes,
-							declared_size_in_bits: 8 * declared_size_in_bytes,
-							location_of_identifier: identifier.location.clone(),
-							location_of_keyword: identifier.location.clone(),
-						},
-						partial: Some(ValueType::Word {
-							identifier,
-							size_in_bytes: declared_size_in_bytes,
-						}),
-					})
+					let error = Error::WordSizeMismatch {
+						inferred_size_in_bits: 8 * aligned_size_in_bytes,
+						declared_size_in_bits: 8 * declared_size_in_bytes,
+						location_of_identifier: identifier.location.clone(),
+						location_of_keyword: identifier.location.clone(),
+					};
+					Err(Poison::Error(error))
 				}
 			}
 			ValueType::UnresolvedStructOrWord { .. } => Ok(ValueType::Struct {
@@ -557,10 +539,7 @@ impl Typer
 			location: access.location.clone(),
 			location_of_declaration: structure.identifier.location.clone(),
 		};
-		Err(Poison::Error {
-			error,
-			partial: None,
-		})
+		Err(Poison::Error(error))
 	}
 }
 
@@ -643,17 +622,7 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 					location_of_declaration,
 					location_of_type,
 				},
-				Err(error) => Declaration::Poison(Poison::Error {
-					error,
-					partial: Some(Box::new(Declaration::Constant {
-						name,
-						value,
-						value_type,
-						flags,
-						location_of_declaration,
-						location_of_type,
-					})),
-				}),
+				Err(error) => Declaration::Poison(Poison::Error(error)),
 			}
 		}
 		Declaration::Function {
@@ -695,18 +664,7 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 					location_of_declaration,
 					location_of_return_type,
 				},
-				Err(error) => Declaration::Poison(Poison::Error {
-					error,
-					partial: Some(Box::new(Declaration::Function {
-						name,
-						parameters,
-						body,
-						return_type,
-						flags,
-						location_of_declaration,
-						location_of_return_type,
-					})),
-				}),
+				Err(error) => Declaration::Poison(Poison::Error(error)),
 			}
 		}
 		Declaration::FunctionHead {
@@ -746,17 +704,7 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 					location_of_declaration,
 					location_of_return_type,
 				},
-				Err(error) => Declaration::Poison(Poison::Error {
-					error,
-					partial: Some(Box::new(Declaration::FunctionHead {
-						name,
-						parameters,
-						return_type,
-						flags,
-						location_of_declaration,
-						location_of_return_type,
-					})),
-				}),
+				Err(error) => Declaration::Poison(Poison::Error(error)),
 			}
 		}
 		Declaration::Structure {
@@ -781,14 +729,10 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 			let structural_type =
 				typer.align_struct(&name, &members, structural_type);
 			let result = typer.put_symbol(&name, Some(structural_type.clone()));
-			let structural_type = match (result, structural_type)
+			let structural_type = match (structural_type, result)
 			{
-				(Ok(()), structural_type) => structural_type,
-				(Err(error), Ok(structural_type)) => Err(Poison::Error {
-					error,
-					partial: Some(structural_type),
-				}),
-				(Err(_error), structural_type) => structural_type,
+				(Ok(_), Err(error)) => Err(Poison::Error(error)),
+				(structural_type, _) => structural_type,
 			};
 
 			Declaration::Structure {
@@ -843,14 +787,10 @@ fn prealign(declaration: &mut Declaration, typer: &mut Typer)
 			let aligned_type =
 				typer.align_struct(&name, &members, structural_type.clone());
 			let result = typer.put_symbol(&name, Some(aligned_type.clone()));
-			*structural_type = match (result, aligned_type)
+			*structural_type = match (aligned_type, result)
 			{
-				(Ok(()), structural_type) => structural_type,
-				(Err(error), Ok(structural_type)) => Err(Poison::Error {
-					error,
-					partial: Some(structural_type),
-				}),
-				(Err(_error), structural_type) => structural_type,
+				(Ok(_), Err(error)) => Err(Poison::Error(error)),
+				(structural_type, _) => structural_type,
 			};
 		}
 		Declaration::PreprocessorDirective { .. } => unreachable!(),
@@ -908,10 +848,7 @@ impl Analyzable for Declaration
 					.put_symbol(&name.inferred(), value.value_type())
 				{
 					Ok(()) => value,
-					Err(error) => Expression::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(value)),
-					}),
+					Err(error) => Expression::Poison(Poison::Error(error)),
 				};
 				Declaration::Constant {
 					name,
@@ -1119,14 +1056,14 @@ impl Member
 					Ok(vt) if is_legal => Ok(vt),
 					Ok(vt) => match &self.name
 					{
-						Ok(name) => Err(Poison::Error {
-							error: Error::IllegalMemberType {
-								value_type: vt.clone(),
+						Ok(name) =>
+						{
+							Err(Poison::Error(Error::IllegalMemberType {
+								value_type: vt,
 								in_word,
 								location: name.location.clone(),
-							},
-							partial: Some(vt),
-						}),
+							}))
+						}
 						Err(_poison) => Err(Poison::Poisoned),
 					},
 					Err(error) => Err(error.into()),
@@ -1176,13 +1113,13 @@ impl Parameter
 					Ok(vt) if vt.can_be_parameter() => Ok(vt),
 					Ok(vt) => match &self.name
 					{
-						Ok(name) => Err(Poison::Error {
-							error: Error::IllegalParameterType {
-								value_type: vt.clone(),
+						Ok(name) =>
+						{
+							Err(Poison::Error(Error::IllegalParameterType {
+								value_type: vt,
 								location: name.location.clone(),
-							},
-							partial: Some(vt),
-						}),
+							}))
+						}
 						Err(_poison) => Err(Poison::Poisoned),
 					},
 					Err(error) => Err(error.into()),
@@ -1489,10 +1426,7 @@ impl Analyzable for Array
 				match typer.put_symbol(&name, element_type)
 				{
 					Ok(()) => element,
-					Err(error) => Expression::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(element)),
-					}),
+					Err(error) => Expression::Poison(Poison::Error(error)),
 				}
 			})
 			.collect();
@@ -1687,13 +1621,7 @@ impl Analyzable for Expression
 							element_type,
 						}
 					}
-					Err(error) => Expression::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(Expression::ArrayLiteral {
-							array,
-							element_type,
-						})),
-					}),
+					Err(error) => Expression::Poison(Poison::Error(error)),
 				}
 			}
 			Expression::StringLiteral {
@@ -1809,16 +1737,12 @@ impl Analyzable for Expression
 					{
 						// TODO determine location of declaration?
 						let previous = reference.location.clone();
-						Expression::Poison(Poison::Error {
-							error: Error::NotAnArrayWithLength {
-								current_type,
-								location: reference.location.clone(),
-								previous,
-							},
-							partial: Some(Box::new(
-								Expression::LengthOfArray { reference },
-							)),
-						})
+						let error = Error::NotAnArrayWithLength {
+							current_type,
+							location: reference.location.clone(),
+							previous,
+						};
+						Expression::Poison(Poison::Error(error))
 					}
 					Some(Err(_poison)) =>
 					{
@@ -1847,10 +1771,7 @@ impl Analyzable for Expression
 				match recoverable_error
 				{
 					Ok(()) => expr,
-					Err(error) => Expression::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(expr)),
-					}),
+					Err(error) => Expression::Poison(Poison::Error(error)),
 				}
 			}
 			Expression::Poison(_) => self,
@@ -1891,21 +1812,7 @@ fn analyze_structural(
 							match offset
 							{
 								Ok(offset) => (Ok(name), Some(offset)),
-								Err(poison) =>
-								{
-									let poison = match poison
-									{
-										Poison::Error { error, partial: _ } =>
-										{
-											Poison::Error {
-												error,
-												partial: Some(name),
-											}
-										}
-										Poison::Poisoned => Poison::Poisoned,
-									};
-									(Err(poison), None)
-								}
+								Err(poison) => (Err(poison), None),
 							}
 						}
 						Err(poison) => (Err(poison), None),
@@ -1925,32 +1832,7 @@ fn analyze_structural(
 				location,
 			}
 		}
-		Err(poison) =>
-		{
-			let poison = match poison
-			{
-				Poison::Error {
-					error,
-					partial: Some(structural_type),
-				} => Poison::Error {
-					error,
-					partial: Some(Box::new(Expression::Structural {
-						members,
-						structural_type: Ok(structural_type),
-						location,
-					})),
-				},
-				Poison::Error {
-					error,
-					partial: None,
-				} => Poison::Error {
-					error,
-					partial: None,
-				},
-				Poison::Poisoned => Poison::Poisoned,
-			};
-			Expression::Poison(poison)
-		}
+		Err(poison) => Expression::Poison(poison),
 	}
 }
 
@@ -2198,10 +2080,7 @@ impl Reference
 		let base = match typer.put_symbol(base, full_type)
 		{
 			Ok(()) => self.base,
-			Err(error) => Err(Poison::Error {
-				error,
-				partial: Some(base.clone()),
-			}),
+			Err(error) => Err(Poison::Error(error)),
 		};
 
 		Reference {
@@ -2266,17 +2145,7 @@ impl Reference
 			(Some(Err(base_type_poison)), _, _) =>
 			{
 				// Keep the error.
-				let poison = match base_type_poison
-				{
-					Poison::Error { error, partial: _ } => Poison::Error {
-						error,
-						partial: Some(Box::new(Expression::Deref {
-							reference: self,
-							deref_type: Some(Err(Poison::Poisoned)),
-						})),
-					},
-					Poison::Poisoned => Poison::Poisoned,
-				};
+				let poison = base_type_poison;
 				Expression::Poison(poison)
 			}
 			(None, deref_type, _) =>
@@ -2314,13 +2183,7 @@ impl Reference
 					deref_type,
 				}
 			}
-			Err(error) => Expression::Poison(Poison::Error {
-				error,
-				partial: Some(Box::new(Expression::Deref {
-					reference: self,
-					deref_type,
-				})),
-			}),
+			Err(error) => Expression::Poison(Poison::Error(error)),
 		}
 	}
 
@@ -2591,10 +2454,7 @@ impl Reference
 		match typer.put_symbol(base, full_type.clone())
 		{
 			Ok(()) => expr,
-			Err(error) => Expression::Poison(Poison::Error {
-				error,
-				partial: Some(Box::new(expr)),
-			}),
+			Err(error) => Expression::Poison(Poison::Error(error)),
 		}
 	}
 }
@@ -2767,16 +2627,13 @@ fn analyze_type(
 			let current_type = ValueType::UnresolvedStructOrWord {
 				identifier: Some(identifier.clone()),
 			};
-			match typer.put_symbol(&identifier, Some(Ok(current_type)))
+			typer.put_symbol(&identifier, Some(Ok(current_type)))?;
+			match typer.get_symbol(&identifier)
 			{
-				Ok(()) => match typer.get_symbol(&identifier)
-				{
-					Some(result) => result,
-					None => Ok(ValueType::UnresolvedStructOrWord {
-						identifier: Some(identifier),
-					}),
-				},
-				Err(error) => Err(error.into()),
+				Some(result) => result,
+				None => Ok(ValueType::UnresolvedStructOrWord {
+					identifier: Some(identifier),
+				}),
 			}
 		}
 		ValueType::UnresolvedStructOrWord { identifier: None } =>
@@ -2814,43 +2671,49 @@ fn analyze_type(
 		ValueType::Array {
 			element_type,
 			length,
-		} => Poison::apply_regardless(
-			analyze_type(*element_type, typer),
-			|element_type| ValueType::Array {
+		} =>
+		{
+			let element_type = analyze_type(*element_type, typer)?;
+			Ok(ValueType::Array {
 				element_type: Box::new(element_type),
 				length,
-			},
-		),
-		ValueType::Slice { element_type } => Poison::apply_regardless(
-			analyze_type(*element_type, typer),
-			|element_type| ValueType::Slice {
+			})
+		}
+		ValueType::Slice { element_type } =>
+		{
+			let element_type = analyze_type(*element_type, typer)?;
+			Ok(ValueType::Slice {
 				element_type: Box::new(element_type),
-			},
-		),
-		ValueType::EndlessArray { element_type } => Poison::apply_regardless(
-			analyze_type(*element_type, typer),
-			|element_type| ValueType::EndlessArray {
+			})
+		}
+		ValueType::EndlessArray { element_type } =>
+		{
+			let element_type = analyze_type(*element_type, typer)?;
+			Ok(ValueType::EndlessArray {
 				element_type: Box::new(element_type),
-			},
-		),
-		ValueType::Arraylike { element_type } => Poison::apply_regardless(
-			analyze_type(*element_type, typer),
-			|element_type| ValueType::Arraylike {
+			})
+		}
+		ValueType::Arraylike { element_type } =>
+		{
+			let element_type = analyze_type(*element_type, typer)?;
+			Ok(ValueType::Arraylike {
 				element_type: Box::new(element_type),
-			},
-		),
-		ValueType::Pointer { deref_type } => Poison::apply_regardless(
-			analyze_type(*deref_type, typer),
-			|deref_type| ValueType::Pointer {
+			})
+		}
+		ValueType::Pointer { deref_type } =>
+		{
+			let deref_type = analyze_type(*deref_type, typer)?;
+			Ok(ValueType::Pointer {
 				deref_type: Box::new(deref_type),
-			},
-		),
-		ValueType::View { deref_type } => Poison::apply_regardless(
-			analyze_type(*deref_type, typer),
-			|deref_type| ValueType::View {
+			})
+		}
+		ValueType::View { deref_type } =>
+		{
+			let deref_type = analyze_type(*deref_type, typer)?;
+			Ok(ValueType::View {
 				deref_type: Box::new(deref_type),
-			},
-		),
+			})
+		}
 	}
 }
 

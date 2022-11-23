@@ -13,7 +13,7 @@ use crate::common::*;
 use crate::error::Error;
 use crate::error::Errors;
 use crate::error::OperandValueType;
-use crate::error::{Poison, Poisonable};
+use crate::error::Poisonable;
 use crate::resolved;
 use crate::typer::Typed;
 
@@ -156,20 +156,8 @@ where
 		match self
 		{
 			Ok(x) => x.resolve(),
-			Err(y) => y.resolve(),
+			Err(y) => Err(y.into()),
 		}
-	}
-}
-
-impl<T> Resolvable for Poison<T>
-where
-	T: Resolvable,
-{
-	type Item = T::Item;
-
-	fn resolve(self) -> Result<Self::Item, Errors>
-	{
-		Err(self.into())
 	}
 }
 
@@ -276,11 +264,7 @@ impl Resolvable for Declaration
 				})
 			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
-			Declaration::Poison(poison) => match poison.resolve()
-			{
-				Ok(_) => unreachable!(),
-				Err(e) => Err(e),
-			},
+			Declaration::Poison(poison) => Err(poison.into()),
 		}
 	}
 }
@@ -417,11 +401,7 @@ impl Resolvable for Statement
 			}) => Ok(resolved::Statement::Block(resolved::Block {
 				statements: statements.resolve()?,
 			})),
-			Statement::Poison(poison) => match poison.resolve()
-			{
-				Ok(_) => unreachable!(),
-				Err(e) => Err(e),
-			},
+			Statement::Poison(poison) => Err(poison.into()),
 		}
 	}
 }
@@ -726,11 +706,7 @@ impl Resolvable for Expression
 					Err(Error::AmbiguousType { location })?
 				}
 			}
-			Expression::Poison(poison) => match poison.resolve()
-			{
-				Ok(_) => unreachable!(),
-				Err(e) => Err(e),
-			},
+			Expression::Poison(poison) => Err(poison.into()),
 		}
 	}
 }
@@ -1139,7 +1115,7 @@ fn analyze_primitive_cast(
 	let value_type = match expression.value_type()
 	{
 		Some(Ok(vt)) => vt,
-		Some(Err(poison)) => return poison.resolve(),
+		Some(Err(poison)) => Err(poison)?,
 		None => Err(Error::AmbiguousType {
 			location: expression.location().clone(),
 		})?,

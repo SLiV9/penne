@@ -6,7 +6,6 @@
 
 use crate::common::*;
 use crate::error::Error;
-use crate::error::{Partiable, Partial};
 
 pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 {
@@ -56,12 +55,12 @@ impl Analyzer
 	fn declare_constant(
 		&mut self,
 		identifier: Identifier,
-	) -> Partiable<Identifier>
+	) -> Result<Identifier, Error>
 	{
 		match self.declare_variable(identifier)
 		{
 			Ok(identifier) => Ok(identifier),
-			Err(Partial { error, partial }) =>
+			Err(error) =>
 			{
 				let error = match error
 				{
@@ -76,7 +75,7 @@ impl Analyzer
 					},
 					error => error,
 				};
-				Err(Partial { error, partial })
+				Err(error)
 			}
 		}
 	}
@@ -84,7 +83,7 @@ impl Analyzer
 	fn declare_variable(
 		&mut self,
 		identifier: Identifier,
-	) -> Partiable<Identifier>
+	) -> Result<Identifier, Error>
 	{
 		let mut recoverable_error = None;
 		for scope in &self.variable_stack
@@ -119,10 +118,7 @@ impl Analyzer
 
 		if let Some(error) = recoverable_error
 		{
-			Err(Partial {
-				error,
-				partial: identifier,
-			})
+			Err(error)
 		}
 		else
 		{
@@ -130,7 +126,8 @@ impl Analyzer
 		}
 	}
 
-	fn use_variable(&self, identifier: Identifier) -> Partiable<Identifier>
+	fn use_variable(&self, identifier: Identifier)
+		-> Result<Identifier, Error>
 	{
 		for scope in &self.variable_stack
 		{
@@ -145,19 +142,16 @@ impl Analyzer
 			}
 		}
 
-		Err(Partial {
-			error: Error::UndefinedVariable {
-				name: identifier.name.clone(),
-				location: identifier.location.clone(),
-			},
-			partial: identifier,
+		Err(Error::UndefinedVariable {
+			name: identifier.name.clone(),
+			location: identifier.location.clone(),
 		})
 	}
 
 	fn declare_function(
 		&mut self,
 		identifier: Identifier,
-	) -> Partiable<Identifier>
+	) -> Result<Identifier, Error>
 	{
 		let recoverable_error = self
 			.function_list
@@ -180,10 +174,7 @@ impl Analyzer
 
 		if let Some(error) = recoverable_error
 		{
-			Err(Partial {
-				error,
-				partial: identifier,
-			})
+			Err(error)
 		}
 		else
 		{
@@ -191,7 +182,8 @@ impl Analyzer
 		}
 	}
 
-	fn use_function(&self, identifier: Identifier) -> Partiable<Identifier>
+	fn use_function(&self, identifier: Identifier)
+		-> Result<Identifier, Error>
 	{
 		if let Some(declaration_identifier) = self
 			.function_list
@@ -206,12 +198,9 @@ impl Analyzer
 		}
 		else
 		{
-			Err(Partial {
-				error: Error::UndefinedFunction {
-					name: identifier.name.clone(),
-					location: identifier.location.clone(),
-				},
-				partial: identifier,
+			Err(Error::UndefinedFunction {
+				name: identifier.name.clone(),
+				location: identifier.location.clone(),
 			})
 		}
 	}
@@ -219,7 +208,7 @@ impl Analyzer
 	fn declare_struct(
 		&mut self,
 		identifier: Identifier,
-	) -> Partiable<Identifier>
+	) -> Result<Identifier, Error>
 	{
 		let recoverable_error = self
 			.structures
@@ -247,10 +236,7 @@ impl Analyzer
 
 		if let Some(error) = recoverable_error
 		{
-			Err(Partial {
-				error,
-				partial: identifier,
-			})
+			Err(error)
 		}
 		else
 		{
@@ -258,7 +244,7 @@ impl Analyzer
 		}
 	}
 
-	fn use_struct(&self, identifier: Identifier) -> Partiable<Identifier>
+	fn use_struct(&self, identifier: Identifier) -> Result<Identifier, Error>
 	{
 		if let Some(declaration_identifier) = self
 			.structures
@@ -274,12 +260,9 @@ impl Analyzer
 		}
 		else
 		{
-			Err(Partial {
-				error: Error::UndefinedStructure {
-					name: identifier.name.clone(),
-					location: identifier.location.clone(),
-				},
-				partial: identifier,
+			Err(Error::UndefinedStructure {
+				name: identifier.name.clone(),
+				location: identifier.location.clone(),
 			})
 		}
 	}
@@ -312,93 +295,94 @@ impl Analyzer
 				ValueType::Array {
 					element_type,
 					length,
-				} => Poison::apply_regardless(
-					self.found_structure_member(
+				} =>
+				{
+					let element_type = self.found_structure_member(
 						name_of_structure,
 						name_of_member,
 						Ok(*element_type),
-					),
-					|element_type| ValueType::Array {
+					)?;
+					Ok(ValueType::Array {
 						element_type: Box::new(element_type),
 						length,
-					},
-				),
-				ValueType::Slice { element_type } => Poison::apply_regardless(
-					self.found_structure_member(
+					})
+				}
+				ValueType::Slice { element_type } =>
+				{
+					let element_type = self.found_structure_member(
 						name_of_structure,
 						name_of_member,
 						Ok(*element_type),
-					),
-					|element_type| ValueType::Slice {
+					)?;
+					Ok(ValueType::Slice {
 						element_type: Box::new(element_type),
-					},
-				),
+					})
+				}
 				ValueType::EndlessArray { element_type } =>
 				{
-					Poison::apply_regardless(
-						self.found_structure_member(
-							name_of_structure,
-							name_of_member,
-							Ok(*element_type),
-						),
-						|element_type| ValueType::EndlessArray {
-							element_type: Box::new(element_type),
-						},
-					)
+					let element_type = self.found_structure_member(
+						name_of_structure,
+						name_of_member,
+						Ok(*element_type),
+					)?;
+					Ok(ValueType::EndlessArray {
+						element_type: Box::new(element_type),
+					})
 				}
 				ValueType::Arraylike { element_type } =>
 				{
-					Poison::apply_regardless(
-						self.found_structure_member(
-							name_of_structure,
-							name_of_member,
-							Ok(*element_type),
-						),
-						|element_type| ValueType::Arraylike {
-							element_type: Box::new(element_type),
-						},
-					)
+					let element_type = self.found_structure_member(
+						name_of_structure,
+						name_of_member,
+						Ok(*element_type),
+					)?;
+					Ok(ValueType::Arraylike {
+						element_type: Box::new(element_type),
+					})
 				}
 				ValueType::Struct {
 					identifier,
 					size_in_bytes,
-				} => Poison::apply_regardless(
-					self.found_structure_member_1(
+				} =>
+				{
+					let identifier = self.found_structure_member_1(
 						name_of_structure,
 						name_of_member,
 						identifier,
-					),
-					|identifier| ValueType::Struct {
+					)?;
+					Ok(ValueType::Struct {
 						identifier,
 						size_in_bytes,
-					},
-				),
+					})
+				}
 				ValueType::Word {
 					identifier,
 					size_in_bytes,
-				} => Poison::apply_regardless(
-					self.found_structure_member_1(
+				} =>
+				{
+					let identifier = self.found_structure_member_1(
 						name_of_structure,
 						name_of_member,
 						identifier,
-					),
-					|identifier| ValueType::Word {
+					)?;
+					Ok(ValueType::Word {
 						identifier,
 						size_in_bytes,
-					},
-				),
+					})
+				}
 				ValueType::UnresolvedStructOrWord {
 					identifier: Some(identifier),
-				} => Poison::apply_regardless(
-					self.found_structure_member_1(
+				} =>
+				{
+					let identifier = self.found_structure_member_1(
 						name_of_structure,
 						name_of_member,
 						identifier,
-					),
-					|identifier| ValueType::UnresolvedStructOrWord {
+					)?;
+					Ok(ValueType::UnresolvedStructOrWord {
 						identifier: Some(identifier),
-					},
-				),
+					})
+				}
 				ValueType::UnresolvedStructOrWord { identifier: None } =>
 				{
 					unreachable!()
@@ -447,14 +431,12 @@ impl Analyzer
 
 		if container.contained_structure_ids.contains(&container_id)
 		{
-			return Err(Poison::Error {
-				error: Error::CyclicalStructure {
-					name: name_of_container.name.clone(),
-					location_of_member: name_of_member.location.clone(),
-					location_of_declaration: name_of_container.location.clone(),
-				},
-				partial: Some(name_of_containee),
-			});
+			let error = Error::CyclicalStructure {
+				name: name_of_container.name.clone(),
+				location_of_member: name_of_member.location.clone(),
+				location_of_declaration: name_of_container.location.clone(),
+			};
+			return Err(Poison::Error(error));
 		}
 
 		for other in &mut self.structures
@@ -564,21 +546,7 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 				location_of_declaration,
 				location_of_return_type,
 			},
-			Err(Partial {
-				error,
-				partial: name,
-			}) => Declaration::Poison(Poison::Error {
-				error,
-				partial: Some(Box::new(Declaration::Function {
-					name,
-					parameters,
-					body,
-					return_type,
-					flags,
-					location_of_declaration,
-					location_of_return_type,
-				})),
-			}),
+			Err(error) => Declaration::Poison(Poison::Error(error)),
 		},
 		Declaration::FunctionHead {
 			name,
@@ -597,20 +565,7 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 				location_of_declaration,
 				location_of_return_type,
 			},
-			Err(Partial {
-				error,
-				partial: name,
-			}) => Declaration::Poison(Poison::Error {
-				error,
-				partial: Some(Box::new(Declaration::FunctionHead {
-					name,
-					parameters,
-					return_type,
-					flags,
-					location_of_declaration,
-					location_of_return_type,
-				})),
-			}),
+			Err(error) => Declaration::Poison(Poison::Error(error)),
 		},
 		Declaration::Structure {
 			name,
@@ -629,20 +584,7 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 				depth,
 				location_of_declaration,
 			},
-			Err(Partial {
-				error,
-				partial: name,
-			}) => Declaration::Poison(Poison::Error {
-				error,
-				partial: Some(Box::new(Declaration::Structure {
-					name,
-					members,
-					structural_type,
-					flags,
-					depth,
-					location_of_declaration,
-				})),
-			}),
+			Err(error) => Declaration::Poison(Poison::Error(error)),
 		},
 		Declaration::PreprocessorDirective { .. } => unreachable!(),
 		Declaration::Poison(_) => declaration,
@@ -716,20 +658,7 @@ impl Analyzable for Declaration
 						location_of_declaration,
 						location_of_type,
 					},
-					Err(Partial {
-						error,
-						partial: name,
-					}) => Declaration::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(Declaration::Constant {
-							name,
-							value,
-							value_type,
-							flags,
-							location_of_declaration,
-							location_of_type,
-						})),
-					}),
+					Err(error) => Declaration::Poison(Poison::Error(error)),
 				}
 			}
 			Declaration::Function {
@@ -776,21 +705,7 @@ impl Analyzable for Declaration
 							location_of_return_type,
 						}
 					}
-					Err(Partial {
-						error,
-						partial: name,
-					}) => Declaration::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(Declaration::Function {
-							name,
-							parameters,
-							body,
-							return_type,
-							flags,
-							location_of_declaration,
-							location_of_return_type,
-						})),
-					}),
+					Err(error) => Declaration::Poison(Poison::Error(error)),
 				}
 			}
 			Declaration::FunctionHead {
@@ -830,20 +745,7 @@ impl Analyzable for Declaration
 							location_of_return_type,
 						}
 					}
-					Err(Partial {
-						error,
-						partial: name,
-					}) => Declaration::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(Declaration::FunctionHead {
-							name,
-							parameters,
-							return_type,
-							flags,
-							location_of_declaration,
-							location_of_return_type,
-						})),
-					}),
+					Err(error) => Declaration::Poison(Poison::Error(error)),
 				}
 			}
 			Declaration::Structure {
@@ -1009,18 +911,7 @@ impl Analyzable for Statement
 						value_type,
 						location,
 					},
-					Err(Partial {
-						error,
-						partial: name,
-					}) => Statement::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(Statement::Declaration {
-							name,
-							value,
-							value_type,
-							location,
-						})),
-					}),
+					Err(error) => Statement::Poison(Poison::Error(error)),
 				}
 			}
 			Statement::Assignment {
@@ -1046,16 +937,7 @@ impl Analyzable for Statement
 				match analyzer.use_function(name)
 				{
 					Ok(name) => Statement::MethodCall { name, arguments },
-					Err(Partial {
-						error,
-						partial: name,
-					}) => Statement::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(Statement::MethodCall {
-							name,
-							arguments,
-						})),
-					}),
+					Err(error) => Statement::Poison(Poison::Error(error)),
 				}
 			}
 			Statement::Loop { .. } => self,
@@ -1281,17 +1163,7 @@ impl Analyzable for Expression
 						arguments,
 						return_type,
 					},
-					Err(Partial {
-						error,
-						partial: name,
-					}) => Expression::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(Expression::FunctionCall {
-							name,
-							arguments,
-							return_type,
-						})),
-					}),
+					Err(error) => Expression::Poison(Poison::Error(error)),
 				}
 			}
 			Expression::Poison(_) => self,
@@ -1355,14 +1227,14 @@ impl Analyzable for Poisonable<ValueType>
 {
 	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
-		self.and_then(|x| analyze_type(x, analyzer).map_err(|e| e.into()))
+		self.and_then(|x| analyze_type(x, analyzer))
 	}
 }
 
 fn analyze_type(
 	value_type: ValueType,
 	analyzer: &mut Analyzer,
-) -> Partiable<ValueType>
+) -> Poisonable<ValueType>
 {
 	match value_type
 	{
@@ -1370,11 +1242,9 @@ fn analyze_type(
 			identifier: Some(identifier),
 		} =>
 		{
-			let identifier = analyzer.use_struct(identifier);
-			Partial::apply_regardless(identifier, |identifier| {
-				ValueType::UnresolvedStructOrWord {
-					identifier: Some(identifier),
-				}
+			let identifier = analyzer.use_struct(identifier)?;
+			Ok(ValueType::UnresolvedStructOrWord {
+				identifier: Some(identifier),
 			})
 		}
 		ValueType::UnresolvedStructOrWord { identifier: None } =>
@@ -1386,12 +1256,10 @@ fn analyze_type(
 			size_in_bytes,
 		} =>
 		{
-			let identifier = analyzer.use_struct(identifier);
-			Partial::apply_regardless(identifier, |identifier| {
-				ValueType::Struct {
-					identifier,
-					size_in_bytes,
-				}
+			let identifier = analyzer.use_struct(identifier)?;
+			Ok(ValueType::Struct {
+				identifier,
+				size_in_bytes,
 			})
 		}
 		ValueType::Word {
@@ -1399,12 +1267,10 @@ fn analyze_type(
 			size_in_bytes,
 		} =>
 		{
-			let identifier = analyzer.use_struct(identifier);
-			Partial::apply_regardless(identifier, |identifier| {
-				ValueType::Word {
-					identifier,
-					size_in_bytes,
-				}
+			let identifier = analyzer.use_struct(identifier)?;
+			Ok(ValueType::Word {
+				identifier,
+				size_in_bytes,
 			})
 		}
 		ValueType::Int8 => Ok(ValueType::Int8),
@@ -1424,42 +1290,48 @@ fn analyze_type(
 		ValueType::Array {
 			element_type,
 			length,
-		} => Partial::apply_regardless(
-			analyze_type(*element_type, analyzer),
-			|element_type| ValueType::Array {
+		} =>
+		{
+			let element_type = analyze_type(*element_type, analyzer)?;
+			Ok(ValueType::Array {
 				element_type: Box::new(element_type),
 				length,
-			},
-		),
-		ValueType::Slice { element_type } => Partial::apply_regardless(
-			analyze_type(*element_type, analyzer),
-			|element_type| ValueType::Slice {
+			})
+		}
+		ValueType::Slice { element_type } =>
+		{
+			let element_type = analyze_type(*element_type, analyzer)?;
+			Ok(ValueType::Slice {
 				element_type: Box::new(element_type),
-			},
-		),
-		ValueType::EndlessArray { element_type } => Partial::apply_regardless(
-			analyze_type(*element_type, analyzer),
-			|element_type| ValueType::EndlessArray {
+			})
+		}
+		ValueType::EndlessArray { element_type } =>
+		{
+			let element_type = analyze_type(*element_type, analyzer)?;
+			Ok(ValueType::EndlessArray {
 				element_type: Box::new(element_type),
-			},
-		),
-		ValueType::Arraylike { element_type } => Partial::apply_regardless(
-			analyze_type(*element_type, analyzer),
-			|element_type| ValueType::Arraylike {
+			})
+		}
+		ValueType::Arraylike { element_type } =>
+		{
+			let element_type = analyze_type(*element_type, analyzer)?;
+			Ok(ValueType::Arraylike {
 				element_type: Box::new(element_type),
-			},
-		),
-		ValueType::Pointer { deref_type } => Partial::apply_regardless(
-			analyze_type(*deref_type, analyzer),
-			|deref_type| ValueType::Pointer {
+			})
+		}
+		ValueType::Pointer { deref_type } =>
+		{
+			let deref_type = analyze_type(*deref_type, analyzer)?;
+			Ok(ValueType::Pointer {
 				deref_type: Box::new(deref_type),
-			},
-		),
-		ValueType::View { deref_type } => Partial::apply_regardless(
-			analyze_type(*deref_type, analyzer),
-			|deref_type| ValueType::View {
+			})
+		}
+		ValueType::View { deref_type } =>
+		{
+			let deref_type = analyze_type(*deref_type, analyzer)?;
+			Ok(ValueType::View {
 				deref_type: Box::new(deref_type),
-			},
-		),
+			})
+		}
 	}
 }

@@ -197,20 +197,12 @@ impl Analyzable for Block
 						let statement = statement.analyze(analyzer);
 						match statement
 						{
-							Statement::Loop { location } =>
-							{
-								Statement::Poison(Poison::Error {
-									error: Error::NonFinalLoopStatement {
-										location: location.clone(),
-										location_of_block: self
-											.location
-											.clone(),
-									},
-									partial: Some(Box::new(Statement::Loop {
-										location,
-									})),
-								})
-							}
+							Statement::Loop { location } => Statement::Poison(
+								Poison::Error(Error::NonFinalLoopStatement {
+									location: location.clone(),
+									location_of_block: self.location.clone(),
+								}),
+							),
 							Statement::Poison(_) => statement,
 							_ => statement,
 						}
@@ -269,12 +261,11 @@ impl Analyzable for Statement
 				Statement::Poison(_poison) => (),
 				statement =>
 				{
-					return Statement::Poison(Poison::Error {
-						error: Error::MissingBraces {
+					return Statement::Poison(Poison::Error(
+						Error::MissingBraces {
 							location: statement.location().clone(),
 						},
-						partial: Some(Box::new(self)),
-					})
+					));
 				}
 			}
 		}
@@ -291,20 +282,14 @@ impl Analyzable for Statement
 				Some(UnresolvedGoto {
 					goto,
 					label: Ok(label),
-				}) => Statement::Poison(Poison::Error {
-					error: Error::VariableDeclarationMayBeSkipped {
+				}) => Statement::Poison(Poison::Error(
+					Error::VariableDeclarationMayBeSkipped {
 						label: label.name.clone(),
 						location: location.clone(),
 						location_of_goto: goto.location.clone(),
 						location_of_label: label.location.clone(),
 					},
-					partial: Some(Box::new(Statement::Declaration {
-						name,
-						value,
-						value_type,
-						location,
-					})),
-				}),
+				)),
 				Some(UnresolvedGoto {
 					goto: _,
 					label: Err(()),
@@ -326,12 +311,11 @@ impl Analyzable for Statement
 				}
 				else
 				{
-					Statement::Poison(Poison::Error {
-						error: Error::MisplacedLoopStatement {
+					Statement::Poison(Poison::Error(
+						Error::MisplacedLoopStatement {
 							location: location.clone(),
 						},
-						partial: Some(Box::new(Statement::Loop { location })),
-					})
+					))
 				}
 			}
 			Statement::Goto { label, location } =>

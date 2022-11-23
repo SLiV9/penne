@@ -61,7 +61,7 @@ pub enum Declaration
 		directive: String,
 		location: Location,
 	},
-	Poison(Poison<Box<Declaration>>),
+	Poison(Poison),
 }
 
 #[must_use]
@@ -151,7 +151,7 @@ pub enum Statement
 		location: Location,
 	},
 	Block(Block),
-	Poison(Poison<Box<Statement>>),
+	Poison(Poison),
 }
 
 impl Statement
@@ -168,14 +168,7 @@ impl Statement
 			Statement::Label { location, .. } => location,
 			Statement::If { location, .. } => location,
 			Statement::Block(block) => &block.location,
-			Statement::Poison(Poison::Error {
-				error: _,
-				partial: Some(statement),
-			}) => statement.location(),
-			Statement::Poison(Poison::Error {
-				error: _,
-				partial: None,
-			}) => unreachable!(),
+			Statement::Poison(Poison::Error { .. }) => unreachable!(),
 			Statement::Poison(Poison::Poisoned) => unreachable!(),
 		}
 	}
@@ -323,7 +316,7 @@ pub enum Expression
 		arguments: Vec<Expression>,
 		return_type: Option<Poisonable<ValueType>>,
 	},
-	Poison(Poison<Box<Expression>>),
+	Poison(Poison),
 }
 
 impl Expression
@@ -345,14 +338,7 @@ impl Expression
 			Expression::PrimitiveCast { location, .. } => location,
 			Expression::LengthOfArray { reference, .. } => &reference.location,
 			Expression::FunctionCall { name, .. } => &name.location,
-			Expression::Poison(Poison::Error {
-				error: _,
-				partial: Some(expression),
-			}) => expression.location(),
-			Expression::Poison(Poison::Error {
-				error: _,
-				partial: None,
-			}) => unreachable!(),
+			Expression::Poison(Poison::Error { .. }) => unreachable!(),
 			Expression::Poison(Poison::Poisoned) => unreachable!(),
 		}
 	}

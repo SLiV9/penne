@@ -304,14 +304,7 @@ impl Analyzable for Statement
 						value,
 						location,
 					},
-					Err(error) => Statement::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(Statement::Assignment {
-							reference,
-							value,
-							location,
-						})),
-					}),
+					Err(error) => Statement::Poison(Poison::Error(error)),
 				}
 			}
 			Statement::MethodCall { name, arguments } =>
@@ -511,18 +504,12 @@ impl Analyzable for Expression
 								let location = reference.location.clone();
 								let location_of_declaration =
 									base.location.clone();
-								return Expression::Poison(Poison::Error {
-									error: Error::AddressOfTemporaryAddress {
+								return Expression::Poison(Poison::Error(
+									Error::AddressOfTemporaryAddress {
 										location,
 										location_of_declaration,
 									},
-									partial: Some(Box::new(
-										Expression::Deref {
-											reference,
-											deref_type,
-										},
-									)),
-								});
+								));
 							}
 							Err(_poison) =>
 							{
@@ -542,13 +529,7 @@ impl Analyzable for Expression
 						reference,
 						deref_type,
 					},
-					Err(error) => Expression::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(Expression::Deref {
-							reference,
-							deref_type,
-						})),
-					}),
+					Err(error) => Expression::Poison(Poison::Error(error)),
 				}
 			}
 			Expression::LengthOfArray { reference } =>
@@ -557,12 +538,7 @@ impl Analyzable for Expression
 				match analyzer.use_variable(&reference.base, false)
 				{
 					Ok(()) => Expression::LengthOfArray { reference },
-					Err(error) => Expression::Poison(Poison::Error {
-						error,
-						partial: Some(Box::new(Expression::LengthOfArray {
-							reference,
-						})),
-					}),
+					Err(error) => Expression::Poison(Poison::Error(error)),
 				}
 			}
 			Expression::FunctionCall {

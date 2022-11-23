@@ -33,13 +33,13 @@ impl From<Error> for Errors
 	}
 }
 
-impl<T> From<Poison<T>> for Errors
+impl From<Poison> for Errors
 {
-	fn from(poison: Poison<T>) -> Self
+	fn from(poison: Poison) -> Self
 	{
 		match poison
 		{
-			Poison::Error { error, partial: _ } => error.into(),
+			Poison::Error(error) => error.into(),
 			Poison::Poisoned =>
 			{
 				// Do not show any errors because this thing was poisoned by
@@ -95,100 +95,20 @@ impl IntoIterator for Errors
 	}
 }
 
-pub type Partiable<T> = Result<T, Partial<T>>;
-
-#[must_use]
-#[derive(Debug)]
-pub struct Partial<T>
-{
-	pub error: Error,
-	pub partial: T,
-}
-
-impl<T> Partial<T>
-{
-	pub fn apply_regardless<U, F>(
-		partiable: Partiable<T>,
-		op: F,
-	) -> Partiable<U>
-	where
-		F: FnOnce(T) -> U,
-	{
-		match partiable
-		{
-			Ok(x) => Ok(op(x)),
-			Err(Partial { error, partial }) => Err(Partial {
-				error,
-				partial: op(partial),
-			}),
-		}
-	}
-}
-
-pub type Poisonable<T> = Result<T, Poison<T>>;
+pub type Poisonable<T> = Result<T, Poison>;
 
 #[derive(Debug, Clone)]
-pub enum Poison<T = ()>
+pub enum Poison
 {
-	Error
-	{
-		error: Error,
-		partial: Option<T>,
-	},
+	Error(Error),
 	Poisoned,
 }
 
-impl<T> From<Error> for Poison<T>
+impl From<Error> for Poison
 {
 	fn from(error: Error) -> Self
 	{
-		Poison::Error {
-			error,
-			partial: None,
-		}
-	}
-}
-
-impl<T> From<Partial<T>> for Poison<T>
-{
-	fn from(partial: Partial<T>) -> Self
-	{
-		let Partial { error, partial } = partial;
-		Poison::Error {
-			error,
-			partial: Some(partial),
-		}
-	}
-}
-
-impl<T> Poison<T>
-{
-	pub fn apply_regardless<U, F>(
-		poisonable: Poisonable<T>,
-		op: F,
-	) -> Poisonable<U>
-	where
-		F: FnOnce(T) -> U,
-	{
-		match poisonable
-		{
-			Ok(x) => Ok(op(x)),
-			Err(Poison::Error {
-				error,
-				partial: Some(partial),
-			}) => Err(Poison::Error {
-				error,
-				partial: Some(op(partial)),
-			}),
-			Err(Poison::Error {
-				error,
-				partial: None,
-			}) => Err(Poison::Error {
-				error,
-				partial: None,
-			}),
-			Err(Poison::Poisoned) => Err(Poison::Poisoned),
-		}
+		Poison::Error(error)
 	}
 }
 

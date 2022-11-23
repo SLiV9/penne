@@ -32,10 +32,7 @@ pub fn parse(tokens: Vec<LexedToken>) -> Vec<Declaration>
 			}
 			Err(error) =>
 			{
-				let poison = Poison::Error {
-					error,
-					partial: None,
-				};
+				let poison = error.into();
 				let declaration = Declaration::Poison(poison);
 				declarations.push(declaration);
 				skip_until_next_declaration(&mut tokens);
@@ -404,14 +401,7 @@ fn parse_constant_declaration(
 	let expression = match parse_assignment_and_expression(tokens)
 	{
 		Ok(expression) => expression,
-		Err(Poison::Error { error, partial }) =>
-		{
-			Expression::Poison(Poison::Error {
-				error,
-				partial: partial.map(|x| Box::new(x)),
-			})
-		}
-		Err(Poison::Poisoned) => Expression::Poison(Poison::Poisoned),
+		Err(poison) => Expression::Poison(poison),
 	};
 
 	consume(Token::Semicolon, "expected semicolon", tokens)?;
@@ -448,13 +438,15 @@ fn parse_word_declaration(
 		identifier: name.clone(),
 		size_in_bytes,
 	});
-	parse_rest_of_struct(
+	let members = parse_struct_members(tokens)?;
+	Ok(Declaration::Structure {
 		name,
+		members,
 		structural_type,
 		flags,
+		depth: None,
 		location_of_declaration,
-		tokens,
-	)
+	})
 }
 
 fn parse_struct_declaration(
@@ -467,45 +459,15 @@ fn parse_struct_declaration(
 	let structural_type = Ok(ValueType::UnresolvedStructOrWord {
 		identifier: Some(name.clone()),
 	});
-	parse_rest_of_struct(
+	let members = parse_struct_members(tokens)?;
+	Ok(Declaration::Structure {
 		name,
+		members,
 		structural_type,
 		flags,
+		depth: None,
 		location_of_declaration,
-		tokens,
-	)
-}
-
-fn parse_rest_of_struct(
-	name: Identifier,
-	structural_type: Poisonable<ValueType>,
-	flags: EnumSet<DeclarationFlag>,
-	location_of_declaration: Location,
-	tokens: &mut Tokens,
-) -> Result<Declaration, Error>
-{
-	match parse_struct_members(tokens)
-	{
-		Ok(members) => Ok(Declaration::Structure {
-			name,
-			members,
-			structural_type,
-			flags,
-			depth: None,
-			location_of_declaration,
-		}),
-		Err(error) => Ok(Declaration::Poison(Poison::Error {
-			error,
-			partial: Some(Box::new(Declaration::Structure {
-				name,
-				members: Vec::new(),
-				structural_type,
-				flags,
-				depth: None,
-				location_of_declaration,
-			})),
-		})),
-	}
+	})
 }
 
 fn parse_struct_members(tokens: &mut Tokens) -> Result<Vec<Member>, Error>
@@ -881,27 +843,7 @@ fn parse_function_body(
 			return Ok(body);
 		}
 
-		let statement = match parse_statement(tokens)
-		{
-			Ok(statement) => statement,
-			Err(error) =>
-			{
-				let body = FunctionBody {
-					statements,
-					return_value: None,
-					return_value_identifier: Identifier {
-						name: function_name.to_string(),
-						location: tokens.last_location.clone(),
-						resolution_id: 0,
-						is_authoritative: false,
-					},
-				};
-				return Err(Poison::Error {
-					error,
-					partial: Some(body),
-				});
-			}
-		};
+		let statement = parse_statement(tokens)?;
 
 		let is_return = match &statement
 		{
@@ -916,13 +858,11 @@ fn parse_function_body(
 				let return_value_location = tokens.last_location.clone();
 				let return_statement_location = statement.location().clone();
 				statements.push(statement);
-				let return_value = Expression::Poison(Poison::Error {
-					error: Error::MissingReturnValueAfterStatement {
-						location: return_value_location.clone(),
-						after: return_statement_location,
-					},
-					partial: None,
-				});
+				let error = Error::MissingReturnValueAfterStatement {
+					location: return_value_location.clone(),
+					after: return_statement_location,
+				};
+				let return_value = Expression::Poison(Poison::Error(error));
 				let body = FunctionBody {
 					statements,
 					return_value: Some(return_value),

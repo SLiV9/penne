@@ -92,48 +92,7 @@ where
 	}
 }
 
-impl<T> Rebuildable for Result<T, Poison<()>>
-where
-	T: Rebuildable,
-{
-	fn rebuild(
-		&self,
-		indentation: &Indentation,
-	) -> Result<String, anyhow::Error>
-	{
-		match self
-		{
-			Ok(x) => x.rebuild(indentation),
-			Err(y) => y.rebuild(indentation),
-		}
-	}
-}
-
-impl<T> Rebuildable for Poison<T>
-where
-	T: Rebuildable,
-{
-	fn rebuild(
-		&self,
-		indentation: &Indentation,
-	) -> Result<String, anyhow::Error>
-	{
-		match self
-		{
-			Poison::Error {
-				error: _,
-				partial: Some(x),
-			} => Ok(format!("☠ERROR {}☠", x.rebuild(indentation)?)),
-			Poison::Error {
-				error: _,
-				partial: None,
-			} => Ok("☠ERROR☠".to_string()),
-			Poison::Poisoned => Ok("☠POISONED☠".to_string()),
-		}
-	}
-}
-
-impl Rebuildable for Poison<()>
+impl Rebuildable for Poison
 {
 	fn rebuild(
 		&self,
@@ -142,11 +101,12 @@ impl Rebuildable for Poison<()>
 	{
 		match self
 		{
-			Poison::Error { .. } => Ok("☠ERROR☠".to_string()),
+			Poison::Error(_error) => Ok("☠ERROR☠".to_string()),
 			Poison::Poisoned => Ok("☠POISONED☠".to_string()),
 		}
 	}
 }
+
 impl Rebuildable for Declaration
 {
 	fn rebuild(

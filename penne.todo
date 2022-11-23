@@ -107,8 +107,7 @@ Documentation:
 
 Development:
 	☐	Cleanup main.rs
-	☐	Rethink Declaration::Poison
-	☐	Rethink if Poison::Error needs partial
+	✔	Rethink Declaration::Poison @done (2022-11-23 15:12)
 	☐	WASM-4 pull request
 
 Theory:
