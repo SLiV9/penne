@@ -175,15 +175,7 @@ fn declare(declaration: &Declaration, analyzer: &mut Analyzer)
 		} => analyzer.declare_function(name, parameters),
 		Declaration::Structure { .. } => (),
 		Declaration::PreprocessorDirective { .. } => unreachable!(),
-		Declaration::Poison(Poison::Error {
-			error: _,
-			partial: Some(declaration),
-		}) => declare(declaration, analyzer),
-		Declaration::Poison(Poison::Error {
-			error: _,
-			partial: None,
-		}) => (),
-		Declaration::Poison(Poison::Poisoned) => (),
+		Declaration::Poison(_) => (),
 	}
 }
 

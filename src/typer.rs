@@ -68,8 +68,7 @@ fn get_structure_depth(declaration: &Declaration) -> Option<u32>
 			None => unreachable!(),
 		},
 		Declaration::PreprocessorDirective { .. } => unreachable!(),
-		Declaration::Poison(Poison::Error { .. }) => None,
-		Declaration::Poison(Poison::Poisoned) => None,
+		Declaration::Poison(_) => None,
 	}
 }
 
@@ -802,22 +801,7 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 			}
 		}
 		Declaration::PreprocessorDirective { .. } => unreachable!(),
-		Declaration::Poison(Poison::Error {
-			error,
-			partial: Some(declaration),
-		}) =>
-		{
-			let declaration = predeclare(*declaration, typer);
-			Declaration::Poison(Poison::Error {
-				error,
-				partial: Some(Box::new(declaration)),
-			})
-		}
-		Declaration::Poison(Poison::Error {
-			error: _,
-			partial: None,
-		}) => declaration,
-		Declaration::Poison(Poison::Poisoned) => declaration,
+		Declaration::Poison(_) => declaration,
 	}
 }
 
@@ -870,8 +854,7 @@ fn prealign(declaration: &mut Declaration, typer: &mut Typer)
 			};
 		}
 		Declaration::PreprocessorDirective { .. } => unreachable!(),
-		Declaration::Poison(Poison::Error { .. }) => (),
-		Declaration::Poison(Poison::Poisoned) => (),
+		Declaration::Poison(_) => (),
 	}
 }
 
@@ -1011,22 +994,7 @@ impl Analyzable for Declaration
 				self
 			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
-			Declaration::Poison(Poison::Error {
-				error,
-				partial: Some(declaration),
-			}) =>
-			{
-				let declaration = declaration.analyze(typer);
-				Declaration::Poison(Poison::Error {
-					error,
-					partial: Some(Box::new(declaration)),
-				})
-			}
-			Declaration::Poison(Poison::Error {
-				error: _,
-				partial: None,
-			}) => self,
-			Declaration::Poison(Poison::Poisoned) => self,
+			Declaration::Poison(_) => self,
 		}
 	}
 }
@@ -1481,22 +1449,7 @@ impl Analyzable for Statement
 				let block = block.analyze(typer);
 				Statement::Block(block)
 			}
-			Statement::Poison(Poison::Error {
-				error,
-				partial: Some(statement),
-			}) =>
-			{
-				let statement = statement.analyze(typer);
-				Statement::Poison(Poison::Error {
-					error,
-					partial: Some(Box::new(statement)),
-				})
-			}
-			Statement::Poison(Poison::Error {
-				error: _,
-				partial: None,
-			}) => self,
-			Statement::Poison(Poison::Poisoned) => self,
+			Statement::Poison(_) => self,
 		}
 	}
 }

@@ -152,22 +152,7 @@ impl Analyzable for Declaration
 			Declaration::FunctionHead { .. } => self,
 			Declaration::Structure { .. } => self,
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
-			Declaration::Poison(Poison::Error {
-				error,
-				partial: Some(declaration),
-			}) =>
-			{
-				let declaration = declaration.analyze(analyzer);
-				Declaration::Poison(Poison::Error {
-					error,
-					partial: Some(Box::new(declaration)),
-				})
-			}
-			Declaration::Poison(Poison::Error {
-				error: _,
-				partial: None,
-			}) => self,
-			Declaration::Poison(Poison::Poisoned) => self,
+			Declaration::Poison(_) => self,
 		}
 	}
 }
@@ -298,22 +283,7 @@ impl Analyzable for Statement
 				let block = block.analyze(analyzer);
 				Statement::Block(block)
 			}
-			Statement::Poison(Poison::Error {
-				error,
-				partial: Some(statement),
-			}) =>
-			{
-				let statement = statement.analyze(analyzer);
-				Statement::Poison(Poison::Error {
-					error,
-					partial: Some(Box::new(statement)),
-				})
-			}
-			Statement::Poison(Poison::Error {
-				error: _,
-				partial: None,
-			}) => self,
-			Statement::Poison(Poison::Poisoned) => self,
+			Statement::Poison(_) => self,
 		}
 	}
 }

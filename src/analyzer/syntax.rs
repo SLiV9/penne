@@ -245,17 +245,6 @@ fn discover_labels(statements: &[Statement], analyzer: &mut Analyzer)
 			{
 				analyzer.discover_label(label, location);
 			}
-			Statement::Poison(Poison::Error {
-				error: _,
-				partial: Some(partial),
-			}) => match partial.as_ref()
-			{
-				Statement::Label { label, location } =>
-				{
-					analyzer.discover_label(label, location);
-				}
-				_ => (),
-			},
 			Statement::Block(_) =>
 			{
 				// Do not look into blocks because they have their own
