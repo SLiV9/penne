@@ -674,7 +674,7 @@ impl Resolvable for Expression
 				Ok(resolved::Expression::PrimitiveCast {
 					expression,
 					expression_type,
-					coerced_type: coerced_type,
+					coerced_type,
 				})
 			}
 			Expression::LengthOfArray { reference } =>
@@ -874,7 +874,7 @@ fn resolve_compared_type(
 	analyze_operand_type(vt, op.valid_types(), location_of_op, left.location())
 }
 
-const VALID_TYPES_FOR_EQUALITY: &'static [OperandValueType] = &[
+const VALID_TYPES_FOR_EQUALITY: &[OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Int8),
 	OperandValueType::ValueType(ValueType::Int16),
 	OperandValueType::ValueType(ValueType::Int32),
@@ -891,7 +891,7 @@ const VALID_TYPES_FOR_EQUALITY: &'static [OperandValueType] = &[
 	OperandValueType::Pointer,
 ];
 
-const VALID_TYPES_FOR_IS_GREATER: &'static [OperandValueType] = &[
+const VALID_TYPES_FOR_IS_GREATER: &[OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Int8),
 	OperandValueType::ValueType(ValueType::Int16),
 	OperandValueType::ValueType(ValueType::Int32),
@@ -913,12 +913,12 @@ impl ComparisonOp
 	{
 		match self
 		{
-			ComparisonOp::Equals => &VALID_TYPES_FOR_EQUALITY,
-			ComparisonOp::DoesNotEqual => &VALID_TYPES_FOR_EQUALITY,
-			ComparisonOp::IsGreater => &VALID_TYPES_FOR_IS_GREATER,
-			ComparisonOp::IsLess => &VALID_TYPES_FOR_IS_GREATER,
-			ComparisonOp::IsGE => &VALID_TYPES_FOR_IS_GREATER,
-			ComparisonOp::IsLE => &VALID_TYPES_FOR_IS_GREATER,
+			ComparisonOp::Equals => VALID_TYPES_FOR_EQUALITY,
+			ComparisonOp::DoesNotEqual => VALID_TYPES_FOR_EQUALITY,
+			ComparisonOp::IsGreater => VALID_TYPES_FOR_IS_GREATER,
+			ComparisonOp::IsLess => VALID_TYPES_FOR_IS_GREATER,
+			ComparisonOp::IsGE => VALID_TYPES_FOR_IS_GREATER,
+			ComparisonOp::IsLE => VALID_TYPES_FOR_IS_GREATER,
 		}
 	}
 }
@@ -975,7 +975,7 @@ fn resolve_binary_op_type(
 	analyze_operand_type(vt, op.valid_types(), location_of_op, left.location())
 }
 
-const VALID_TYPES_FOR_ARITHMETIC: &'static [OperandValueType] = &[
+const VALID_TYPES_FOR_ARITHMETIC: &[OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Int8),
 	OperandValueType::ValueType(ValueType::Int16),
 	OperandValueType::ValueType(ValueType::Int32),
@@ -988,14 +988,14 @@ const VALID_TYPES_FOR_ARITHMETIC: &'static [OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Uint128),
 	OperandValueType::ValueType(ValueType::Usize),
 ];
-const VALID_TYPES_FOR_BITWISE: &'static [OperandValueType] = &[
+const VALID_TYPES_FOR_BITWISE: &[OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Uint8),
 	OperandValueType::ValueType(ValueType::Uint16),
 	OperandValueType::ValueType(ValueType::Uint32),
 	OperandValueType::ValueType(ValueType::Uint64),
 	OperandValueType::ValueType(ValueType::Uint128),
 ];
-const VALID_TYPES_FOR_BITSHIFT: &'static [OperandValueType] = &[
+const VALID_TYPES_FOR_BITSHIFT: &[OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Uint8),
 	OperandValueType::ValueType(ValueType::Uint16),
 	OperandValueType::ValueType(ValueType::Uint32),
@@ -1009,16 +1009,16 @@ impl BinaryOp
 	{
 		match self
 		{
-			BinaryOp::Add => &VALID_TYPES_FOR_ARITHMETIC,
-			BinaryOp::Subtract => &VALID_TYPES_FOR_ARITHMETIC,
-			BinaryOp::Multiply => &VALID_TYPES_FOR_ARITHMETIC,
-			BinaryOp::Divide => &VALID_TYPES_FOR_ARITHMETIC,
-			BinaryOp::Modulo => &VALID_TYPES_FOR_ARITHMETIC,
-			BinaryOp::BitwiseAnd => &VALID_TYPES_FOR_BITWISE,
-			BinaryOp::BitwiseOr => &VALID_TYPES_FOR_BITWISE,
-			BinaryOp::BitwiseXor => &VALID_TYPES_FOR_BITWISE,
-			BinaryOp::ShiftLeft => &VALID_TYPES_FOR_BITSHIFT,
-			BinaryOp::ShiftRight => &VALID_TYPES_FOR_BITSHIFT,
+			BinaryOp::Add => VALID_TYPES_FOR_ARITHMETIC,
+			BinaryOp::Subtract => VALID_TYPES_FOR_ARITHMETIC,
+			BinaryOp::Multiply => VALID_TYPES_FOR_ARITHMETIC,
+			BinaryOp::Divide => VALID_TYPES_FOR_ARITHMETIC,
+			BinaryOp::Modulo => VALID_TYPES_FOR_ARITHMETIC,
+			BinaryOp::BitwiseAnd => VALID_TYPES_FOR_BITWISE,
+			BinaryOp::BitwiseOr => VALID_TYPES_FOR_BITWISE,
+			BinaryOp::BitwiseXor => VALID_TYPES_FOR_BITWISE,
+			BinaryOp::ShiftLeft => VALID_TYPES_FOR_BITSHIFT,
+			BinaryOp::ShiftRight => VALID_TYPES_FOR_BITSHIFT,
 		}
 	}
 }
@@ -1046,14 +1046,14 @@ fn resolve_unary_op_type(
 	)
 }
 
-const VALID_TYPES_FOR_NEGATIVE: &'static [OperandValueType] = &[
+const VALID_TYPES_FOR_NEGATIVE: &[OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Int8),
 	OperandValueType::ValueType(ValueType::Int16),
 	OperandValueType::ValueType(ValueType::Int32),
 	OperandValueType::ValueType(ValueType::Int64),
 	OperandValueType::ValueType(ValueType::Int128),
 ];
-const VALID_TYPES_FOR_COMPLEMENT: &'static [OperandValueType] = &[
+const VALID_TYPES_FOR_COMPLEMENT: &[OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Bool),
 	OperandValueType::ValueType(ValueType::Uint8),
 	OperandValueType::ValueType(ValueType::Uint16),
@@ -1068,8 +1068,8 @@ impl UnaryOp
 	{
 		match self
 		{
-			UnaryOp::Negative => &VALID_TYPES_FOR_NEGATIVE,
-			UnaryOp::BitwiseComplement => &VALID_TYPES_FOR_COMPLEMENT,
+			UnaryOp::Negative => VALID_TYPES_FOR_NEGATIVE,
+			UnaryOp::BitwiseComplement => VALID_TYPES_FOR_COMPLEMENT,
 		}
 	}
 }

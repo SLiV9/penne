@@ -283,9 +283,8 @@ fn do_main() -> Result<(), anyhow::Error>
 			.iter()
 			.last()
 			.and_then(|filepath| filepath.file_name())
-			.and_then(|filename| {
-				let mut path =
-					out_dir.clone().unwrap_or(std::path::PathBuf::new());
+			.map(|filename| {
+				let mut path = out_dir.clone().unwrap_or_default();
 				path.push(filename);
 				if wasm
 				{
@@ -295,12 +294,12 @@ fn do_main() -> Result<(), anyhow::Error>
 				{
 					path.set_extension(get_exe_extension());
 				}
-				Some(path)
+				path
 			})
 	});
 
 	let mut stdout = StandardStream::stdout(ColorChoice::Auto);
-	let colorspec_header = ColorSpec::new().to_owned();
+	let colorspec_header = ColorSpec::new();
 	let colorspec_dump = ColorSpec::new().set_dimmed(true).to_owned();
 	let colorspec_error = ColorSpec::new()
 		.set_fg(Some(Color::Red))
@@ -616,7 +615,7 @@ fn do_main() -> Result<(), anyhow::Error>
 		{
 			status
 				.success()
-				.then(|| Some(()))
+				.then_some(Some(()))
 				.context("compilation unsuccessful")?;
 		}
 	}
@@ -633,7 +632,7 @@ fn preprocess(
 	modules: &HashMap<std::path::PathBuf, Vec<Declaration>>,
 ) -> Result<Vec<Declaration>, anyhow::Error>
 {
-	while let Some(i) = declarations.iter().position(|d| is_directive(d))
+	while let Some(i) = declarations.iter().position(is_directive)
 	{
 		let (directive, location) = match declarations.remove(i)
 		{
@@ -643,24 +642,19 @@ fn preprocess(
 			} => (directive, location),
 			_ => unreachable!(),
 		};
-		let mut is_resolved = false;
-		let mut resolutions = relative_path.ancestors().skip(1);
-		while let Some(path) = resolutions.next()
+		if let Some(module) = relative_path
+			.ancestors()
+			.skip(1)
+			.filter_map(|path| {
+				let combined = path.join(directive.clone());
+				modules.get(&combined)
+			})
+			.next()
 		{
-			let resolved = path.join(directive.clone());
-			match modules.get(&resolved)
-			{
-				Some(result) =>
-				{
-					let imported_declarations = result.to_vec();
-					is_resolved = true;
-					declarations.splice(i..i, imported_declarations);
-					break;
-				}
-				None => (),
-			}
+			let imported_declarations = module.to_vec();
+			declarations.splice(i..i, imported_declarations);
 		}
-		if !is_resolved
+		else
 		{
 			return Err(anyhow!("failed to resolve {:?}", directive))
 				.context(location.format())
@@ -690,15 +684,17 @@ fn get_backend(
 		.map(|x| x.to_str().map(|x| x.to_string()).context("invalid backend"))
 		.or_else(|| match std::env::var(env_backend_var)
 		{
-			Ok(value) => Some(Ok(value.into())),
+			Ok(value) => Some(Ok(value)),
 			Err(std::env::VarError::NotPresent) => None,
-			Err(e) => return Some(Err(e.into())),
+			Err(e) => Some(Err(e.into())),
 		})
-		.or(config_backend.map(|x| {
-			x.to_str()
-				.map(|x| x.to_string())
-				.context("invalid backend in config")
-		}))
+		.or_else(|| {
+			config_backend.map(|x| {
+				x.to_str()
+					.map(|x| x.to_string())
+					.context("invalid backend in config")
+			})
+		})
 		.unwrap_or_else(|| Ok(default.to_string()))
 }
 
@@ -730,7 +726,7 @@ where
 	let buffer = Option::<String>::deserialize(deserializer)?;
 	if let Some(buffer) = buffer
 	{
-		let parts = buffer.split(" ").map(|x| x.to_string()).collect();
+		let parts = buffer.split(' ').map(|x| x.to_string()).collect();
 		Ok(Some(parts))
 	}
 	else

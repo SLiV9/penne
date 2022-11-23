@@ -587,7 +587,7 @@ impl Error
 			.with_label(
 				last_location
 					.label()
-					.with_message(format!("Expected more after this."))
+					.with_message("Expected more after this.".to_string())
 					.with_order(2)
 					.with_color(b),
 			)
@@ -2230,7 +2230,7 @@ impl Error
 					.with_order(2)
 					.with_message(format!(
 						"Expected {}.",
-						show_possible_types(&possible_types, b)
+						show_possible_types(possible_types, b)
 					))
 					.with_color(b),
 			)
@@ -2272,8 +2272,8 @@ impl Error
 			.with_note(note_for_possible_casts(
 				value_type,
 				coerced_type,
-				&possible_value_types,
-				&possible_coerced_types,
+				possible_value_types,
+				possible_coerced_types,
 				a,
 				b,
 			))
@@ -2365,45 +2365,39 @@ fn show_type_inner(value_type: &ValueType) -> String
 		ValueType::Array {
 			element_type,
 			length,
-		} => format!("[{}]{}", length, show_type_inner(&element_type)),
+		} => format!("[{}]{}", length, show_type_inner(element_type)),
 		ValueType::Slice { element_type } =>
 		{
-			format!("[:]{}", show_type_inner(&element_type))
+			format!("[:]{}", show_type_inner(element_type))
 		}
 		ValueType::EndlessArray { element_type } =>
 		{
-			format!("[...]{}", show_type_inner(&element_type))
+			format!("[...]{}", show_type_inner(element_type))
 		}
 		ValueType::Arraylike { element_type } =>
 		{
-			format!("[]{}", show_type_inner(&element_type))
+			format!("[]{}", show_type_inner(element_type))
 		}
 		ValueType::Struct {
 			identifier,
 			size_in_bytes: _,
-		} =>
-		{
-			format!("{}", identifier.name)
-		}
+		} => identifier.name.to_string(),
 		ValueType::Word {
 			identifier,
 			size_in_bytes: _,
-		} =>
-		{
-			format!("{}", identifier.name)
-		}
+		} => identifier.name.to_string(),
 		ValueType::UnresolvedStructOrWord { identifier } => match identifier
 		{
-			Some(identifier) => format!("{}", identifier.name),
-			None => format!("struct"),
+			Some(identifier) => identifier.name.to_string(),
+			None => "struct".to_string(),
 		},
 		ValueType::Pointer { deref_type } =>
 		{
-			format!("&{}", show_type_inner(&deref_type))
+			format!("&{}", show_type_inner(deref_type))
 		}
 		ValueType::View { deref_type } =>
 		{
-			format!("({})", show_type_inner(&deref_type))
+			format!("({})", show_type_inner(deref_type))
 		}
 	}
 }

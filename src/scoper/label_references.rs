@@ -91,8 +91,8 @@ impl Analyzer
 		}
 
 		Err(Error::UndefinedLabel {
-			name: identifier.name.clone(),
-			location: identifier.location.clone(),
+			name: identifier.name,
+			location: identifier.location,
 		})
 	}
 

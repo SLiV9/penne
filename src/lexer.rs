@@ -348,7 +348,7 @@ fn lex_line(
 					let mut literal = x.to_string();
 					while let Some(&(_, y)) = iter.peek()
 					{
-						if y.is_digit(16)
+						if y.is_ascii_hexdigit()
 						{
 							literal.push(y);
 							iter.next();
@@ -360,7 +360,7 @@ fn lex_line(
 						}
 					}
 					u64::from_str_radix(&literal, 16)
-						.map(|value| Token::BitInteger(value))
+						.map(Token::BitInteger)
 						.map_err(|_error| Error::InvalidBitIntegerLiteral)
 				}
 				Some((_i, 'b')) =>
@@ -382,7 +382,7 @@ fn lex_line(
 						}
 					}
 					u64::from_str_radix(&literal, 2)
-						.map(|value| Token::BitInteger(value))
+						.map(Token::BitInteger)
 						.map_err(|_error| Error::InvalidBitIntegerLiteral)
 				}
 				_ =>
@@ -424,7 +424,7 @@ fn lex_line(
 				let mut literal = x.to_string();
 				while let Some(&(_, y)) = iter.peek()
 				{
-					if y.is_digit(10)
+					if y.is_ascii_digit()
 					{
 						literal.push(y);
 						iter.next();
@@ -469,48 +469,48 @@ fn lex_line(
 					{
 						"i8" => literal
 							.parse()
-							.map(|value| Token::Int8(value))
-							.map_err(|e| Error::InvalidIntegerLiteral(e)),
+							.map(Token::Int8)
+							.map_err(Error::InvalidIntegerLiteral),
 						"i16" => literal
 							.parse()
-							.map(|value| Token::Int16(value))
-							.map_err(|e| Error::InvalidIntegerLiteral(e)),
+							.map(Token::Int16)
+							.map_err(Error::InvalidIntegerLiteral),
 						"i32" => literal
 							.parse()
-							.map(|value| Token::Int32(value))
-							.map_err(|e| Error::InvalidIntegerLiteral(e)),
+							.map(Token::Int32)
+							.map_err(Error::InvalidIntegerLiteral),
 						"i64" => literal
 							.parse()
-							.map(|value| Token::Int64(value))
-							.map_err(|e| Error::InvalidIntegerLiteral(e)),
+							.map(Token::Int64)
+							.map_err(Error::InvalidIntegerLiteral),
 						"i128" => literal
 							.parse()
-							.map(|value| Token::Int128(value))
-							.map_err(|e| Error::InvalidIntegerLiteral(e)),
+							.map(Token::Int128)
+							.map_err(Error::InvalidIntegerLiteral),
 						"u8" => literal
 							.parse()
-							.map(|value| Token::Uint8(value))
-							.map_err(|e| Error::InvalidIntegerLiteral(e)),
+							.map(Token::Uint8)
+							.map_err(Error::InvalidIntegerLiteral),
 						"u16" => literal
 							.parse()
-							.map(|value| Token::Uint16(value))
-							.map_err(|e| Error::InvalidIntegerLiteral(e)),
+							.map(Token::Uint16)
+							.map_err(Error::InvalidIntegerLiteral),
 						"u32" => literal
 							.parse()
-							.map(|value| Token::Uint32(value))
-							.map_err(|e| Error::InvalidIntegerLiteral(e)),
+							.map(Token::Uint32)
+							.map_err(Error::InvalidIntegerLiteral),
 						"u64" => literal
 							.parse()
-							.map(|value| Token::Uint64(value))
-							.map_err(|e| Error::InvalidIntegerLiteral(e)),
+							.map(Token::Uint64)
+							.map_err(Error::InvalidIntegerLiteral),
 						"u128" => literal
 							.parse()
-							.map(|value| Token::Uint128(value))
-							.map_err(|e| Error::InvalidIntegerLiteral(e)),
+							.map(Token::Uint128)
+							.map_err(Error::InvalidIntegerLiteral),
 						"usize" => literal
 							.parse()
-							.map(|value| Token::Usize(value))
-							.map_err(|e| Error::InvalidIntegerLiteral(e)),
+							.map(Token::Usize)
+							.map_err(Error::InvalidIntegerLiteral),
 						_ => Err(Error::InvalidIntegerTypeSuffix),
 					}
 				}
@@ -548,7 +548,7 @@ fn lex_line(
 								let mut digits = String::new();
 								while let Some(&(_, y)) = iter.peek()
 								{
-									if y.is_digit(16)
+									if y.is_ascii_hexdigit()
 									{
 										digits.push(y);
 										iter.next();

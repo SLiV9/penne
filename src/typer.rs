@@ -161,7 +161,7 @@ impl Typer
 						identifier.resolution_id,
 						Symbol {
 							identifier: identifier.clone(),
-							value_type: Ok(vt.clone()),
+							value_type: Ok(vt),
 						},
 					);
 					Ok(())
@@ -249,8 +249,7 @@ impl Typer
 			Ok(base_type) => base_type.fully_dereferenced(),
 			Err(_poison) => return Some(Err(Poison::Poisoned)),
 		};
-		let mut num_steps_taken = 0;
-		for step in &mut reference.steps
+		for (num_steps_taken, step) in reference.steps.iter_mut().enumerate()
 		{
 			match step
 			{
@@ -313,7 +312,7 @@ impl Typer
 					};
 					// Set resolution id and offset now, because we could
 					// not know the type of this structure during scoping.
-					match self.analyze_member_access(&structure, member)
+					match self.analyze_member_access(structure, member)
 					{
 						Ok(i) =>
 						{
@@ -326,7 +325,7 @@ impl Typer
 						}
 					};
 					// Once we have scoped the member, we can get its type.
-					match self.get_symbol(&member)
+					match self.get_symbol(member)
 					{
 						Some(Ok(member_type)) =>
 						{
@@ -348,7 +347,6 @@ impl Typer
 				ReferenceStep::Autoderef => (),
 				ReferenceStep::Autoview => (),
 			}
-			num_steps_taken += 1;
 		}
 		for _i in 0..reference.address_depth
 		{
@@ -390,7 +388,7 @@ impl Typer
 			.into_iter()
 			.zip(parameter_hints)
 			.map(|(a, p)| {
-				self.contextual_type = Some(p.clone());
+				self.contextual_type = Some(p);
 				a.analyze(self)
 			})
 			.collect();
@@ -484,7 +482,7 @@ impl Typer
 						inferred_size_in_bits: 8 * aligned_size_in_bytes,
 						declared_size_in_bits: 8 * declared_size_in_bytes,
 						location_of_identifier: identifier.location.clone(),
-						location_of_keyword: identifier.location.clone(),
+						location_of_keyword: identifier.location,
 					};
 					Err(Poison::Error(error))
 				}
@@ -756,7 +754,7 @@ fn prealign(declaration: &mut Declaration, typer: &mut Typer)
 			location_of_declaration: _,
 		} =>
 		{
-			typer.poison_symbol(&name, Poison::Poisoned);
+			typer.poison_symbol(name, Poison::Poisoned);
 		}
 		Declaration::Structure {
 			name,
@@ -771,13 +769,13 @@ fn prealign(declaration: &mut Declaration, typer: &mut Typer)
 				.into_iter()
 				.map(|x| {
 					typer.contextual_type = Some(structural_type.clone());
-					x.analyze_and_fix(&flags, &location_of_declaration, typer)
+					x.analyze_and_fix(flags, location_of_declaration, typer)
 				})
 				.collect();
 
 			let aligned_type =
-				typer.align_struct(&name, &members, structural_type.clone());
-			let result = typer.put_symbol(&name, Some(aligned_type.clone()));
+				typer.align_struct(name, members, structural_type.clone());
+			let result = typer.put_symbol(name, Some(aligned_type.clone()));
 			*structural_type = match (aligned_type, result)
 			{
 				(Ok(_), Err(error)) => Err(Poison::Error(error)),
@@ -980,7 +978,7 @@ fn analyze_return_value(
 			location_of_declaration: function.location.clone(),
 		}),
 		(None, Some(_), Some(rvt)) => Err(Error::MissingReturnType {
-			inferred_type: rvt.clone(),
+			inferred_type: rvt,
 			location_of_return_value: body
 				.return_value_identifier
 				.location
@@ -1388,7 +1386,7 @@ impl Analyzable for Comparison
 	{
 		let contextual_type = typer.contextual_type.take();
 		typer.contextual_type =
-			self.right.value_type().or(contextual_type.clone());
+			self.right.value_type().or_else(|| contextual_type.clone());
 		let left = self.left.analyze(typer);
 		typer.contextual_type = left.value_type().or(contextual_type);
 		let right = self.right.analyze(typer);
@@ -1501,7 +1499,7 @@ impl Analyzable for Expression
 			{
 				let contextual_type = typer.contextual_type.take();
 				typer.contextual_type =
-					right.value_type().or(contextual_type.clone());
+					right.value_type().or_else(|| contextual_type.clone());
 				let left = left.analyze(typer);
 				typer.contextual_type = left.value_type().or(contextual_type);
 				let right = right.analyze(typer);
@@ -1537,7 +1535,7 @@ impl Analyzable for Expression
 			{
 				let value_type = match value_type
 				{
-					Some(Ok(vt)) => Some(Ok(vt.clone())),
+					Some(Ok(vt)) => Some(Ok(vt)),
 					Some(Err(poison)) => Some(Err(poison)),
 					None =>
 					{
@@ -1559,7 +1557,7 @@ impl Analyzable for Expression
 			{
 				let value_type = match value_type
 				{
-					Some(Ok(vt)) => Some(Ok(vt.clone())),
+					Some(Ok(vt)) => Some(Ok(vt)),
 					Some(Err(poison)) => Some(Err(poison)),
 					None =>
 					{
@@ -1582,7 +1580,7 @@ impl Analyzable for Expression
 				let put_result = if element_type.is_some()
 				{
 					let result = typer.put_symbol(&name, element_type.clone());
-					typer.contextual_type = element_type.clone();
+					typer.contextual_type = element_type;
 					result
 				}
 				else
@@ -1590,11 +1588,7 @@ impl Analyzable for Expression
 					let array_type = typer.contextual_type.take();
 					typer.contextual_type = match array_type
 					{
-						Some(Ok(x)) => match x.get_element_type()
-						{
-							Some(y) => Some(Ok(y)),
-							None => None,
-						},
+						Some(Ok(x)) => x.get_element_type().map(Ok),
 						Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
 						None => None,
 					};
@@ -1750,7 +1744,7 @@ impl Analyzable for Expression
 			{
 				let rv_identifier = name.return_value().inferred();
 				let recoverable_error =
-					typer.put_symbol(&rv_identifier, return_type.clone());
+					typer.put_symbol(&rv_identifier, return_type);
 				let return_type = typer.get_symbol(&rv_identifier);
 				let arguments =
 					typer.analyze_function_arguments(&name, arguments);
@@ -2369,7 +2363,7 @@ impl Reference
 					Some(ReferenceStep::Member { member, offset }),
 				) =>
 				{
-					let member_type = match typer.get_symbol(&member)
+					let member_type = match typer.get_symbol(member)
 					{
 						Some(Ok(member_type)) => member_type,
 						Some(Err(_)) => unreachable!(),
@@ -2377,7 +2371,7 @@ impl Reference
 					};
 					let step = ReferenceStep::Member {
 						member: member.clone(),
-						offset: offset.clone(),
+						offset: *offset,
 					};
 					taken_steps.push(step);
 					available_steps.next();
@@ -2442,7 +2436,7 @@ impl Reference
 		{
 			expr
 		};
-		match typer.put_symbol(base, full_type.clone())
+		match typer.put_symbol(base, full_type)
 		{
 			Ok(()) => expr,
 			Err(error) => Expression::Poison(Poison::Error(error)),
@@ -2600,7 +2594,7 @@ impl Analyzable for Poisonable<ValueType>
 {
 	fn analyze(self, typer: &mut Typer) -> Self
 	{
-		self.and_then(|x| analyze_type(x, typer).map_err(|e| e.into()))
+		self.and_then(|x| analyze_type(x, typer))
 	}
 }
 
@@ -2726,8 +2720,8 @@ fn fix_return_type_for_flags(
 		value_type,
 		false,
 		flags,
-		&location_of_type,
-		&location_of_declaration,
+		location_of_type,
+		location_of_declaration,
 	);
 
 	let value_type = match fixed_type
@@ -2743,7 +2737,7 @@ fn fix_return_type_for_flags(
 	else
 	{
 		let error = Error::IllegalReturnType {
-			value_type: value_type,
+			value_type,
 			location: location_of_type.clone(),
 		};
 		Some(Err(error.into()))

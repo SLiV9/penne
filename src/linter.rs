@@ -73,23 +73,24 @@ impl Lint
 			.with_label(
 				location_of_loop
 					.label()
-					.with_message(format!(
+					.with_message(
 						"...this loop statement will cause an infinite loop..."
-					))
+							.to_string(),
+					)
 					.with_color(a),
 			)
 			.with_label(
 				location_of_block
 					.label()
-					.with_message(format!(
-						"...because it belongs to this block."
-					))
+					.with_message(
+						"...because it belongs to this block.".to_string(),
+					)
 					.with_color(c),
 			)
 			.with_label(
 				location_of_condition
 					.label()
-					.with_message(format!("If this condition is met..."))
+					.with_message("If this condition is met...".to_string())
 					.with_color(b),
 			)
 			.with_note(format!(
@@ -109,7 +110,7 @@ impl Lint
 			.with_label(
 				location
 					.label()
-					.with_message(format!("starting here"))
+					.with_message("starting here".to_string())
 					.with_color(a),
 			)
 			.finish(),
@@ -209,29 +210,25 @@ impl Lintable for Block
 {
 	fn lint(&self, linter: &mut Linter)
 	{
-		match self.statements.split_first()
+		if let Some((first, others)) = self.statements.split_first()
 		{
-			Some((first, others)) =>
-			{
-				linter.is_first_statement_of_branch =
-					match linter.is_naked_branch.take()
-					{
-						Some(NakedBranch {
-							location_of_condition,
-						}) => Some(Branch {
-							location_of_condition,
-							location_of_block: self.location.clone(),
-						}),
-						None => None,
-					};
-				first.lint(linter);
-				linter.is_first_statement_of_branch = None;
-				for statement in others
+			linter.is_first_statement_of_branch =
+				match linter.is_naked_branch.take()
 				{
-					statement.lint(linter);
-				}
+					Some(NakedBranch {
+						location_of_condition,
+					}) => Some(Branch {
+						location_of_condition,
+						location_of_block: self.location.clone(),
+					}),
+					None => None,
+				};
+			first.lint(linter);
+			linter.is_first_statement_of_branch = None;
+			for statement in others
+			{
+				statement.lint(linter);
 			}
-			None => (),
 		}
 	}
 }

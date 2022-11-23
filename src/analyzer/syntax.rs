@@ -199,7 +199,7 @@ impl Analyzable for Block
 						{
 							Statement::Loop { location } => Statement::Poison(
 								Poison::Error(Error::NonFinalLoopStatement {
-									location: location.clone(),
+									location,
 									location_of_block: self.location.clone(),
 								}),
 							),
@@ -285,9 +285,9 @@ impl Analyzable for Statement
 				}) => Statement::Poison(Poison::Error(
 					Error::VariableDeclarationMayBeSkipped {
 						label: label.name.clone(),
-						location: location.clone(),
-						location_of_goto: goto.location.clone(),
-						location_of_label: label.location.clone(),
+						location,
+						location_of_goto: goto.location,
+						location_of_label: label.location,
 					},
 				)),
 				Some(UnresolvedGoto {
@@ -312,9 +312,7 @@ impl Analyzable for Statement
 				else
 				{
 					Statement::Poison(Poison::Error(
-						Error::MisplacedLoopStatement {
-							location: location.clone(),
-						},
+						Error::MisplacedLoopStatement { location },
 					))
 				}
 			}

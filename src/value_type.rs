@@ -148,7 +148,7 @@ where
 				length,
 			} => element_type
 				.known_aligned_size_in_bytes()
-				.and_then(|x| Some(length * x)),
+				.map(|x| length * x),
 			ValueType::Slice { .. } => None,
 			ValueType::EndlessArray { .. } => None,
 			ValueType::Arraylike { .. } => None,

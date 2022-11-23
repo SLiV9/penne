@@ -17,7 +17,7 @@ pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 	};
 	for declaration in &program
 	{
-		declare(&declaration, &mut analyzer);
+		declare(declaration, &mut analyzer);
 	}
 	program
 		.into_iter()
@@ -43,7 +43,7 @@ impl Analyzer
 	fn declare_function(
 		&mut self,
 		identifier: &Identifier,
-		parameters: &Vec<Parameter>,
+		parameters: &[Parameter],
 	)
 	{
 		let function = Function {
@@ -99,7 +99,7 @@ impl Analyzer
 							let parameter_name = declared.name.clone();
 							let location_of_declaration =
 								declared.location.clone();
-							if can_hint_missing_address(&argument, &a, p)
+							if can_hint_missing_address(argument, &a, p)
 							{
 								return Err(Error::ArgumentMissingAddress {
 									parameter_name,
@@ -361,7 +361,7 @@ impl Analyzable for Statement
 				if analyzer.is_const_evaluated
 				{
 					let error = Error::FunctionInConstContext {
-						location: name.location.clone(),
+						location: name.location,
 					};
 					return Statement::Poison(Poison::Error(error));
 				}
@@ -470,9 +470,7 @@ impl Analyzable for Expression
 			{
 				if analyzer.is_const_evaluated
 				{
-					let error = Error::UnsupportedInConstContext {
-						location: location.clone(),
-					};
+					let error = Error::UnsupportedInConstContext { location };
 					return Expression::Poison(Poison::Error(error));
 				}
 
@@ -496,9 +494,7 @@ impl Analyzable for Expression
 			{
 				if analyzer.is_const_evaluated
 				{
-					let error = Error::UnsupportedInConstContext {
-						location: location.clone(),
-					};
+					let error = Error::UnsupportedInConstContext { location };
 					return Expression::Poison(Poison::Error(error));
 				}
 
@@ -557,7 +553,7 @@ impl Analyzable for Expression
 				if analyzer.is_const_evaluated
 				{
 					let error = Error::UnsupportedInConstContext {
-						location: reference.location.clone(),
+						location: reference.location,
 					};
 					return Expression::Poison(Poison::Error(error));
 				}
@@ -644,7 +640,7 @@ impl Analyzable for Expression
 				if analyzer.is_const_evaluated
 				{
 					let error = Error::UnsupportedInConstContext {
-						location: reference.location.clone(),
+						location: reference.location,
 					};
 					return Expression::Poison(Poison::Error(error));
 				}
@@ -661,7 +657,7 @@ impl Analyzable for Expression
 				if analyzer.is_const_evaluated
 				{
 					let error = Error::UnsupportedInConstContext {
-						location: name.location.clone(),
+						location: name.location,
 					};
 					return Expression::Poison(Poison::Error(error));
 				}

@@ -586,7 +586,7 @@ impl Generatable for Statement
 					);
 					unreachable_block
 				};
-				let labeled_block = find_or_append_labeled_block(llvm, &label)?;
+				let labeled_block = find_or_append_labeled_block(llvm, label)?;
 				unsafe {
 					LLVMPositionBuilderAtEnd(llvm.builder, current_block);
 					LLVMBuildBr(llvm.builder, labeled_block);
@@ -597,7 +597,7 @@ impl Generatable for Statement
 			Statement::Label { label } =>
 			{
 				let current_block = unsafe { LLVMGetInsertBlock(llvm.builder) };
-				let labeled_block = find_or_append_labeled_block(llvm, &label)?;
+				let labeled_block = find_or_append_labeled_block(llvm, label)?;
 				unsafe {
 					LLVMPositionBuilderAtEnd(llvm.builder, current_block);
 					LLVMBuildBr(llvm.builder, labeled_block);
@@ -926,7 +926,7 @@ impl Generatable for Expression
 				let element_type: LLVMTypeRef = element_type.generate(llvm)?;
 				let mut const_values = Vec::with_capacity(elements.len());
 				let mut inserts = Vec::with_capacity(0);
-				for (i, element) in elements.into_iter().enumerate()
+				for (i, element) in elements.iter().enumerate()
 				{
 					let value: LLVMValueRef = element.generate(llvm)?;
 					let is_const = unsafe { LLVMIsConstant(value) };
@@ -1007,13 +1007,13 @@ impl Generatable for Expression
 			Expression::Autocoerce {
 				expression,
 				coerced_type,
-			} => generate_autocoerce(&expression, coerced_type, llvm),
+			} => generate_autocoerce(expression, coerced_type, llvm),
 			Expression::PrimitiveCast {
 				expression,
 				expression_type,
 				coerced_type,
 			} => generate_primitive_cast(
-				&expression,
+				expression,
 				expression_type,
 				coerced_type,
 				llvm,
@@ -1210,13 +1210,11 @@ impl Generatable for ValueType
 			}
 			ValueType::EndlessArray { element_type } =>
 			{
-				let element_type = element_type.generate(llvm)?;
-				element_type
+				element_type.generate(llvm)?
 			}
 			ValueType::Arraylike { element_type } =>
 			{
-				let element_type = element_type.generate(llvm)?;
-				element_type
+				element_type.generate(llvm)?
 			}
 			ValueType::Struct {
 				identifier,
@@ -1253,10 +1251,10 @@ impl Reference
 		let id = &self.base.resolution_id;
 		if let Some(param) = llvm.local_parameters.get(id)
 		{
-			match self.generate_word_deref(*param, llvm)?
+			let shortcut = self.generate_word_deref(*param, llvm)?;
+			if let Some(value) = shortcut
 			{
-				Some(value) => return Ok(value),
-				None => (),
+				return Ok(value);
 			}
 		}
 
@@ -1319,7 +1317,7 @@ impl Reference
 				ReferenceStep::Autoview => return Ok(None),
 			}
 		}
-		return Ok(Some(value));
+		Ok(Some(value))
 	}
 
 	fn generate_storage_address(
@@ -1505,7 +1503,7 @@ impl Reference
 			}
 		}
 
-		if indices.len() > 0
+		if !indices.is_empty()
 		{
 			let tmpname = CString::new("")?;
 			addr = unsafe {
@@ -1675,7 +1673,7 @@ fn generate_autocoerce(
 				} =>
 				{
 					let address = reference.generate_storage_address(llvm)?;
-					generate_array_slice(address, &element_type, *length, llvm)
+					generate_array_slice(address, element_type, *length, llvm)
 				}
 				_ => unimplemented!(),
 			},
@@ -1684,7 +1682,7 @@ fn generate_autocoerce(
 			{
 				let address = expression.generate(llvm)?;
 				let length = bytes.len();
-				generate_array_slice(address, &element_type, length, llvm)
+				generate_array_slice(address, element_type, length, llvm)
 			}
 			_ => unimplemented!(),
 		},
@@ -1698,13 +1696,13 @@ fn generate_autocoerce(
 				} =>
 				{
 					let address = reference.generate_storage_address(llvm)?;
-					generate_ext_array_view(address, &element_type, llvm)
+					generate_ext_array_view(address, element_type, llvm)
 				}
 				Expression::StringLiteral { .. } => unimplemented!(),
 				Expression::ByteStringLiteral { .. } =>
 				{
 					let address = expression.generate(llvm)?;
-					generate_ext_array_view(address, &element_type, llvm)
+					generate_ext_array_view(address, element_type, llvm)
 				}
 				_ => unimplemented!(),
 			},
@@ -1716,7 +1714,7 @@ fn generate_autocoerce(
 				} =>
 				{
 					let address = reference.generate_storage_address(llvm)?;
-					generate_view(address, &viewed_type, llvm)
+					generate_view(address, viewed_type, llvm)
 				}
 				_ => unimplemented!(),
 			},
@@ -1731,13 +1729,13 @@ fn generate_autocoerce(
 				} =>
 				{
 					let address = reference.generate_storage_address(llvm)?;
-					generate_ext_array_view(address, &element_type, llvm)
+					generate_ext_array_view(address, element_type, llvm)
 				}
 				Expression::StringLiteral { .. } => unimplemented!(),
 				Expression::ByteStringLiteral { bytes: _ } =>
 				{
 					let address = expression.generate(llvm)?;
-					generate_ext_array_view(address, &element_type, llvm)
+					generate_ext_array_view(address, element_type, llvm)
 				}
 				_ => unimplemented!(),
 			},

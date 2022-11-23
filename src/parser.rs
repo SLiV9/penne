@@ -54,7 +54,7 @@ impl From<Vec<LexedToken>> for Tokens
 {
 	fn from(tokens: Vec<LexedToken>) -> Tokens
 	{
-		let last_location = match tokens.iter().next()
+		let last_location = match tokens.first()
 		{
 			Some(LexedToken {
 				result: _,
@@ -712,7 +712,7 @@ fn parse_wellformed_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 	{
 		let location = tokens.location_of_span(start);
 		Err(Error::IllegalType {
-			value_type: value_type,
+			value_type,
 			location,
 		})
 	}
@@ -1082,7 +1082,7 @@ fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 				tokens.pop_front();
 				return Err(Error::UnexpectedSemicolonAfterIdentifier {
 					location: tokens.last_location.clone(),
-					after: reference.location.clone(),
+					after: reference.location,
 				});
 			}
 			consume(Token::Assignment, "expected assignment", tokens)?;
@@ -1106,7 +1106,7 @@ fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 				tokens.pop_front();
 				return Err(Error::UnexpectedSemicolonAfterIdentifier {
 					location: tokens.last_location.clone(),
-					after: reference.location.clone(),
+					after: reference.location,
 				});
 			}
 			consume(Token::Assignment, "expected assignment", tokens)?;
@@ -1597,7 +1597,7 @@ fn parse_primary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 			}
 			Ok(Expression::StringLiteral {
 				bytes,
-				value_type: value_type.map(|x| Ok(x)),
+				value_type: value_type.map(Ok),
 				location,
 			})
 		}

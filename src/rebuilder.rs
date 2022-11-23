@@ -135,9 +135,9 @@ impl Rebuildable for Declaration
 				{
 					write!(&mut buffer, "extern ")?;
 				}
-				write!(
+				writeln!(
 					&mut buffer,
-					"const {}: {} = {};\n",
+					"const {}: {} = {};",
 					identify(name),
 					value_type.rebuild(&indentation.increased())?,
 					value.rebuild(&indentation.increased())?
@@ -165,25 +165,21 @@ impl Rebuildable for Declaration
 					write!(&mut buffer, "extern ")?;
 				}
 				write!(&mut buffer, "fn {}(", identify(name))?;
-				match parameters.split_first()
+				if let Some((first, others)) = parameters.split_first()
 				{
-					Some((first, others)) =>
+					write!(
+						&mut buffer,
+						"{}",
+						first.rebuild(&indentation.increased())?
+					)?;
+					for parameter in others
 					{
 						write!(
 							&mut buffer,
-							"{}",
-							first.rebuild(&indentation.increased())?
+							", {}",
+							parameter.rebuild(&indentation.increased())?
 						)?;
-						for parameter in others
-						{
-							write!(
-								&mut buffer,
-								", {}",
-								parameter.rebuild(&indentation.increased())?
-							)?;
-						}
 					}
-					None => (),
 				}
 				write!(&mut buffer, ")")?;
 				if let Some(value_type) = return_type
@@ -213,25 +209,21 @@ impl Rebuildable for Declaration
 					write!(&mut buffer, "extern ")?;
 				}
 				write!(&mut buffer, "fn {}(", identify(name))?;
-				match parameters.split_first()
+				if let Some((first, others)) = parameters.split_first()
 				{
-					Some((first, others)) =>
+					write!(
+						&mut buffer,
+						"{}",
+						first.rebuild(&indentation.increased())?
+					)?;
+					for parameter in others
 					{
 						write!(
 							&mut buffer,
-							"{}",
-							first.rebuild(&indentation.increased())?
+							", {}",
+							parameter.rebuild(&indentation.increased())?
 						)?;
-						for parameter in others
-						{
-							write!(
-								&mut buffer,
-								", {}",
-								parameter.rebuild(&indentation.increased())?
-							)?;
-						}
 					}
-					None => (),
 				}
 				write!(&mut buffer, ")")?;
 				if let Some(value_type) = return_type
@@ -343,7 +335,7 @@ impl Rebuildable for Member
 			&mut buffer,
 			"{}{}: {}",
 			indentation,
-			self.name.rebuild(&indentation)?,
+			self.name.rebuild(indentation)?,
 			self.value_type.rebuild(&indentation.increased())?
 		)?;
 		Ok(buffer)
@@ -361,7 +353,7 @@ impl Rebuildable for Parameter
 		write!(
 			&mut buffer,
 			"{}: {}",
-			self.name.rebuild(&indentation)?,
+			self.name.rebuild(indentation)?,
 			self.value_type.rebuild(&indentation.increased())?
 		)?;
 		Ok(buffer)
@@ -376,7 +368,7 @@ impl Rebuildable for FunctionBody
 	) -> Result<String, anyhow::Error>
 	{
 		let mut buffer = String::new();
-		write!(&mut buffer, "{}{{\n", indentation)?;
+		writeln!(&mut buffer, "{}{{", indentation)?;
 		for statement in &self.statements
 		{
 			write!(
@@ -387,14 +379,14 @@ impl Rebuildable for FunctionBody
 		}
 		if let Some(value) = &self.return_value
 		{
-			write!(
+			writeln!(
 				&mut buffer,
-				"{}{}\n",
+				"{}{}",
 				indentation.increased(),
 				value.rebuild(&indentation.increased())?
 			)?;
 		}
-		write!(&mut buffer, "{}}}\n", indentation)?;
+		writeln!(&mut buffer, "{}}}", indentation)?;
 		Ok(buffer)
 	}
 }
@@ -407,7 +399,7 @@ impl Rebuildable for Block
 	) -> Result<String, anyhow::Error>
 	{
 		let mut buffer = String::new();
-		write!(&mut buffer, "{}{{\n", indentation)?;
+		writeln!(&mut buffer, "{}{{", indentation)?;
 		for statement in &self.statements
 		{
 			write!(
@@ -416,7 +408,7 @@ impl Rebuildable for Block
 				statement.rebuild(&indentation.increased())?
 			)?;
 		}
-		write!(&mut buffer, "{}}}\n", indentation)?;
+		writeln!(&mut buffer, "{}}}", indentation)?;
 		Ok(buffer)
 	}
 }
@@ -484,27 +476,23 @@ impl Rebuildable for Statement
 			{
 				let mut buffer = String::new();
 				write!(&mut buffer, "{}{}(", indentation, identify(name))?;
-				match arguments.split_first()
+				if let Some((first, others)) = arguments.split_first()
 				{
-					Some((first, others)) =>
+					write!(
+						&mut buffer,
+						"{}",
+						first.rebuild(&indentation.increased())?
+					)?;
+					for argument in others
 					{
 						write!(
 							&mut buffer,
-							"{}",
-							first.rebuild(&indentation.increased())?
+							", {}",
+							argument.rebuild(&indentation.increased())?
 						)?;
-						for argument in others
-						{
-							write!(
-								&mut buffer,
-								", {}",
-								argument.rebuild(&indentation.increased())?
-							)?;
-						}
 					}
-					None => (),
 				}
-				write!(&mut buffer, ");\n")?;
+				writeln!(&mut buffer, ");")?;
 				Ok(buffer)
 			}
 			Statement::Loop { location: _ } =>
@@ -573,12 +561,12 @@ impl Rebuildable for Array
 	) -> Result<String, anyhow::Error>
 	{
 		let mut buffer = String::new();
-		write!(&mut buffer, "[\n")?;
+		writeln!(&mut buffer, "[")?;
 		for element in &self.elements
 		{
-			write!(
+			writeln!(
 				&mut buffer,
-				"{}{},\n",
+				"{}{},",
 				indentation.increased(),
 				element.rebuild(&indentation.increased())?
 			)?;
@@ -645,7 +633,7 @@ impl Rebuildable for Expression
 			{
 				Some(Ok(ValueType::String)) | None =>
 				{
-					let value = String::from_utf8_lossy(&bytes).to_string();
+					let value = String::from_utf8_lossy(bytes).to_string();
 					Ok(format!("\"{}\"", value.escape_default()))
 				}
 				Some(Ok(_)) | Some(Err(_)) =>
@@ -667,16 +655,16 @@ impl Rebuildable for Expression
 			} =>
 			{
 				let mut buffer = String::new();
-				write!(
+				writeln!(
 					&mut buffer,
-					"{} {{\n",
+					"{} {{",
 					structural_type.rebuild(indentation)?
 				)?;
 				for member in members
 				{
-					write!(
+					writeln!(
 						&mut buffer,
-						"{}{}: {},\n",
+						"{}{}: {},",
 						indentation.increased(),
 						member.name.rebuild(&indentation.increased())?,
 						member.expression.rebuild(&indentation.increased())?
@@ -727,25 +715,21 @@ impl Rebuildable for Expression
 			{
 				let mut buffer = String::new();
 				write!(&mut buffer, "{}(", identify(name))?;
-				match arguments.split_first()
+				if let Some((first, others)) = arguments.split_first()
 				{
-					Some((first, others)) =>
+					write!(
+						&mut buffer,
+						"{}",
+						first.rebuild(&indentation.increased())?
+					)?;
+					for argument in others
 					{
 						write!(
 							&mut buffer,
-							"{}",
-							first.rebuild(&indentation.increased())?
+							", {}",
+							argument.rebuild(&indentation.increased())?
 						)?;
-						for argument in others
-						{
-							write!(
-								&mut buffer,
-								", {}",
-								argument.rebuild(&indentation.increased())?
-							)?;
-						}
 					}
-					None => (),
 				}
 				write!(&mut buffer, ")")?;
 				Ok(buffer)
@@ -827,11 +811,11 @@ impl Rebuildable for ValueType
 			ValueType::Struct {
 				identifier,
 				size_in_bytes: _,
-			} => Ok(format!("{}", identify(identifier))),
+			} => Ok(identify(identifier)),
 			ValueType::Word {
 				identifier,
 				size_in_bytes: _,
-			} => Ok(format!("{}", identify(identifier))),
+			} => Ok(identify(identifier)),
 			ValueType::UnresolvedStructOrWord { identifier } =>
 			{
 				match identifier
@@ -840,7 +824,7 @@ impl Rebuildable for ValueType
 					{
 						Ok(format!("{}#?", identify(identifier)))
 					}
-					None => Ok(format!("structure")),
+					None => Ok("structure".to_string()),
 				}
 			}
 			ValueType::Pointer { deref_type } =>
@@ -904,7 +888,7 @@ impl Rebuildable for Reference
 					}
 					else
 					{
-						write!(&mut buffer, ".{}", identify(&member))?
+						write!(&mut buffer, ".{}", identify(member))?
 					}
 				}
 				ReferenceStep::Autodeslice { offset } =>
@@ -934,11 +918,7 @@ fn identify(identifier: &Identifier) -> String
 {
 	if identifier.resolution_id > 0
 	{
-		format!(
-			"{}#{}",
-			identifier.name.to_string(),
-			identifier.resolution_id
-		)
+		format!("{}#{}", identifier.name, identifier.resolution_id)
 	}
 	else
 	{

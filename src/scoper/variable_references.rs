@@ -143,8 +143,8 @@ impl Analyzer
 		}
 
 		Err(Error::UndefinedVariable {
-			name: identifier.name.clone(),
-			location: identifier.location.clone(),
+			name: identifier.name,
+			location: identifier.location,
 		})
 	}
 
@@ -494,8 +494,7 @@ impl Analyzer
 		self.structures
 			.iter()
 			.find(|x| x.identifier.resolution_id == identifier.resolution_id)
-			.map(|x| x.depth.clone())
-			.flatten()
+			.and_then(|x| x.depth.clone())
 	}
 
 	fn create_anonymous_resolution_id(&mut self) -> u32
