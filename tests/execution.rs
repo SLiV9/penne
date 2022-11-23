@@ -254,6 +254,14 @@ fn execute_true_is_not_false() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_u8_to_u16() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation("tests/samples/valid/u8_to_u16.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_comparison_eq_pointer() -> Result<(), anyhow::Error>
 {
 	let result =

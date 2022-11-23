@@ -1864,7 +1864,7 @@ fn generate_cast(
 			else
 			{
 				unsafe {
-					LLVMBuildSExtOrBitCast(
+					LLVMBuildZExtOrBitCast(
 						llvm.builder,
 						value,
 						dest_type,

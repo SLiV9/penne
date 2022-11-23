@@ -109,11 +109,7 @@ fn do_update_symbol(
 		Err(_poison) => return Ok(()),
 	};
 
-	if ot == &vt
-	{
-		Ok(())
-	}
-	else if ot.can_be_concretization_of(&vt)
+	if ot == &vt || ot.can_be_concretization_of(&vt)
 	{
 		Ok(())
 	}
@@ -123,13 +119,8 @@ fn do_update_symbol(
 		symbol.value_type = Ok(vt);
 		Ok(())
 	}
-	else if new_identifier.is_authoritative && vt.can_be_concretization_of(ot)
-	{
-		symbol.identifier = new_identifier.clone();
-		symbol.value_type = Ok(vt);
-		Ok(())
-	}
-	else if new_identifier.is_authoritative && vt.can_coerce_into(ot)
+	else if new_identifier.is_authoritative
+		&& (vt.can_be_concretization_of(ot) || vt.can_coerce_into(ot))
 	{
 		symbol.identifier = new_identifier.clone();
 		symbol.value_type = Ok(vt);
