@@ -163,6 +163,17 @@ impl Generator
 	{
 		unsafe { LLVMConstInt(self.type_of_usize, value as u64, 0) }
 	}
+
+	fn size_in_bits(&self, type_ref: LLVMTypeRef) -> usize
+	{
+		let size_in_bits: u64 = unsafe {
+			llvm_sys::target::LLVMSizeOfTypeInBits(
+				llvm_sys::target::LLVMGetModuleDataLayout(self.module),
+				type_ref,
+			)
+		};
+		size_in_bits as usize
+	}
 }
 
 impl Drop for Generator
@@ -260,7 +271,7 @@ fn declare(
 			name,
 			members,
 			flags: _,
-			size_in_bytes: _,
+			size_in_bytes,
 			depth: _,
 		} =>
 		{
@@ -283,6 +294,7 @@ fn declare(
 					is_packed,
 				);
 			}
+			assert_eq!(llvm.size_in_bits(struct_type), size_in_bytes * 8);
 			Ok(())
 		}
 	}

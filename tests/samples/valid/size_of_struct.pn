@@ -1,0 +1,30 @@
+word64 Position
+{
+	x: i32,
+	y: i32,
+}
+
+struct Foo
+{
+	a: u8,
+	x: i32,
+}
+
+struct Bar
+{
+	x: i128,
+	foo: Foo,
+	pos: Position,
+}
+
+struct Baz
+{
+	a: u8,
+	x: i128,
+	foo: Foo,
+}
+
+fn main() -> usize
+{
+	return: 200
+}

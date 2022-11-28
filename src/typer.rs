@@ -414,7 +414,6 @@ impl Typer
 			Err(error) => return Err(error),
 		};
 
-		// TODO determine alignment of struct / of its members
 		let alignment = 1;
 
 		let mut total_size_in_bytes = 0;

@@ -1,0 +1,5 @@
+word64 PaddedWord
+{
+	a: u8,
+	b: i16,
+}

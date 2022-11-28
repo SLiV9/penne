@@ -34,11 +34,12 @@ Functionality:
 	✔	Function calls @done (2021-01-16 18:03)
 	✔	Function parameters @done (2021-01-16 18:03)
 	☐	Structs
-		✔	Determine the types of structs *before* typing statements @done (2022-11-18 15:36)
 		✔	Struct parameters should be in views @done (2022-11-20 16:21)
-		✔	Allow declaring struct types in any order @done (2022-11-18 15:36)
-		✔	Prevent illformed recursive struct @done (2022-11-18 15:36)
 		☐	Structs should not be packed by default
+		☐	Think about allowing padded words
+		☐	Think about undefined members
+		☐	Think about value of padding bits in word
+		☐	Think about repr(C) and (disallowing) cast between word/struct/u128
 	☐	Vec and String
 	✘	Explicit mutable parameters @cancelled (2022-09-03 16:04)
 	☐	Modules
@@ -107,7 +108,6 @@ Documentation:
 
 Development:
 	☐	Cleanup main.rs
-	✔	Rethink Declaration::Poison @done (2022-11-23 15:12)
 	☐	WASM-4 pull request
 
 Theory:
