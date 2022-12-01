@@ -1,0 +1,83 @@
+
+fn main()
+{
+	var x: ?i32 = null;
+	foo(x);
+	foo(100);
+	foo(null);
+	x = 200;
+	foo(x);
+	return: x
+}
+
+fn foo(x: ?i32) -> i32
+{
+	var result = 0;
+	if x == null
+		goto return;
+	// x is known not to be null until the label, which is sound because you
+	// can only jump out of an inner scope, not into one.
+	result = x * x;
+	return: result
+}
+
+fn bar(x: ?i32) -> i32
+{
+	var result = 0;
+	if x != null
+	{
+		// x is known not to be null
+		result = x * x;
+	}
+	return: result
+}
+
+fn baz(x: ?i32) -> i32
+{
+	var result = 0;
+	if x == null
+	{
+		// ...
+		goto return;
+	}
+	// nothing is known because "..." might contain other jumps
+	result = x * x;
+	return: result
+}
+
+fn baz2(x: ?i32) -> i32
+{
+	var result = 0;
+	if x == null
+	{
+		// ...
+	}
+	if x == null
+		goto return;
+	// x is known not to be null (same as foo)
+	result = x * x;
+	return: result
+}
+
+fn tagged_unions_with_labels()
+{
+	var x: ?DistanceOrColor;
+	{
+		if x != null:
+			goto x
+		else:
+			goto default;
+		distance:
+		{
+			// x is known to be i32 here
+		}
+		color:
+		{
+			// same but with Color
+		}
+		default:
+		{
+			// x is null here
+		}
+	}
+}

@@ -115,7 +115,7 @@ Here the line `x = x + 1` is executed forever and the end of the function is nev
 
 ### Views
 
-Function arguments other than pointers (see below) and primitives are passed as a view. For arrays this means an array view is created and passed into the function. Array views remember the length of their array, which can be accessed with the length operation `|x|`.
+Function arguments other than pointers (see below), primitives and words are passed as a view. For arrays this means an array view is created and passed into the function. Array views remember the length of their array, which can be accessed with the length operation `|x|`.
 
 ```
 fn foo()
@@ -190,7 +190,7 @@ fn set_to_zero(x: &[]i32)
 
 ## Contributing
 
-Penne and its compiler are still in development, and many language features (structs, enums, modules) are yet to be implemented. However it is my intention for any gaps in functionality to raise a proper error message until they are implemented. If you encounter a compiler segfault or panic (*not* a program segfault; memory safety is decidedly not a language feature), or if the compiler generates invalid LLVM IR, opening an issue with a minimal reproducible example would be much appreciated.
+Penne and its compiler are still in development, and many language features (enums, modules) are yet to be implemented. However it is my intention for any gaps in functionality to raise a proper error message until they are implemented. If you encounter a compiler segfault or panic (*not* a program segfault; memory safety is decidedly not a language feature), or if the compiler generates invalid LLVM IR, opening an issue with a minimal reproducible example would be much appreciated.
 
 ## License
 

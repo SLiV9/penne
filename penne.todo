@@ -36,6 +36,7 @@ Functionality:
 	☐	Structs
 		✔	Struct parameters should be in views @done (2022-11-20 16:21)
 		☐	Structs should not be packed by default
+			☐	Sizeof operator
 		☐	Think about allowing padded words
 		☐	Think about undefined members
 		☐	Think about value of padding bits in word
@@ -99,6 +100,9 @@ Usability:
 	☐	Add options to disable color and unicode symbols in errors
 	☐	Prevent crash if number of structures exceeded
 
+Performance:
+	☐	Add parameter attributes such as nonnull and readonly
+
 Documentation:
 	✔ Move tests from lib.rs to *tests/* @done (2022-10-04 16:44)
 	☐	Reference of all current and unstable language features
@@ -108,6 +112,7 @@ Documentation:
 
 Development:
 	☐	Cleanup main.rs
+	☐	Document structs and words
 	☐	WASM-4 pull request
 
 Theory:

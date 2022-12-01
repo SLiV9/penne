@@ -42,6 +42,9 @@ fn alternatively()
 {
 	var x: Color;
 
+	// This looks nice except that it violates the concept that gotos may only
+	// jump out of a scope. Seeing this indentation should be suspicious.
+	// I guess the lack of semicolon means something?
 	goto x
 	{
 		RED:
@@ -58,4 +61,148 @@ fn alternatively()
 		}
 	}
 	else nothing;
+}
+
+fn experimental_concept_union_types()
+{
+	var x;
+	if x :: Color
+	{
+
+	}
+	// ...
+	if x !: Color
+	{
+
+	}
+}
+
+fn tagged_unions()
+{
+	var x;
+	{
+		goto x.type;
+		Foo:
+		{
+			// x.data is known to be a Foo here
+		}
+		Bar:
+		{
+			// same but with Bar
+		}
+	}
+}
+
+union FooOrBar
+{
+	// Foo: Foo,
+	Foo,
+	// Bar: Bar,
+	Bar,
+}
+
+fn tagged_unions_with_symbol()
+{
+	var x: FooOrBar;
+	{
+		// (Some syntax similar to |x|, or maybe just x itself?)
+		goto x;
+		Foo:
+		{
+			// x is known to be a Foo here
+		}
+		Bar:
+		{
+			// same but with Bar
+		}
+	}
+}
+
+// In a union, member names *are* labels.
+union DistanceOrColor
+{
+	distance: i32,
+	color: Color,
+}
+
+fn tagged_unions_with_labels()
+{
+	var x: DistanceOrColor;
+	goto x;
+	distance:
+	{
+		// x is known to be i32 here
+		// ...
+		goto end;
+	}
+	color:
+	// same but with Color
+	// ...
+	// hmm but where does that knowledge end?
+	// and how do we know there are no other jumps into this?
+	goto end;
+	end:
+}
+
+fn enums_are_empty_unions()
+{
+	var x: Color;
+	goto x;
+	RED:
+	{
+		// x == RED
+		// ...
+		goto end;
+	}
+	BLUE:
+	{
+		// x == BLUE
+		// ...
+		goto end;
+	}
+	GREEN:
+	{
+		// x == BLUE
+		// ...
+		goto end;
+	}
+	end:
+}
+
+fn hmmmmmm()
+{
+	var x: DistanceOrColor;
+	var y: DistanceOrColor;
+	if condition == true
+		goto x;
+	else
+		goto y;
+	distance:
+	{
+		// Do we have x or y here?!?
+		// But I guess that's just a syntax error a la DuplicateLabel
+		goto end;
+	}
+	color:
+	end:
+}
+
+fn ok()
+{
+	var x: Color;
+	var y: Color;
+	if condition == true
+		goto x;
+	else
+		goto y;
+	RED:
+	{
+		// This is fine, either x or y is RED.
+		// Neither x nor y are known to be RED.
+		// ...
+		goto end;
+	}
+	BLUE:
+	// ...
+	end:
 }
