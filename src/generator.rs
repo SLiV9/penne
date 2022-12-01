@@ -975,8 +975,7 @@ impl Generatable for Expression
 				}
 				Ok(result)
 			}
-			Expression::StringLiteral { bytes: _ } => unimplemented!(),
-			Expression::ByteStringLiteral { bytes } =>
+			Expression::StringLiteral { bytes } =>
 			{
 				let element_type: LLVMTypeRef =
 					ValueType::Uint8.generate(llvm)?;
@@ -1193,9 +1192,6 @@ impl Generatable for ValueType
 			ValueType::Usize => llvm.type_of_usize,
 			ValueType::Bool =>
 			unsafe { LLVMInt1TypeInContext(llvm.context) },
-			ValueType::Char =>
-			unsafe { LLVMInt32TypeInContext(llvm.context) },
-			ValueType::String => unimplemented!(),
 			ValueType::Array {
 				element_type,
 				length,
@@ -1689,8 +1685,7 @@ fn generate_autocoerce(
 				}
 				_ => unimplemented!(),
 			},
-			Expression::StringLiteral { .. } => unimplemented!(),
-			Expression::ByteStringLiteral { bytes } =>
+			Expression::StringLiteral { bytes } =>
 			{
 				let address = expression.generate(llvm)?;
 				let length = bytes.len();
@@ -1710,8 +1705,7 @@ fn generate_autocoerce(
 					let address = reference.generate_storage_address(llvm)?;
 					generate_ext_array_view(address, element_type, llvm)
 				}
-				Expression::StringLiteral { .. } => unimplemented!(),
-				Expression::ByteStringLiteral { .. } =>
+				Expression::StringLiteral { .. } =>
 				{
 					let address = expression.generate(llvm)?;
 					generate_ext_array_view(address, element_type, llvm)
@@ -1743,8 +1737,7 @@ fn generate_autocoerce(
 					let address = reference.generate_storage_address(llvm)?;
 					generate_ext_array_view(address, element_type, llvm)
 				}
-				Expression::StringLiteral { .. } => unimplemented!(),
-				Expression::ByteStringLiteral { bytes: _ } =>
+				Expression::StringLiteral { bytes: _ } =>
 				{
 					let address = expression.generate(llvm)?;
 					generate_ext_array_view(address, element_type, llvm)

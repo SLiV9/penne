@@ -28,8 +28,6 @@ where
 	Uint128,
 	Usize,
 	Bool,
-	Char,
-	String,
 	Array
 	{
 		element_type: Box<ValueType<I>>,
@@ -107,8 +105,6 @@ where
 			ValueType::Uint128 => true,
 			ValueType::Usize => true,
 			ValueType::Bool => false,
-			ValueType::Char => false,
-			ValueType::String => false,
 			ValueType::Array { .. } => false,
 			ValueType::Slice { .. } => false,
 			ValueType::EndlessArray { .. } => false,
@@ -141,8 +137,6 @@ where
 				Some(8)
 			}
 			ValueType::Bool => Some(1),
-			ValueType::Char => None,
-			ValueType::String => None,
 			ValueType::Array {
 				element_type,
 				length,

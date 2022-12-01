@@ -2360,8 +2360,6 @@ fn show_type_inner(value_type: &ValueType) -> String
 		ValueType::Uint128 => "u128".to_string(),
 		ValueType::Usize => "usize".to_string(),
 		ValueType::Bool => "bool".to_string(),
-		ValueType::Char => "char".to_string(),
-		ValueType::String => "STRING".to_string(),
 		ValueType::Array {
 			element_type,
 			length,

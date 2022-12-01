@@ -627,27 +627,18 @@ impl Rebuildable for Expression
 			} => array.rebuild(indentation),
 			Expression::StringLiteral {
 				bytes,
-				value_type,
+				value_type: _,
 				location: _,
-			} => match value_type
+			} =>
 			{
-				Some(Ok(ValueType::String)) | None =>
-				{
-					let value = String::from_utf8_lossy(bytes).to_string();
-					Ok(format!("\"{}\"", value.escape_default()))
-				}
-				Some(Ok(_)) | Some(Err(_)) =>
-				{
-					// Escape this bytestring as an ASCII string with \xFF.
-					let escaped_bytes: Vec<u8> = bytes
-						.iter()
-						.flat_map(|b| std::ascii::escape_default(*b))
-						.collect();
-					let value =
-						String::from_utf8_lossy(&escaped_bytes).to_string();
-					Ok(format!("\"{}\"", value))
-				}
-			},
+				// Escape this bytestring as an ASCII string with \xFF.
+				let escaped_bytes: Vec<u8> = bytes
+					.iter()
+					.flat_map(|b| std::ascii::escape_default(*b))
+					.collect();
+				let value = String::from_utf8_lossy(&escaped_bytes).to_string();
+				Ok(format!("\"{}\"", value))
+			}
 			Expression::Structural {
 				members,
 				structural_type,
@@ -786,8 +777,6 @@ impl Rebuildable for ValueType
 			ValueType::Uint128 => Ok("u128".to_string()),
 			ValueType::Usize => Ok("usize".to_string()),
 			ValueType::Bool => Ok("bool".to_string()),
-			ValueType::Char => Ok("char".to_string()),
-			ValueType::String => Ok("STRING".to_string()),
 			ValueType::Array {
 				element_type,
 				length,

@@ -2574,7 +2574,6 @@ fn coerce_for_string_literal(
 {
 	match value_type
 	{
-		Some(Ok(ValueType::String)) => (value_type, None),
 		Some(Ok(vt)) if vt == ValueType::for_byte_string() =>
 		{
 			(Some(Ok(vt.clone())), Some(vt))
@@ -2583,7 +2582,7 @@ fn coerce_for_string_literal(
 		{
 			(Some(Ok(ValueType::for_byte_string())), Some(vt))
 		}
-		Some(Ok(_)) => (Some(Ok(ValueType::String)), None),
+		Some(Ok(_)) => (Some(Ok(ValueType::for_byte_string())), None),
 		Some(Err(_poison)) => (Some(Err(Poison::Poisoned)), None),
 		None => (None, None),
 	}
@@ -2650,8 +2649,6 @@ fn analyze_type(
 		ValueType::Uint128 => Ok(ValueType::Uint128),
 		ValueType::Usize => Ok(ValueType::Usize),
 		ValueType::Bool => Ok(ValueType::Bool),
-		ValueType::Char => Ok(ValueType::Char),
-		ValueType::String => Ok(ValueType::String),
 		ValueType::Array {
 			element_type,
 			length,

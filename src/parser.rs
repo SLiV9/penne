@@ -343,18 +343,16 @@ fn parse_declaration(tokens: &mut Tokens) -> Result<Declaration, Error>
 			let (token, location) = extract("expected path", tokens)?;
 			match token
 			{
-				Token::StringLiteral { bytes, value_type } => match value_type
+				Token::StringLiteral {
+					bytes,
+					value_type: _,
+				} => match String::from_utf8(bytes)
 				{
-					None | Some(ValueType::String) =>
-					{
-						let directive =
-							String::from_utf8_lossy(&bytes).to_string();
-						Ok(Declaration::PreprocessorDirective {
-							directive,
-							location,
-						})
-					}
-					Some(_) => Err(Error::UnexpectedToken {
+					Ok(directive) => Ok(Declaration::PreprocessorDirective {
+						directive,
+						location,
+					}),
+					Err(_error) => Err(Error::UnexpectedToken {
 						location,
 						expectation: "expected UTF-8 encoded include path"
 							.to_string(),

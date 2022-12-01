@@ -46,6 +46,7 @@ pub extern fn update()
 	if gamepad & BUTTON_1 != 0
 	{
 		DRAW_COLORS = 4;
+		trace("Pressed X");
 	}
 
 	blit(SMILEY, 76, 76, 8, 8, BLIT_1BPP);

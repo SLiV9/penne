@@ -587,13 +587,9 @@ impl Resolvable for Expression
 				location: _,
 			} => match value_type.resolve()?
 			{
-				resolved::ValueType::String =>
-				{
-					Ok(resolved::Expression::StringLiteral { bytes })
-				}
 				resolved::ValueType::Slice { .. } =>
 				{
-					Ok(resolved::Expression::ByteStringLiteral { bytes })
+					Ok(resolved::Expression::StringLiteral { bytes })
 				}
 				_ => unreachable!(),
 			},
@@ -800,8 +796,6 @@ impl Resolvable for ValueType
 			ValueType::Uint128 => Ok(resolved::ValueType::Uint128),
 			ValueType::Usize => Ok(resolved::ValueType::Usize),
 			ValueType::Bool => Ok(resolved::ValueType::Bool),
-			ValueType::Char => Ok(resolved::ValueType::Char),
-			ValueType::String => Ok(resolved::ValueType::String),
 			ValueType::Array {
 				element_type,
 				length,
@@ -887,7 +881,6 @@ const VALID_TYPES_FOR_EQUALITY: &[OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Uint128),
 	OperandValueType::ValueType(ValueType::Usize),
 	OperandValueType::ValueType(ValueType::Bool),
-	OperandValueType::ValueType(ValueType::Char),
 	OperandValueType::Pointer,
 ];
 
@@ -904,7 +897,6 @@ const VALID_TYPES_FOR_IS_GREATER: &[OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Uint128),
 	OperandValueType::ValueType(ValueType::Usize),
 	OperandValueType::ValueType(ValueType::Bool),
-	OperandValueType::ValueType(ValueType::Char),
 ];
 
 impl ComparisonOp
@@ -1149,7 +1141,7 @@ fn analyze_primitive_cast(
 	}
 }
 
-const VALID_PRIMITIVE_TYPES: [ValueType; 13] = [
+const VALID_PRIMITIVE_TYPES: &[ValueType] = &[
 	ValueType::Int8,
 	ValueType::Int16,
 	ValueType::Int32,
@@ -1162,7 +1154,6 @@ const VALID_PRIMITIVE_TYPES: [ValueType; 13] = [
 	ValueType::Uint128,
 	ValueType::Usize,
 	ValueType::Bool,
-	ValueType::Char,
 ];
 
 fn is_valid_primitive_cast(
@@ -1176,10 +1167,6 @@ fn is_valid_primitive_cast(
 		(vt, ct) if vt.is_integral() && ct.is_integral() => true,
 		(ValueType::Bool, ct) if ct.is_integral() => true,
 		(vt, ValueType::Bool) if vt.is_integral() => true,
-		(ValueType::Char, ValueType::Uint8) => true,
-		(ValueType::Char, ValueType::Uint32) => true,
-		(ValueType::Uint8, ValueType::Char) => true,
-		(ValueType::Uint32, ValueType::Char) => true,
 		(_, _) => false,
 	}
 }

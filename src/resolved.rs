@@ -172,10 +172,6 @@ pub enum Expression
 	{
 		bytes: Vec<u8>,
 	},
-	ByteStringLiteral
-	{
-		bytes: Vec<u8>,
-	},
 	ArrayLiteral
 	{
 		elements: Vec<Expression>,

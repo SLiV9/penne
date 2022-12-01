@@ -326,7 +326,6 @@ fn lex_line(
 					"u128" => Token::Type(ValueType::Uint128),
 					"usize" => Token::Type(ValueType::Usize),
 					"bool" => Token::Type(ValueType::Bool),
-					"char" => Token::Type(ValueType::Char),
 					"pub" => Token::Pub,
 					"extern" => Token::Extern,
 					"struct" => Token::Struct,
@@ -521,8 +520,6 @@ fn lex_line(
 				let mut closed = false;
 				let mut first_error_token = None;
 				let mut end_of_line_offset = line_offset + 1;
-				let mut must_be_utf8 = false;
-				let mut must_be_bytestring = false;
 
 				while let Some((inner_line_offset, x)) = iter.next()
 				{
@@ -536,14 +533,13 @@ fn lex_line(
 						{
 							Some((_, 'n')) => bytes.push(b'\n'),
 							Some((_, 'r')) => bytes.push(b'\r'),
+							Some((_, 't')) => bytes.push(b'\t'),
 							Some((_, '\\')) => bytes.push(b'\\'),
 							Some((_, '\'')) => bytes.push(b'\''),
 							Some((_, '\"')) => bytes.push(b'\"'),
 							Some((_, '0')) => bytes.push(b'\0'),
 							Some((_, 'x')) =>
 							{
-								must_be_bytestring = true;
-
 								let mut byte = None;
 								let mut digits = String::new();
 								while let Some(&(_, y)) = iter.peek()
@@ -569,10 +565,64 @@ fn lex_line(
 										Ok(v) => Some(v),
 										Err(_error) => None,
 									};
+									break;
 								}
 								if let Some(byte) = byte
 								{
 									bytes.push(byte);
+								}
+								else
+								{
+									let error = Error::InvalidEscapeSequence;
+									let warning = LexedToken {
+										result: Err(error),
+										location: Location {
+											span: source_offset_start_of_char
+												..source_offset_end,
+											line_offset: end_of_line_offset,
+											..location.clone()
+										},
+									};
+									first_error_token.get_or_insert(warning);
+								}
+							}
+							Some((_, 'u')) =>
+							{
+								let literal = if let Some((_, '{')) =
+									iter.peek()
+								{
+									iter.next();
+									source_offset_end += 1;
+
+									let mut literal = String::new();
+									while let Some(&(_, y)) = iter.peek()
+									{
+										if y.is_ascii_hexdigit()
+										{
+											literal.push(y);
+											iter.next();
+											source_offset_end += 1;
+										}
+										else
+										{
+											break;
+										}
+									}
+									literal
+								}
+								else
+								{
+									String::new()
+								};
+								let c = u32::from_str_radix(&literal, 16)
+									.ok()
+									.and_then(|x| char::from_u32(x));
+								if let Some(c) = c
+								{
+									let mut buffer = [0; 4];
+									c.encode_utf8(&mut buffer);
+									let slice = &buffer[0..c.len_utf8()];
+									bytes.extend_from_slice(slice);
 								}
 								else
 								{
@@ -654,7 +704,6 @@ fn lex_line(
 						{
 							bytes.push(*byte);
 						}
-						must_be_utf8 = true;
 					}
 				}
 				if !closed
@@ -675,26 +724,8 @@ fn lex_line(
 					source_offset_start = source_offset_end;
 					continue;
 				}
-				if must_be_bytestring && must_be_utf8
-				{
-					Err(Error::InvalidMixedString)
-				}
-				else
-				{
-					let value_type = if must_be_utf8
-					{
-						Some(ValueType::String)
-					}
-					else if must_be_bytestring
-					{
-						Some(ValueType::for_byte_string())
-					}
-					else
-					{
-						None
-					};
-					Ok(Token::StringLiteral { bytes, value_type })
-				}
+				let value_type = Some(ValueType::for_byte_string());
+				Ok(Token::StringLiteral { bytes, value_type })
 			}
 			'$' => Ok(Token::DebugDollar),
 			' ' | '\t' =>

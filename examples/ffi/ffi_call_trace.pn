@@ -3,5 +3,6 @@ extern fn trace(text: []u8);
 fn main() -> i32
 {
 	trace("Hello world!\0");
+	trace("Save up to €50 or more!\0");
 	return: 0
 }
