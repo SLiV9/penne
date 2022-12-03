@@ -173,7 +173,7 @@ pub fn lex(source: &str, source_filename: &str) -> Vec<LexedToken>
 	{
 		// Syntax should remain such that each line can be lexed independently.
 		lex_line(line, source_filename, offset, line_number, &mut tokens);
-		offset += line.len() + 1;
+		offset += line.chars().count() + 1;
 	}
 	tokens
 }

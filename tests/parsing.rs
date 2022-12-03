@@ -4,6 +4,8 @@
 // License: MIT
 //
 
+use penne::lexer::Token;
+use penne::value_type::ValueType;
 use penne::*;
 
 use pretty_assertions::assert_eq;
@@ -12,6 +14,42 @@ fn compile(filename: &str) -> Result<Vec<Declaration>, Errors>
 {
 	let source = std::fs::read_to_string(filename).unwrap();
 	penne::compile_source(&source, &filename)
+}
+
+#[test]
+fn parse_euro_in_string()
+{
+	let filename = "tests/samples/valid/euro_in_string.pn";
+	let source = std::fs::read_to_string(filename).unwrap();
+	let tokens = lexer::lex(&source, &filename);
+	let gathered: Vec<(Token, std::ops::Range<usize>)> = tokens
+		.into_iter()
+		.map(|t| (t.result.unwrap(), t.location.span))
+		.collect();
+	let expected = [
+		(Token::Fn, 0..2),
+		(Token::Identifier(String::from("main")), 3..7),
+		(Token::ParenLeft, 7..8),
+		(Token::ParenRight, 8..9),
+		(Token::BraceLeft, 10..11),
+		(Token::Var, 13..16),
+		(Token::Identifier(String::from("x")), 17..18),
+		(Token::Assignment, 19..20),
+		(
+			Token::StringLiteral {
+				bytes: "€".as_bytes().to_vec(),
+				value_type: Some(ValueType::Slice {
+					element_type: Box::new(ValueType::Uint8),
+				}),
+			},
+			21..24,
+		),
+		(Token::Semicolon, 24..25),
+		(Token::Identifier(String::from("end")), 27..30),
+		(Token::Colon, 30..31),
+		(Token::BraceRight, 32..33),
+	];
+	assert_eq!(&gathered[..], &expected[..]);
 }
 
 fn compile_to_fail(codes: &[u16], filename: &str)
