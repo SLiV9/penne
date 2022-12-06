@@ -1224,6 +1224,27 @@ impl Analyzable for Statement
 					);
 					match (result, inferred_type, declared_type)
 					{
+						(
+							Err(Error::ConflictingTypes {
+								name,
+								current_type,
+								previous_type,
+								location: _,
+								previous,
+							}),
+							_,
+							_,
+						) =>
+						{
+							let error = Error::ConflictingTypesInAssignment {
+								name,
+								current_type,
+								previous_type,
+								location: value.location().clone(),
+								previous,
+							};
+							Some(Err(error.into()))
+						}
 						(Err(error), _, _) => Some(Err(error.into())),
 						(Ok(()), _, Err(poison)) => Some(Err(poison)),
 						(Ok(()), Err(poison), Ok(_)) => Some(Err(poison)),
@@ -1322,7 +1343,11 @@ impl Analyzable for Statement
 				let value = value.analyze(typer);
 				typer.contextual_type = None;
 				let value_type = value.value_type();
-				let reference = reference.analyze_assignment(value_type, typer);
+				let reference = reference.analyze_assignment(
+					value_type,
+					Some(value.location()),
+					typer,
+				);
 				Statement::Assignment {
 					reference,
 					value,
@@ -2014,13 +2039,14 @@ impl Reference
 		match (base_type, array_type)
 		{
 			(Some(Ok(x)), Some(Ok(y))) if x == y => self,
-			(_, array_type) => self.analyze_assignment(array_type, typer),
+			(_, array_type) => self.analyze_assignment(array_type, None, typer),
 		}
 	}
 
 	fn analyze_assignment(
 		self,
 		value_type: Option<Poisonable<ValueType>>,
+		location_of_value: Option<&Location>,
 		typer: &mut Typer,
 	) -> Self
 	{
@@ -2064,6 +2090,36 @@ impl Reference
 		let base = match typer.put_symbol(base, full_type)
 		{
 			Ok(()) => self.base,
+			Err(Error::ConflictingTypes {
+				name,
+				current_type,
+				previous_type,
+				location: original_location,
+				previous,
+			}) =>
+			{
+				let error = if let Some(location) = location_of_value
+				{
+					Error::ConflictingTypesInAssignment {
+						name,
+						current_type,
+						previous_type,
+						location: location.clone(),
+						previous,
+					}
+				}
+				else
+				{
+					Error::ConflictingTypes {
+						name,
+						current_type,
+						previous_type,
+						location: original_location,
+						previous,
+					}
+				};
+				Err(Poison::Error(error))
+			}
 			Err(error) => Err(Poison::Error(error)),
 		};
 

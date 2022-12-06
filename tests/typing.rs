@@ -25,6 +25,17 @@ fn allow_differing_local_variable_types()
 	}
 }
 
+#[test]
+fn allow_omit_type_of_array()
+{
+	match compile("tests/samples/valid/implicit_array_type.pn")
+	{
+		Ok(_) => (),
+		#[allow(unreachable_code)]
+		Err(errors) => match errors.panic() {},
+	}
+}
+
 fn compile_to_fail(codes: &[u16], filename: &str)
 {
 	match compile(filename)
@@ -40,14 +51,23 @@ fn compile_to_fail(codes: &[u16], filename: &str)
 #[test]
 fn fail_to_type_assignment_type_mismatch()
 {
-	compile_to_fail(&[500], "tests/samples/invalid/assignment_type_mismatch.pn")
+	compile_to_fail(&[504], "tests/samples/invalid/assignment_type_mismatch.pn")
+}
+
+#[test]
+fn fail_to_type_member_assignment_type_mismatch()
+{
+	compile_to_fail(
+		&[504],
+		"tests/samples/invalid/member_assignment_type_mismatch.pn",
+	)
 }
 
 #[test]
 fn fail_to_type_declaration_type_mismatch()
 {
 	compile_to_fail(
-		&[500],
+		&[504],
 		"tests/samples/invalid/declaration_type_mismatch.pn",
 	)
 }
@@ -56,7 +76,7 @@ fn fail_to_type_declaration_type_mismatch()
 fn fail_to_type_initialization_type_mismatch()
 {
 	compile_to_fail(
-		&[500],
+		&[504],
 		"tests/samples/invalid/initialization_type_mismatch.pn",
 	)
 }
@@ -80,15 +100,9 @@ fn fail_to_type_missing_return()
 }
 
 #[test]
-fn fail_to_type_mismatched_variable_type()
-{
-	compile_to_fail(&[500], "tests/samples/invalid/mismatched_variable_type.pn")
-}
-
-#[test]
 fn fail_to_type_mismatched_assign()
 {
-	compile_to_fail(&[500], "tests/samples/invalid/mismatched_assign.pn")
+	compile_to_fail(&[504], "tests/samples/invalid/mismatched_assign.pn")
 }
 
 #[test]
@@ -103,7 +117,7 @@ fn fail_to_type_mismatched_array_elements()
 #[test]
 fn fail_to_type_mismatched_array_type()
 {
-	compile_to_fail(&[500], "tests/samples/invalid/mismatched_array_type.pn")
+	compile_to_fail(&[504], "tests/samples/invalid/mismatched_array_type.pn")
 }
 
 #[test]

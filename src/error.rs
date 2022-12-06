@@ -305,6 +305,14 @@ pub enum Error
 		location: Location,
 		previous: Location,
 	},
+	ConflictingTypesInAssignment
+	{
+		name: String,
+		current_type: ValueType,
+		previous_type: ValueType,
+		location: Location,
+		previous: Location,
+	},
 	ArgumentTypeMismatch
 	{
 		parameter_name: String,
@@ -534,6 +542,7 @@ impl Error
 			Error::NotAnArray { .. } => 501,
 			Error::NotAnArrayWithLength { .. } => 502,
 			Error::IndexTypeMismatch { .. } => 503,
+			Error::ConflictingTypesInAssignment { .. } => 504,
 			Error::NotAStructure { .. } => 506,
 			Error::TooFewArguments { .. } => 510,
 			Error::TooManyArguments { .. } => 511,
@@ -1594,6 +1603,40 @@ impl Error
 					.label()
 					.with_message(format!(
 						"Previously determined to be {}.",
+						show_type(previous_type).fg(b)
+					))
+					.with_color(b),
+			)
+			.finish(),
+
+			Error::ConflictingTypesInAssignment {
+				name,
+				current_type,
+				previous_type,
+				location,
+				previous,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Conflicting types")
+			.with_label(
+				location
+					.label()
+					.with_message(format!(
+						"Cannot assign it this expression of type {}.",
+						show_type(current_type).fg(a)
+					))
+					.with_color(a),
+			)
+			.with_label(
+				previous
+					.label()
+					.with_message(format!(
+						"'{}' has type {}.",
+						name.fg(b),
 						show_type(previous_type).fg(b)
 					))
 					.with_color(b),

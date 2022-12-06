@@ -1,7 +1,7 @@
 fn main() -> u8
 {
 	var a: i128 = 18;
-	var data: []i16 = [80, 20];
+	var data: [2]i16 = [80, 20];
 	var result = a as u8 + |data| as u8;
 	var j: i32 = 0;
 	var x: u64 = 0;

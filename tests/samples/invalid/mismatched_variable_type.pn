@@ -1,4 +1,0 @@
-fn main()
-{
-	var x: bool = 23;
-}

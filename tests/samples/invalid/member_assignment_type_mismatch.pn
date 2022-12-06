@@ -1,0 +1,19 @@
+word64 Position
+{
+	x: i32,
+	y: i32,
+}
+
+word128 Line
+{
+	from: Position,
+	to: Position,
+}
+
+fn main() -> i32
+{
+	var from = Position { x: 10, y: 10 };
+	var line = Line { from, to: Position { x: 10, y: 0 } };
+	line.to.y = 0u8;
+	return: 400
+}

@@ -79,6 +79,7 @@ Linting errors:
 	☐	Non-extern function without body
 	☐	Returning pointer, slice or view of temporary
 	☐	Missing members in structure initialization
+	☐	Using "\x80" in the same string as "\u{80}" or "€"
 
 Usability:
 	✔	Error recovery @done (2022-10-09 22:24)

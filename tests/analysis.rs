@@ -108,7 +108,7 @@ fn fail_to_analyze_missing_address()
 fn fail_to_analyze_missing_address_variable()
 {
 	compile_to_fail(
-		&[500],
+		&[504],
 		"tests/samples/invalid/missing_address_variable.pn",
 	);
 }

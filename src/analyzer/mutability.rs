@@ -258,6 +258,7 @@ impl Analyzable for Statement
 				let value = value.map(|x| x.analyze(analyzer));
 				let is_mutable = match value_type
 				{
+					Some(Ok(ValueType::Slice { .. })) => false,
 					Some(Ok(ValueType::View { .. })) => false,
 					Some(Ok(_)) => true,
 					Some(Err(_)) => true,

@@ -215,14 +215,6 @@ where
 	{
 		match self
 		{
-			ValueType::Array {
-				element_type: a,
-				length: _,
-			} => match other
-			{
-				ValueType::Arraylike { element_type: b } => a == b,
-				_ => self == other,
-			},
 			ValueType::Slice { element_type: a } => match other
 			{
 				ValueType::Arraylike { element_type: b } => a == b,
@@ -552,11 +544,6 @@ where
 	{
 		match self
 		{
-			ValueType::Slice { .. } =>
-			{
-				// Maybe yes?
-				false
-			}
 			ValueType::EndlessArray { .. } => false,
 			ValueType::Arraylike { .. } => false,
 			_ => self.is_wellformed(),
@@ -567,11 +554,6 @@ where
 	{
 		match self
 		{
-			ValueType::Slice { .. } =>
-			{
-				// Maybe yes?
-				false
-			}
 			ValueType::EndlessArray { .. } => false,
 			ValueType::Arraylike { .. } => false,
 			ValueType::View { .. } =>

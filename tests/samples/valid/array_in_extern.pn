@@ -10,7 +10,7 @@ extern fn bar(x: []i32) -> i32
 
 fn main() -> i32
 {
-	var x: []i32 = [50, 150];
+	var x: [2]i32 = [50, 150];
 	foo(&x);
 	var y = bar(x);
 	return: y

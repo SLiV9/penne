@@ -1,10 +1,20 @@
+
+const GLOBAL_STRING: []u8 = "Save up to $50 or more!";
+
 fn main()
 {
-	var ascii_string = "Save up to $50 or more!\0";
-	var utf8_string = "Save up to \u{20a0}50 or more!\0";
-	var utf8_string_in_utf8_file = "Save up to €50 or more!\0";
-	var iso8859_string = "Save up to \xA350 or more!\0";
-	var bad_mixed_bytestring = "Save up to \xA350 or €50 or more!\0";
+	var ascii_string = "Save up to $50 or more!";
+	var c_string = "Save up to $50 or more!\0";
+	var utf8_string = "Save up to \u{20a0}50 or more!";
+	var utf8_string_in_utf8_file = "Save up to €50 or more!";
+	var iso8859_string = "Save up to \xA350 or more!";
+
+	// The following string is neither valid UTF-8 nor valid ISO8859, hence
+	// probably has undesirable behavior with functions expecting either.
+	var bad_mixed_bytestring = "Save up to \xA350 or €50 or more!";
+
+	// Strings cannot span multiple lines, but Penne concatenates adjacent
+	// strings at compile time.
 	var multiline_string = ""
 		"This is the Penne equivalent of a multiline string.\n"
 		"" // with a comment for good measure!
