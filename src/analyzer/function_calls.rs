@@ -204,18 +204,6 @@ impl Analyzable for Declaration
 				let value = value.analyze(analyzer);
 				analyzer.is_const_evaluated = false;
 
-				let value_type = match value_type
-				{
-					Ok(vt) if !vt.can_be_constant() =>
-					{
-						Err(Poison::Error(Error::IllegalConstantType {
-							value_type: vt,
-							location: name.location.clone(),
-						}))
-					}
-					_ => value_type,
-				};
-
 				Declaration::Constant {
 					name,
 					value,

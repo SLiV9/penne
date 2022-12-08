@@ -1685,6 +1685,21 @@ fn generate_autocoerce(
 				}
 				_ => unimplemented!(),
 			},
+			Expression::ArrayLiteral {
+				elements,
+				element_type,
+			} =>
+			{
+				let value = expression.generate(llvm)?;
+				let length = elements.len();
+				let array_type = ValueType::Array {
+					element_type: Box::new(element_type.clone()),
+					length,
+				};
+				let vtype = array_type.generate(llvm)?;
+				let address = generate_tmp_address(value, vtype, llvm)?;
+				generate_array_slice(address, element_type, length, llvm)
+			}
 			Expression::StringLiteral { bytes } =>
 			{
 				let address = expression.generate(llvm)?;
@@ -1722,7 +1737,13 @@ fn generate_autocoerce(
 					let address = reference.generate_storage_address(llvm)?;
 					generate_view(address, viewed_type, llvm)
 				}
-				_ => unimplemented!(),
+				expr =>
+				{
+					let value = expr.generate(llvm)?;
+					let vtype = viewed_type.generate(llvm)?;
+					let address = generate_tmp_address(value, vtype, llvm)?;
+					generate_view(address, viewed_type, llvm)
+				}
 			},
 		},
 		ValueType::Pointer { deref_type } => match deref_type.as_ref()
@@ -1735,11 +1756,6 @@ fn generate_autocoerce(
 				} =>
 				{
 					let address = reference.generate_storage_address(llvm)?;
-					generate_ext_array_view(address, element_type, llvm)
-				}
-				Expression::StringLiteral { bytes: _ } =>
-				{
-					let address = expression.generate(llvm)?;
 					generate_ext_array_view(address, element_type, llvm)
 				}
 				_ => unimplemented!(),
@@ -1760,20 +1776,10 @@ fn generate_autocoerce(
 							},
 							deref_type: pointee_type,
 						};
-						let tmpname = CString::new("")?;
-						let vartype = inner_type.generate(llvm)?;
-						let tmp = unsafe {
-							LLVMBuildAlloca(
-								llvm.builder,
-								vartype,
-								tmpname.as_ptr(),
-							)
-						};
 						let value =
 							generate_autocoerce(&pointee, inner_type, llvm)?;
-						unsafe {
-							LLVMBuildStore(llvm.builder, value, tmp);
-						}
+						let vtype = inner_type.generate(llvm)?;
+						let tmp = generate_tmp_address(value, vtype, llvm)?;
 						Ok(tmp)
 					}
 					None => unreachable!(),
@@ -1783,6 +1789,20 @@ fn generate_autocoerce(
 		},
 		_ => unimplemented!(),
 	}
+}
+
+fn generate_tmp_address(
+	value: LLVMValueRef,
+	vtype: LLVMTypeRef,
+	llvm: &mut Generator,
+) -> Result<LLVMValueRef, anyhow::Error>
+{
+	let tmpname = CString::new("")?;
+	let tmp = unsafe { LLVMBuildAlloca(llvm.builder, vtype, tmpname.as_ptr()) };
+	unsafe {
+		LLVMBuildStore(llvm.builder, value, tmp);
+	}
+	Ok(tmp)
 }
 
 fn generate_primitive_cast(

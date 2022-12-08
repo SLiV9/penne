@@ -1,0 +1,7 @@
+word64 Position
+{
+	x: i32,
+	y: i32,
+}
+
+extern fn foo(position: Position);

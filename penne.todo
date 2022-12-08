@@ -50,6 +50,7 @@ Functionality:
 	☐	stdlib
 		☐	print()
 		☐	fopen(), fclose()
+		☐	memcpy()
 	☐	Compile-time string and byte-array inclusion from file
 
 Syntactic sugar:

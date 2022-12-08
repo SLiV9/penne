@@ -1,0 +1,29 @@
+struct Foo
+{
+	value: i32,
+}
+
+fn value_of(foo: Foo) -> i32
+{
+	var x = foo.value;
+	return: x
+}
+
+fn value_of_mut(foo: &Foo) -> i32
+{
+	var x = foo.value;
+	return: x
+}
+
+const DATA: Foo = Foo { value: 10 };
+
+fn main() -> i32
+{
+	var data_on_stack = Foo { value: 50 };
+	var x = value_of(DATA);
+	var y = value_of(data_on_stack);
+	var z = value_of(Foo { value: 90 });
+	var m = value_of_mut(&data_on_stack);
+	var result = x + y + z + m;
+	return: result
+}

@@ -4,10 +4,14 @@ fn length_of(x: []u8) -> usize
 	return: y
 }
 
+const DATA: [3]u8 = [1, 2, 3];
+
 fn main() -> usize
 {
-	var x = [55, 66, 0x00];
-	var z = length_of(x);
-	var result = 197 + z;
+	var data_on_stack = [55, 66, 0x00];
+	var x = length_of(DATA);
+	var y = length_of(data_on_stack);
+	var z = length_of([100, 100, 100]);
+	var result = 191 + x + y + z;
 	return: result
 }

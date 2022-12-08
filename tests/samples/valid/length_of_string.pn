@@ -4,10 +4,14 @@ fn length_of(x: []u8) -> usize
 	return: y
 }
 
+const TEXT: [12]u8 = "Hello world!";
+
 fn main() -> usize
 {
-	var x = "Hello world!";
-	var z = length_of(x);
-	var result = 188 + z;
+	var subtext = "Hello world!";
+	var x = length_of(TEXT);
+	var y = length_of(subtext);
+	var z = length_of("Hello world!");
+	var result = 140 + x + y + z + |TEXT| + |subtext|;
 	return: result
 }

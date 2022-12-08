@@ -99,6 +99,15 @@ fn execute_length_of_slice() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_length_of_string() -> Result<(), anyhow::Error>
+{
+	let result =
+		execute_calculation("tests/samples/valid/length_of_string.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_length_of_array_by_pointer() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation(
@@ -350,6 +359,24 @@ fn execute_word_literal_as_argument() -> Result<(), anyhow::Error>
 {
 	let result =
 		execute_calculation("tests/samples/valid/word_literal_as_argument.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn execute_struct_literal_as_argument() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation(
+		"tests/samples/valid/struct_literal_as_argument.pn",
+	)?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn execute_constant_array() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation("tests/samples/valid/constant_array.pn")?;
 	assert_eq!(result, 200);
 	Ok(())
 }

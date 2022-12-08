@@ -168,10 +168,10 @@ pub fn lex(source: &str, source_filename: &str) -> Vec<LexedToken>
 {
 	let mut tokens = Vec::new();
 	let mut offset = 0;
-	for (line_number, line) in source.lines().enumerate()
+	for (i, line) in source.lines().enumerate()
 	{
 		// Syntax should remain such that each line can be lexed independently.
-		lex_line(line, source_filename, offset, line_number, &mut tokens);
+		lex_line(line, source_filename, offset, 1 + i, &mut tokens);
 		offset += line.chars().count() + 1;
 	}
 	tokens

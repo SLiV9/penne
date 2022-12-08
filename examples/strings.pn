@@ -1,5 +1,5 @@
 
-const GLOBAL_STRING: []u8 = "Save up to $50 or more!";
+const GLOBAL_STRING: [23]u8 = "Save up to $50 or more!";
 
 fn main()
 {

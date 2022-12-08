@@ -387,9 +387,21 @@ impl Typer
 		let arguments: Vec<Expression> = arguments
 			.into_iter()
 			.zip(parameter_hints)
-			.map(|(a, p)| {
-				self.contextual_type = Some(p);
-				a.analyze(self)
+			.map(|(argument, parameter_hint)| {
+				self.contextual_type = Some(parameter_hint.clone());
+				let expr = argument.analyze(self);
+				match (expr.value_type(), parameter_hint)
+				{
+					(Some(Ok(vt)), Ok(pt)) if vt == pt => expr,
+					(Some(Ok(vt)), Ok(pt)) if vt.can_coerce_into(&pt) =>
+					{
+						Expression::Autocoerce {
+							expression: Box::new(expr),
+							coerced_type: pt,
+						}
+					}
+					_ => expr,
+				}
 			})
 			.collect();
 		arguments
@@ -588,12 +600,19 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 			{
 				Ok(value_type) => match fix_type_for_flags(
 					value_type,
-					false,
+					FixContext::Const,
 					&flags,
 					&location_of_type,
 					&location_of_declaration,
 				)
 				{
+					Ok(vt) if !vt.can_be_constant() =>
+					{
+						Err(Poison::Error(Error::IllegalConstantType {
+							value_type: vt,
+							location: name.location.clone(),
+						}))
+					}
 					Ok(value_type) => Ok(value_type),
 					Err(error) => Err(error.into()),
 				},
@@ -1027,7 +1046,7 @@ impl Member
 			{
 				let value_type = fix_type_for_flags(
 					value_type,
-					true,
+					FixContext::Member,
 					flags,
 					&self.location_of_type,
 					location_of_declaration,
@@ -1091,7 +1110,7 @@ impl Parameter
 			{
 				let value_type = fix_type_for_flags(
 					value_type,
-					false,
+					FixContext::Parameter,
 					flags,
 					&self.location_of_type,
 					location_of_declaration,
@@ -2706,7 +2725,7 @@ fn fix_return_type_for_flags(
 
 	let fixed_type = fix_type_for_flags(
 		value_type,
-		false,
+		FixContext::Returned,
 		flags,
 		location_of_type,
 		location_of_declaration,
@@ -2732,9 +2751,17 @@ fn fix_return_type_for_flags(
 	}
 }
 
+enum FixContext
+{
+	Const,
+	Member,
+	Parameter,
+	Returned,
+}
+
 fn fix_type_for_flags(
 	value_type: ValueType,
-	in_structure: bool,
+	context: FixContext,
 	flags: &EnumSet<DeclarationFlag>,
 	location_of_type: &Location,
 	location_of_declaration: &Location,
@@ -2772,11 +2799,15 @@ fn fix_type_for_flags(
 			{
 				Ok(ValueType::Slice { element_type })
 			}
-			ValueType::Struct { .. } if !in_structure =>
+			ValueType::Struct { .. } => match context
 			{
-				let deref_type = Box::new(value_type);
-				Ok(ValueType::View { deref_type })
-			}
+				FixContext::Parameter | FixContext::Returned =>
+				{
+					let deref_type = Box::new(value_type);
+					Ok(ValueType::View { deref_type })
+				}
+				FixContext::Const | FixContext::Member => Ok(value_type),
+			},
 			ValueType::Pointer { deref_type } => match *deref_type
 			{
 				ValueType::Arraylike { element_type } =>
