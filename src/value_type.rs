@@ -82,13 +82,6 @@ impl<I> ValueType<I>
 where
 	I: Identifier,
 {
-	pub fn for_byte_string() -> ValueType<I>
-	{
-		ValueType::Slice {
-			element_type: Box::new(ValueType::Uint8),
-		}
-	}
-
 	pub fn is_integral(&self) -> bool
 	{
 		match self

@@ -581,23 +581,10 @@ impl Resolvable for Expression
 					Err(Error::AmbiguousTypeOfArrayLiteral { location })?
 				}
 			}
-			Expression::StringLiteral {
-				bytes,
-				value_type: Some(value_type),
-				location: _,
-			} => match value_type.resolve()?
+			Expression::StringLiteral { bytes, location: _ } =>
 			{
-				resolved::ValueType::Slice { .. } =>
-				{
-					Ok(resolved::Expression::StringLiteral { bytes })
-				}
-				_ => unreachable!(),
-			},
-			Expression::StringLiteral {
-				bytes: _,
-				value_type: _,
-				location,
-			} => Err(Error::AmbiguousTypeOfStringLiteral { location })?,
+				Ok(resolved::Expression::StringLiteral { bytes })
+			}
 			Expression::Structural {
 				members,
 				structural_type,

@@ -5,7 +5,6 @@
 //
 
 use penne::lexer::Token;
-use penne::value_type::ValueType;
 use penne::*;
 
 use pretty_assertions::assert_eq;
@@ -38,9 +37,6 @@ fn parse_euro_in_string()
 		(
 			Token::StringLiteral {
 				bytes: "€".as_bytes().to_vec(),
-				value_type: Some(ValueType::Slice {
-					element_type: Box::new(ValueType::Uint8),
-				}),
 			},
 			21..24,
 		),

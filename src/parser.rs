@@ -343,21 +343,24 @@ fn parse_declaration(tokens: &mut Tokens) -> Result<Declaration, Error>
 			let (token, location) = extract("expected path", tokens)?;
 			match token
 			{
-				Token::StringLiteral {
-					bytes,
-					value_type: _,
-				} => match String::from_utf8(bytes)
+				Token::StringLiteral { bytes } =>
 				{
-					Ok(directive) => Ok(Declaration::PreprocessorDirective {
-						directive,
-						location,
-					}),
-					Err(_error) => Err(Error::UnexpectedToken {
-						location,
-						expectation: "expected UTF-8 encoded include path"
-							.to_string(),
-					}),
-				},
+					match String::from_utf8(bytes)
+					{
+						Ok(directive) =>
+						{
+							Ok(Declaration::PreprocessorDirective {
+								directive,
+								location,
+							})
+						}
+						Err(_error) => Err(Error::UnexpectedToken {
+							location,
+							expectation: "expected UTF-8 encoded include path"
+								.to_string(),
+						}),
+					}
+				}
 				_ => Err(Error::UnexpectedToken {
 					location,
 					expectation: "expected include path".to_string(),
@@ -1554,10 +1557,9 @@ fn parse_primary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 			let literal = PrimitiveLiteral::Bool(value);
 			Ok(Expression::PrimitiveLiteral { literal, location })
 		}
-		Token::StringLiteral { bytes, value_type } =>
+		Token::StringLiteral { bytes } =>
 		{
 			let mut bytes = bytes;
-			let mut value_type = value_type;
 			let mut location = location;
 			while let Some(next_token) = peek(tokens)
 			{
@@ -1573,31 +1575,15 @@ fn parse_primary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 				{
 					Token::StringLiteral {
 						bytes: mut extra_bytes,
-						value_type: other_value_type,
 					} =>
 					{
-						if other_value_type.is_some()
-						{
-							if value_type.is_none()
-							{
-								value_type = other_value_type;
-							}
-							else if value_type != other_value_type
-							{
-								break;
-							}
-						}
 						bytes.append(&mut extra_bytes);
 					}
 					_ => unreachable!(),
 				}
 				location = location.combined_with(&extra_location);
 			}
-			Ok(Expression::StringLiteral {
-				bytes,
-				value_type: value_type.map(Ok),
-				location,
-			})
+			Ok(Expression::StringLiteral { bytes, location })
 		}
 		Token::Identifier(name) =>
 		{

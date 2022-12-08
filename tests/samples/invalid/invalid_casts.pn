@@ -1,7 +1,6 @@
 fn main()
 {
-	var text = "hallo";
-	var x = text as bool;
+	var x = "hallo" as bool;
 	var y = 3000i32 as [100]i32;
 	var z = [80i32] as usize;
 	var p: &bool = [0i32] as &bool;

@@ -625,11 +625,7 @@ impl Rebuildable for Expression
 				array,
 				element_type: _,
 			} => array.rebuild(indentation),
-			Expression::StringLiteral {
-				bytes,
-				value_type: _,
-				location: _,
-			} =>
+			Expression::StringLiteral { bytes, location: _ } =>
 			{
 				// Escape this bytestring as an ASCII string with \xFF.
 				let escaped_bytes: Vec<u8> = bytes

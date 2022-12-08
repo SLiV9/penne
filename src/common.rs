@@ -275,7 +275,6 @@ pub enum Expression
 	StringLiteral
 	{
 		bytes: Vec<u8>,
-		value_type: Option<Poisonable<ValueType>>,
 		location: Location,
 	},
 	ArrayLiteral

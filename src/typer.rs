@@ -1484,7 +1484,13 @@ impl Typed for Expression
 				Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
 				None => None,
 			},
-			Expression::StringLiteral { value_type, .. } => value_type.clone(),
+			Expression::StringLiteral { bytes, location: _ } =>
+			{
+				Some(Ok(ValueType::Array {
+					element_type: Box::new(ValueType::Uint8),
+					length: bytes.len(),
+				}))
+			}
 			Expression::Structural {
 				structural_type, ..
 			} => Some(structural_type.clone()),
@@ -1633,57 +1639,7 @@ impl Analyzable for Expression
 					Err(error) => Expression::Poison(Poison::Error(error)),
 				}
 			}
-			Expression::StringLiteral {
-				value_type: Some(Ok(ref vt)),
-				..
-			} =>
-			{
-				let contextual_type = typer.contextual_type.take();
-				match contextual_type
-				{
-					Some(Ok(ct)) if vt.can_coerce_into(&ct) =>
-					{
-						let expr = self;
-						Expression::Autocoerce {
-							expression: Box::new(expr),
-							coerced_type: ct,
-						}
-					}
-					Some(Ok(_)) => self,
-					Some(Err(_poison)) => self,
-					None => self,
-				}
-			}
-			Expression::StringLiteral {
-				value_type: Some(Err(_)),
-				..
-			} => self,
-			Expression::StringLiteral {
-				bytes,
-				value_type: None,
-				location,
-			} =>
-			{
-				let contextual_type = typer.contextual_type.take();
-				let (value_type, coerced_type) =
-					coerce_for_string_literal(contextual_type);
-				let expr = Expression::StringLiteral {
-					bytes,
-					value_type,
-					location,
-				};
-				if let Some(coerced_type) = coerced_type
-				{
-					Expression::Autocoerce {
-						expression: Box::new(expr),
-						coerced_type,
-					}
-				}
-				else
-				{
-					expr
-				}
-			}
+			Expression::StringLiteral { .. } => self,
 			Expression::Structural {
 				members,
 				structural_type,
@@ -2621,26 +2577,6 @@ fn filter_for_bit_integer(
 		Some(Ok(_)) => Some(Ok(ValueType::Uint64)),
 		Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
 		None => None,
-	}
-}
-
-fn coerce_for_string_literal(
-	value_type: Option<Poisonable<ValueType>>,
-) -> (Option<Poisonable<ValueType>>, Option<ValueType>)
-{
-	match value_type
-	{
-		Some(Ok(vt)) if vt == ValueType::for_byte_string() =>
-		{
-			(Some(Ok(vt.clone())), Some(vt))
-		}
-		Some(Ok(vt)) if ValueType::for_byte_string().can_coerce_into(&vt) =>
-		{
-			(Some(Ok(ValueType::for_byte_string())), Some(vt))
-		}
-		Some(Ok(_)) => (Some(Ok(ValueType::for_byte_string())), None),
-		Some(Err(_poison)) => (Some(Err(Poison::Poisoned)), None),
-		None => (None, None),
 	}
 }
 

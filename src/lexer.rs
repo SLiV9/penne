@@ -84,7 +84,6 @@ pub enum Token
 	StringLiteral
 	{
 		bytes: Vec<u8>,
-		value_type: Option<ValueType>,
 	},
 
 	// Types.
@@ -724,8 +723,7 @@ fn lex_line(
 					source_offset_start = source_offset_end;
 					continue;
 				}
-				let value_type = Some(ValueType::for_byte_string());
-				Ok(Token::StringLiteral { bytes, value_type })
+				Ok(Token::StringLiteral { bytes })
 			}
 			'$' => Ok(Token::DebugDollar),
 			' ' | '\t' =>
