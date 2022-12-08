@@ -1,11 +1,11 @@
 fn main() -> i32
 {
-	var x: [3]i32 = [
+	var x: []i32 = [
 		0,
 		50,
 		150,
 	];
-	var z: [3]i32 = x;
+	var z = x;
 	z[2] = 99;
 	var result = x[1] + z[2];
 	return: result

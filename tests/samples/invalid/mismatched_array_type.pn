@@ -1,6 +1,6 @@
 fn main()
 {
-	var x: [2]bool = [
+	var x: []bool = [
 		0,
 		1,
 	];

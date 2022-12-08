@@ -574,9 +574,19 @@ impl Analyzable for Expression
 							Some(Ok(vt))
 						}
 					}
-					Some(Ok(ValueType::Arraylike { .. })) =>
+					Some(Ok(vt @ ValueType::Slice { .. }))
+					| Some(Ok(vt @ ValueType::Arraylike { .. })) =>
 					{
-						unreachable!()
+						if !analyzer.is_immediate_function_argument
+						{
+							Some(Err(Poison::Error(Error::CannotCopySlice {
+								location: reference.location.clone(),
+							})))
+						}
+						else
+						{
+							Some(Ok(vt))
+						}
 					}
 					Some(Ok(vt @ ValueType::Struct { .. })) =>
 					{
