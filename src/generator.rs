@@ -1389,7 +1389,14 @@ impl Reference
 						{
 							!is_endless
 						}
-						Some(ReferenceStep::Member { .. }) => true,
+						Some(ReferenceStep::Member { .. }) =>
+						{
+							if is_immediate_parameter
+							{
+								indices.push(llvm.const_i32(0));
+							}
+							true
+						}
 						Some(ReferenceStep::Autoderef { .. }) => false,
 						Some(ReferenceStep::Autoview { .. }) => false,
 						Some(ReferenceStep::Autodeslice { offset: 0 }) =>
