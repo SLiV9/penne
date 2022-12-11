@@ -10,10 +10,23 @@ word128 Line
 	to: Position,
 }
 
+struct Foo
+{
+	head: &Line,
+}
+
 fn main() -> i32
 {
 	var from = Position { x: 10, y: 10 };
 	var line = Line { from, to: Position { x: 10, y: 0 } };
+	var foo = Foo { head: &line };
 	line.to.y = 0u8;
+	foo.head.to.y = true;
+	foo.head = from;
+	foo.head = &line;
+	&foo.head = from;
+	&foo.head = &from;
+	var bar: &Foo = &foo;
+	&bar = &from;
 	return: 400
 }

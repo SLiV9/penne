@@ -423,6 +423,15 @@ impl ReferenceStep
 			ReferenceStep::Autoview => true,
 		}
 	}
+
+	pub fn get_member(&self) -> Option<Identifier>
+	{
+		match self
+		{
+			ReferenceStep::Member { member, offset: _ } => Some(member.clone()),
+			_ => None,
+		}
+	}
 }
 
 #[must_use]

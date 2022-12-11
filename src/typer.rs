@@ -2060,9 +2060,21 @@ impl Reference
 			None => (steps, self.address_depth),
 		};
 
+		let member = steps.iter().rev().find_map(|step| step.get_member());
+		let member_error = match member
+		{
+			Some(member) => typer.put_symbol(&member, value_type.clone()),
+			None => Ok(()),
+		};
+
 		let full_type =
 			build_type_of_reference(value_type, &steps, address_depth);
-		let base = match typer.put_symbol(base, full_type)
+		let assignment_error = match typer.put_symbol(base, full_type)
+		{
+			Ok(()) => member_error,
+			Err(error) => Err(error),
+		};
+		let base = match assignment_error
 		{
 			Ok(()) => self.base,
 			Err(Error::ConflictingTypes {

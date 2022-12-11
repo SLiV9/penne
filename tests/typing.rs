@@ -58,7 +58,7 @@ fn fail_to_type_assignment_type_mismatch()
 fn fail_to_type_member_assignment_type_mismatch()
 {
 	compile_to_fail(
-		&[504],
+		&[504, 504, 504, 504, 504, 504, 504],
 		"tests/samples/invalid/member_assignment_type_mismatch.pn",
 	)
 }
