@@ -334,11 +334,18 @@ impl Generatable for Declaration
 					LLVMAddGlobal(llvm.module, vartype, cname.as_ptr())
 				};
 				llvm.global_variables.insert(name.resolution_id, global);
-				let constant = value.generate(llvm)?;
 				unsafe {
-					LLVMSetInitializer(global, constant);
 					LLVMSetGlobalConstant(global, 1);
+					LLVMSetUnnamedAddr(global, 1);
 				}
+				if true
+				{
+					unsafe {
+						LLVMSetLinkage(global, LLVMLinkage::LLVMPrivateLinkage);
+					}
+				}
+				let constant = value.generate(llvm)?;
+				unsafe { LLVMSetInitializer(global, constant) };
 				Ok(())
 			}
 			Declaration::Function {
@@ -977,35 +984,7 @@ impl Generatable for Expression
 			}
 			Expression::StringLiteral { bytes } =>
 			{
-				let element_type: LLVMTypeRef =
-					ValueType::Uint8.generate(llvm)?;
-				let mut values = Vec::with_capacity(bytes.len());
-				for byte in bytes
-				{
-					let value = llvm.const_u8(*byte);
-					values.push(value);
-				}
-				let initializer = unsafe {
-					LLVMConstArray(
-						element_type,
-						values.as_mut_ptr(),
-						values.len() as u32,
-					)
-				};
-				let num_elements: u32 = bytes.len() as u32;
-				let array_type =
-					unsafe { LLVMArrayType(element_type, num_elements) };
-				let strname = CString::new(".str")?;
-				let global = unsafe {
-					LLVMAddGlobal(llvm.module, array_type, strname.as_ptr())
-				};
-				unsafe {
-					LLVMSetGlobalConstant(global, 1);
-					LLVMSetUnnamedAddr(global, 1);
-					LLVMSetLinkage(global, LLVMLinkage::LLVMPrivateLinkage);
-					LLVMSetInitializer(global, initializer);
-				}
-				Ok(global)
+				generate_inplace_string_literal(bytes, llvm)
 			}
 			Expression::Structural {
 				structural_type,
@@ -1634,6 +1613,53 @@ fn generate_array_slice(
 	Ok(slice)
 }
 
+#[allow(unused)]
+fn generate_const_string_literal(
+	bytes: &[u8],
+	_llvm: &mut Generator,
+) -> Result<LLVMValueRef, anyhow::Error>
+{
+	let len = bytes.len() as u32;
+	let byte_ptr: *const u8 = bytes.as_ptr();
+	let initializer = unsafe { LLVMConstString(byte_ptr as *const i8, len, 1) };
+	Ok(initializer)
+}
+
+fn generate_inplace_string_literal(
+	bytes: &[u8],
+	llvm: &mut Generator,
+) -> Result<LLVMValueRef, anyhow::Error>
+{
+	let element_type: LLVMTypeRef = ValueType::Uint8.generate(llvm)?;
+	let mut values: Vec<LLVMValueRef> =
+		bytes.iter().map(|b| llvm.const_u8(*b)).collect();
+	let initializer = unsafe {
+		LLVMConstArray(element_type, values.as_mut_ptr(), values.len() as u32)
+	};
+	Ok(initializer)
+}
+
+fn generate_global_string_literal(
+	bytes: &[u8],
+	llvm: &mut Generator,
+) -> Result<LLVMValueRef, anyhow::Error>
+{
+	let initializer = generate_inplace_string_literal(bytes, llvm)?;
+	let element_type: LLVMTypeRef = ValueType::Uint8.generate(llvm)?;
+	let num_elements = bytes.len() as u32;
+	let array_type = unsafe { LLVMArrayType(element_type, num_elements) };
+	let strname = CString::new(".str")?;
+	let global =
+		unsafe { LLVMAddGlobal(llvm.module, array_type, strname.as_ptr()) };
+	unsafe {
+		LLVMSetGlobalConstant(global, 1);
+		LLVMSetUnnamedAddr(global, 1);
+		LLVMSetLinkage(global, LLVMLinkage::LLVMPrivateLinkage);
+		LLVMSetInitializer(global, initializer);
+	}
+	Ok(global)
+}
+
 fn generate_structure_literal(
 	structural_type: &ValueType,
 	members: &[MemberExpression],
@@ -1702,7 +1728,7 @@ fn generate_autocoerce(
 			}
 			Expression::StringLiteral { bytes } =>
 			{
-				let address = expression.generate(llvm)?;
+				let address = generate_global_string_literal(bytes, llvm)?;
 				let length = bytes.len();
 				generate_array_slice(address, element_type, length, llvm)
 			}
@@ -1720,9 +1746,9 @@ fn generate_autocoerce(
 					let address = reference.generate_storage_address(llvm)?;
 					generate_ext_array_view(address, element_type, llvm)
 				}
-				Expression::StringLiteral { .. } =>
+				Expression::StringLiteral { bytes } =>
 				{
-					let address = expression.generate(llvm)?;
+					let address = generate_global_string_literal(bytes, llvm)?;
 					generate_ext_array_view(address, element_type, llvm)
 				}
 				_ => unimplemented!(),

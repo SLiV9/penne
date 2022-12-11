@@ -4,14 +4,20 @@ fn length_of(x: []u8) -> usize
 	return: y
 }
 
+const DATA: [12]u8 = [0x48,0x65,0x6c,0x6c,0x6f,0x20,0x77,0x6f,0x72,0x6c,0x64,0x21];
 const TEXT: [12]u8 = "Hello world!";
 
 fn main() -> usize
 {
+	var buffer = [0x48,0x65,0x6c,0x6c,0x6f,0x20,0x77,0x6f,0x72,0x6c,0x64,0x21];
 	var subtext = "Hello world!";
-	var x = length_of(TEXT);
+	var a = length_of(DATA);
+	var b = length_of(TEXT);
+	var x = length_of(buffer);
 	var y = length_of(subtext);
 	var z = length_of("Hello world!");
-	var result = 140 + x + y + z + |TEXT| + |subtext|;
+	var using_function = a + b + x + y + z;
+	var using_operator = |DATA| + |TEXT| + |subtext| + |buffer|;
+	var result = 200 - 9 * 12 + using_function + using_operator;
 	return: result
 }
