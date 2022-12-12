@@ -1,0 +1,12 @@
+struct Foo
+{
+	data: [12]u8,
+}
+
+fn main() -> usize
+{
+	var x = Foo { data: "Hello world!" };
+	var y: Foo = x;
+	var len = |y.data|;
+	return: len
+}

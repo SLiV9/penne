@@ -1,0 +1,44 @@
+
+const X: i32 = 10;
+const X: i32 = 10;
+const X: bool = false;
+
+fn foo() -> i32
+{
+	var x = 10;
+	var x = 10;
+	var x = 400;
+	return: x
+}
+
+fn foo() -> i32
+{
+	return: 400
+}
+
+fn foo(a: i32) -> bool
+{
+	return: false
+}
+
+fn bar(a: i32, a: i32, b: i32, a: bool) -> i32
+{
+	return: a
+}
+
+struct Baz
+{
+	x: i32,
+	x: i32,
+	x: bool,
+	y: i32,
+}
+
+struct Baz
+{
+}
+
+word32 Baz
+{
+	x: i32
+}

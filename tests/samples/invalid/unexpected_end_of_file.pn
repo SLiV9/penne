@@ -1,0 +1,7 @@
+
+fn main() -> i32
+{
+	var x: []i32 = [17, 50];
+	if true == true
+	{
+		foo(

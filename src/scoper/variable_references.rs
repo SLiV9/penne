@@ -57,27 +57,62 @@ impl Analyzer
 		identifier: Identifier,
 	) -> Result<Identifier, Error>
 	{
-		match self.declare_variable(identifier)
-		{
-			Ok(identifier) => Ok(identifier),
-			Err(error) =>
+		self.declare_variable(identifier)
+			.map_err(|error| match error
 			{
-				let error = match error
-				{
-					Error::DuplicateDeclarationVariable {
-						name,
-						location,
-						previous,
-					} => Error::DuplicateDeclarationConstant {
-						name,
-						location,
-						previous,
-					},
-					error => error,
-				};
-				Err(error)
-			}
-		}
+				Error::DuplicateDeclarationVariable {
+					name,
+					location,
+					previous,
+				} => Error::DuplicateDeclarationConstant {
+					name,
+					location,
+					previous,
+				},
+				error => error,
+			})
+	}
+
+	fn declare_parameter(
+		&mut self,
+		identifier: Identifier,
+	) -> Result<Identifier, Error>
+	{
+		self.declare_variable(identifier)
+			.map_err(|error| match error
+			{
+				Error::DuplicateDeclarationVariable {
+					name,
+					location,
+					previous,
+				} => Error::DuplicateDeclarationParameter {
+					name,
+					location,
+					previous,
+				},
+				error => error,
+			})
+	}
+
+	fn declare_member(
+		&mut self,
+		identifier: Identifier,
+	) -> Result<Identifier, Error>
+	{
+		self.declare_variable(identifier)
+			.map_err(|error| match error
+			{
+				Error::DuplicateDeclarationVariable {
+					name,
+					location,
+					previous,
+				} => Error::DuplicateDeclarationMember {
+					name,
+					location,
+					previous,
+				},
+				error => error,
+			})
 	}
 
 	fn declare_variable(
@@ -785,7 +820,7 @@ impl Analyzable for Member
 	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
 		let name = self.name.and_then(|name| {
-			analyzer.declare_variable(name).map_err(|e| e.into())
+			analyzer.declare_member(name).map_err(|e| e.into())
 		});
 		let value_type = self.value_type.analyze(analyzer);
 		Member {
@@ -825,7 +860,7 @@ impl Analyzable for Parameter
 	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
 		let name = self.name.and_then(|name| {
-			analyzer.declare_variable(name).map_err(|e| e.into())
+			analyzer.declare_parameter(name).map_err(|e| e.into())
 		});
 		let value_type = self.value_type.analyze(analyzer);
 		Parameter {

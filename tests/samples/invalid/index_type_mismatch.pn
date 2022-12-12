@@ -1,0 +1,6 @@
+fn main() -> i32
+{
+	var data = [10i32, 20i32];
+	var x = data[true];
+	return: x
+}

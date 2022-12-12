@@ -399,12 +399,8 @@ fn parse_constant_declaration(
 	let value_type = value_type.map_err(|e| e.into());
 	let location_of_type = tokens.location_of_span(start);
 
-	let expression = match parse_assignment_and_expression(tokens)
-	{
-		Ok(expression) => expression,
-		Err(poison) => Expression::Poison(poison),
-	};
-
+	consume(Token::Assignment, "expected assignment", tokens)?;
+	let expression = parse_expression(tokens)?;
 	consume(Token::Semicolon, "expected semicolon", tokens)?;
 
 	let declaration = Declaration::Constant {
@@ -416,15 +412,6 @@ fn parse_constant_declaration(
 		location_of_type,
 	};
 	Ok(declaration)
-}
-
-fn parse_assignment_and_expression(
-	tokens: &mut Tokens,
-) -> Poisonable<Expression>
-{
-	consume(Token::Assignment, "expected assignment", tokens)?;
-	let expression = parse_expression(tokens)?;
-	Ok(expression)
 }
 
 fn parse_word_declaration(

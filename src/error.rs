@@ -6,6 +6,8 @@
 
 //! Compiler stages may generate syntax errors and semantical errors.
 
+#![cfg_attr(coverage, feature(no_coverage))]
+
 pub use crate::lexer;
 pub use crate::lexer::Location;
 
@@ -67,6 +69,8 @@ where
 
 impl Errors
 {
+	#[cfg_attr(coverage, no_coverage)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn panic(self) -> Never
 	{
 		match self.errors.into_iter().next()
@@ -252,7 +256,19 @@ pub enum Error
 		location: Location,
 		previous: Location,
 	},
+	DuplicateDeclarationParameter
+	{
+		name: String,
+		location: Location,
+		previous: Location,
+	},
 	DuplicateDeclarationStructure
+	{
+		name: String,
+		location: Location,
+		previous: Location,
+	},
+	DuplicateDeclarationMember
 	{
 		name: String,
 		location: Location,
@@ -516,10 +532,10 @@ impl Error
 			Error::MissingParameterType { .. } => 344,
 			Error::MissingMemberType { .. } => 346,
 			Error::IllegalType { .. } => 350,
+			Error::IllegalReturnType { .. } => 351,
 			Error::IllegalVariableType { .. } => 352,
 			Error::IllegalConstantType { .. } => 353,
 			Error::IllegalParameterType { .. } => 354,
-			Error::IllegalReturnType { .. } => 355,
 			Error::IllegalMemberType { .. } => 356,
 			Error::TypeNotAllowedInExtern { .. } => 358,
 			Error::UnsupportedInConstContext { .. } => 360,
@@ -529,21 +545,23 @@ impl Error
 			Error::UndefinedLabel { .. } => 400,
 			Error::UndefinedFunction { .. } => 401,
 			Error::UndefinedVariable { .. } => 402,
-			Error::UndefinedStructure { .. } => 404,
+			Error::UndefinedStructure { .. } => 405,
 			Error::UndefinedMember { .. } => 406,
 			Error::CyclicalConstant { .. } => 413,
-			Error::CyclicalStructure { .. } => 414,
+			Error::CyclicalStructure { .. } => 415,
 			Error::DuplicateDeclarationLabel { .. } => 420,
 			Error::DuplicateDeclarationFunction { .. } => 421,
 			Error::DuplicateDeclarationVariable { .. } => 422,
 			Error::DuplicateDeclarationConstant { .. } => 423,
-			Error::DuplicateDeclarationStructure { .. } => 424,
+			Error::DuplicateDeclarationParameter { .. } => 424,
+			Error::DuplicateDeclarationStructure { .. } => 425,
+			Error::DuplicateDeclarationMember { .. } => 426,
 			Error::ConflictingTypes { .. } => 500,
 			Error::NotAnArray { .. } => 501,
 			Error::NotAnArrayWithLength { .. } => 502,
 			Error::IndexTypeMismatch { .. } => 503,
 			Error::ConflictingTypesInAssignment { .. } => 504,
-			Error::NotAStructure { .. } => 506,
+			Error::NotAStructure { .. } => 505,
 			Error::TooFewArguments { .. } => 510,
 			Error::TooManyArguments { .. } => 511,
 			Error::ArgumentTypeMismatch { .. } => 512,
@@ -551,8 +569,8 @@ impl Error
 			Error::NotMutable { .. } => 530,
 			Error::CannotCopyArray { .. } => 531,
 			Error::CannotCopySlice { .. } => 532,
-			Error::AddressOfTemporaryAddress { .. } => 533,
-			Error::CannotCopyStruct { .. } => 534,
+			Error::CannotCopyStruct { .. } => 533,
+			Error::AddressOfTemporaryAddress { .. } => 538,
 			Error::InvalidOperandType { .. } => 550,
 			Error::MismatchedOperandTypes { .. } => 551,
 			Error::InvalidPrimitiveCast { .. } => 552,
@@ -568,6 +586,8 @@ impl Error
 		}
 	}
 
+	#[cfg_attr(coverage, no_coverage)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn report(&self) -> Report<(String, std::ops::Range<usize>)>
 	{
 		let a = ariadne::Color::Yellow;
@@ -1364,6 +1384,35 @@ impl Error
 			)
 			.finish(),
 
+			Error::DuplicateDeclarationParameter {
+				name,
+				location,
+				previous,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Duplicate parameter")
+			.with_label(
+				location
+					.label()
+					.with_message(format!(
+						"A parameter named '{}' is already defined for this \
+						 function.",
+						name.fg(a)
+					))
+					.with_color(a),
+			)
+			.with_label(
+				previous
+					.label()
+					.with_message("Previously defined here.")
+					.with_color(b),
+			)
+			.finish(),
+
 			Error::DuplicateDeclarationStructure {
 				name,
 				location,
@@ -1380,6 +1429,35 @@ impl Error
 					.label()
 					.with_message(format!(
 						"A struct or word named '{}' is already defined.",
+						name.fg(a)
+					))
+					.with_color(a),
+			)
+			.with_label(
+				previous
+					.label()
+					.with_message("Previously defined here.")
+					.with_color(b),
+			)
+			.finish(),
+
+			Error::DuplicateDeclarationMember {
+				name,
+				location,
+				previous,
+			} => Report::build(
+				ReportKind::Error,
+				&location.source_filename,
+				location.span.start,
+			)
+			.with_code(format!("E{}", self.code()))
+			.with_message("Duplicate member")
+			.with_label(
+				location
+					.label()
+					.with_message(format!(
+						"A member named '{}' is already defined in this \
+						 structure.",
 						name.fg(a)
 					))
 					.with_color(a),
@@ -1887,8 +1965,8 @@ impl Error
 				location
 					.label()
 					.with_message(
-						"This expression is not supported in constant \
-						 expressions.",
+						"This expression is not supported in a constant \
+						 expression.",
 					)
 					.with_color(a),
 			)
@@ -1905,7 +1983,7 @@ impl Error
 				location
 					.label()
 					.with_message(
-						"Function calls cannot occur in constant expressions.",
+						"Function calls cannot occur in a constant expression.",
 					)
 					.with_color(a),
 			)
@@ -2325,6 +2403,8 @@ impl Error
 	}
 }
 
+#[cfg_attr(coverage, no_coverage)]
+#[cfg(not(tarpaulin_include))]
 fn note_for_possible_casts(
 	value_type: &ValueType,
 	coerced_type: &ValueType,
@@ -2358,6 +2438,8 @@ fn note_for_possible_casts(
 	}
 }
 
+#[cfg_attr(coverage, no_coverage)]
+#[cfg(not(tarpaulin_include))]
 fn show_possible_types(
 	possible_types: &[OperandValueType],
 	color: ariadne::Color,
@@ -2382,11 +2464,15 @@ fn show_possible_types(
 	}
 }
 
+#[cfg_attr(coverage, no_coverage)]
+#[cfg(not(tarpaulin_include))]
 fn show_type(value_type: &ValueType) -> String
 {
 	format!("`{}`", show_type_inner(value_type))
 }
 
+#[cfg_attr(coverage, no_coverage)]
+#[cfg(not(tarpaulin_include))]
 fn show_type_inner(value_type: &ValueType) -> String
 {
 	match value_type

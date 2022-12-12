@@ -115,6 +115,7 @@ Documentation:
 Development:
 	☐	Cleanup main.rs
 	☐	Document structs and words
+	☐	Improve test coverage
 	☐	WASM-4 pull request
 
 Theory:

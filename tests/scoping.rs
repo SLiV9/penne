@@ -33,6 +33,15 @@ fn fail_to_scope_duplicate_label()
 }
 
 #[test]
+fn fail_to_scope_duplicate_declaration()
+{
+	compile_to_fail(
+		&[423, 423, 422, 422, 421, 421, 424, 424, 426, 426, 425, 425],
+		"tests/samples/invalid/duplicate_declaration.pn",
+	)
+}
+
+#[test]
 fn fail_to_scope_misplaced_variable()
 {
 	compile_to_fail(&[402], "tests/samples/invalid/misplaced_variable.pn")
@@ -83,14 +92,14 @@ fn fail_to_scope_outscoped_variable()
 #[test]
 fn fail_to_scope_missing_structure()
 {
-	compile_to_fail(&[404], "tests/samples/invalid/missing_structure.pn")
+	compile_to_fail(&[405], "tests/samples/invalid/missing_structure.pn")
 }
 
 #[test]
 fn fail_to_scope_cyclical_structures()
 {
 	compile_to_fail(
-		&[414, 414, 414],
+		&[415, 415, 415],
 		"tests/samples/invalid/cyclical_structures.pn",
 	)
 }

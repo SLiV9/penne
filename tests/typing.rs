@@ -82,9 +82,27 @@ fn fail_to_type_initialization_type_mismatch()
 }
 
 #[test]
+fn fail_to_type_missing_return_type()
+{
+	compile_to_fail(
+		&[330, 582, 331],
+		"tests/samples/invalid/missing_return_type.pn",
+	)
+}
+
+#[test]
 fn fail_to_type_return_type_mismatch()
 {
 	compile_to_fail(&[333], "tests/samples/invalid/return_type_mismatch.pn")
+}
+
+#[test]
+fn fail_to_type_missing_mandatory_type()
+{
+	compile_to_fail(
+		&[343, 344, 346],
+		"tests/samples/invalid/missing_mandatory_type.pn",
+	)
 }
 
 #[test]
@@ -154,6 +172,15 @@ fn fail_to_type_endless_array_as_variable()
 }
 
 #[test]
+fn fail_to_type_endless_array_as_constant()
+{
+	compile_to_fail(
+		&[353],
+		"tests/samples/invalid/endless_array_as_constant.pn",
+	)
+}
+
+#[test]
 fn fail_to_type_endless_array_as_member()
 {
 	compile_to_fail(&[356], "tests/samples/invalid/endless_array_as_member.pn")
@@ -180,7 +207,7 @@ fn fail_to_type_pointer_in_word()
 #[test]
 fn fail_to_scope_member_of_int()
 {
-	compile_to_fail(&[506], "tests/samples/invalid/member_of_int.pn")
+	compile_to_fail(&[505], "tests/samples/invalid/member_of_int.pn")
 }
 
 #[test]

@@ -1,0 +1,9 @@
+fn foo()
+{
+	return: true
+}
+
+fn main()
+{
+	return: 500
+}

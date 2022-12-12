@@ -61,6 +61,12 @@ fn compile_to_fail(codes: &[u16], filename: &str)
 }
 
 #[test]
+fn fail_to_lex_unexpected_end_of_file()
+{
+	compile_to_fail(&[100], "tests/samples/invalid/unexpected_end_of_file.pn")
+}
+
+#[test]
 fn fail_to_parse_invalid_character()
 {
 	compile_to_fail(&[110], "tests/samples/invalid/invalid_character.pn")

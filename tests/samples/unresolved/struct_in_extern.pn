@@ -1,0 +1,6 @@
+struct Foo
+{
+	data: [100]i32,
+}
+
+extern fn foo(foo: Foo);

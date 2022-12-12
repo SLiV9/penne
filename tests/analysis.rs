@@ -51,6 +51,12 @@ fn fail_to_analyze_loop_nonfinal()
 }
 
 #[test]
+fn fail_to_analyze_index_type_mismatch()
+{
+	compile_to_fail(&[503], "tests/samples/invalid/index_type_mismatch.pn");
+}
+
+#[test]
 fn fail_to_analyze_argument_type_mismatch()
 {
 	compile_to_fail(&[512], "tests/samples/invalid/argument_type_mismatch.pn");
@@ -75,9 +81,15 @@ fn fail_to_analyze_assign_array_to_array()
 }
 
 #[test]
+fn fail_to_analyze_assign_struct_to_struct()
+{
+	compile_to_fail(&[533], "tests/samples/invalid/assign_struct_to_struct.pn");
+}
+
+#[test]
 fn fail_to_analyze_return_array_by_value()
 {
-	compile_to_fail(&[355], "tests/samples/invalid/return_array_by_value.pn");
+	compile_to_fail(&[351], "tests/samples/invalid/return_array_by_value.pn");
 }
 
 #[test]
@@ -117,7 +129,7 @@ fn fail_to_analyze_missing_address_variable()
 fn fail_to_analyze_pointer_to_temporary_pointer()
 {
 	compile_to_fail(
-		&[533],
+		&[538],
 		"tests/samples/invalid/pointer_to_temporary_pointer.pn",
 	);
 }
