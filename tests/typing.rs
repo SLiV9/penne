@@ -215,3 +215,9 @@ fn fail_to_scope_member_of_int_literal()
 {
 	compile_to_fail(&[300], "tests/samples/invalid/member_of_int_literal.pn")
 }
+
+#[test]
+fn execute_word_casting()
+{
+	compile_to_fail(&[552, 552], "tests/samples/invalid/word_casting.pn")
+}

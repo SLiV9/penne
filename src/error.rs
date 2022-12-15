@@ -2415,7 +2415,7 @@ fn note_for_possible_casts(
 {
 	if possible_coerced_types.is_empty()
 	{
-		"Can only cast between primitive types and words.".to_string()
+		"Can only cast between primitive types.".to_string()
 	}
 	else if possible_value_types.is_empty()
 	{

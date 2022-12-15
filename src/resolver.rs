@@ -1161,21 +1161,6 @@ fn is_valid_primitive_cast(
 		(vt, ct) if vt.is_integral() && ct.is_integral() => true,
 		(ValueType::Bool, ct) if ct.is_integral() => true,
 		(vt, ValueType::Bool) if vt.is_integral() => true,
-		(ValueType::Word { size_in_bytes, .. }, ct) =>
-		{
-			is_valid_word_cast(*size_in_bytes, ct)
-		}
-		(vt, ValueType::Word { size_in_bytes, .. }) =>
-		{
-			is_valid_word_cast(*size_in_bytes, vt)
-		}
 		(_, _) => false,
 	}
-}
-
-fn is_valid_word_cast(size_in_bytes: usize, primitive_type: &ValueType)
-	-> bool
-{
-	primitive_type.is_bitfield()
-		&& primitive_type.known_aligned_size_in_bytes() == Some(size_in_bytes)
 }

@@ -35,19 +35,17 @@ Functionality:
 	✔	Function parameters @done (2021-01-16 18:03)
 	☐	Structs
 		✔	Struct parameters should be in views @done (2022-11-20 16:21)
-		☐	Structs should not be packed by default
+		✔	Structs should not be packed by default @done (2022-12-15 20:50)
 			✔	Sizeof operator @done (2022-12-15 19:15)
 		✔	Think about allowing padded words @done (2022-12-15 18:16)
 			Yes.
 		✔	Think about undefined members @done (2022-12-15 18:18)
 			Undefined mebers of structs are undefined, just like undefined variables.
 		✔	Think about value of padding bits in word @done (2022-12-15 18:15)
-			Undefined members of a word are zero, as are padding bits
+			Padding bits are undefined.
 		✔	Think about repr(C) and (disallowing) cast between word/struct/u128 @done (2022-12-15 18:16)
-			All structs and words are repr(C).
-			Allow cast between word64 and u64 (but not i64 or u128 in one step).
-		✘	Reorder non-extern words and structs to shrink their size @cancelled (2022-12-15 18:14)
-			Words are not reordered to make sure word as u128 is sound
+			All structs and words are repr(C). There are no casts except transmute().
+		✘	Reorder non-extern words and structs to shrink their size @cancelled (2022-12-15 20:50)
 		☐	Extern structs and words
 			☐	Allow only extern struct and words in externalize_type()
 	✘	Vec and String @cancelled (2022-12-01 15:57)
@@ -61,6 +59,7 @@ Functionality:
 		☐	print()
 		☐	fopen(), fclose()
 		☐	memcpy()
+		☐	transmute()
 	☐	Compile-time string and byte-array inclusion from file
 
 Syntactic sugar:
