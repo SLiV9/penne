@@ -694,6 +694,10 @@ impl Rebuildable for Expression
 				"|{}|",
 				reference.rebuild(&indentation.increased())?
 			)),
+			Expression::SizeOfStructure { name } =>
+			{
+				Ok(format!("|:{}|", identify(name)))
+			}
 			Expression::FunctionCall {
 				name,
 				arguments,

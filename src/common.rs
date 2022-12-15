@@ -309,6 +309,10 @@ pub enum Expression
 	{
 		reference: Reference,
 	},
+	SizeOfStructure
+	{
+		name: Identifier,
+	},
 	FunctionCall
 	{
 		name: Identifier,
@@ -336,6 +340,7 @@ impl Expression
 			Expression::Autocoerce { expression, .. } => expression.location(),
 			Expression::PrimitiveCast { location, .. } => location,
 			Expression::LengthOfArray { reference, .. } => &reference.location,
+			Expression::SizeOfStructure { name, .. } => &name.location,
 			Expression::FunctionCall { name, .. } => &name.location,
 			Expression::Poison(Poison::Error { .. }) => unreachable!(),
 			Expression::Poison(Poison::Poisoned) => unreachable!(),

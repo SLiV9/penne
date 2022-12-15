@@ -1163,20 +1163,32 @@ impl Analyzable for Expression
 				coerced_type,
 				location,
 				location_of_type,
-			} =>
+			} => match analyze_type(coerced_type, analyzer)
 			{
-				let expression = expression.analyze(analyzer);
-				Expression::PrimitiveCast {
-					expression: Box::new(expression),
-					coerced_type,
-					location,
-					location_of_type,
+				Ok(coerced_type) =>
+				{
+					let expression = expression.analyze(analyzer);
+					Expression::PrimitiveCast {
+						expression: Box::new(expression),
+						coerced_type,
+						location,
+						location_of_type,
+					}
 				}
-			}
+				Err(poison) => Expression::Poison(poison),
+			},
 			Expression::LengthOfArray { reference } =>
 			{
 				let reference = reference.analyze(analyzer);
 				Expression::LengthOfArray { reference }
+			}
+			Expression::SizeOfStructure { name } =>
+			{
+				match analyzer.use_struct(name)
+				{
+					Ok(name) => Expression::SizeOfStructure { name },
+					Err(error) => Expression::Poison(Poison::Error(error)),
+				}
 			}
 			Expression::FunctionCall {
 				name,

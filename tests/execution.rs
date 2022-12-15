@@ -321,6 +321,14 @@ fn execute_integer_casting() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_word_casting() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation("examples/word_casting.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_structs_and_words() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation("examples/structs_and_words.pn")?;

@@ -1,0 +1,30 @@
+word32 Foo
+{
+	a: u8,
+	b: u16,
+}
+
+fn main() -> u8
+{
+	var foo = Foo { a: 0xFF, b: 0xAAAA };
+	var foo_u32 = foo as u32;
+	// On a little-endian machine, which DEFAULT_DATA_LAYOUT is, the least
+	// significant byte (0xFF << 0) belongs to the first member (member #0).
+	var expected = 0xAAAA00FF;
+	var difference = foo_u32 ^ expected;
+	var zero = 0u32 as Foo;
+	var result = 200;
+	if difference != 0
+	{
+		result = 1;
+	}
+	if zero.a != 0
+	{
+		result = 2;
+	}
+	if zero.b != 0
+	{
+		result = 3;
+	}
+	return: result
+}

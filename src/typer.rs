@@ -10,6 +10,7 @@
 use crate::common::*;
 use crate::error::Error;
 use crate::parser::{MAX_ADDRESS_DEPTH, MAX_REFERENCE_DEPTH};
+use crate::value_type::MAXIMUM_ALIGNMENT;
 
 use enumset::EnumSet;
 
@@ -426,7 +427,7 @@ impl Typer
 			Err(error) => return Err(error),
 		};
 
-		let alignment = 1;
+		let mut total_alignment = 1;
 
 		let mut total_size_in_bytes = 0;
 		for member in members
@@ -437,7 +438,16 @@ impl Typer
 				{
 					Some(size_in_bytes) =>
 					{
+						let alignment = size_in_bytes
+							.next_power_of_two()
+							.min(MAXIMUM_ALIGNMENT);
+						total_size_in_bytes =
+							align(total_size_in_bytes, alignment);
 						total_size_in_bytes += size_in_bytes;
+						if alignment > total_alignment
+						{
+							total_alignment = alignment;
+						}
 					}
 					None =>
 					{
@@ -458,9 +468,7 @@ impl Typer
 			total_size_in_bytes = 1;
 		}
 
-		// Round up to the nearest alignment.
-		let aligned_size_in_bytes =
-			(total_size_in_bytes + alignment - 1) / alignment;
+		let aligned_size_in_bytes = align(total_size_in_bytes, total_alignment);
 
 		match structural_type
 		{
@@ -480,7 +488,7 @@ impl Typer
 				size_in_bytes: declared_size_in_bytes,
 			} =>
 			{
-				if declared_size_in_bytes == aligned_size_in_bytes
+				if aligned_size_in_bytes <= declared_size_in_bytes
 				{
 					Ok(ValueType::Word {
 						identifier,
@@ -541,6 +549,12 @@ impl Typer
 		};
 		Err(Poison::Error(error))
 	}
+}
+
+fn align(current_size: usize, alignment: usize) -> usize
+{
+	// Round up to the nearest multiple of alignment.
+	alignment * ((current_size + alignment - 1) / alignment)
 }
 
 pub trait Typed
@@ -1526,6 +1540,7 @@ impl Typed for Expression
 				Some(Ok(coerced_type.clone()))
 			}
 			Expression::LengthOfArray { .. } => Some(Ok(ValueType::Usize)),
+			Expression::SizeOfStructure { .. } => Some(Ok(ValueType::Usize)),
 			Expression::FunctionCall { return_type, .. } => return_type.clone(),
 			Expression::Poison(_) => Some(Err(Poison::Poisoned)),
 		}
@@ -1681,19 +1696,23 @@ impl Analyzable for Expression
 				coerced_type,
 				location,
 				location_of_type,
-			} =>
+			} => match analyze_type(coerced_type, typer)
 			{
-				// We cannot infer the type of `expression` from context,
-				// because the context will always think it is `coerced_type`.
-				typer.contextual_type = None;
-				let expr = expression.analyze(typer);
-				Expression::PrimitiveCast {
-					expression: Box::new(expr),
-					coerced_type,
-					location,
-					location_of_type,
+				Ok(coerced_type) =>
+				{
+					// We cannot infer the type of `expression` from context,
+					// because it will always be `coerced_type`.
+					typer.contextual_type = None;
+					let expr = expression.analyze(typer);
+					Expression::PrimitiveCast {
+						expression: Box::new(expr),
+						coerced_type,
+						location,
+						location_of_type,
+					}
 				}
-			}
+				Err(poison) => Expression::Poison(poison),
+			},
 			Expression::LengthOfArray { mut reference } =>
 			{
 				let base_type = typer.get_type_of_base(&reference.base);
@@ -1733,6 +1752,32 @@ impl Analyzable for Expression
 						Expression::LengthOfArray { reference }
 					}
 					None => Expression::LengthOfArray { reference },
+				}
+			}
+			Expression::SizeOfStructure { name } =>
+			{
+				let unresolved_type = ValueType::UnresolvedStructOrWord {
+					identifier: Some(name.clone()),
+				};
+				let structure_type = analyze_type(unresolved_type, typer);
+				match structure_type
+				{
+					Ok(ValueType::Struct {
+						identifier: _,
+						size_in_bytes,
+					}) => Expression::PrimitiveLiteral {
+						literal: PrimitiveLiteral::Usize(size_in_bytes),
+						location: name.location,
+					},
+					Ok(ValueType::Word {
+						identifier: _,
+						size_in_bytes,
+					}) => Expression::PrimitiveLiteral {
+						literal: PrimitiveLiteral::Usize(size_in_bytes),
+						location: name.location,
+					},
+					Ok(_other) => unreachable!(),
+					Err(poison) => Expression::Poison(poison),
 				}
 			}
 			Expression::FunctionCall {

@@ -542,6 +542,7 @@ impl Analyzable for Expression
 					Err(error) => Expression::Poison(Poison::Error(error)),
 				}
 			}
+			Expression::SizeOfStructure { .. } => self,
 			Expression::FunctionCall {
 				name,
 				arguments,

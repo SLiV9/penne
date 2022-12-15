@@ -23,7 +23,7 @@ Functionality:
 		✔	pub extern C fn() {...} @done (2022-09-05 16:51)
 	☐	Floats
 	✔	Other integer sizes @done (2022-09-05 14:30)
-		☐	Think about size of usize
+		✔	Think about size of usize @done (2022-12-15 19:37)
 		✔	Different generated integer sizes for WASM and x86 @done (2022-09-23 21:56)
 		☐	Think about natural stack alignment
 		☐	Think about isize
@@ -36,11 +36,20 @@ Functionality:
 	☐	Structs
 		✔	Struct parameters should be in views @done (2022-11-20 16:21)
 		☐	Structs should not be packed by default
-			☐	Sizeof operator
-		☐	Think about allowing padded words
-		☐	Think about undefined members
-		☐	Think about value of padding bits in word
-		☐	Think about repr(C) and (disallowing) cast between word/struct/u128
+			✔	Sizeof operator @done (2022-12-15 19:15)
+		✔	Think about allowing padded words @done (2022-12-15 18:16)
+			Yes.
+		✔	Think about undefined members @done (2022-12-15 18:18)
+			Undefined mebers of structs are undefined, just like undefined variables.
+		✔	Think about value of padding bits in word @done (2022-12-15 18:15)
+			Undefined members of a word are zero, as are padding bits
+		✔	Think about repr(C) and (disallowing) cast between word/struct/u128 @done (2022-12-15 18:16)
+			All structs and words are repr(C).
+			Allow cast between word64 and u64 (but not i64 or u128 in one step).
+		✘	Reorder non-extern words and structs to shrink their size @cancelled (2022-12-15 18:14)
+			Words are not reordered to make sure word as u128 is sound
+		☐	Extern structs and words
+			☐	Allow only extern struct and words in externalize_type()
 	✘	Vec and String @cancelled (2022-12-01 15:57)
 	✘	Explicit mutable parameters @cancelled (2022-09-03 16:04)
 	☐	Modules
@@ -48,6 +57,7 @@ Functionality:
 		☐	Public vs private
 	☐	Heap allocation
 	☐	stdlib
+		☐	panic()
 		☐	print()
 		☐	fopen(), fclose()
 		☐	memcpy()
@@ -77,6 +87,7 @@ Linting errors:
 	✔	Loop as only statement in an if-branch @done (2021-01-09 12:45)
 	☐	Functions with side effects in if-statement conditions
 	☐	Var declaration with undefined value in some/all branches
+	☐	Undefined members
 	☐	Non-extern function without body
 	☐	Returning pointer, slice or view of temporary
 	☐	Missing members in structure initialization

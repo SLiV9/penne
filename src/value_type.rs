@@ -10,6 +10,9 @@ pub trait Identifier: Clone + PartialEq {}
 
 impl Identifier for String {}
 
+/// The maximum alignment of members is 8 bytes.
+pub const MAXIMUM_ALIGNMENT: usize = 8;
+
 #[must_use]
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueType<I>
@@ -124,11 +127,7 @@ where
 			ValueType::Uint32 => Some(4),
 			ValueType::Uint64 => Some(8),
 			ValueType::Uint128 => Some(16),
-			ValueType::Usize =>
-			{
-				// TODO think about this again
-				Some(8)
-			}
+			ValueType::Usize => Some(MAXIMUM_ALIGNMENT),
 			ValueType::Bool => Some(1),
 			ValueType::Array {
 				element_type,
@@ -142,11 +141,7 @@ where
 			ValueType::Struct { size_in_bytes, .. } => Some(*size_in_bytes),
 			ValueType::Word { size_in_bytes, .. } => Some(*size_in_bytes),
 			ValueType::UnresolvedStructOrWord { .. } => None,
-			ValueType::Pointer { .. } =>
-			{
-				// TODO think about this again
-				Some(8)
-			}
+			ValueType::Pointer { .. } => Some(MAXIMUM_ALIGNMENT),
 			ValueType::View { .. } => None,
 		}
 	}
@@ -179,6 +174,19 @@ where
 			ValueType::Int32 => true,
 			ValueType::Int64 => true,
 			ValueType::Int128 => true,
+			_ => false,
+		}
+	}
+
+	pub fn is_bitfield(&self) -> bool
+	{
+		match self
+		{
+			ValueType::Uint8 => true,
+			ValueType::Uint16 => true,
+			ValueType::Uint32 => true,
+			ValueType::Uint64 => true,
+			ValueType::Uint128 => true,
 			_ => false,
 		}
 	}

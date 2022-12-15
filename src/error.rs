@@ -1113,8 +1113,7 @@ impl Error
 				location_of_identifier
 					.label()
 					.with_message(format!(
-						"The combined size of the members of this structure \
-						 is {} bits.",
+						"The size of this structure is {} bits.",
 						inferred_size_in_bits.to_string().fg(a)
 					))
 					.with_color(a),
@@ -2416,7 +2415,7 @@ fn note_for_possible_casts(
 {
 	if possible_coerced_types.is_empty()
 	{
-		"Can only cast between primitive types.".to_string()
+		"Can only cast between primitive types and words.".to_string()
 	}
 	else if possible_value_types.is_empty()
 	{

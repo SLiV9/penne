@@ -1377,6 +1377,14 @@ fn parse_unary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 {
 	match peek(tokens)
 	{
+		Some(Token::PipeForType) =>
+		{
+			tokens.pop_front();
+			let name = extract_identifier("expected structure name", tokens)?;
+			consume(Token::Pipe, "expected pipe", tokens)?;
+			let expression = Expression::SizeOfStructure { name };
+			Ok(expression)
+		}
 		Some(Token::Pipe) =>
 		{
 			tokens.pop_front();

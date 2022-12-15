@@ -284,7 +284,12 @@ fn declare(
 				.map(|m| m.value_type.generate(llvm))
 				.collect();
 			let mut member_types = member_types?;
-			let is_packed = 1;
+			if member_types.is_empty()
+			{
+				let bytetype = unsafe { LLVMInt8TypeInContext(llvm.context) };
+				member_types.push(bytetype);
+			}
+			let is_packed = 0;
 
 			unsafe {
 				LLVMStructSetBody(
@@ -1676,6 +1681,20 @@ fn generate_structure_literal(
 	let tmpname = CString::new("")?;
 	let structure_type = structural_type.generate(llvm)?;
 	let mut structure = unsafe { LLVMGetUndef(structure_type) };
+	if let ValueType::Word { size_in_bytes, .. } = structural_type
+	{
+		let num_bits = 8 * (*size_in_bytes) as u32;
+		unsafe {
+			let inttype = LLVMIntTypeInContext(llvm.context, num_bits);
+			let zero = LLVMConstInt(inttype, 0u64, 0);
+			structure = LLVMBuildBitCast(
+				llvm.builder,
+				zero,
+				structure_type,
+				tmpname.as_ptr(),
+			);
+		}
+	}
 	for member in members
 	{
 		let value = member.expression.generate(llvm)?;
@@ -1950,6 +1969,38 @@ fn generate_cast(
 			let tmpname = CString::new("")?;
 			let result = unsafe {
 				LLVMBuildTruncOrBitCast(
+					llvm.builder,
+					value,
+					dest_type,
+					tmpname.as_ptr(),
+				)
+			};
+			Ok(result)
+		}
+		(ValueType::Word { .. }, ct) if ct.is_bitfield() =>
+		{
+			let srctype = value_type.generate(llvm)?;
+			let address = generate_tmp_address(value, srctype, llvm)?;
+			let dest_type = coerced_type.generate(llvm)?;
+			let pointertype = unsafe { LLVMPointerType(dest_type, 0u32) };
+			let tmpname = CString::new("")?;
+			let result = unsafe {
+				let address = LLVMBuildBitCast(
+					llvm.builder,
+					address,
+					pointertype,
+					tmpname.as_ptr(),
+				);
+				LLVMBuildLoad(llvm.builder, address, tmpname.as_ptr())
+			};
+			Ok(result)
+		}
+		(vt, ValueType::Word { .. }) if vt.is_bitfield() =>
+		{
+			let dest_type = coerced_type.generate(llvm)?;
+			let tmpname = CString::new("")?;
+			let result = unsafe {
+				LLVMBuildBitCast(
 					llvm.builder,
 					value,
 					dest_type,

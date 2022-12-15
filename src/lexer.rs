@@ -46,6 +46,7 @@ pub enum Token
 	ShiftLeft,    // <<
 	ShiftRight,   // >>
 	Arrow,        // ->
+	PipeForType,  // |:
 
 	// Keywords.
 	Fn,
@@ -236,7 +237,16 @@ fn lex_line(
 				}
 				_ => Ok(Token::AngleRight),
 			},
-			'|' => Ok(Token::Pipe),
+			'|' => match iter.peek()
+			{
+				Some((_, ':')) =>
+				{
+					iter.next();
+					source_offset_end += 1;
+					Ok(Token::PipeForType)
+				}
+				_ => Ok(Token::Pipe),
+			},
 			'&' => Ok(Token::Ampersand),
 
 			'^' => Ok(Token::Caret),

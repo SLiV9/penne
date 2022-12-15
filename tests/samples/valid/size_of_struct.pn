@@ -24,7 +24,18 @@ struct Baz
 	foo: Foo,
 }
 
+struct Empty
+{}
+
+word32 Padded
+{
+	a: u8,
+	b: u16,
+}
+
 fn main() -> usize
 {
-	return: 200
+	var total = |:Position| + |:Foo| + |:Bar| + |:Baz| + |:Empty| + |:Padded|;
+	var expected =    2 * 4 +  2 * 4 +  4 * 8 +  4 * 8 +        1 +     2 * 2;
+	return: 200 + total - expected
 }

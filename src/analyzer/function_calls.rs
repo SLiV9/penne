@@ -636,6 +636,7 @@ impl Analyzable for Expression
 				let reference = reference.analyze(analyzer);
 				Expression::LengthOfArray { reference }
 			}
+			Expression::SizeOfStructure { .. } => self,
 			Expression::FunctionCall {
 				name,
 				arguments,
