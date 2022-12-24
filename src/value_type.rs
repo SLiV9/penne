@@ -13,13 +13,6 @@ impl Identifier for String {}
 /// The maximum alignment of members is 8 bytes.
 pub const MAXIMUM_ALIGNMENT: usize = 8;
 
-/// The size of usize and pointer types is either 32 bits or 64 bits.
-pub const POINTER_ALIGNMENT: usize = POINTER_ALIGNMENT_64;
-/// The size of usize and pointer types is 64 bits when targeting 64-bit.
-pub const POINTER_ALIGNMENT_64: usize = 8;
-/// The size of usize and pointer types is 32 bits when targeting 32-bit.
-pub const POINTER_ALIGNMENT_32: usize = 4;
-
 #[must_use]
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueType<I>
@@ -58,7 +51,6 @@ where
 	Struct
 	{
 		identifier: I,
-		size_in_bytes: usize,
 	},
 	Word
 	{
@@ -120,7 +112,7 @@ where
 		}
 	}
 
-	pub fn known_aligned_size_in_bytes(&self) -> Option<usize>
+	pub fn known_size_in_bytes_as_word_member(&self) -> Option<usize>
 	{
 		match self
 		{
@@ -134,41 +126,17 @@ where
 			ValueType::Uint32 => Some(4),
 			ValueType::Uint64 => Some(8),
 			ValueType::Uint128 => Some(16),
-			ValueType::Usize => Some(POINTER_ALIGNMENT),
+			ValueType::Usize => None,
 			ValueType::Bool => Some(1),
-			ValueType::Array {
-				element_type,
-				length,
-			} => element_type
-				.known_aligned_size_in_bytes()
-				.map(|x| length * x),
+			ValueType::Array { .. } => None,
 			ValueType::Slice { .. } => None,
 			ValueType::EndlessArray { .. } => None,
 			ValueType::Arraylike { .. } => None,
-			ValueType::Struct { size_in_bytes, .. } => Some(*size_in_bytes),
+			ValueType::Struct { .. } => None,
 			ValueType::Word { size_in_bytes, .. } => Some(*size_in_bytes),
 			ValueType::UnresolvedStructOrWord { .. } => None,
-			ValueType::Pointer { .. } => Some(POINTER_ALIGNMENT),
+			ValueType::Pointer { .. } => None,
 			ValueType::View { .. } => None,
-		}
-	}
-
-	pub fn fixed_bit_length(&self) -> usize
-	{
-		match self
-		{
-			ValueType::Int8 => 8,
-			ValueType::Int16 => 16,
-			ValueType::Int32 => 32,
-			ValueType::Int64 => 64,
-			ValueType::Int128 => 128,
-			ValueType::Uint8 => 8,
-			ValueType::Uint16 => 16,
-			ValueType::Uint32 => 32,
-			ValueType::Uint64 => 64,
-			ValueType::Uint128 => 128,
-			ValueType::Word { size_in_bytes, .. } => 8 * size_in_bytes,
-			_ => 0,
 		}
 	}
 
@@ -534,18 +502,8 @@ where
 
 	pub fn can_be_word_member(&self) -> bool
 	{
-		match self
-		{
-			ValueType::Array { .. } => false,
-			ValueType::Slice { .. } => false,
-			ValueType::EndlessArray { .. } => false,
-			ValueType::Arraylike { .. } => false,
-			ValueType::Struct { .. } => false,
-			ValueType::View { .. } => false,
-			ValueType::Pointer { .. } => false,
-			ValueType::Usize { .. } => false,
-			_ => self.is_wellformed(),
-		}
+		self.can_be_struct_member()
+			&& self.known_size_in_bytes_as_word_member().is_some()
 	}
 
 	pub fn can_be_constant(&self) -> bool

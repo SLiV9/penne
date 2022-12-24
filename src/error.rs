@@ -2504,10 +2504,7 @@ fn show_type_inner(value_type: &ValueType) -> String
 		{
 			format!("[]{}", show_type_inner(element_type))
 		}
-		ValueType::Struct {
-			identifier,
-			size_in_bytes: _,
-		} => identifier.name.to_string(),
+		ValueType::Struct { identifier } => identifier.name.to_string(),
 		ValueType::Word {
 			identifier,
 			size_in_bytes: _,

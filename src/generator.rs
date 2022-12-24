@@ -271,7 +271,6 @@ fn declare(
 			name,
 			members,
 			flags: _,
-			size_in_bytes,
 			depth: _,
 		} =>
 		{
@@ -299,7 +298,6 @@ fn declare(
 					is_packed,
 				);
 			}
-			assert_eq!(llvm.size_in_bits(struct_type), size_in_bytes * 8);
 			Ok(())
 		}
 	}
@@ -1017,6 +1015,17 @@ impl Generatable for Expression
 			{
 				reference.generate_array_len(llvm)
 			}
+			Expression::SizeOfStructure { name: identifier } =>
+			{
+				let struct_name = CString::new(&identifier.name as &str)?;
+				let struct_type = unsafe {
+					LLVMGetTypeByName(llvm.module, struct_name.as_ptr())
+				};
+				let size_in_bits = llvm.size_in_bits(struct_type);
+				assert_eq!(size_in_bits % 8, 0);
+				let value = llvm.const_usize(size_in_bits / 8);
+				Ok(value)
+			}
 			Expression::FunctionCall {
 				name,
 				arguments,
@@ -1208,10 +1217,7 @@ impl Generatable for ValueType
 			{
 				element_type.generate(llvm)?
 			}
-			ValueType::Struct {
-				identifier,
-				size_in_bytes: _,
-			}
+			ValueType::Struct { identifier }
 			| ValueType::Word {
 				identifier,
 				size_in_bytes: _,
@@ -1864,42 +1870,14 @@ fn generate_cast(
 	match (value_type, coerced_type)
 	{
 		(x, y) if x == y => Ok(value),
-		(ValueType::Usize, _) =>
-		{
-			let interim_type = ValueType::Uint128;
-			let dest_type = interim_type.generate(llvm)?;
-			let tmpname = CString::new("")?;
-			let interim = unsafe {
-				LLVMBuildZExtOrBitCast(
-					llvm.builder,
-					value,
-					dest_type,
-					tmpname.as_ptr(),
-				)
-			};
-			generate_cast(interim, &interim_type, coerced_type, llvm)
-		}
-		(_, ValueType::Usize) =>
-		{
-			let interim_type = ValueType::Uint128;
-			let value = generate_cast(value, value_type, &interim_type, llvm)?;
-			let dest_type = coerced_type.generate(llvm)?;
-			let tmpname = CString::new("")?;
-			let result = unsafe {
-				LLVMBuildTruncOrBitCast(
-					llvm.builder,
-					value,
-					dest_type,
-					tmpname.as_ptr(),
-				)
-			};
-			Ok(result)
-		}
 		(vt, ct) if vt.is_integral() && ct.is_integral() =>
 		{
+			let src_type = value_type.generate(llvm)?;
+			let src_size_in_bits = llvm.size_in_bits(src_type);
 			let dest_type = coerced_type.generate(llvm)?;
+			let dest_size_in_bits = llvm.size_in_bits(dest_type);
 			let tmpname = CString::new("")?;
-			let is_truncated = ct.fixed_bit_length() < vt.fixed_bit_length();
+			let is_truncated = dest_size_in_bits < src_size_in_bits;
 			let result = if is_truncated
 			{
 				unsafe {

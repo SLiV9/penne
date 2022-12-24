@@ -373,20 +373,14 @@ impl Analyzer
 						element_type: Box::new(element_type),
 					})
 				}
-				ValueType::Struct {
-					identifier,
-					size_in_bytes,
-				} =>
+				ValueType::Struct { identifier } =>
 				{
 					let identifier = self.found_structure_member_1(
 						name_of_structure,
 						name_of_member,
 						identifier,
 					)?;
-					Ok(ValueType::Struct {
-						identifier,
-						size_in_bytes,
-					})
+					Ok(ValueType::Struct { identifier })
 				}
 				ValueType::Word {
 					identifier,
@@ -1295,16 +1289,10 @@ fn analyze_type(
 		{
 			Ok(ValueType::UnresolvedStructOrWord { identifier: None })
 		}
-		ValueType::Struct {
-			identifier,
-			size_in_bytes,
-		} =>
+		ValueType::Struct { identifier } =>
 		{
 			let identifier = analyzer.use_struct(identifier)?;
-			Ok(ValueType::Struct {
-				identifier,
-				size_in_bytes,
-			})
+			Ok(ValueType::Struct { identifier })
 		}
 		ValueType::Word {
 			identifier,

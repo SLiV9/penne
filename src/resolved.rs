@@ -49,7 +49,6 @@ pub enum Declaration
 		members: Vec<Member>,
 		flags: EnumSet<DeclarationFlag>,
 		depth: u32,
-		size_in_bytes: usize,
 	},
 }
 
@@ -201,6 +200,10 @@ pub enum Expression
 	LengthOfArray
 	{
 		reference: Reference,
+	},
+	SizeOfStructure
+	{
+		name: Identifier,
 	},
 	FunctionCall
 	{

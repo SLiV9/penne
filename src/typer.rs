@@ -283,10 +283,7 @@ impl Typer
 				{
 					let structure = match &x
 					{
-						ValueType::Struct {
-							identifier,
-							size_in_bytes: _,
-						} => identifier,
+						ValueType::Struct { identifier } => identifier,
 						ValueType::Word {
 							identifier,
 							size_in_bytes: _,
@@ -427,14 +424,20 @@ impl Typer
 			Err(error) => return Err(error),
 		};
 
-		let mut total_alignment = 1;
+		let needs_to_be_aligned = match structural_type
+		{
+			ValueType::Struct { .. } => false,
+			ValueType::Word { .. } => true,
+			_ => unreachable!(),
+		};
 
+		let mut total_alignment = 1;
 		let mut total_size_in_bytes = 0;
 		for member in members
 		{
 			match &member.value_type
 			{
-				Ok(vt) => match vt.known_aligned_size_in_bytes()
+				Ok(vt) => match vt.known_size_in_bytes_as_word_member()
 				{
 					Some(size_in_bytes) =>
 					{
@@ -451,8 +454,7 @@ impl Typer
 					}
 					None =>
 					{
-						// We do not yet have enough type information.
-						return Ok(structural_type);
+						assert!(!needs_to_be_aligned);
 					}
 				},
 				Err(_poison) =>
@@ -462,27 +464,11 @@ impl Typer
 			}
 		}
 
-		// A struct without members has to be at least 1 byte.
-		if total_size_in_bytes == 0
-		{
-			total_size_in_bytes = 1;
-		}
-
 		let aligned_size_in_bytes = align(total_size_in_bytes, total_alignment);
 
 		match structural_type
 		{
-			ValueType::Struct {
-				identifier,
-				size_in_bytes,
-			} =>
-			{
-				assert_eq!(size_in_bytes, aligned_size_in_bytes);
-				Ok(ValueType::Struct {
-					identifier,
-					size_in_bytes,
-				})
-			}
+			ValueType::Struct { .. } => Ok(structural_type),
 			ValueType::Word {
 				identifier,
 				size_in_bytes: declared_size_in_bytes,
@@ -506,10 +492,6 @@ impl Typer
 					Err(Poison::Error(error))
 				}
 			}
-			ValueType::UnresolvedStructOrWord { .. } => Ok(ValueType::Struct {
-				identifier: identifier.clone(),
-				size_in_bytes: aligned_size_in_bytes,
-			}),
 			_ => unreachable!(),
 		}
 	}
@@ -1048,7 +1030,6 @@ impl Member
 		{
 			Some(Ok(ValueType::Struct { .. })) => (true, false),
 			Some(Ok(ValueType::Word { .. })) => (false, true),
-			Some(Ok(ValueType::UnresolvedStructOrWord { .. })) => (true, false),
 			Some(Ok(_)) => unreachable!(),
 			Some(Err(_)) => (false, false),
 			None => unreachable!(),
@@ -1762,20 +1743,14 @@ impl Analyzable for Expression
 				let structure_type = analyze_type(unresolved_type, typer);
 				match structure_type
 				{
-					Ok(ValueType::Struct {
-						identifier: _,
-						size_in_bytes,
-					}) => Expression::PrimitiveLiteral {
-						literal: PrimitiveLiteral::Usize(size_in_bytes),
-						location: name.location,
-					},
-					Ok(ValueType::Word {
-						identifier: _,
-						size_in_bytes,
-					}) => Expression::PrimitiveLiteral {
-						literal: PrimitiveLiteral::Usize(size_in_bytes),
-						location: name.location,
-					},
+					Ok(ValueType::Struct { .. }) =>
+					{
+						Expression::SizeOfStructure { name }
+					}
+					Ok(ValueType::Word { .. }) =>
+					{
+						Expression::SizeOfStructure { name }
+					}
 					Ok(_other) => unreachable!(),
 					Err(poison) => Expression::Poison(poison),
 				}
@@ -2691,20 +2666,8 @@ fn analyze_type(
 		{
 			Ok(ValueType::UnresolvedStructOrWord { identifier: None })
 		}
-		ValueType::Struct {
-			identifier,
-			size_in_bytes,
-		} => Ok(ValueType::Struct {
-			identifier,
-			size_in_bytes,
-		}),
-		ValueType::Word {
-			identifier,
-			size_in_bytes,
-		} => Ok(ValueType::Word {
-			identifier,
-			size_in_bytes,
-		}),
+		ValueType::Struct { .. } => Ok(value_type),
+		ValueType::Word { .. } => Ok(value_type),
 		ValueType::Int8 => Ok(ValueType::Int8),
 		ValueType::Int16 => Ok(ValueType::Int16),
 		ValueType::Int32 => Ok(ValueType::Int32),

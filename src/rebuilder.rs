@@ -258,10 +258,7 @@ impl Rebuildable for Declaration
 				}
 				match structural_type
 				{
-					Ok(ValueType::Struct {
-						identifier,
-						size_in_bytes: _,
-					}) =>
+					Ok(ValueType::Struct { identifier }) =>
 					{
 						write!(&mut buffer, "struct#{}", identify(identifier))?;
 					}
@@ -797,10 +794,7 @@ impl Rebuildable for ValueType
 			{
 				Ok(format!("[]{}", element_type.rebuild(indentation)?))
 			}
-			ValueType::Struct {
-				identifier,
-				size_in_bytes: _,
-			} => Ok(identify(identifier)),
+			ValueType::Struct { identifier } => Ok(identify(identifier)),
 			ValueType::Word {
 				identifier,
 				size_in_bytes: _,

@@ -444,8 +444,8 @@ fn parse_struct_declaration(
 ) -> Result<Declaration, Error>
 {
 	let name = extract_identifier("expected structure name", tokens)?;
-	let structural_type = Ok(ValueType::UnresolvedStructOrWord {
-		identifier: Some(name.clone()),
+	let structural_type = Ok(ValueType::Struct {
+		identifier: name.clone(),
 	});
 	let members = parse_struct_members(tokens)?;
 	Ok(Declaration::Structure {

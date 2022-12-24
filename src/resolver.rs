@@ -236,19 +236,7 @@ impl Resolvable for Declaration
 			{
 				let (name, members, structural_type) =
 					(name, members, structural_type).resolve()?;
-				let size_in_bytes = match structural_type
-				{
-					resolved::ValueType::Struct { size_in_bytes, .. } =>
-					{
-						size_in_bytes
-					}
-					resolved::ValueType::Word { size_in_bytes, .. } =>
-					{
-						size_in_bytes
-					}
-					_ => unreachable!(),
-				};
-				assert!(size_in_bytes > 0);
+				let _ = structural_type;
 				let depth = match depth
 				{
 					Some(Ok(depth)) => depth,
@@ -260,7 +248,6 @@ impl Resolvable for Declaration
 					members,
 					flags,
 					depth,
-					size_in_bytes,
 				})
 			}
 			Declaration::PreprocessorDirective { .. } => unreachable!(),
@@ -668,10 +655,8 @@ impl Resolvable for Expression
 			}
 			Expression::SizeOfStructure { name } =>
 			{
-				let _name = name.resolve()?;
-				// This expression is replaced with a PrimitiveLiteral during
-				// typing, unless it failed to resolve.
-				unreachable!()
+				let name = name.resolve()?;
+				Ok(resolved::Expression::SizeOfStructure { name })
 			}
 			Expression::FunctionCall {
 				name,
@@ -815,13 +800,12 @@ impl Resolvable for ValueType
 					element_type: element_type.resolve()?,
 				})
 			}
-			ValueType::Struct {
-				identifier,
-				size_in_bytes,
-			} => Ok(resolved::ValueType::Struct {
-				identifier: identifier.resolve()?,
-				size_in_bytes,
-			}),
+			ValueType::Struct { identifier } =>
+			{
+				Ok(resolved::ValueType::Struct {
+					identifier: identifier.resolve()?,
+				})
+			}
 			ValueType::Word {
 				identifier,
 				size_in_bytes,
