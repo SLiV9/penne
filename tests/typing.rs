@@ -217,7 +217,13 @@ fn fail_to_scope_member_of_int_literal()
 }
 
 #[test]
-fn execute_word_casting()
+fn fail_to_type_word_casting()
 {
 	compile_to_fail(&[552, 552], "tests/samples/invalid/word_casting.pn")
+}
+
+#[test]
+fn fail_to_type_non_abi_in_extern()
+{
+	compile_to_fail(&[358, 358], "tests/samples/invalid/non_abi_in_extern.pn")
 }

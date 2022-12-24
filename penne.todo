@@ -10,7 +10,12 @@ Functionality:
 		✔	Array length operator @done (2022-09-04 11:48)
 	✔	Multidimensional arrays @done (2022-09-19 17:28)
 	✔	Pointers with automatic dereference @done (2022-09-20 14:56)
-		☐	Think about (disallowing) cast between pointer and integer
+	  ☐	Switch POINTER_ALIGNMENT from 8 to 4 if targeting WASM (or 32-bit)
+		✔	Think about (disallowing) cast between pointer and integer @done (2022-12-24 18:39)
+			The only use case I care about is debugging and maybe offsets.
+			☐	printf()/format() needs a %p
+			☐	builtin function (&T, usize) -> &T
+			☐	Error if using 0x0 to initialize a view or non-optional pointer
 	✔	Pass array by const-reference (slice) by default @done (2022-09-04 18:06)
 		☐	A [3]i32 parameter is typechecked as [3]i32 but implemented as []i32
 		✔	In extern functions, use pointers instead of slice structs @done (2022-09-08 12:09)
@@ -25,12 +30,14 @@ Functionality:
 	✔	Other integer sizes @done (2022-09-05 14:30)
 		✔	Think about size of usize @done (2022-12-15 19:37)
 		✔	Different generated integer sizes for WASM and x86 @done (2022-09-23 21:56)
-		☐	Think about natural stack alignment
-		☐	Think about isize
-		☐	Difference between usize and upointer
+		✔	Think about natural stack alignment @done (2022-12-24 19:44)
+		✔	Think about isize @done (2022-12-24 18:51)
+		✔	Think about difference between usize and upointer @done (2022-12-24 18:51)
 	☐	Strong enums
 	☐	Optional
-		☐	int types with niches
+		☐	Niches for pointers and enums
+		☐	Niches in non-extern structs that have one or more bytes of padding
+		☐	Ability to use weak enums to define int types with niches
 	✔	Function calls @done (2021-01-16 18:03)
 	✔	Function parameters @done (2021-01-16 18:03)
 	☐	Structs

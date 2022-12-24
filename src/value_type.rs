@@ -13,6 +13,13 @@ impl Identifier for String {}
 /// The maximum alignment of members is 8 bytes.
 pub const MAXIMUM_ALIGNMENT: usize = 8;
 
+/// The size of usize and pointer types is either 32 bits or 64 bits.
+pub const POINTER_ALIGNMENT: usize = POINTER_ALIGNMENT_64;
+/// The size of usize and pointer types is 64 bits when targeting 64-bit.
+pub const POINTER_ALIGNMENT_64: usize = 8;
+/// The size of usize and pointer types is 32 bits when targeting 32-bit.
+pub const POINTER_ALIGNMENT_32: usize = 4;
+
 #[must_use]
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueType<I>
@@ -127,7 +134,7 @@ where
 			ValueType::Uint32 => Some(4),
 			ValueType::Uint64 => Some(8),
 			ValueType::Uint128 => Some(16),
-			ValueType::Usize => Some(MAXIMUM_ALIGNMENT),
+			ValueType::Usize => Some(POINTER_ALIGNMENT),
 			ValueType::Bool => Some(1),
 			ValueType::Array {
 				element_type,
@@ -141,7 +148,7 @@ where
 			ValueType::Struct { size_in_bytes, .. } => Some(*size_in_bytes),
 			ValueType::Word { size_in_bytes, .. } => Some(*size_in_bytes),
 			ValueType::UnresolvedStructOrWord { .. } => None,
-			ValueType::Pointer { .. } => Some(MAXIMUM_ALIGNMENT),
+			ValueType::Pointer { .. } => Some(POINTER_ALIGNMENT),
 			ValueType::View { .. } => None,
 		}
 	}

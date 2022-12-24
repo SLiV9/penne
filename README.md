@@ -188,9 +188,21 @@ fn set_to_zero(x: &[]i32)
 }
 ```
 
+## Non-features
+
+Penne is an esoteric language, not a general purpose or systems programming language. Certain modern language features that I think are essential for a good programming language in 2022 to have, are omitted. This is either because including them would contradict the premise of Penne (see above) or to simplify its implementation.
+As such, the following are decidedly *not* features of Penne:
+
+* classes;
+* generics;
+* iterators;
+* support for pointers larger than 64 bits;
+* a string type guaranteed to be UTF-8;
+* memory safety of any kind.
+
 ## Contributing
 
-Penne and its compiler are still in development, and many language features (enums, modules) are yet to be implemented. However it is my intention for any gaps in functionality to raise a proper error message until they are implemented. If you encounter a compiler segfault or panic (*not* a program segfault; memory safety is decidedly not a language feature), or if the compiler generates invalid LLVM IR, opening an issue with a minimal reproducible example would be much appreciated.
+Penne and its compiler are still in development, and many language features (enums, modules) are yet to be implemented. However it is my intention for any gaps in functionality to raise a proper error message until they are implemented. If you encounter a compiler segfault or panic, or if the compiler generates invalid LLVM IR, opening an issue with a minimal reproducible example would be much appreciated.
 
 ## License
 

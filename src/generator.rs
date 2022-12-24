@@ -17,7 +17,7 @@ use llvm_sys::target_machine::LLVMGetDefaultTargetTriple;
 use llvm_sys::*;
 use llvm_sys::{LLVMBuilder, LLVMContext, LLVMModule};
 
-pub const DEFAULT_DATA_LAYOUT: &str = "e-m:e-p:64:64-i64:64-n8:16:32:64-S128";
+pub const DEFAULT_DATA_LAYOUT: &str = "e-m:e-p:64:64-i64:64-n8:16:32:64-S64";
 
 pub fn generate(
 	program: &Vec<Declaration>,

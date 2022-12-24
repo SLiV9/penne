@@ -2935,14 +2935,14 @@ fn externalize_type(
 		ValueType::Int16 => Ok(value_type),
 		ValueType::Int32 => Ok(value_type),
 		ValueType::Int64 => Ok(value_type),
-		ValueType::Int128 => Ok(value_type),
+		//ValueType::Int128 is not ok
 		ValueType::Uint8 => Ok(value_type),
 		ValueType::Uint16 => Ok(value_type),
 		ValueType::Uint32 => Ok(value_type),
 		ValueType::Uint64 => Ok(value_type),
-		ValueType::Uint128 => Ok(value_type),
+		//ValueType::Uint128 is not ok
 		ValueType::Usize => Ok(value_type),
-		ValueType::Bool => Ok(value_type),
+		//ValueType::Bool is not ok
 		_ => Err(Error::TypeNotAllowedInExtern {
 			value_type,
 			location_of_type: location_of_type.clone(),
