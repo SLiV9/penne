@@ -511,7 +511,7 @@ fn parse_function_declaration(
 	let (parameters, return_type, location_of_return_type) = signature;
 	let location_of_return_type =
 		location_of_return_type.unwrap_or_else(|| tokens.last_location.clone());
-	if let Some(Err(_)) = &return_type
+	if return_type.is_err()
 	{
 		skip_rest_of_function_signature(tokens);
 	}
@@ -553,11 +553,7 @@ fn parse_function_declaration(
 
 fn parse_rest_of_function_signature(
 	tokens: &mut Tokens,
-) -> (
-	Vec<Parameter>,
-	Option<Poisonable<ValueType>>,
-	Option<Location>,
-)
+) -> (Vec<Parameter>, Poisonable<ValueType>, Option<Location>)
 {
 	let mut parameters = Vec::new();
 	loop
@@ -588,7 +584,7 @@ fn parse_rest_of_function_signature(
 			{
 				// An error during parameter parsing is indistinguishable from
 				// an error during return type parsing.
-				return (parameters, Some(Err(error.into())), None);
+				return (parameters, Err(error.into()), None);
 			}
 		}
 	}
@@ -601,7 +597,7 @@ fn parse_rest_of_function_signature(
 			// If the closing parenthesis is missing we cannot parse the
 			// return type, because any type we find might be part of
 			// an unfinished parameter.
-			return (parameters, Some(Err(error.into())), None);
+			return (parameters, Err(error.into()), None);
 		}
 	}
 
@@ -612,11 +608,11 @@ fn parse_rest_of_function_signature(
 		let start = tokens.start_location_span();
 		let return_type = parse_wellformed_type(tokens).map_err(|e| e.into());
 		let location = tokens.location_of_span(start);
-		(parameters, Some(return_type), Some(location))
+		(parameters, return_type, Some(location))
 	}
 	else
 	{
-		(parameters, None, None)
+		(parameters, Ok(ValueType::Void), None)
 	}
 }
 

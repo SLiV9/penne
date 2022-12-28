@@ -72,6 +72,12 @@ fn fail_to_scope_missing_label()
 }
 
 #[test]
+fn fail_to_scope_jump_to_inner()
+{
+	compile_to_fail(&[400], "tests/samples/invalid/jump_to_inner.pn")
+}
+
+#[test]
 fn fail_to_scope_missing_variable()
 {
 	compile_to_fail(&[402], "tests/samples/invalid/missing_variable.pn")

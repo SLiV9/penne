@@ -81,3 +81,29 @@ fn tagged_unions_with_labels()
 		}
 	}
 }
+
+fn parse() -> Value | Error;
+
+fn print(value: Value) -> ?Error;
+
+fn tagged_result_errors()
+{
+	var result;
+	var x = parse();
+	if x is Error
+	{
+		result = x;
+		goto return;
+	}
+	// x is known to be Value here, preferably
+	var y = print(x);
+	if y is Error
+	{
+		result = y;
+		goto error;
+	}
+	return: result
+}
+
+// Oh and null is void and "?Error" is "Void | Error"?
+// Or the other way around, ? is nullable and void is "nullable never"?

@@ -648,14 +648,14 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 			typer.declare_function_parameters(&name, &parameters);
 
 			let return_type = fix_return_type_for_flags(
-				return_type.map(|x| x.analyze(typer)),
+				return_type.analyze(typer),
 				&flags,
 				&location_of_declaration,
 				&location_of_return_type,
 			);
 
 			let rv_identifier = name.return_value();
-			let rv_type = return_type.clone();
+			let rv_type = Some(return_type.clone());
 			match typer.put_symbol(&rv_identifier, rv_type)
 			{
 				Ok(()) => Declaration::Function {
@@ -689,14 +689,14 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 			typer.declare_function_parameters(&name, &parameters);
 
 			let return_type = fix_return_type_for_flags(
-				return_type.map(|x| x.analyze(typer)),
+				return_type.analyze(typer),
 				&flags,
 				&location_of_declaration,
 				&location_of_return_type,
 			);
 
 			let rv_identifier = name.return_value();
-			let rv_type = return_type.clone();
+			let rv_type = Some(return_type.clone());
 			match typer.put_symbol(&rv_identifier, rv_type)
 			{
 				Ok(()) => Declaration::FunctionHead {
@@ -806,30 +806,6 @@ trait Analyzable
 	fn analyze(self, typer: &mut Typer) -> Self;
 }
 
-impl Typed for Declaration
-{
-	fn value_type(&self) -> Option<Poisonable<ValueType>>
-	{
-		match self
-		{
-			Declaration::Constant { value_type, .. } =>
-			{
-				Some(value_type.clone())
-			}
-			Declaration::Function { return_type, .. } => return_type.clone(),
-			Declaration::FunctionHead { return_type, .. } =>
-			{
-				return_type.clone()
-			}
-			Declaration::Structure {
-				structural_type, ..
-			} => Some(structural_type.clone()),
-			Declaration::PreprocessorDirective { .. } => unreachable!(),
-			Declaration::Poison(_) => Some(Err(Poison::Poisoned)),
-		}
-	}
-}
-
 impl Analyzable for Declaration
 {
 	fn analyze(self, typer: &mut Typer) -> Self
@@ -894,20 +870,20 @@ impl Analyzable for Declaration
 				// Pre-analyze the function body because it might contain
 				// untyped declarations, e.g. "var x;", whose types won't be
 				// determined in the first pass.
-				typer.contextual_type = return_type.clone();
+				typer.contextual_type = Some(return_type.clone());
 				let prebody: FunctionBody = body.clone().analyze(typer);
 				// Pre-analyze the statements in reverse, because there might
 				// be chains of untyped declarations, e.g.
 				//   var x = 1;
 				//   var y = x;
 				// whose types won't be determined in the forward pass.
-				typer.contextual_type = return_type.clone();
+				typer.contextual_type = Some(return_type.clone());
 				for statement in prebody.statements.into_iter().rev()
 				{
 					let _unused: Statement = statement.analyze(typer);
 				}
 
-				typer.contextual_type = return_type.clone();
+				typer.contextual_type = Some(return_type.clone());
 				let body = body.analyze(typer);
 
 				let return_type =
@@ -941,29 +917,30 @@ impl Analyzable for Declaration
 
 fn analyze_return_value(
 	function: &Identifier,
-	return_type: Option<Poisonable<ValueType>>,
+	return_type: Poisonable<ValueType>,
 	body: &FunctionBody,
 	typer: &mut Typer,
-) -> Option<Poisonable<ValueType>>
+) -> Poisonable<ValueType>
 {
-	let return_type = match return_type.transpose()
+	let return_type = match return_type
 	{
-		Ok(x) => x,
-		Err(poison) => return Some(Err(poison)),
+		Ok(ValueType::Void) => None,
+		Ok(x) => Some(x),
+		Err(poison) => return Err(poison),
 	};
 	let body_value_type = match body.value_type().transpose()
 	{
 		Ok(x) => x,
-		Err(_poison) => return Some(Err(Poison::Poisoned)),
+		Err(_poison) => return Err(Poison::Poisoned),
 	};
-	let result = match (&return_type, &body.return_value, body_value_type)
+	let result = match (return_type, &body.return_value, body_value_type)
 	{
 		(Some(rt), Some(_), Some(vt)) =>
 		{
 			let rv_identifier = function.return_value().inferred();
 			match typer.put_symbol(&rv_identifier, Some(Ok(vt)))
 			{
-				Ok(()) => Ok(()),
+				Ok(()) => Ok(rt),
 				Err(Error::ConflictingTypes {
 					current_type: vt, ..
 				}) => Err(Error::ConflictingReturnValue {
@@ -1007,12 +984,12 @@ fn analyze_return_value(
 			location_of_declaration: function.location.clone(),
 		}),
 		(None, None, Some(_)) => unreachable!(),
-		(None, None, None) => Ok(()),
+		(None, None, None) => Ok(ValueType::Void),
 	};
 	match result
 	{
-		Ok(()) => Ok(return_type).transpose(),
-		Err(error) => Some(Err(error.into())),
+		Ok(return_type) => Ok(return_type),
+		Err(error) => Err(error.into()),
 	}
 }
 
@@ -2730,17 +2707,17 @@ fn analyze_type(
 }
 
 fn fix_return_type_for_flags(
-	return_type: Option<Poisonable<ValueType>>,
+	return_type: Poisonable<ValueType>,
 	flags: &EnumSet<DeclarationFlag>,
 	location_of_type: &Location,
 	location_of_declaration: &Location,
-) -> Option<Poisonable<ValueType>>
+) -> Poisonable<ValueType>
 {
 	let value_type = match return_type
 	{
-		Some(Ok(value_type)) => value_type,
-		Some(Err(poison)) => return Some(Err(poison)),
-		None => return None,
+		Ok(ValueType::Void) => return Ok(ValueType::Void),
+		Ok(value_type) => value_type,
+		Err(poison) => return Err(poison),
 	};
 
 	let fixed_type = fix_type_for_flags(
@@ -2754,12 +2731,12 @@ fn fix_return_type_for_flags(
 	let value_type = match fixed_type
 	{
 		Ok(value_type) => value_type,
-		Err(error) => return Some(Err(error.into())),
+		Err(error) => return Err(error.into()),
 	};
 
 	if value_type.can_be_returned()
 	{
-		Some(Ok(value_type))
+		Ok(value_type)
 	}
 	else
 	{
@@ -2767,7 +2744,7 @@ fn fix_return_type_for_flags(
 			value_type,
 			location: location_of_type.clone(),
 		};
-		Some(Err(error.into()))
+		Err(error.into())
 	}
 }
 

@@ -19,6 +19,7 @@ pub enum ValueType<I>
 where
 	I: Identifier,
 {
+	Void,
 	Int8,
 	Int16,
 	Int32,
@@ -84,10 +85,20 @@ impl<I> ValueType<I>
 where
 	I: Identifier,
 {
+	pub fn is_void(&self) -> bool
+	{
+		match self
+		{
+			ValueType::Void => true,
+			_ => false,
+		}
+	}
+
 	pub fn is_integral(&self) -> bool
 	{
 		match self
 		{
+			ValueType::Void => false,
 			ValueType::Int8 => true,
 			ValueType::Int16 => true,
 			ValueType::Int32 => true,
@@ -116,6 +127,7 @@ where
 	{
 		match self
 		{
+			ValueType::Void => None,
 			ValueType::Int8 => Some(1),
 			ValueType::Int16 => Some(2),
 			ValueType::Int32 => Some(4),
@@ -420,6 +432,7 @@ where
 	{
 		match self
 		{
+			ValueType::Void => true,
 			ValueType::Array {
 				element_type,
 				length,
@@ -492,6 +505,7 @@ where
 	{
 		match self
 		{
+			ValueType::Void => false,
 			ValueType::Slice { .. } => false,
 			ValueType::EndlessArray { .. } => false,
 			ValueType::Arraylike { .. } => false,
@@ -510,6 +524,7 @@ where
 	{
 		match self
 		{
+			ValueType::Void => false,
 			ValueType::Slice { .. } => false,
 			ValueType::EndlessArray { .. } => false,
 			ValueType::Arraylike { .. } => false,
@@ -521,6 +536,7 @@ where
 	{
 		match self
 		{
+			ValueType::Void => false,
 			ValueType::Slice { .. } => false,
 			ValueType::EndlessArray { .. } => false,
 			ValueType::Arraylike { .. } => false,
@@ -533,6 +549,7 @@ where
 	{
 		match self
 		{
+			ValueType::Void => false,
 			ValueType::Array { .. } => false,
 			ValueType::Struct { .. } => false,
 			_ => self.is_wellformed(),
@@ -548,7 +565,6 @@ where
 			ValueType::EndlessArray { .. } => false,
 			ValueType::Arraylike { .. } => false,
 			ValueType::Struct { .. } => false,
-			ValueType::Word { .. } => true,
 			ValueType::UnresolvedStructOrWord { .. } => false,
 			ValueType::View { .. } => false,
 			_ => self.is_wellformed(),

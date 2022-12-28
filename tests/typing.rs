@@ -187,6 +187,12 @@ fn fail_to_type_endless_array_as_member()
 }
 
 #[test]
+fn fail_to_type_view_as_member()
+{
+	compile_to_fail(&[356], "tests/samples/invalid/view_as_member.pn")
+}
+
+#[test]
 fn fail_to_type_word_size_exceeded()
 {
 	compile_to_fail(&[380, 380], "tests/samples/invalid/word_size_exceeded.pn")

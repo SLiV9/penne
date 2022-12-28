@@ -182,12 +182,12 @@ impl Rebuildable for Declaration
 					}
 				}
 				write!(&mut buffer, ")")?;
-				if let Some(value_type) = return_type
+				if return_type.as_ref().map(|x| !x.is_void()).unwrap_or(true)
 				{
 					write!(
 						&mut buffer,
 						" -> {}",
-						value_type.rebuild(&indentation.increased())?
+						return_type.rebuild(&indentation.increased())?
 					)?;
 				}
 				write!(&mut buffer, "\n{}", body.rebuild(indentation)?)?;
@@ -226,12 +226,12 @@ impl Rebuildable for Declaration
 					}
 				}
 				write!(&mut buffer, ")")?;
-				if let Some(value_type) = return_type
+				if return_type.as_ref().map(|x| !x.is_void()).unwrap_or(true)
 				{
 					write!(
 						&mut buffer,
 						" -> {}",
-						value_type.rebuild(&indentation.increased())?
+						return_type.rebuild(&indentation.increased())?
 					)?;
 				}
 				writeln!(&mut buffer, ";")?;

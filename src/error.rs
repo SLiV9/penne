@@ -2476,6 +2476,7 @@ fn show_type_inner(value_type: &ValueType) -> String
 {
 	match value_type
 	{
+		ValueType::Void => "void".to_string(),
 		ValueType::Int8 => "i8".to_string(),
 		ValueType::Int16 => "i16".to_string(),
 		ValueType::Int32 => "i32".to_string(),

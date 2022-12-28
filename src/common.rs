@@ -33,7 +33,7 @@ pub enum Declaration
 		name: Identifier,
 		parameters: Vec<Parameter>,
 		body: Poisonable<FunctionBody>,
-		return_type: Option<Poisonable<ValueType>>,
+		return_type: Poisonable<ValueType>,
 		flags: EnumSet<DeclarationFlag>,
 		location_of_declaration: Location,
 		location_of_return_type: Location,
@@ -42,7 +42,7 @@ pub enum Declaration
 	{
 		name: Identifier,
 		parameters: Vec<Parameter>,
-		return_type: Option<Poisonable<ValueType>>,
+		return_type: Poisonable<ValueType>,
 		flags: EnumSet<DeclarationFlag>,
 		location_of_declaration: Location,
 		location_of_return_type: Location,

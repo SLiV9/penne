@@ -355,6 +355,16 @@ fn execute_size_of_struct() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_array_literal_as_argument() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation(
+		"tests/samples/valid/array_literal_as_argument.pn",
+	)?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_word_literal_as_argument() -> Result<(), anyhow::Error>
 {
 	let result =

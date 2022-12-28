@@ -715,11 +715,9 @@ impl Analyzable for Declaration
 				{
 					Ok(name) =>
 					{
-						let return_type = return_type.map(|x| {
-							x.and_then(|x| {
-								let return_type = analyze_type(x, analyzer)?;
-								Ok(return_type)
-							})
+						let return_type = return_type.and_then(|x| {
+							let return_type = analyze_type(x, analyzer)?;
+							Ok(return_type)
 						});
 						Declaration::Function {
 							name,
@@ -756,11 +754,9 @@ impl Analyzable for Declaration
 				{
 					Ok(name) =>
 					{
-						let return_type = return_type.map(|x| {
-							x.and_then(|x| {
-								let return_type = analyze_type(x, analyzer)?;
-								Ok(return_type)
-							})
+						let return_type = return_type.and_then(|x| {
+							let return_type = analyze_type(x, analyzer)?;
+							Ok(return_type)
 						});
 						Declaration::FunctionHead {
 							name,

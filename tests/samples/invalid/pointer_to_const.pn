@@ -3,7 +3,6 @@ const C: u8 = 200;
 fn foo(x: &&u8)
 {
 	// This should not be allowed because pointees are mutable.
-	// Use a view instead?
 	&x = &C;
 }
 
