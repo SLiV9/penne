@@ -25,3 +25,8 @@ struct Baz
 {
 	bool: i32,
 }
+
+fn do_something()
+{
+	var baz = struct { x: 0 };
+}

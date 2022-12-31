@@ -10,90 +10,82 @@ variables:
   identifier: '[[:alpha:]][_[:alnum:]]*|_[_[:alnum:]]+'
   int_suffixes: '[iu](8|16|32|64|128|size)'
   float_suffixes: 'f(32|64)'
-  word_x: 'word(8|16|32|64|128)'
+  word_x: 'word8|word16|word32|word64|word128'
+  type_keyword: 'void|{{int_suffixes}}|{{float_suffixes}}|bool|struct|{{word_x}}'
+  literal_keyword: 'true|false'
+  hard_keyword: 'fn|var|const|if|goto|loop|else|as|pub|extern'
+  keyword: '{{hard_keyword}}|{{type_keyword}}|{{literal_keyword}}'
 
 contexts:
   main:
     - include: comments
-
     - match: '\$'
       push: preprocessor_directive
-
-    - match: '\b(pub|extern)\b'
-      scope: storage.modifier.penne
-
-    - match: '\b(const)\b'
-      scope: keyword.declaration.other.penne
-      push: const_declaration
-
-    - match: '\b(fn)\s+(?={{identifier}})\b'
-      captures:
-        1: storage.type.function.penne keyword.declaration.function.penne
-      push: fn_definition
-
-    - match: '\b(struct|{{word_x}})\s+(?={{identifier}})\b'
-      captures:
-        1: storage.type.struct.penne keyword.declaration.struct.penne
-      push: struct_declaration
-
-  statements:
-    - include: expressions
-    - include: comments
-
-    - match: '\b(if|else)\b'
-      scope: keyword.control.conditional.penne
-
-    - match: '\b(loop|goto)\b'
-      scope: keyword.control.penne
-
-    - match: '\b(var)\b'
-      scope: keyword.other.penne
-      push: var_declaration
-
-    - match: '(?=\{)'
-      push: block
-
-    - match: '\b({{identifier}}):'
-      scope: entity.name.label.penne
-
-  expressions:
     - match: '"'
       scope: punctuation.definition.string.begin.penne
       push: double_quoted_string
-
     - match: "'"
       scope: punctuation.definition.string.begin.penne
       push: single_quoted_string
-
     - match: '\b((-)?[0-9][.0-9]*)({{int_suffixes}})?\b'
       captures:
         1: constant.numeric.penne
         3: storage.type.numeric.penne
-
     - match: '\b0x[0-9a-fA-F]+\b'
       scope: constant.numeric.penne
-
     - match: '\b0b[01]+\b'
       scope: constant.numeric.penne
-
     - match: '\b(true|false)\b'
       scope: constant.language.penne
-
-    - match: '\b([.])({{identifier}})\b'
+    - match: '\b(var|const|fn|struct|{{word_x}})\s+(?={{keyword}})\b'
+      scope: keyword.other.penne
+    - match: '\b(var)\s+({{identifier}})\b'
       captures:
-        1: punctuation.accessor.penne
-
-    - match: '\b({{identifier}})(?=\s*(\{))\b'
+        1: keyword.other.penne
+    - match: '\b(const)\s+({{identifier}})\b'
       captures:
-        3: punctuation.definition.block.begin.penne
-      push: struct_initialization
+        1: storage.modifier.penne keyword.declaration.other.penne
+        2: variable.other.constant.penne
+    - match: '\b(fn)\s+({{identifier}})\b'
+      captures:
+        1: storage.type.function.penne keyword.declaration.function.penne
+        2: entity.name.function.penne
+      push: fn_signature
+    - match: '\b(struct|{{word_x}})\s+({{identifier}})\b'
+      captures:
+        1: storage.type.struct.penne keyword.declaration.struct.penne
+        2: entity.name.struct.penne
+    - match: '\b({{keyword}})\s*(?=\{)'
+      captures:
+        1: invalid.illegal.penne
+      push: structural
+    - match: '\b({{identifier}})\s*(?=\{)'
+      push: structural
+    - include: keywords
 
-    - match: '\b(as)\b\s*'
+  keywords:
+    - match: \b({{int_suffixes}}|{{float_suffixes}})\b
+      scope: storage.type.numeric.penne
+    - match: \b(bool|void)\b
+      scope: storage.type.penne
+    - match: '\b(pub|extern)\b'
+      scope: storage.modifier.penne
+    - match: '\b(const)\b'
+      scope: keyword.declaration.other.penne storage.modifier.penne
+    - match: '\b(fn)\b'
+      scope: keyword.declaration.function.penne storage.type.function.penne
+    - match: '\b(struct|{{word_x}})\b'
+      scope: keyword.declaration.struct.penne storage.type.struct.penne
+    - match: '\b(if|else)\b'
+      scope: keyword.control.conditional.penne
+    - match: '\b(loop|goto)\b'
+      scope: keyword.control.penne
+    - match: '\b(var)\b'
+      scope: keyword.other.penne
+    - match: '\b(as)\b'
       scope: keyword.operator.word.penne
-      push:
-        - match: '(?=,|;|=|\s)'
-          pop: true
-        - include: type
+    - match: '\b(true|false)\b'
+      scope: constant.language.penne
 
   double_quoted_string:
     - meta_scope: string.quoted.double.penne
@@ -142,205 +134,38 @@ contexts:
     - match: $
       pop: true
 
-  var_declaration:
-    - match: ':(?!:)'
-      scope: punctuation.separator.penne
-      push:
-        - match: '(?=,|;|=)'
-          pop: true
-        - include: type
-    - match: '(?=;|=)'
-      set: var_initialization
-
-  var_initialization:
-    - include: expressions
-    - match: '(?=;)'
-      pop: true
-
-  const_declaration:
-    - match: '{{identifier}}'
-      scope: variable.other.constant.penne
-      set: var_declaration
-
-  fn_definition:
-    - meta_scope: meta.function.penne
-    - match: '{{identifier}}'
-      scope: entity.name.function.penne
-      set: fn_generic
-
-  fn_generic:
-    - match: '(?=\()'
-      set: fn_parameters
-
-  fn_parameters:
-    - meta_scope: meta.function.penne
-    - match: '\)'
-      scope: meta.function.parameters.penne punctuation.definition.parameters.end.penne
-      set: fn_return
-    - match: '\('
-      scope: punctuation.definition.parameters.begin.penne
-      push:
-        - meta_scope: meta.function.parameters.penne
-        - match: '(?=\))'
-          pop: true
-        - include: pattern_param
-
-  pattern_param:
-    - match: '\b{{identifier}}\b'
-      scope: variable.parameter.penne
-    - match: ':(?!:)'
-      scope: punctuation.separator.penne
-      push:
-        - match: '(?=,|\)|\}|\|)'
-          pop: true
-        - match: '\('
-          push:
-            - include: type
-            - match: '\)'
-              pop: true
-        - include: type
-
-  fn_return:
-    - meta_scope: meta.function.penne
-    - match: ';'
-      scope: punctuation.terminator.penne
-      pop: true
+  fn_signature:
     - match: '(?=\{)'
-      set: fn_body
-    - include: return_type
-
-  return_type:
-    - match: '->'
-      scope: punctuation.separator.penne
-      push:
-        - meta_scope: meta.function.return-type.penne
-        - include: type
-        - match: '(?=\S)'
-          pop: true
-
-  fn_body:
-    - meta_scope: meta.function.penne
-    - match: '\}'
-      scope: meta.block.penne punctuation.definition.block.end.penne
+      set: block
+    - match: ';'
       pop: true
-    - match: '\{'
-      scope: punctuation.definition.block.begin.penne
-      push:
-        - meta_scope: meta.block.penne
-        - match: '(?=\})'
-          pop: true
-        - include: statements
+    - include: main
 
   block:
     - match: '\}'
-      scope: meta.block.penne punctuation.definition.block.end.penne
       pop: true
     - match: '\{'
-      scope: meta.block.penne punctuation.definition.block.begin.penne
       push: block_body
 
   block_body:
-    - meta_scope: meta.block.penne
     - match: '(?=\})'
       pop: true
-    - include: statements
+    - match: '(?=\{)'
+      push: block
+    - match: '\b({{keyword}}):'
+      captures:
+        1: invalid.illegal.penne
+    - match: '\b({{identifier}}):'
+      scope: entity.name.label.penne
+    - include: main
 
-  struct_declaration:
-    - meta_scope: meta.struct.penne
-    - match: '{{identifier}}'
-      scope: entity.name.struct.penne
-      set: struct_definition
-
-  struct_definition:
-    - meta_scope: meta.struct.penne
+  structural:
     - match: '\}'
-      scope: meta.block.penne punctuation.definition.block.end.penne
       pop: true
     - match: '\{'
-      scope: punctuation.definition.block.begin.penne
-      push: struct_body
-    - match: '(?=\S)'
-      # Abort for an invalid match.
-      pop: true
+      push: structural_body
 
-  struct_body:
-    - meta_scope: meta.block.penne
+  structural_body:
     - match: '(?=\})'
       pop: true
-    - include: comments
-    - match: '{{identifier}}(?=\s*:)'
-      scope: variable.other.member.penne
-      push:
-        - match: ',|(?=\})'
-          pop: true
-        - include: comments
-        - match: ':'
-          scope: punctuation.separator.penne
-        - include: type
-    - match: '(?=\S)'
-      # Abort for an invalid match.
-      pop: true
-
-  struct_initialization:
-    - match: '\}'
-      scope: meta.block.penne punctuation.definition.block.end.penne
-      pop: true
-    - match: '\{'
-      scope: meta.block.penne punctuation.definition.block.begin.penne
-      push: struct_member_initialization
-    - match: '(?=\S)'
-      # Abort for an invalid match.
-      pop: true
-
-  struct_member_initialization:
-    - meta_scope: meta.block.penne
-    - match: '(?=\})'
-      pop: true
-    - include: comments
-    - match: '{{identifier}}(?=\s*:)'
-      push:
-        - match: ',|(?=\})'
-          pop: true
-        - include: comments
-        - include: expressions
-        - match: ':'
-          scope: punctuation.separator.penne
-    - match: '(?=\S)'
-      # Abort for an invalid match.
-      pop: true
-
-#  array:
-#    - match: '\]'
-#      scope: meta.brackets.penne punctuation.section.brackets.end.penne
-#      pop: true
-#    - match: '\['
-#      scope: meta.brackets.penne punctuation.section.brackets.begin.penne
-#      push: array_body
-#
-#  array_body:
-#    - meta_scope: meta.brackets.penne
-#    - match: '(?=\])'
-#      pop: true
-#    - include: expressions
-#
-#  array_type:
-#    - match: '\]'
-#      scope: storage.type.penne meta.brackets.penne punctuation.section.brackets.end.penne
-#      pop: true
-#    - match: '\['
-#      scope: storage.type.penne meta.brackets.penne punctuation.section.brackets.begin.penne
-#      push: array_type_body
-#
-#  array_type_body:
-#    - meta_scope: storage.type.penne meta.brackets.penne
-#    - include: expressions
-#    - include: type
-#    - match: '(?=\])'
-#      pop: true
-
-  type:
-    - match: \b({{int_suffixes}}|{{float_suffixes}})\b
-      scope: storage.type.numeric.penne
-    - match: \b(bool|void)\b
-      scope: storage.type.penne
-    - include: expressions
+    - include: main
