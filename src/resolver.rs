@@ -199,7 +199,7 @@ impl Resolvable for Declaration
 			{
 				let (name, parameters, body, return_type) =
 					(name, parameters, body, return_type).resolve()?;
-				let return_type = Some(return_type).filter(|x| x.is_void());
+				let return_type = Some(return_type).filter(|x| !x.is_void());
 				Ok(resolved::Declaration::Function {
 					name,
 					parameters,
@@ -219,7 +219,7 @@ impl Resolvable for Declaration
 			{
 				let (name, parameters, return_type) =
 					(name, parameters, return_type).resolve()?;
-				let return_type = Some(return_type).filter(|x| x.is_void());
+				let return_type = Some(return_type).filter(|x| !x.is_void());
 				Ok(resolved::Declaration::FunctionHead {
 					name,
 					parameters,
@@ -765,6 +765,7 @@ impl Resolvable for ValueType
 	{
 		match self
 		{
+			ValueType::Void => Ok(resolved::ValueType::Void),
 			ValueType::Int8 => Ok(resolved::ValueType::Int8),
 			ValueType::Int16 => Ok(resolved::ValueType::Int16),
 			ValueType::Int32 => Ok(resolved::ValueType::Int32),

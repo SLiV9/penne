@@ -762,6 +762,7 @@ impl Rebuildable for ValueType
 	{
 		match self
 		{
+			ValueType::Void => Ok("void".to_string()),
 			ValueType::Int8 => Ok("i8".to_string()),
 			ValueType::Int16 => Ok("i16".to_string()),
 			ValueType::Int32 => Ok("i32".to_string()),

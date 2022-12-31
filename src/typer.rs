@@ -867,23 +867,32 @@ impl Analyzable for Declaration
 			{
 				// All parameters are analyzed before any function bodies.
 
+				// Do not use Void as the contextual type becaue we want an
+				// unbiased suggestion for the type of the return value.
+				let contextual_return_type = match &return_type
+				{
+					Ok(ValueType::Void) => None,
+					Ok(vt) => Some(Ok(vt.clone())),
+					Err(poison) => Some(Err(poison.clone())),
+				};
+
 				// Pre-analyze the function body because it might contain
 				// untyped declarations, e.g. "var x;", whose types won't be
 				// determined in the first pass.
-				typer.contextual_type = Some(return_type.clone());
+				typer.contextual_type = contextual_return_type.clone();
 				let prebody: FunctionBody = body.clone().analyze(typer);
 				// Pre-analyze the statements in reverse, because there might
 				// be chains of untyped declarations, e.g.
 				//   var x = 1;
 				//   var y = x;
 				// whose types won't be determined in the forward pass.
-				typer.contextual_type = Some(return_type.clone());
+				typer.contextual_type = contextual_return_type.clone();
 				for statement in prebody.statements.into_iter().rev()
 				{
 					let _unused: Statement = statement.analyze(typer);
 				}
 
-				typer.contextual_type = Some(return_type.clone());
+				typer.contextual_type = contextual_return_type;
 				let body = body.analyze(typer);
 
 				let return_type =
@@ -2645,6 +2654,7 @@ fn analyze_type(
 		}
 		ValueType::Struct { .. } => Ok(value_type),
 		ValueType::Word { .. } => Ok(value_type),
+		ValueType::Void => Ok(ValueType::Void),
 		ValueType::Int8 => Ok(ValueType::Int8),
 		ValueType::Int16 => Ok(ValueType::Int16),
 		ValueType::Int32 => Ok(ValueType::Int32),

@@ -82,6 +82,12 @@ fn fail_to_type_initialization_type_mismatch()
 }
 
 #[test]
+fn fail_to_type_assign_from_void()
+{
+	compile_to_fail(&[504], "tests/samples/invalid/assign_from_void.pn")
+}
+
+#[test]
 fn fail_to_type_missing_return_type()
 {
 	compile_to_fail(

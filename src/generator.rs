@@ -1152,6 +1152,7 @@ impl Generatable for ValueType
 	{
 		let typeref = match self
 		{
+			ValueType::Void => unreachable!(),
 			ValueType::Int8 =>
 			unsafe { LLVMInt8TypeInContext(llvm.context) },
 			ValueType::Int16 =>

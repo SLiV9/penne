@@ -313,6 +313,7 @@ impl Analyzer
 		{
 			Ok(value_type) => match value_type
 			{
+				ValueType::Void => Ok(value_type),
 				ValueType::Int8 => Ok(value_type),
 				ValueType::Int16 => Ok(value_type),
 				ValueType::Int32 => Ok(value_type),
@@ -1301,6 +1302,7 @@ fn analyze_type(
 				size_in_bytes,
 			})
 		}
+		ValueType::Void => Ok(ValueType::Void),
 		ValueType::Int8 => Ok(ValueType::Int8),
 		ValueType::Int16 => Ok(ValueType::Int16),
 		ValueType::Int32 => Ok(ValueType::Int32),
