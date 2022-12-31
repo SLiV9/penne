@@ -323,6 +323,7 @@ fn lex_line(
 					"as" => Token::As,
 					"true" => Token::Bool(true),
 					"false" => Token::Bool(false),
+					"void" => Token::Type(ValueType::Void),
 					"i8" => Token::Type(ValueType::Int8),
 					"i16" => Token::Type(ValueType::Int16),
 					"i32" => Token::Type(ValueType::Int32),

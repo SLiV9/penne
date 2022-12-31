@@ -267,6 +267,12 @@ fn can_start_declaration(token: &Token) -> bool
 		Token::Extern => true,
 		Token::Const => true,
 		Token::Fn => true,
+		Token::Struct => true,
+		Token::Word8 => true,
+		Token::Word16 => true,
+		Token::Word32 => true,
+		Token::Word64 => true,
+		Token::Word128 => true,
 		Token::DebugDollar => true,
 		_ => false,
 	}

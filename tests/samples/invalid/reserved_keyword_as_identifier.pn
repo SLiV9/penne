@@ -1,0 +1,20 @@
+
+fn i128()
+{
+	var ok = true;
+}
+
+fn foo()
+{
+	var usize = true;
+}
+
+struct void
+{
+	x: i32,
+}
+
+struct Bar
+{
+	bool: i32,
+}

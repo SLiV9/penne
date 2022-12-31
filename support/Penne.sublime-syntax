@@ -339,6 +339,6 @@ contexts:
 #      pop: true
 
   type:
-    - match: \b({{int_suffixes}}|{{float_suffixes}}|bool|char)\b
+    - match: \b({{int_suffixes}}|{{float_suffixes}}|bool|void)\b
       scope: storage.type.penne
     - include: expressions
