@@ -4,3 +4,4 @@ struct Foo
 }
 
 extern fn foo(foo: Foo);
+extern fn bar(foo: &Foo);

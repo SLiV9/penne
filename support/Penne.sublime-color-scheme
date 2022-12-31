@@ -1,0 +1,144 @@
+{
+    "name": "Penne",
+    "author": "Sander in 't Veld",
+    "variables":
+    {
+        "white": "#ebdbb2",
+        "white2": "#d5c4a1",
+        "white3": "#bdae93",
+        "black": "#282828",
+        "black2": "#32302f",
+        "black3": "#3c3836",
+        "dark_grey": "#504945",
+        "light_grey": "#928374",
+        "bright_red": "#fb4934",
+        "bright_green": "#b8bb26",
+        "bright_yellow": "#fabd2f",
+        "bright_blue": "#83a598",
+        "bright_purple": "#d3869b",
+        "bright_aqua": "#8ec07c",
+        "bright_orange": "#fe8019",
+        "neutral_red": "#cc241d",
+        "neutral_green": "#98971a",
+        "neutral_yellow": "#d79921",
+        "neutral_blue": "#458588",
+        "neutral_purple": "#b16286",
+        "neutral_aqua": "#689d6a",
+        "neutral_orange": "#d65d0e",
+        "faded_red": "#9d0006",
+        "faded_green": "#79740e",
+        "faded_yellow": "#b57614",
+        "faded_blue": "#076678",
+        "faded_purple": "#8f3f71",
+        "faded_aqua": "#427b58",
+        "faded_orange": "#af3a03",
+        "red": "var(bright_red)",
+        "green": "var(bright_green)",
+        "yellow": "var(bright_yellow)",
+        "blue": "var(bright_blue)",
+        "purple": "var(bright_purple)",
+        "aqua": "var(bright_aqua)",
+        "orange": "var(bright_orange)",
+    },
+    "globals":
+    {
+        "foreground": "var(white)",
+        "background": "var(black)",
+        "caret": "color(var(white2) alpha(0.9))",
+        "block_caret": "color(var(white2) alpha(0.2))",
+        "block_caret_border": "color(var(white2) alpha(0.8))",
+        "invisibles": "color(var(white3) alpha(0.35))",
+        "line_highlight": "var(dark_grey)",
+        "selection": "var(black3)",
+        "selection_border": "var(black2)",
+        "misspelling": "var(bright_orange)",
+        "active_guide": "color(var(faded_orange) alpha(0.69))",
+        "find_highlight_foreground": "var(black)",
+        "find_highlight": "var(neutral_orange)",
+        "brackets_options": "underline",
+        "brackets_foreground": "color(var(white3) alpha(0.65))",
+        "bracket_contents_options": "underline",
+        "bracket_contents_foreground": "color(var(white3) alpha(0.65))",
+        "tags_options": "stippled_underline",
+    },
+    "rules":
+    [
+        {
+            "name": "Comment",
+            "scope": "comment",
+            "foreground": "var(light_grey)"
+        },
+        {
+            "name": "String",
+            "scope": "string",
+            "foreground": "var(yellow)"
+        },
+        {
+            "name": "Constants",
+            "scope": "constant",
+            "foreground": "var(purple)"
+        },
+        {
+            "name": "User-defined constant",
+            "scope": "constant.character.escape",
+            "foreground": "var(neutral_purple)"
+        },
+        {
+            "name": "Type keywords",
+            "scope": "storage.type",
+            "foreground": "var(red)",
+            "font_style": "italic"
+        },
+        {
+            "name": "Modifier keywords",
+            "scope": "storage.modifier",
+            "foreground": "var(red)"
+        },
+        {
+            "name": "Keywords",
+            "scope": "keyword",
+            "foreground": "var(red)",
+        },
+        {
+            "name": "Declaration keywords",
+            "scope": "keyword.declaration",
+            "foreground": "var(red)",
+            "font_style": "bold"
+        },
+        {
+            "name": "Control keywords",
+            "scope": "keyword.control",
+            "foreground": "var(red)",
+            "font_style": "bold"
+        },
+        {
+            "name": "Entity name",
+            "scope": "entity.name",
+            "foreground": "var(green)",
+            "font_style": "bold"
+        },
+        {
+            "name": "Label name",
+            "scope": "entity.name.label",
+            "foreground": "var(green)",
+            "font_style": "bold"
+        },
+        {
+            "name": "Constant name",
+            "scope": "variable.other.constant",
+            "foreground": "var(white)",
+            "font_style": "bold"
+        },
+        {
+            "name": "Standard library supported entities",
+            "scope": "support",
+            "foreground": "var(blue)"
+        },
+        {
+            "name": "Invalid",
+            "scope": "invalid",
+            "foreground": "var(white)",
+            "background": "var(neutral_red)"
+        },
+    ]
+}

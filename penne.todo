@@ -21,9 +21,7 @@ Functionality:
 		☐	A [3]i32 parameter is typechecked as [3]i32 but implemented as []i32
 		✔	In extern functions, use pointers instead of slice structs @done (2022-09-08 12:09)
 	✔	String literals @done (2022-12-01 16:31)
-		☐	\u{NN} through \u{NNNNN}
 	✔	Byte string literals @done (2022-09-22 15:22)
-		✔	\xNN @done (2022-09-22 15:22)
 	✔	FFI @done (2022-09-22 15:22)
 		✔	extern C fn(); @done (2022-09-05 18:38)
 		✔	pub extern C fn() {...} @done (2022-09-05 16:51)
@@ -41,7 +39,7 @@ Functionality:
 		☐	Ability to use weak enums to define int types with niches
 	✔	Function calls @done (2021-01-16 18:03)
 	✔	Function parameters @done (2021-01-16 18:03)
-	☐	Structs
+	✔	Structs @done (2022-12-31 13:55)
 		✔	Struct parameters should be in views @done (2022-11-20 16:21)
 		✔	Structs should not be packed by default @done (2022-12-15 20:50)
 			✔	Sizeof operator @done (2022-12-15 19:15)
@@ -54,8 +52,8 @@ Functionality:
 		✔	Think about repr(C) and (disallowing) cast between word/struct/u128 @done (2022-12-15 18:16)
 			All structs and words are repr(C). There are no casts except transmute().
 		✘	Reorder non-extern words and structs to shrink their size @cancelled (2022-12-15 20:50)
-		☐	Extern structs and words
-			☐	Allow only extern struct and words in externalize_type()
+		☐	Allow (only) extern struct and words in externalize_type()
+			☐	Think about explicit view translated to "const T* const"
 	✘	Vec and String @cancelled (2022-12-01 15:57)
 	✘	Explicit mutable parameters @cancelled (2022-09-03 16:04)
 	☐	Modules
@@ -104,6 +102,7 @@ Linting errors:
 Usability:
 	✔	Error recovery @done (2022-10-09 22:24)
 		☐	Better error recovery when an opening brace is consumed
+			☐	Experiment with structural pre-parsing phase
 		☐	Better error recovery for unmatched parentheses
 		☐	Prevent duplicate "reference to undefined struct" errors?
 		☐	Better "duplicate variable" error text for parameters and members

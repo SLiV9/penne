@@ -23,17 +23,17 @@ contexts:
       scope: storage.modifier.penne
 
     - match: '\b(const)\b'
-      scope: keyword.other.penne
+      scope: keyword.declaration.other.penne
       push: const_declaration
 
     - match: '\b(fn)\s+(?={{identifier}})\b'
       captures:
-        1: keyword.declaration.function.penne storage.type.function.penne
+        1: storage.type.function.penne keyword.declaration.function.penne
       push: fn_definition
 
     - match: '\b(struct|{{word_x}})\s+(?={{identifier}})\b'
       captures:
-        1: keyword.declaration.struct.penne storage.type.struct.penne
+        1: storage.type.struct.penne keyword.declaration.struct.penne
       push: struct_declaration
 
   statements:
@@ -68,7 +68,7 @@ contexts:
     - match: '\b((-)?[0-9][.0-9]*)({{int_suffixes}})?\b'
       captures:
         1: constant.numeric.penne
-        3: storage.type.penne
+        3: storage.type.numeric.penne
 
     - match: '\b0x[0-9a-fA-F]+\b'
       scope: constant.numeric.penne
@@ -339,6 +339,8 @@ contexts:
 #      pop: true
 
   type:
-    - match: \b({{int_suffixes}}|{{float_suffixes}}|bool|void)\b
+    - match: \b({{int_suffixes}}|{{float_suffixes}})\b
+      scope: storage.type.numeric.penne
+    - match: \b(bool|void)\b
       scope: storage.type.penne
     - include: expressions

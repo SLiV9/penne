@@ -9,12 +9,19 @@ fn foo()
 	var usize = true;
 }
 
+fn bar()
+{
+	start:
+	extern:
+	end:
+}
+
 struct void
 {
 	x: i32,
 }
 
-struct Bar
+struct Baz
 {
 	bool: i32,
 }

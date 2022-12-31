@@ -1,0 +1,59 @@
+/// Example doc-style comment.
+
+const DATA_HEIGHT: u32 = 3;
+const DATA: [3]u8 = [
+	0b11000011,
+	0b10000001,
+	0b00100100,
+];
+
+fn determine_collatz_number(start: i32) -> i32
+{
+	var x = start;
+	var steps = 0;
+	{
+		if x == 1
+			goto return;
+		do_collatz_step(&x);
+		steps = steps + 1;
+		loop;
+	}
+	return: steps
+}
+
+fn do_collatz_step(x: &i32)
+{
+	// Left as an exercise for the reader.
+}
+
+word64 Position
+{
+	x: i32,
+	y: i32,
+}
+
+fn sum_of_position(pos: Position) -> i32
+{
+	return: pos.x + pos.y
+}
+
+struct FourPositions
+{
+	positions: [4]Position,
+}
+
+pub extern fn something_with_pointers(u: &&i32)
+{
+	var i: i32 = 17;
+	var x: &i32 = &i;
+	var a: &&i32 = &&x;
+	&&a = &&u;
+	var text = "Save up to \u{20a0}50 or \xA350 or more!\0";
+}
+
+fn something_with_casting()
+{
+	var a: bool = true;
+	var data: []i16 = [80, 20];
+	var result = a as u8 + |data| as u8;
+}

@@ -190,7 +190,7 @@ fn fail_to_parse_missing_closing_parenthesis_after_parameters()
 fn fail_to_parse_reserved_keyword_as_identifier()
 {
 	compile_to_fail(
-		&[300, 300, 300, 300],
+		&[300, 300, 300, 300, 300],
 		"tests/samples/invalid/reserved_keyword_as_identifier.pn",
 	)
 }
