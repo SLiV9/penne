@@ -58,6 +58,7 @@ Functionality:
 	✘	Explicit mutable parameters @cancelled (2022-09-03 16:04)
 	☐	Modules
 		☐	pragma once
+		  ☐	Prevent circular imports
 		☐	Public vs private
 			☐	This requires linking multiple source files
 		☐	Namespacing

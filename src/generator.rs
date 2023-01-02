@@ -125,7 +125,7 @@ impl Generator
 
 	fn generate_ir(&self) -> Result<String, anyhow::Error>
 	{
-		let ircode = unsafe {
+		let ircode: CString = unsafe {
 			let raw = LLVMPrintModuleToString(self.module);
 			let ircode = CStr::from_ptr(raw).to_owned();
 			LLVMDisposeMessage(raw);

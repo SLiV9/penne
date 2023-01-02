@@ -1,0 +1,7 @@
+import "position.pn";
+
+word128 Line
+{
+	from: Position,
+	to: Position,
+}

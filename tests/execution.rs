@@ -391,6 +391,15 @@ fn execute_constant_array() -> Result<(), anyhow::Error>
 	Ok(())
 }
 
+#[test]
+fn execute_import_position_and_line() -> Result<(), anyhow::Error>
+{
+	let result =
+		execute_calculation("tests/samples/valid/import_position_and_line.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
 fn execute_calculation(filename: &str) -> Result<i32, anyhow::Error>
 {
 	let source = std::fs::read_to_string(&filename)?;
