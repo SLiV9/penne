@@ -588,265 +588,336 @@ impl Error
 
 	#[cfg_attr(coverage, no_coverage)]
 	#[cfg(not(tarpaulin_include))]
-	pub fn report(&self) -> Report<(String, std::ops::Range<usize>)>
+	fn location(&self) -> &Location
 	{
-		let a = ariadne::Color::Yellow;
-		let b = ariadne::Color::Cyan;
-		let c = ariadne::Color::Magenta;
-
 		match self
 		{
-			Error::UnexpectedEndOfFile {
-				expectation,
-				last_location,
-			} => Report::build(
-				ReportKind::Error,
-				&last_location.source_filename,
-				last_location.span.end,
-			)
-			.with_code(format!("E{}", self.code()))
+			Error::UnexpectedEndOfFile { last_location, .. } => &last_location,
+			Error::Lexical { location, .. } => &location,
+			Error::UnexpectedToken { location, .. } => &location,
+			Error::UnexpectedSemicolonAfterIdentifier { location, .. } =>
+			{
+				&location
+			}
+			Error::UnexpectedSemicolonAfterReturnValue { location, .. } =>
+			{
+				&location
+			}
+			Error::MissingReturnType {
+				location_of_return_value,
+				..
+			} => &location_of_return_value,
+			Error::MissingAmbiguousReturnType {
+				location_of_return_value,
+				..
+			} => &location_of_return_value,
+			Error::AmbiguousReturnValue {
+				location_of_return_value,
+				..
+			} => &location_of_return_value,
+			Error::ConflictingReturnValue {
+				location_of_return_value,
+				..
+			} => &location_of_return_value,
+			Error::MissingReturnValue { location, .. } => &location,
+			Error::MissingReturnValueAfterStatement { location, .. } =>
+			{
+				&location
+			}
+			Error::MissingConstantType { location, .. } => &location,
+			Error::MissingParameterType { location, .. } => &location,
+			Error::MissingMemberType { location, .. } => &location,
+			Error::IllegalType { location, .. } => &location,
+			Error::IllegalReturnType { location, .. } => &location,
+			Error::IllegalVariableType { location, .. } => &location,
+			Error::IllegalConstantType { location, .. } => &location,
+			Error::IllegalParameterType { location, .. } => &location,
+			Error::IllegalMemberType { location, .. } => &location,
+			Error::TypeNotAllowedInExtern {
+				location_of_type, ..
+			} => &location_of_type,
+			Error::UnsupportedInConstContext { location, .. } => &location,
+			Error::FunctionInConstContext { location, .. } => &location,
+			Error::WordSizeMismatch {
+				location_of_keyword,
+				..
+			} => &location_of_keyword,
+			Error::MaximumParseDepthExceeded { location, .. } => &location,
+			Error::UndefinedLabel { location, .. } => &location,
+			Error::UndefinedFunction { location, .. } => &location,
+			Error::UndefinedVariable { location, .. } => &location,
+			Error::UndefinedStructure { location, .. } => &location,
+			Error::UndefinedMember { location, .. } => &location,
+			Error::CyclicalConstant { location, .. } => &location,
+			Error::CyclicalStructure {
+				location_of_declaration,
+				..
+			} => &location_of_declaration,
+			Error::DuplicateDeclarationLabel { location, .. } => &location,
+			Error::DuplicateDeclarationFunction { location, .. } => &location,
+			Error::DuplicateDeclarationVariable { location, .. } => &location,
+			Error::DuplicateDeclarationConstant { location, .. } => &location,
+			Error::DuplicateDeclarationParameter { location, .. } => &location,
+			Error::DuplicateDeclarationStructure { location, .. } => &location,
+			Error::DuplicateDeclarationMember { location, .. } => &location,
+			Error::ConflictingTypes { location, .. } => &location,
+			Error::NotAnArray { location, .. } => &location,
+			Error::NotAnArrayWithLength { location, .. } => &location,
+			Error::IndexTypeMismatch { location, .. } => &location,
+			Error::ConflictingTypesInAssignment { location, .. } => &location,
+			Error::NotAStructure { location, .. } => &location,
+			Error::TooFewArguments { location, .. } => &location,
+			Error::TooManyArguments { location, .. } => &location,
+			Error::ArgumentTypeMismatch { location, .. } => &location,
+			Error::ArgumentMissingAddress { location, .. } => &location,
+			Error::NotMutable { location, .. } => &location,
+			Error::CannotCopyArray { location, .. } => &location,
+			Error::CannotCopySlice { location, .. } => &location,
+			Error::CannotCopyStruct { location, .. } => &location,
+			Error::AddressOfTemporaryAddress { location, .. } => &location,
+			Error::InvalidOperandType { location_of_op, .. } => &location_of_op,
+			Error::MismatchedOperandTypes { location_of_op, .. } =>
+			{
+				&location_of_op
+			}
+			Error::InvalidPrimitiveCast {
+				location_of_operand,
+				..
+			} => &location_of_operand,
+			Error::AmbiguousType { location, .. } => &location,
+			Error::AmbiguousTypeOfDeclaration { location, .. } => &location,
+			Error::AmbiguousTypeOfNakedIntegerLiteral { location, .. } =>
+			{
+				&location
+			}
+			Error::AmbiguousTypeOfArrayLiteral { location, .. } => &location,
+			Error::AmbiguousTypeOfStringLiteral { location, .. } => &location,
+			Error::NonFinalLoopStatement { location, .. } => &location,
+			Error::MisplacedLoopStatement { location, .. } => &location,
+			Error::VariableDeclarationMayBeSkipped { location, .. } =>
+			{
+				&location
+			}
+			Error::MissingBraces { location, .. } => &location,
+		}
+	}
+
+	#[cfg_attr(coverage, no_coverage)]
+	#[cfg(not(tarpaulin_include))]
+	pub fn report(&self) -> Report<(String, std::ops::Range<usize>)>
+	{
+		let location = self.location();
+		let report = Report::build(
+			ReportKind::Error,
+			&location.source_filename,
+			location.span.end,
+		)
+		.with_code(format!("E{}", self.code()));
+		let report = write(report, self);
+		report.finish()
+	}
+}
+
+const PRIMARY: ariadne::Color = ariadne::Color::Yellow;
+const SECONDARY: ariadne::Color = ariadne::Color::Cyan;
+const TERTIARY: ariadne::Color = ariadne::Color::Magenta;
+
+fn write(
+	report: ariadne::ReportBuilder<(String, std::ops::Range<usize>)>,
+	error: &Error,
+) -> ariadne::ReportBuilder<(String, std::ops::Range<usize>)>
+{
+	match error
+	{
+		Error::UnexpectedEndOfFile {
+			last_location,
+			expectation,
+		} => report
 			.with_message("Unexpected end of file")
 			.with_label(
 				last_location
 					.label_after_end()
 					.with_message(expectation)
 					.with_order(1)
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				last_location
 					.label()
 					.with_message("Expected more after this.".to_string())
 					.with_order(2)
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::Lexical {
-				error: lexer::Error::UnexpectedCharacter,
-				expectation,
-				location,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Unexpected character")
-			.with_label(
-				location.label().with_message(expectation).with_color(a),
-			)
-			.finish(),
+		Error::Lexical {
+			error: lexer::Error::UnexpectedCharacter,
+			expectation,
+			location,
+		} => report.with_message("Unexpected character").with_label(
+			location
+				.label()
+				.with_message(expectation)
+				.with_color(PRIMARY),
+		),
 
-			Error::Lexical {
-				error: lexer::Error::InvalidIntegerLiteral(inner_error),
-				expectation,
-				location,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::Lexical {
+			error: lexer::Error::InvalidIntegerLiteral(inner_error),
+			expectation,
+			location,
+		} => report
 			.with_message("Invalid integer literal")
-			.with_label(
-				location.label().with_message(expectation).with_color(a),
-			)
-			.with_note(format!("{}", inner_error))
-			.finish(),
-
-			Error::Lexical {
-				error: lexer::Error::InvalidBitIntegerLiteral,
-				expectation,
-				location,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Invalid bit integer literal")
-			.with_label(
-				location.label().with_message(expectation).with_color(a),
-			)
-			.with_note(format!(
-				"Hexadecimal and binary integer literals have to fit {}.",
-				"`u64`".fg(a)
-			))
-			.finish(),
-
-			Error::Lexical {
-				error: lexer::Error::InvalidNakedIntegerLiteral,
-				expectation,
-				location,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Invalid untyped integer literal")
-			.with_label(
-				location.label().with_message(expectation).with_color(a),
-			)
-			.with_note(format!(
-				"Consider adding a type suffix like {}.",
-				"`i128`".fg(a)
-			))
-			.finish(),
-
-			Error::Lexical {
-				error: lexer::Error::InvalidIntegerTypeSuffix,
-				expectation,
-				location,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Invalid integer literal type suffix")
-			.with_label(
-				location.label().with_message(expectation).with_color(a),
-			)
-			.finish(),
-
-			Error::Lexical {
-				error: lexer::Error::InvalidEscapeSequence,
-				expectation: _,
-				location,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Invalid escape sequence")
 			.with_label(
 				location
 					.label()
-					.with_message("Invalid character escape sequence")
-					.with_color(a),
+					.with_message(expectation)
+					.with_color(PRIMARY),
 			)
-			.finish(),
+			.with_note(format!("{}", inner_error)),
 
-			Error::Lexical {
-				error: lexer::Error::UnexpectedTrailingBackslash,
-				expectation: _,
-				location,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
+		Error::Lexical {
+			error: lexer::Error::InvalidBitIntegerLiteral,
+			expectation,
+			location,
+		} => report
+			.with_message("Invalid bit integer literal")
+			.with_label(
+				location
+					.label()
+					.with_message(expectation)
+					.with_color(PRIMARY),
 			)
-			.with_code(format!("E{}", self.code()))
+			.with_note(format!(
+				"Hexadecimal and binary integer literals have to fit {}.",
+				"`u64`".fg(PRIMARY)
+			)),
+
+		Error::Lexical {
+			error: lexer::Error::InvalidNakedIntegerLiteral,
+			expectation,
+			location,
+		} => report
+			.with_message("Invalid untyped integer literal")
+			.with_label(
+				location
+					.label()
+					.with_message(expectation)
+					.with_color(PRIMARY),
+			)
+			.with_note(format!(
+				"Consider adding a type suffix like {}.",
+				"`i128`".fg(PRIMARY)
+			)),
+
+		Error::Lexical {
+			error: lexer::Error::InvalidIntegerTypeSuffix,
+			expectation,
+			location,
+		} => report
+			.with_message("Invalid integer literal type suffix")
+			.with_label(
+				location
+					.label()
+					.with_message(expectation)
+					.with_color(PRIMARY),
+			),
+
+		Error::Lexical {
+			error: lexer::Error::InvalidEscapeSequence,
+			expectation: _,
+			location,
+		} => report.with_message("Invalid escape sequence").with_label(
+			location
+				.label()
+				.with_message("Invalid character escape sequence")
+				.with_color(PRIMARY),
+		),
+
+		Error::Lexical {
+			error: lexer::Error::UnexpectedTrailingBackslash,
+			expectation: _,
+			location,
+		} => report
 			.with_message("Unexpected trailing backslash")
 			.with_label(
 				location
 					.label()
 					.with_message("Unexpected trailing backslash")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_note(
 				"To continue a string across multiple lines, close it and \
 				 then reopen it on the next line.",
-			)
-			.finish(),
+			),
 
-			Error::Lexical {
-				error: lexer::Error::MissingClosingQuote,
-				expectation,
-				location,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::Lexical {
+			error: lexer::Error::MissingClosingQuote,
+			expectation,
+			location,
+		} => report
 			.with_message("Missing closing quote")
 			.with_label(
-				location.label().with_message(expectation).with_color(a),
+				location
+					.label()
+					.with_message(expectation)
+					.with_color(PRIMARY),
 			)
 			.with_note(
 				"To continue a string across multiple lines, close it and \
 				 then reopen it on the next line.",
-			)
-			.finish(),
+			),
 
-			Error::Lexical {
-				error: lexer::Error::InvalidMixedString,
-				expectation,
-				location,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::Lexical {
+			error: lexer::Error::InvalidMixedString,
+			expectation,
+			location,
+		} => report
 			.with_message("Invalid mixed string")
 			.with_label(
-				location.label().with_message(expectation).with_color(a),
+				location
+					.label()
+					.with_message(expectation)
+					.with_color(PRIMARY),
 			)
 			.with_note(
 				"String literals cannot contain both ASCII control characters \
 				 and non-ASCII characters.",
-			)
-			.finish(),
+			),
 
-			Error::UnexpectedToken {
-				expectation,
-				location,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::UnexpectedToken {
+			expectation,
+			location,
+		} => report.with_message("Unexpected token").with_label(
+			location
+				.label()
+				.with_message(expectation)
+				.with_color(PRIMARY),
+		),
+
+		Error::UnexpectedSemicolonAfterIdentifier { location, after } => report
 			.with_message("Unexpected token")
 			.with_label(
-				location.label().with_message(expectation).with_color(a),
+				location
+					.label()
+					.with_message("Unexpected semicolon")
+					.with_color(PRIMARY),
 			)
-			.finish(),
+			.with_label(
+				after
+					.label()
+					.with_order(2)
+					.with_message("This is not a valid statement.")
+					.with_color(SECONDARY),
+			),
 
-			Error::UnexpectedSemicolonAfterIdentifier { location, after } =>
-			{
-				Report::build(
-					ReportKind::Error,
-					&location.source_filename,
-					location.span.start,
-				)
-				.with_code(format!("E{}", self.code()))
-				.with_message("Unexpected token")
-				.with_label(
-					location
-						.label()
-						.with_message("Unexpected semicolon")
-						.with_color(a),
-				)
-				.with_label(
-					after
-						.label()
-						.with_order(2)
-						.with_message("This is not a valid statement.")
-						.with_color(b),
-				)
-				.finish()
-			}
-
-			Error::UnexpectedSemicolonAfterReturnValue { location, after } =>
-			{
-				Report::build(
-					ReportKind::Error,
-					&location.source_filename,
-					location.span.start,
-				)
-				.with_code(format!("E{}", self.code()))
+		Error::UnexpectedSemicolonAfterReturnValue { location, after } =>
+		{
+			report
 				.with_message("Unexpected semicolon after return value")
 				.with_label(
 					location
 						.label()
 						.with_message("Unexpected semicolon")
-						.with_color(a),
+						.with_color(PRIMARY),
 				)
 				.with_label(
 					after
@@ -855,268 +926,179 @@ impl Error
 						.with_message(
 							"This is the return value of this function.",
 						)
-						.with_color(b),
+						.with_color(SECONDARY),
 				)
-				.finish()
-			}
+		}
 
-			Error::MaximumParseDepthExceeded { location } => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::MaximumParseDepthExceeded { location } => report
 			.with_message("Maximum parse depth exceeded")
 			.with_label(
 				location
 					.label()
 					.with_message("This is too complex to parse.")
-					.with_color(a),
-			)
-			.finish(),
+					.with_color(PRIMARY),
+			),
 
-			Error::MissingConstantType { location } => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Missing type")
-			.with_label(
+		Error::MissingConstantType { location } =>
+		{
+			report.with_message("Missing type").with_label(
 				location
 					.label()
 					.with_message("Constants need an explicit type.")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
-			.finish(),
+		}
 
-			Error::MissingParameterType { location } => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Missing type")
-			.with_label(
+		Error::MissingParameterType { location } =>
+		{
+			report.with_message("Missing type").with_label(
 				location
 					.label()
 					.with_message("Function parameters need an explicit type.")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
-			.finish(),
+		}
 
-			Error::MissingMemberType { location } => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Missing type")
-			.with_label(
+		Error::MissingMemberType { location } =>
+		{
+			report.with_message("Missing type").with_label(
 				location
 					.label()
 					.with_message("Structure members need an explicit type.")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
-			.finish(),
+		}
 
-			Error::IllegalType {
-				value_type,
-				location,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Invalid type")
-			.with_label(
-				location
-					.label()
-					.with_message(format!(
-						"The type {} is invalid.",
-						show_type(value_type).fg(a)
-					))
-					.with_color(a),
-			)
-			.finish(),
+		Error::IllegalType {
+			value_type,
+			location,
+		} => report.with_message("Invalid type").with_label(
+			location
+				.label()
+				.with_message(format!(
+					"The type {} is invalid.",
+					show_type(value_type).fg(PRIMARY)
+				))
+				.with_color(PRIMARY),
+		),
 
-			Error::IllegalVariableType {
-				value_type,
-				location,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Invalid variable type")
-			.with_label(
-				location
-					.label()
-					.with_message(format!(
-						"A value of type {} cannot be assigned to a variable.",
-						show_type(value_type).fg(a)
-					))
-					.with_color(a),
-			)
-			.finish(),
+		Error::IllegalVariableType {
+			value_type,
+			location,
+		} => report.with_message("Invalid variable type").with_label(
+			location
+				.label()
+				.with_message(format!(
+					"A value of type {} cannot be assigned to a variable.",
+					show_type(value_type).fg(PRIMARY)
+				))
+				.with_color(PRIMARY),
+		),
 
-			Error::IllegalParameterType {
-				value_type,
-				location,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Invalid parameter type")
-			.with_label(
-				location
-					.label()
-					.with_message(format!(
-						"The type {} is not allowed as a parameter.",
-						show_type(value_type).fg(a)
-					))
-					.with_color(a),
-			)
-			.finish(),
+		Error::IllegalParameterType {
+			value_type,
+			location,
+		} => report.with_message("Invalid parameter type").with_label(
+			location
+				.label()
+				.with_message(format!(
+					"The type {} is not allowed as a parameter.",
+					show_type(value_type).fg(PRIMARY)
+				))
+				.with_color(PRIMARY),
+		),
 
-			Error::IllegalReturnType {
-				value_type,
-				location,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Invalid return type")
-			.with_label(
-				location
-					.label()
-					.with_message(format!(
-						"The type {} is not allowed as a return value.",
-						show_type(value_type).fg(a)
-					))
-					.with_color(a),
-			)
-			.finish(),
+		Error::IllegalReturnType {
+			value_type,
+			location,
+		} => report.with_message("Invalid return type").with_label(
+			location
+				.label()
+				.with_message(format!(
+					"The type {} is not allowed as a return value.",
+					show_type(value_type).fg(PRIMARY)
+				))
+				.with_color(PRIMARY),
+		),
 
-			Error::IllegalMemberType {
-				value_type,
-				in_word: false,
-				location,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Invalid member type")
-			.with_label(
-				location
-					.label()
-					.with_message(format!(
-						"The type {} is not allowed as a member of a struct.",
-						show_type(value_type).fg(a),
-					))
-					.with_color(a),
-			)
-			.finish(),
+		Error::IllegalMemberType {
+			value_type,
+			in_word: false,
+			location,
+		} => report.with_message("Invalid member type").with_label(
+			location
+				.label()
+				.with_message(format!(
+					"The type {} is not allowed as a member of a struct.",
+					show_type(value_type).fg(PRIMARY),
+				))
+				.with_color(PRIMARY),
+		),
 
-			Error::IllegalMemberType {
-				value_type,
-				in_word: true,
-				location,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Invalid member type")
-			.with_label(
-				location
-					.label()
-					.with_message(format!(
-						"The type {} is not allowed as a member of a word.",
-						show_type(value_type).fg(a),
-					))
-					.with_color(a),
-			)
-			.finish(),
+		Error::IllegalMemberType {
+			value_type,
+			in_word: true,
+			location,
+		} => report.with_message("Invalid member type").with_label(
+			location
+				.label()
+				.with_message(format!(
+					"The type {} is not allowed as a member of a word.",
+					show_type(value_type).fg(PRIMARY),
+				))
+				.with_color(PRIMARY),
+		),
 
-			Error::IllegalConstantType {
-				value_type,
-				location,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Invalid constant type")
-			.with_label(
-				location
-					.label()
-					.with_message(format!(
-						"A value of type {} cannot be assigned to a constant.",
-						show_type(value_type).fg(a)
-					))
-					.with_color(a),
-			)
-			.finish(),
+		Error::IllegalConstantType {
+			value_type,
+			location,
+		} => report.with_message("Invalid constant type").with_label(
+			location
+				.label()
+				.with_message(format!(
+					"A value of type {} cannot be assigned to a constant.",
+					show_type(value_type).fg(PRIMARY)
+				))
+				.with_color(PRIMARY),
+		),
 
-			Error::TypeNotAllowedInExtern {
-				value_type,
-				location_of_type,
-				location_of_declaration,
-			} => Report::build(
-				ReportKind::Error,
-				&location_of_type.source_filename,
-				location_of_type.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::TypeNotAllowedInExtern {
+			value_type,
+			location_of_type,
+			location_of_declaration,
+		} => report
 			.with_message("Invalid external type")
 			.with_label(
 				location_of_type
 					.label()
 					.with_message(format!(
 						"The type {} is not allowed in external declarations.",
-						show_type(value_type).fg(a)
+						show_type(value_type).fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location_of_declaration
 					.label()
 					.with_message("Declaration marked external here.")
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::WordSizeMismatch {
-				inferred_size_in_bits,
-				declared_size_in_bits,
-				location_of_identifier,
-				location_of_keyword,
-			} => Report::build(
-				ReportKind::Error,
-				&location_of_keyword.source_filename,
-				location_of_keyword.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::WordSizeMismatch {
+			inferred_size_in_bits,
+			declared_size_in_bits,
+			location_of_identifier,
+			location_of_keyword,
+		} => report
 			.with_message("Conflicting type sizes")
 			.with_label(
 				location_of_identifier
 					.label()
 					.with_message(format!(
 						"The size of this structure is {} bits.",
-						inferred_size_in_bits.to_string().fg(a)
+						inferred_size_in_bits.to_string().fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location_of_keyword
@@ -1124,190 +1106,147 @@ impl Error
 					.with_message(format!(
 						"The structure is declared with {} and therefore has \
 						 a maximum size of {} bits.",
-						format!("`word{}`", declared_size_in_bits).fg(b),
-						declared_size_in_bits.to_string().fg(b),
+						format!("`word{}`", declared_size_in_bits)
+							.fg(SECONDARY),
+						declared_size_in_bits.to_string().fg(SECONDARY),
 					))
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::MissingReturnType {
-				inferred_type,
-				location_of_return_value,
-				location_of_declaration,
-			} => Report::build(
-				ReportKind::Error,
-				&location_of_return_value.source_filename,
-				location_of_return_value.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::MissingReturnType {
+			inferred_type,
+			location_of_return_value,
+			location_of_declaration,
+		} => report
 			.with_message("Missing return type")
 			.with_label(
 				location_of_return_value
 					.label()
 					.with_message(format!(
 						"Value of type {} returned here.",
-						show_type(inferred_type).fg(a)
+						show_type(inferred_type).fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location_of_declaration
 					.label()
 					.with_message("Function declared here.")
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::MissingAmbiguousReturnType {
-				location_of_return_value,
-				location_of_declaration,
-			} => Report::build(
-				ReportKind::Error,
-				&location_of_return_value.source_filename,
-				location_of_return_value.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::MissingAmbiguousReturnType {
+			location_of_return_value,
+			location_of_declaration,
+		} => report
 			.with_message("Missing return type")
 			.with_label(
 				location_of_return_value
 					.label()
 					.with_message("Value of indiscernible type returned here.")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location_of_declaration
 					.label()
 					.with_message("Function declared here.")
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::AmbiguousReturnValue {
-				declared_type,
-				location_of_return_value,
-				location_of_declaration,
-			} => Report::build(
-				ReportKind::Error,
-				&location_of_return_value.source_filename,
-				location_of_return_value.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::AmbiguousReturnValue {
+			declared_type,
+			location_of_return_value,
+			location_of_declaration,
+		} => report
 			.with_message("Ambiguous return value")
 			.with_label(
 				location_of_return_value
 					.label()
 					.with_message("Failed to infer the type of this value.")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location_of_declaration
 					.label()
 					.with_message(format!(
 						"Expected {} based on this declaration.",
-						show_type(declared_type).fg(b)
+						show_type(declared_type).fg(SECONDARY)
 					))
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::ConflictingReturnValue {
-				inferred_type,
-				declared_type,
-				location_of_return_value,
-				location_of_declaration,
-			} => Report::build(
-				ReportKind::Error,
-				&location_of_return_value.source_filename,
-				location_of_return_value.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::ConflictingReturnValue {
+			inferred_type,
+			declared_type,
+			location_of_return_value,
+			location_of_declaration,
+		} => report
 			.with_message("Conflicting return value")
 			.with_label(
 				location_of_return_value
 					.label()
 					.with_message(format!(
 						"Value of type {} returned here.",
-						show_type(inferred_type).fg(a)
+						show_type(inferred_type).fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location_of_declaration
 					.label()
 					.with_message(format!(
 						"Expected {} based on this declaration.",
-						show_type(declared_type).fg(b)
+						show_type(declared_type).fg(SECONDARY)
 					))
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::MissingReturnValue {
-				declared_type,
-				location,
-				location_of_declaration,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::MissingReturnValue {
+			declared_type,
+			location,
+			location_of_declaration,
+		} => report
 			.with_message("Missing return value")
 			.with_label(
 				location
 					.label()
 					.with_message("No return value.")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location_of_declaration
 					.label()
 					.with_message(format!(
 						"Expected {} based on this declaration.",
-						show_type(declared_type).fg(b)
+						show_type(declared_type).fg(SECONDARY)
 					))
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::MissingReturnValueAfterStatement { location, after } =>
-			{
-				Report::build(
-					ReportKind::Error,
-					&location.source_filename,
-					location.span.start,
-				)
-				.with_message("Missing return value")
-				.with_label(
-					after
-						.label_after_end()
-						.with_message("Expected return value...")
-						.with_color(a),
-				)
-				.with_label(
-					after
-						.label()
-						.with_message(format!(
-							"...after this {} label.",
-							"`return`".fg(b)
-						))
-						.with_order(2)
-						.with_color(b),
-				)
-				.finish()
-			}
-
-			Error::DuplicateDeclarationVariable {
-				name,
-				location,
-				previous,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
+		Error::MissingReturnValueAfterStatement { after, .. } => report
+			.with_message("Missing return value")
+			.with_label(
+				after
+					.label_after_end()
+					.with_message("Expected return value...")
+					.with_color(PRIMARY),
 			)
-			.with_code(format!("E{}", self.code()))
+			.with_label(
+				after
+					.label()
+					.with_message(format!(
+						"...after this {} label.",
+						"`return`".fg(SECONDARY)
+					))
+					.with_order(2)
+					.with_color(SECONDARY),
+			),
+
+		Error::DuplicateDeclarationVariable {
+			name,
+			location,
+			previous,
+		} => report
 			.with_message("Duplicate variable")
 			.with_label(
 				location
@@ -1315,84 +1254,66 @@ impl Error
 					.with_message(format!(
 						"A variable named '{}' is already defined in this \
 						 scope.",
-						name.fg(a)
+						name.fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				previous
 					.label()
 					.with_message("Previously defined here.")
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::DuplicateDeclarationConstant {
-				name,
-				location,
-				previous,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::DuplicateDeclarationConstant {
+			name,
+			location,
+			previous,
+		} => report
 			.with_message("Duplicate constant")
 			.with_label(
 				location
 					.label()
 					.with_message(format!(
 						"The constant '{}' is already defined.",
-						name.fg(a)
+						name.fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				previous
 					.label()
 					.with_message("Previously defined here.")
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::DuplicateDeclarationFunction {
-				name,
-				location,
-				previous,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::DuplicateDeclarationFunction {
+			name,
+			location,
+			previous,
+		} => report
 			.with_message("Duplicate function")
 			.with_label(
 				location
 					.label()
 					.with_message(format!(
 						"A function named '{}' is already defined.",
-						name.fg(a)
+						name.fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				previous
 					.label()
 					.with_message("Previously defined here.")
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::DuplicateDeclarationParameter {
-				name,
-				location,
-				previous,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::DuplicateDeclarationParameter {
+			name,
+			location,
+			previous,
+		} => report
 			.with_message("Duplicate parameter")
 			.with_label(
 				location
@@ -1400,56 +1321,44 @@ impl Error
 					.with_message(format!(
 						"A parameter named '{}' is already defined for this \
 						 function.",
-						name.fg(a)
+						name.fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				previous
 					.label()
 					.with_message("Previously defined here.")
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::DuplicateDeclarationStructure {
-				name,
-				location,
-				previous,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::DuplicateDeclarationStructure {
+			name,
+			location,
+			previous,
+		} => report
 			.with_message("Duplicate structure")
 			.with_label(
 				location
 					.label()
 					.with_message(format!(
 						"A struct or word named '{}' is already defined.",
-						name.fg(a)
+						name.fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				previous
 					.label()
 					.with_message("Previously defined here.")
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::DuplicateDeclarationMember {
-				name,
-				location,
-				previous,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::DuplicateDeclarationMember {
+			name,
+			location,
+			previous,
+		} => report
 			.with_message("Duplicate member")
 			.with_label(
 				location
@@ -1457,74 +1366,57 @@ impl Error
 					.with_message(format!(
 						"A member named '{}' is already defined in this \
 						 structure.",
-						name.fg(a)
+						name.fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				previous
 					.label()
 					.with_message("Previously defined here.")
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::DuplicateDeclarationLabel {
-				name,
-				location,
-				previous,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::DuplicateDeclarationLabel {
+			name,
+			location,
+			previous,
+		} => report
 			.with_message("Duplicate label")
 			.with_label(
 				location
 					.label()
 					.with_message(format!(
 						"The label '{}' is already defined in this scope.",
-						name.fg(a)
+						name.fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				previous
 					.label()
 					.with_message("Previously defined here.")
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::CyclicalConstant { name, location } => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Cyclical definition")
-			.with_label(
+		Error::CyclicalConstant { name, location } =>
+		{
+			report.with_message("Cyclical definition").with_label(
 				location
 					.label()
 					.with_message(format!(
 						"The definition of constant '{}' depends on itself.",
-						name.fg(a)
+						name.fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
-			.finish(),
+		}
 
-			Error::CyclicalStructure {
-				name,
-				location_of_member,
-				location_of_declaration,
-			} => Report::build(
-				ReportKind::Error,
-				&location_of_declaration.source_filename,
-				location_of_declaration.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::CyclicalStructure {
+			name,
+			location_of_member,
+			location_of_declaration,
+		} => report
 			.with_message("Cyclical definition")
 			.with_label(
 				location_of_declaration
@@ -1532,249 +1424,199 @@ impl Error
 					.with_message(format!(
 						"Cannot determine size of structure '{}' that \
 						 contains itself.",
-						name.fg(a)
+						name.fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location_of_member
 					.label()
 					.with_message(format!(
 						"This member contains '{}'.",
-						name.fg(a)
+						name.fg(PRIMARY)
 					))
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::UndefinedVariable { name, location } => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Undefined reference")
-			.with_label(
+		Error::UndefinedVariable { name, location } =>
+		{
+			report.with_message("Undefined reference").with_label(
 				location
 					.label()
 					.with_message(format!(
 						"Reference to undefined variable named '{}'.",
-						name.fg(a)
+						name.fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
-			.finish(),
+		}
 
-			Error::UndefinedFunction { name, location } => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Undefined reference")
-			.with_label(
+		Error::UndefinedFunction { name, location } =>
+		{
+			report.with_message("Undefined reference").with_label(
 				location
 					.label()
 					.with_message(format!(
 						"Reference to undefined function named '{}'.",
-						name.fg(a)
+						name.fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
-			.finish(),
+		}
 
-			Error::UndefinedStructure { name, location } => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Undefined reference")
-			.with_label(
+		Error::UndefinedStructure { name, location } =>
+		{
+			report.with_message("Undefined reference").with_label(
 				location
 					.label()
 					.with_message(format!(
 						"Reference to undefined struct or word named '{}'.",
-						name.fg(a)
+						name.fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
-			.finish(),
+		}
 
-			Error::UndefinedMember {
-				name_of_member,
-				name_of_structure,
-				location,
-				location_of_declaration,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::UndefinedMember {
+			name_of_member,
+			name_of_structure,
+			location,
+			location_of_declaration,
+		} => report
 			.with_message("Undefined member")
 			.with_label(
 				location
 					.label()
 					.with_message(format!(
 						"No member '{}' exists for structure '{}'.",
-						name_of_member.fg(a),
-						name_of_structure.fg(b),
+						name_of_member.fg(PRIMARY),
+						name_of_structure.fg(SECONDARY),
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location_of_declaration
 					.label()
 					.with_message(format!(
 						"The structure '{}' is defined here.",
-						name_of_structure.fg(b),
+						name_of_structure.fg(SECONDARY),
 					))
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::UndefinedLabel { name, location } => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Undefined label")
-			.with_label(
+		Error::UndefinedLabel { name, location } =>
+		{
+			report.with_message("Undefined label").with_label(
 				location
 					.label()
 					.with_message(format!(
 						"Reference to undefined label '{}'.",
-						name.fg(a)
+						name.fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
-			.finish(),
+		}
 
-			Error::ConflictingTypes {
-				name,
-				current_type,
-				previous_type,
-				location,
-				previous,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::ConflictingTypes {
+			name,
+			current_type,
+			previous_type,
+			location,
+			previous,
+		} => report
 			.with_message("Conflicting types")
 			.with_label(
 				location
 					.label()
 					.with_message(format!(
 						"'{}' has type {}.",
-						name.fg(a),
-						show_type(current_type).fg(a)
+						name.fg(PRIMARY),
+						show_type(current_type).fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				previous
 					.label()
 					.with_message(format!(
 						"Previously determined to be {}.",
-						show_type(previous_type).fg(b)
+						show_type(previous_type).fg(SECONDARY)
 					))
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::ConflictingTypesInAssignment {
-				name,
-				current_type,
-				previous_type,
-				location,
-				previous,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::ConflictingTypesInAssignment {
+			name,
+			current_type,
+			previous_type,
+			location,
+			previous,
+		} => report
 			.with_message("Conflicting types")
 			.with_label(
 				location
 					.label()
 					.with_message(format!(
 						"Cannot assign it this expression of type {}.",
-						show_type(current_type).fg(a)
+						show_type(current_type).fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				previous
 					.label()
 					.with_message(format!(
 						"'{}' has type {}.",
-						name.fg(b),
-						show_type(previous_type).fg(b)
+						name.fg(SECONDARY),
+						show_type(previous_type).fg(SECONDARY)
 					))
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::ArgumentTypeMismatch {
-				parameter_name,
-				argument_type,
-				parameter_type,
-				location,
-				location_of_declaration,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::ArgumentTypeMismatch {
+			parameter_name,
+			argument_type,
+			parameter_type,
+			location,
+			location_of_declaration,
+		} => report
 			.with_message("Mismatched types")
 			.with_label(
 				location
 					.label()
 					.with_message(format!(
 						"Argument has type {}.",
-						show_type(argument_type).fg(a)
+						show_type(argument_type).fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location_of_declaration
 					.label()
 					.with_message(format!(
 						"Parameter '{}' has type {}.",
-						parameter_name.fg(b),
-						show_type(parameter_type).fg(b)
+						parameter_name.fg(SECONDARY),
+						show_type(parameter_type).fg(SECONDARY)
 					))
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::ArgumentMissingAddress {
-				parameter_name,
-				argument_type,
-				parameter_type,
-				location,
-				location_of_declaration,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::ArgumentMissingAddress {
+			parameter_name,
+			argument_type,
+			parameter_type,
+			location,
+			location_of_declaration,
+		} => report
 			.with_message("Mismatched types")
 			.with_label(
 				location
 					.label()
 					.with_message(format!(
 						"Argument has type {}.",
-						show_type(argument_type).fg(a)
+						show_type(argument_type).fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location
@@ -1782,183 +1624,139 @@ impl Error
 					.with_order(3)
 					.with_message(format!(
 						"Add {} here to pass by reference pointer.",
-						"`&`".fg(c)
+						"`&`".fg(TERTIARY)
 					))
-					.with_color(c),
+					.with_color(TERTIARY),
 			)
 			.with_label(
 				location_of_declaration
 					.label()
 					.with_message(format!(
 						"Parameter '{}' has type {}.",
-						parameter_name.fg(b),
-						show_type(parameter_type).fg(b)
+						parameter_name.fg(SECONDARY),
+						show_type(parameter_type).fg(SECONDARY)
 					))
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::IndexTypeMismatch {
-				argument_type,
-				index_type,
-				location,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Mismatched types")
-			.with_label(
-				location
-					.label()
-					.with_message(format!(
-						"Argument has type {}, expected {}.",
-						show_type(argument_type).fg(a),
-						show_type(index_type).fg(c)
-					))
-					.with_color(a),
-			)
-			.finish(),
+		Error::IndexTypeMismatch {
+			argument_type,
+			index_type,
+			location,
+		} => report.with_message("Mismatched types").with_label(
+			location
+				.label()
+				.with_message(format!(
+					"Argument has type {}, expected {}.",
+					show_type(argument_type).fg(PRIMARY),
+					show_type(index_type).fg(TERTIARY)
+				))
+				.with_color(PRIMARY),
+		),
 
-			Error::NotAnArray {
-				current_type,
-				location,
-				previous,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::NotAnArray {
+			current_type,
+			location,
+			previous,
+		} => report
 			.with_message("Conflicting types")
 			.with_label(
 				location
 					.label()
 					.with_message(format!(
 						"Cannot index into value of non-array type {}.",
-						show_type(current_type).fg(a)
+						show_type(current_type).fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				previous
 					.label()
 					.with_message("Type previously determined here.")
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::NotAnArrayWithLength {
-				current_type,
-				location,
-				previous,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::NotAnArrayWithLength {
+			current_type,
+			location,
+			previous,
+		} => report
 			.with_message("Conflicting types")
 			.with_label(
 				location
 					.label()
 					.with_message(format!(
 						"Cannot take length of value of non-array type {}.",
-						show_type(current_type).fg(a)
+						show_type(current_type).fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				previous
 					.label()
 					.with_message("Type previously determined here.")
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::NotAStructure {
-				current_type,
-				location,
-				previous,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::NotAStructure {
+			current_type,
+			location,
+			previous,
+		} => report
 			.with_message("Conflicting types")
 			.with_label(
 				location
 					.label()
 					.with_message(format!(
 						"Cannot access member of non-structure type {}.",
-						show_type(current_type).fg(a)
+						show_type(current_type).fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				previous
 					.label()
 					.with_message("Type previously determined here.")
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::TooFewArguments {
-				location,
-				location_of_declaration,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::TooFewArguments {
+			location,
+			location_of_declaration,
+		} => report
 			.with_message("Too few arguments")
 			.with_label(
 				location
 					.label()
 					.with_message("Too few arguments in function call.")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location_of_declaration
 					.label()
 					.with_message("Function declared here.")
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::TooManyArguments {
-				location,
-				location_of_declaration,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::TooManyArguments {
+			location,
+			location_of_declaration,
+		} => report
 			.with_message("Too many arguments")
 			.with_label(
 				location
 					.label()
 					.with_message("Too many arguments in function call.")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location_of_declaration
 					.label()
 					.with_message("Function declared here.")
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::UnsupportedInConstContext { location } => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::UnsupportedInConstContext { location } => report
 			.with_message("Unsupported expression in constant expression")
 			.with_label(
 				location
@@ -1967,16 +1765,10 @@ impl Error
 						"This expression is not supported in a constant \
 						 expression.",
 					)
-					.with_color(a),
-			)
-			.finish(),
+					.with_color(PRIMARY),
+			),
 
-			Error::FunctionInConstContext { location } => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::FunctionInConstContext { location } => report
 			.with_message("Function in constant expression")
 			.with_label(
 				location
@@ -1984,202 +1776,151 @@ impl Error
 					.with_message(
 						"Function calls cannot occur in a constant expression.",
 					)
-					.with_color(a),
-			)
-			.finish(),
+					.with_color(PRIMARY),
+			),
 
-			Error::CannotCopyArray { location } => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Cannot copy array")
-			.with_label(
+		Error::CannotCopyArray { location } =>
+		{
+			report.with_message("Cannot copy array").with_label(
 				location
 					.label()
 					.with_message("Cannot copy this array.")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
-			.finish(),
+		}
 
-			Error::CannotCopySlice { location } => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Cannot copy slice")
-			.with_label(
+		Error::CannotCopySlice { location } =>
+		{
+			report.with_message("Cannot copy slice").with_label(
 				location
 					.label()
 					.with_message("Cannot copy this slice.")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
-			.finish(),
+		}
 
-			Error::CannotCopyStruct { location } => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Cannot copy struct")
-			.with_label(
+		Error::CannotCopyStruct { location } =>
+		{
+			report.with_message("Cannot copy struct").with_label(
 				location
 					.label()
 					.with_message("Cannot copy this struct.")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
-			.finish(),
+		}
 
-			Error::NotMutable {
-				location,
-				location_of_declaration,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::NotMutable {
+			location,
+			location_of_declaration,
+		} => report
 			.with_message("Illegal mutation")
 			.with_label(
 				location
 					.label()
 					.with_message("Cannot mutate this value.")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location_of_declaration
 					.label()
 					.with_message("This value is not mutable.")
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::AddressOfTemporaryAddress {
-				location,
-				location_of_declaration,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::AddressOfTemporaryAddress {
+			location,
+			location_of_declaration,
+		} => report
 			.with_message("Address of temporary address")
 			.with_label(
 				location
 					.label()
 					.with_message("Cannot take address of temporary address.")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location_of_declaration
 					.label()
 					.with_message(format!(
 						"This value is not of type {}.",
-						"`&&_`".fg(b)
+						"`&&_`".fg(SECONDARY)
 					))
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::MissingBraces { location } => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::MissingBraces { location } => report
 			.with_message("Missing braces")
 			.with_label(
 				location
 					.label()
 					.with_message("Add braces around this statement.")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_note(format!(
 				"Braces around conditional branches can only be omitted for \
 				 {} statements.",
-				"`goto`".fg(a)
-			))
-			.finish(),
+				"`goto`".fg(PRIMARY)
+			)),
 
-			Error::NonFinalLoopStatement {
-				location,
-				location_of_block,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::NonFinalLoopStatement {
+			location,
+			location_of_block,
+		} => report
 			.with_message("Misplaced loop statement")
 			.with_label(
 				location
 					.label()
 					.with_message("This is not the final statement...")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location_of_block
 					.label()
 					.with_message("...of this block.")
-					.with_color(b),
+					.with_color(SECONDARY),
 			)
 			.with_note(format!(
 				"The {} statement must always be the final statement of a \
 				 block.",
-				"`loop`".fg(a)
-			))
-			.finish(),
+				"`loop`".fg(PRIMARY)
+			)),
 
-			Error::MisplacedLoopStatement { location } => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::MisplacedLoopStatement { location } => report
 			.with_message("Misplaced loop statement")
 			.with_label(
 				location
 					.label()
 					.with_message("This is not allowed here.")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_note(format!(
 				"The {} statement must always be the final statement of a \
 				 block.",
-				"`loop`".fg(a)
-			))
-			.finish(),
+				"`loop`".fg(PRIMARY)
+			)),
 
-			Error::VariableDeclarationMayBeSkipped {
-				label,
-				location,
-				location_of_goto,
-				location_of_label,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::VariableDeclarationMayBeSkipped {
+			label,
+			location,
+			location_of_goto,
+			location_of_label,
+		} => report
 			.with_message("Variable declaration may be skipped")
 			.with_label(
 				location
 					.label()
 					.with_message("...may skip this variable declaration.")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location_of_goto
 					.label()
 					.with_message(format!(
 						"A jump from this {} statement to '{}'...",
-						"`goto`".fg(b),
-						label.fg(c)
+						"`goto`".fg(SECONDARY),
+						label.fg(TERTIARY)
 					))
-					.with_color(b),
+					.with_color(SECONDARY),
 			)
 			.with_label(
 				location_of_label
@@ -2188,130 +1929,97 @@ impl Error
 						"After this label, the existence of the declared \
 						 variable is dubious.",
 					)
-					.with_color(c),
-			)
-			.finish(),
+					.with_color(TERTIARY),
+			),
 
-			Error::AmbiguousType { location } => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Ambiguous type")
-			.with_label(
+		Error::AmbiguousType { location } =>
+		{
+			report.with_message("Ambiguous type").with_label(
 				location
 					.label()
 					.with_message("Failed to infer type of expression.")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
-			.finish(),
+		}
 
-			Error::AmbiguousTypeOfDeclaration { location } => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::AmbiguousTypeOfDeclaration { location } => report
 			.with_message("Ambiguous type")
 			.with_label(
 				location
 					.label()
 					.with_message("Failed to infer type of variable.")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
-			.with_note("Consider adding a type to this declaration.")
-			.finish(),
+			.with_note("Consider adding a type to this declaration."),
 
-			Error::AmbiguousTypeOfNakedIntegerLiteral {
-				suggested_type,
-				location,
-			} => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::AmbiguousTypeOfNakedIntegerLiteral {
+			suggested_type,
+			location,
+		} => report
 			.with_message("Ambiguous type")
 			.with_label(
 				location
 					.label()
 					.with_message("Failed to infer type of integer literal.")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location
 					.label_after_end()
 					.with_message(format!(
 						"Consider adding a type suffix like {}.",
-						show_type(suggested_type).fg(b)
+						show_type(suggested_type).fg(SECONDARY)
 					))
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::AmbiguousTypeOfArrayLiteral { location } => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Ambiguous type")
-			.with_label(
+		Error::AmbiguousTypeOfArrayLiteral { location } =>
+		{
+			report.with_message("Ambiguous type").with_label(
 				location
 					.label()
 					.with_message(
 						"Failed to infer element type of array literal.",
 					)
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
-			.finish(),
+		}
 
-			Error::AmbiguousTypeOfStringLiteral { location } => Report::build(
-				ReportKind::Error,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
-			.with_message("Ambiguous type")
-			.with_label(
+		Error::AmbiguousTypeOfStringLiteral { location } =>
+		{
+			report.with_message("Ambiguous type").with_label(
 				location
 					.label()
 					.with_message("Failed to infer type of string literal.")
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
-			.finish(),
+		}
 
-			Error::MismatchedOperandTypes {
-				type_of_left,
-				type_of_right,
-				location_of_op,
-				location_of_left,
-				location_of_right,
-			} => Report::build(
-				ReportKind::Error,
-				&location_of_op.source_filename,
-				location_of_op.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::MismatchedOperandTypes {
+			type_of_left,
+			type_of_right,
+			location_of_op,
+			location_of_left,
+			location_of_right,
+		} => report
 			.with_message("Mismatched operand types")
 			.with_label(
 				location_of_left
 					.label()
 					.with_message(format!(
 						"This has type {}.",
-						show_type(type_of_left).fg(a)
+						show_type(type_of_left).fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location_of_right
 					.label()
 					.with_message(format!(
 						"This has type {}.",
-						show_type(type_of_right).fg(b)
+						show_type(type_of_right).fg(SECONDARY)
 					))
-					.with_color(b),
+					.with_color(SECONDARY),
 			)
 			.with_label(
 				location_of_op
@@ -2319,30 +2027,24 @@ impl Error
 					.with_message(
 						"This operator expects operands with equal types.",
 					)
-					.with_color(c),
-			)
-			.finish(),
+					.with_color(TERTIARY),
+			),
 
-			Error::InvalidOperandType {
-				value_type,
-				possible_types,
-				location_of_op,
-				location_of_operand,
-			} => Report::build(
-				ReportKind::Error,
-				&location_of_op.source_filename,
-				location_of_op.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::InvalidOperandType {
+			value_type,
+			possible_types,
+			location_of_op,
+			location_of_operand,
+		} => report
 			.with_message("Invalid operand type")
 			.with_label(
 				location_of_operand
 					.label()
 					.with_message(format!(
 						"This has type {}.",
-						show_type(value_type).fg(a)
+						show_type(value_type).fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location_of_op
@@ -2350,55 +2052,45 @@ impl Error
 					.with_order(2)
 					.with_message(format!(
 						"Expected {}.",
-						show_possible_types(possible_types, b)
+						show_possible_types(possible_types, SECONDARY)
 					))
-					.with_color(b),
-			)
-			.finish(),
+					.with_color(SECONDARY),
+			),
 
-			Error::InvalidPrimitiveCast {
-				value_type,
-				coerced_type,
-				possible_value_types,
-				possible_coerced_types,
-				location_of_operand,
-				location_of_type,
-			} => Report::build(
-				ReportKind::Error,
-				&location_of_operand.source_filename,
-				location_of_operand.span.start,
-			)
-			.with_code(format!("E{}", self.code()))
+		Error::InvalidPrimitiveCast {
+			value_type,
+			coerced_type,
+			possible_value_types,
+			possible_coerced_types,
+			location_of_operand,
+			location_of_type,
+		} => report
 			.with_message("Invalid primitive cast")
 			.with_label(
 				location_of_operand
 					.label()
 					.with_message(format!(
 						"This has type {}.",
-						show_type(value_type).fg(a)
+						show_type(value_type).fg(PRIMARY)
 					))
-					.with_color(a),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location_of_type
 					.label()
 					.with_message(format!(
 						"Cannot cast {} into {}.",
-						show_type(value_type).fg(a),
-						show_type(coerced_type).fg(b),
+						show_type(value_type).fg(PRIMARY),
+						show_type(coerced_type).fg(SECONDARY),
 					))
-					.with_color(b),
+					.with_color(SECONDARY),
 			)
 			.with_note(note_for_possible_casts(
 				value_type,
 				coerced_type,
 				possible_value_types,
 				possible_coerced_types,
-				a,
-				b,
-			))
-			.finish(),
-		}
+			)),
 	}
 }
 
@@ -2409,8 +2101,6 @@ fn note_for_possible_casts(
 	coerced_type: &ValueType,
 	possible_value_types: &[OperandValueType],
 	possible_coerced_types: &[OperandValueType],
-	a: ariadne::Color,
-	b: ariadne::Color,
 ) -> String
 {
 	if possible_coerced_types.is_empty()
@@ -2421,18 +2111,18 @@ fn note_for_possible_casts(
 	{
 		format!(
 			"Can cast {} into {}.",
-			show_type(value_type).fg(a),
-			show_possible_types(possible_coerced_types, b),
+			show_type(value_type).fg(PRIMARY),
+			show_possible_types(possible_coerced_types, SECONDARY),
 		)
 	}
 	else
 	{
 		format!(
 			"Can cast {} into {}, or {} into {}.",
-			show_type(value_type).fg(a),
-			show_possible_types(possible_coerced_types, b),
-			show_possible_types(possible_value_types, a),
-			show_type(coerced_type).fg(b),
+			show_type(value_type).fg(PRIMARY),
+			show_possible_types(possible_coerced_types, SECONDARY),
+			show_possible_types(possible_value_types, PRIMARY),
+			show_type(coerced_type).fg(SECONDARY),
 		)
 	}
 }
