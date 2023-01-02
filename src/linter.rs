@@ -189,7 +189,7 @@ impl Lintable for Declaration
 				depth: _,
 				location_of_declaration: _,
 			} => (),
-			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Import { .. } => (),
 			Declaration::Poison(_) => (),
 		}
 	}

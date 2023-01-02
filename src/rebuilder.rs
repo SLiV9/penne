@@ -314,7 +314,11 @@ impl Rebuildable for Declaration
 				writeln!(&mut buffer, "{}}}", indentation)?;
 				Ok(buffer)
 			}
-			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Import {
+				filename,
+				contents: _,
+				location: _,
+			} => Ok(format!("{}import \"{}\";\n", indentation, filename)),
 			Declaration::Poison(poison) => poison.rebuild(indentation),
 		}
 	}

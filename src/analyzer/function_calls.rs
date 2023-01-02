@@ -174,7 +174,17 @@ fn declare(declaration: &Declaration, analyzer: &mut Analyzer)
 			location_of_return_type: _,
 		} => analyzer.declare_function(name, parameters),
 		Declaration::Structure { .. } => (),
-		Declaration::PreprocessorDirective { .. } => unreachable!(),
+		Declaration::Import {
+			filename: _,
+			contents,
+			location: _,
+		} =>
+		{
+			for declaration in contents
+			{
+				declare(declaration, analyzer);
+			}
+		}
 		Declaration::Poison(_) => (),
 	}
 }
@@ -254,7 +264,7 @@ impl Analyzable for Declaration
 				depth: _,
 				location_of_declaration: _,
 			} => self,
-			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Import { .. } => self,
 			Declaration::Poison(_) => self,
 		}
 	}

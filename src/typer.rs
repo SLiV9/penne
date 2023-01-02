@@ -68,7 +68,7 @@ fn get_structure_depth(declaration: &Declaration) -> Option<u32>
 			Some(Err(_poison)) => Some(0),
 			None => unreachable!(),
 		},
-		Declaration::PreprocessorDirective { .. } => unreachable!(),
+		Declaration::Import { .. } => None,
 		Declaration::Poison(_) => None,
 	}
 }
@@ -747,7 +747,20 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 				location_of_declaration,
 			}
 		}
-		Declaration::PreprocessorDirective { .. } => unreachable!(),
+		Declaration::Import {
+			filename,
+			contents,
+			location,
+		} =>
+		{
+			let contents =
+				contents.into_iter().map(|x| predeclare(x, typer)).collect();
+			Declaration::Import {
+				filename,
+				contents,
+				location,
+			}
+		}
 		Declaration::Poison(_) => declaration,
 	}
 }
@@ -796,7 +809,7 @@ fn prealign(declaration: &mut Declaration, typer: &mut Typer)
 				(structural_type, _) => structural_type,
 			};
 		}
-		Declaration::PreprocessorDirective { .. } => unreachable!(),
+		Declaration::Import { .. } => (),
 		Declaration::Poison(_) => (),
 	}
 }
@@ -918,7 +931,7 @@ impl Analyzable for Declaration
 				// types that may appear through the other declarations.
 				self
 			}
-			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Import { .. } => self,
 			Declaration::Poison(_) => self,
 		}
 	}

@@ -613,7 +613,22 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 			},
 			Err(error) => Declaration::Poison(Poison::Error(error)),
 		},
-		Declaration::PreprocessorDirective { .. } => unreachable!(),
+		Declaration::Import {
+			filename,
+			contents,
+			location,
+		} =>
+		{
+			let contents = contents
+				.into_iter()
+				.map(|x| predeclare(x, analyzer))
+				.collect();
+			Declaration::Import {
+				filename,
+				contents,
+				location,
+			}
+		}
 		Declaration::Poison(_) => declaration,
 	}
 }
@@ -645,7 +660,7 @@ fn postanalyze(declaration: Declaration, analyzer: &mut Analyzer)
 				location_of_declaration,
 			}
 		}
-		Declaration::PreprocessorDirective { .. } => unreachable!(),
+		Declaration::Import { .. } => declaration,
 		Declaration::Poison(Poison::Error { .. }) => declaration,
 		Declaration::Poison(Poison::Poisoned) => declaration,
 	}
@@ -800,7 +815,7 @@ impl Analyzable for Declaration
 					location_of_declaration,
 				}
 			}
-			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Import { .. } => self,
 			Declaration::Poison(_) => self,
 		}
 	}

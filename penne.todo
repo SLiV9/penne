@@ -59,6 +59,8 @@ Functionality:
 	☐	Modules
 		☐	pragma once
 		☐	Public vs private
+			☐	This requires linking multiple source files
+		☐	Namespacing
 	☐	Heap allocation
 	☐	stdlib
 		☐	panic()
@@ -95,6 +97,7 @@ Linting errors:
 	☐	Undefined members
 	☐	Non-extern function without body
 	☐	Returning pointer, slice or view of temporary
+	☐	Private struct used in public declaration
 	☐	Discarding the result of a function (but only if error-like?)
 	☐	Missing members in structure initialization
 	☐	Using "\x80" in the same string as "\u{80}" or "€"

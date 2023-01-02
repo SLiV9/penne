@@ -6,6 +6,7 @@
 
 use penne::analyzer;
 use penne::common::Declaration;
+use penne::common::DeclarationFlag;
 use penne::generator;
 use penne::lexer;
 use penne::linter;
@@ -21,6 +22,7 @@ use std::io::Write;
 use anyhow::anyhow;
 use anyhow::Context;
 use clap::Parser;
+use enumset::EnumSet;
 use serde::Deserialize;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
@@ -453,7 +455,8 @@ fn do_main() -> Result<(), anyhow::Error>
 			stdout.set_color(&colorspec_dump)?;
 			writeln!(stdout, "{}", code)?;
 		}
-		let stored_declarations = declarations.clone();
+		let stored_declarations =
+			declarations.iter().filter_map(export).collect();
 		if verbose
 		{
 			stdout.set_color(&colorspec_header)?;
@@ -626,51 +629,130 @@ fn do_main() -> Result<(), anyhow::Error>
 	Ok(())
 }
 
+fn export(declaration: &Declaration) -> Option<Declaration>
+{
+	match declaration
+	{
+		Declaration::Constant {
+			name,
+			value,
+			value_type,
+			flags,
+			location_of_declaration,
+			location_of_type,
+		} => extract_public(flags).map(|flags| Declaration::Constant {
+			name: name.clone(),
+			value: value.clone(),
+			value_type: value_type.clone(),
+			flags,
+			location_of_declaration: location_of_declaration.clone(),
+			location_of_type: location_of_type.clone(),
+		}),
+		Declaration::Function {
+			name,
+			parameters,
+			return_type,
+			body: _,
+			flags,
+			location_of_declaration,
+			location_of_return_type,
+		} => extract_public(flags).map(|flags| Declaration::FunctionHead {
+			name: name.clone(),
+			parameters: parameters.clone(),
+			return_type: return_type.clone(),
+			flags,
+			location_of_declaration: location_of_declaration.clone(),
+			location_of_return_type: location_of_return_type.clone(),
+		}),
+		Declaration::FunctionHead {
+			name,
+			parameters,
+			return_type,
+			flags,
+			location_of_declaration,
+			location_of_return_type,
+		} => extract_public(flags).map(|flags| Declaration::FunctionHead {
+			name: name.clone(),
+			parameters: parameters.clone(),
+			return_type: return_type.clone(),
+			flags,
+			location_of_declaration: location_of_declaration.clone(),
+			location_of_return_type: location_of_return_type.clone(),
+		}),
+		Declaration::Structure {
+			name,
+			members,
+			structural_type,
+			depth,
+			flags,
+			location_of_declaration,
+		} => extract_public(flags).map(|flags| Declaration::Structure {
+			name: name.clone(),
+			members: members.clone(),
+			structural_type: structural_type.clone(),
+			depth: depth.clone(),
+			flags,
+			location_of_declaration: location_of_declaration.clone(),
+		}),
+		Declaration::Import { .. } => None,
+		Declaration::Poison(_) => None,
+	}
+}
+
+fn extract_public(
+	flags: &EnumSet<DeclarationFlag>,
+) -> Option<EnumSet<DeclarationFlag>>
+{
+	let mut flags = flags.clone();
+	if flags.remove(DeclarationFlag::Public)
+	{
+		Some(flags)
+	}
+	else
+	{
+		None
+	}
+}
+
 fn preprocess(
 	mut declarations: Vec<Declaration>,
 	relative_path: &std::path::Path,
 	modules: &HashMap<std::path::PathBuf, Vec<Declaration>>,
 ) -> Result<Vec<Declaration>, anyhow::Error>
 {
-	while let Some(i) = declarations.iter().position(is_directive)
+	for declaration in declarations.iter_mut()
 	{
-		let (directive, location) = match declarations.remove(i)
+		match declaration
 		{
-			Declaration::PreprocessorDirective {
-				directive,
+			Declaration::Import {
+				filename,
+				contents,
 				location,
-			} => (directive, location),
-			_ => unreachable!(),
-		};
-		if let Some(module) = relative_path
-			.ancestors()
-			.skip(1)
-			.filter_map(|path| {
-				let combined = path.join(directive.clone());
-				modules.get(&combined)
-			})
-			.next()
-		{
-			let imported_declarations = module.to_vec();
-			declarations.splice(i..i, imported_declarations);
-		}
-		else
-		{
-			return Err(anyhow!("failed to resolve {:?}", directive))
-				.context(location.format())
-				.context("failed to preprocess");
+			} =>
+			{
+				if let Some(module) = relative_path
+					.ancestors()
+					.skip(1)
+					.filter_map(|path| {
+						let combined = path.join(filename.clone());
+						modules.get(&combined)
+					})
+					.next()
+				{
+					let imported_declarations = module.to_vec();
+					*contents = imported_declarations;
+				}
+				else
+				{
+					return Err(anyhow!("failed to resolve {:?}", filename))
+						.context(location.format())
+						.context("failed to preprocess");
+				}
+			}
+			_ => (),
 		}
 	}
 	Ok(declarations)
-}
-
-fn is_directive(declaration: &Declaration) -> bool
-{
-	match declaration
-	{
-		Declaration::PreprocessorDirective { .. } => true,
-		_ => false,
-	}
 }
 
 fn get_backend(

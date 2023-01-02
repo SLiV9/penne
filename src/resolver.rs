@@ -252,7 +252,7 @@ impl Resolvable for Declaration
 					depth,
 				})
 			}
-			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Import { .. } => Ok(resolved::Declaration::Processed),
 			Declaration::Poison(poison) => Err(poison.into()),
 		}
 	}

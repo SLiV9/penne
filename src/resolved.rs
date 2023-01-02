@@ -50,6 +50,7 @@ pub enum Declaration
 		flags: EnumSet<DeclarationFlag>,
 		depth: u32,
 	},
+	Processed,
 }
 
 #[must_use]
