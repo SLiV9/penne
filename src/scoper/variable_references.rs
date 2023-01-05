@@ -613,22 +613,7 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 			},
 			Err(error) => Declaration::Poison(Poison::Error(error)),
 		},
-		Declaration::Import {
-			filename,
-			contents,
-			location,
-		} =>
-		{
-			let contents = contents
-				.into_iter()
-				.map(|x| predeclare(x, analyzer))
-				.collect();
-			Declaration::Import {
-				filename,
-				contents,
-				location,
-			}
-		}
+		Declaration::Import { .. } => declaration,
 		Declaration::Poison(_) => declaration,
 	}
 }

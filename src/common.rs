@@ -59,7 +59,7 @@ pub enum Declaration
 	Import
 	{
 		filename: String,
-		contents: Vec<Declaration>,
+		includes_definitions: bool,
 		location: Location,
 	},
 	Poison(Poison),

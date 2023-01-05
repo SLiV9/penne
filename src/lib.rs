@@ -31,6 +31,7 @@ pub mod rebuilder;
 pub mod resolved;
 pub mod resolver;
 pub mod scoper;
+pub mod stdout;
 pub mod typer;
 pub mod value_type;
 

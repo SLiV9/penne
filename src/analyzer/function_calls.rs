@@ -174,17 +174,7 @@ fn declare(declaration: &Declaration, analyzer: &mut Analyzer)
 			location_of_return_type: _,
 		} => analyzer.declare_function(name, parameters),
 		Declaration::Structure { .. } => (),
-		Declaration::Import {
-			filename: _,
-			contents,
-			location: _,
-		} =>
-		{
-			for declaration in contents
-			{
-				declare(declaration, analyzer);
-			}
-		}
+		Declaration::Import { .. } => (),
 		Declaration::Poison(_) => (),
 	}
 }

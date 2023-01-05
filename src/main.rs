@@ -11,7 +11,6 @@ use penne::generator;
 use penne::lexer;
 use penne::linter;
 use penne::parser;
-use penne::rebuilder;
 use penne::resolver;
 use penne::scoper;
 use penne::typer;
@@ -24,7 +23,6 @@ use anyhow::Context;
 use clap::Parser;
 use enumset::EnumSet;
 use serde::Deserialize;
-use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 #[cfg(feature = "logging")]
 use env_logger;
@@ -147,13 +145,8 @@ fn main() -> Result<(), anyhow::Error>
 	let result = do_main();
 	if result.is_err()
 	{
-		let mut stdout = StandardStream::stdout(ColorChoice::Auto);
-		let colorspec_error = ColorSpec::new()
-			.set_fg(Some(Color::Red))
-			.set_bold(true)
-			.to_owned();
-		stdout.set_color(&colorspec_error)?;
-		writeln!(stdout)?;
+		let mut stdout = penne::stdout::StdOut::new(false);
+		stdout.prepare_for_errors()?;
 	}
 	result
 }
@@ -300,19 +293,7 @@ fn do_main() -> Result<(), anyhow::Error>
 			})
 	});
 
-	let mut stdout = StandardStream::stdout(ColorChoice::Auto);
-	let colorspec_header = ColorSpec::new();
-	let colorspec_dump = ColorSpec::new().set_dimmed(true).to_owned();
-	let colorspec_error = ColorSpec::new()
-		.set_fg(Some(Color::Red))
-		.set_bold(true)
-		.to_owned();
-	let colorspec_warning = ColorSpec::new()
-		.set_fg(Some(Color::Yellow))
-		.set_bold(true)
-		.to_owned();
-	let colorspec_success =
-		ColorSpec::new().set_fg(Some(Color::Green)).to_owned();
+	let mut stdout = penne::stdout::StdOut::new(verbose);
 
 	let mut sources = Vec::new();
 	let mut modules = HashMap::new();
@@ -321,212 +302,73 @@ fn do_main() -> Result<(), anyhow::Error>
 	for filepath in filepaths
 	{
 		let filename = filepath.to_string_lossy().to_string();
-		writeln!(stdout)?;
+		stdout.newline()?;
 		let program = std::fs::read_to_string(&filepath)?;
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Lexing {}...", filename)?;
-		}
+		stdout.header("Lexing", &filename)?;
 		let tokens = lexer::lex(&program, &filename);
-		if verbose
-		{
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{:?}", tokens)?;
-			writeln!(stdout)?;
-			for token in &tokens
-			{
-				match &token.result
-				{
-					Result::Ok(token) => write!(stdout, "{:?}   ", token)?,
-					Result::Err(_) => write!(stdout, "ERROR   ")?,
-				}
-			}
-			writeln!(stdout)?;
-			writeln!(stdout)?;
-		}
+		stdout.dump_tokens(&tokens)?;
 		sources.push((filename.clone(), program));
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Parsing {}...", filename)?;
-		}
+
+		stdout.header("Parsing", &filename)?;
 		let declarations = parser::parse(tokens);
-		if verbose
-		{
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{:?}", declarations)?;
-			writeln!(stdout)?;
-		}
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Preprocessing {}...", filename)?;
-		}
+		stdout.dump_code(&filename, &declarations)?;
+
+		stdout.header("Preprocessing", &filename)?;
 		let declarations = preprocess(declarations, &filepath, &modules)?;
-		if verbose
-		{
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{:?}", declarations)?;
-			writeln!(stdout)?;
-		}
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Rebuilding {}...", filename)?;
-			let indentation = rebuilder::Indentation {
-				value: "\u{00a6}   ",
-				amount: 1,
-			};
-			let code = rebuilder::rebuild(&declarations, &indentation)?;
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{}", code)?;
-		}
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Scoping {}...", filename)?;
-		}
+		stdout.dump_code(&filename, &declarations)?;
+
+		stdout.header("Scoping", &filename)?;
 		let declarations = scoper::analyze(declarations);
-		if verbose
-		{
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{:?}", declarations)?;
-			writeln!(stdout)?;
-		}
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Rebuilding {}...", filename)?;
-			let indentation = rebuilder::Indentation {
-				value: "\u{00a6}   ",
-				amount: 1,
-			};
-			let code = rebuilder::rebuild(&declarations, &indentation)?;
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{}", code)?;
-		}
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Typing {}...", filename)?;
-		}
+		stdout.dump_code(&filename, &declarations)?;
+
+		stdout.header("Typing", &filename)?;
 		let declarations = typer::analyze(declarations);
-		if verbose
-		{
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{:?}", declarations)?;
-			writeln!(stdout)?;
-		}
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Rebuilding {}...", filename)?;
-			let indentation = rebuilder::Indentation {
-				value: "\u{00a6}   ",
-				amount: 1,
-			};
-			let code = rebuilder::rebuild(&declarations, &indentation)?;
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{}", code)?;
-			writeln!(stdout)?;
-		}
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Analyzing {}...", filename)?;
-		}
+		stdout.dump_code(&filename, &declarations)?;
+
+		stdout.header("Analyzing", &filename)?;
 		let declarations = analyzer::analyze(declarations);
-		if verbose
-		{
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{:?}", declarations)?;
-			writeln!(stdout)?;
-		}
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Rebuilding {}...", filename)?;
-			let indentation = rebuilder::Indentation {
-				value: "\u{00a6}   ",
-				amount: 1,
-			};
-			let code = rebuilder::rebuild(&declarations, &indentation)?;
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{}", code)?;
-		}
-		let stored_declarations =
-			declarations.iter().filter_map(export).collect();
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Linting {}...", filename)?;
-		}
+		stdout.dump_code(&filename, &declarations)?;
+
+		let stored_declarations = declarations.clone();
+
+		stdout.header("Linting", &filename)?;
 		let lints = linter::lint(&declarations);
-		if verbose
-		{
-			if !lints.is_empty()
-			{
-				stdout.set_color(&colorspec_warning)?;
-				// We show them after resolution, if there are no errors.
-				writeln!(stdout, "Linting raised some warnings.")?;
-			}
-			else
-			{
-				stdout.set_color(&colorspec_success)?;
-				writeln!(stdout, "Linting complete.")?;
-			}
-			writeln!(stdout)?;
-		}
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Resolving {}...", filename)?;
-		}
+		// We show the lints after resolution, if there are no errors.
+		let linting_was_successful = lints.is_empty();
+		stdout.linting(linting_was_successful)?;
+
+		stdout.header("Resolving", &filename)?;
 		let declarations = match resolver::resolve(declarations)
 		{
 			Ok(declarations) => declarations,
 			Err(errors) =>
 			{
-				stdout.set_color(&colorspec_error)?;
+				stdout.prepare_for_errors()?;
 				for error in errors.into_iter()
 				{
-					writeln!(stdout)?;
 					error.report().eprint(ariadne::sources(sources.clone()))?;
-					writeln!(stdout)?;
+					stdout.newline()?;
 				}
 				Err(anyhow!("compilation failed",))?;
 				Vec::new()
 			}
 		};
-		if verbose
-		{
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{:?}", declarations)?;
-			writeln!(stdout)?;
-		}
 		if !lints.is_empty()
 		{
 			for lint in lints
 			{
-				writeln!(stdout)?;
+				stdout.newline()?;
 				lint.report().eprint(ariadne::sources(sources.clone()))?;
 			}
-			writeln!(stdout)?;
+			stdout.newline()?;
 		}
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			write!(stdout, "Generating IR for {}...", filename)?;
-		}
-		stdout.set_color(&colorspec_error)?;
-		writeln!(stdout)?;
+		stdout.dump_resolved(&filename, &declarations)?;
+
+		stdout.header("Generating IR for", &filename)?;
+		stdout.prepare_for_errors()?;
 		let ir = generator::generate(&declarations, &filename, wasm)?;
-		if verbose
-		{
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{}", ir)?;
-		}
+		stdout.dump_text(&ir)?;
+
 		if let Some(out_dir) = &out_dir
 		{
 			let outputpath = {
@@ -538,8 +380,7 @@ fn do_main() -> Result<(), anyhow::Error>
 			let dirname = outputpath.parent().context("invalid output dir")?;
 			std::fs::create_dir_all(dirname)?;
 			backend_source = BackendSource::File(outputpath.clone());
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Writing to {}...", outputpath.to_string_lossy())?;
+			stdout.header("Writing to", &outputpath.to_string_lossy())?;
 			std::fs::write(outputpath, ir)?;
 		}
 		else
@@ -552,13 +393,8 @@ fn do_main() -> Result<(), anyhow::Error>
 
 	if let Some(output_filepath) = output_filepath.filter(|_x| !skip_backend)
 	{
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			write!(stdout, "Compiling...")?;
-		}
-		stdout.set_color(&colorspec_error)?;
-		writeln!(stdout)?;
+		stdout.basic_header("Building")?;
+		stdout.prepare_for_errors()?;
 
 		let mut cmd = std::process::Command::new(&backend);
 		if let Some(backend_args) = backend_args
@@ -611,8 +447,7 @@ fn do_main() -> Result<(), anyhow::Error>
 		if is_lli
 		{
 			let exitcode = status.code().context("no exitcode")?;
-			stdout.reset()?;
-			writeln!(stdout, "Output: {}", exitcode)?;
+			stdout.output(exitcode)?;
 		}
 		else
 		{
@@ -623,9 +458,7 @@ fn do_main() -> Result<(), anyhow::Error>
 		}
 	}
 
-	stdout.reset()?;
-	writeln!(stdout, "Done.")?;
-
+	stdout.done()?;
 	Ok(())
 }
 
@@ -726,7 +559,7 @@ fn preprocess(
 		{
 			Declaration::Import {
 				filename,
-				contents,
+				includes_definitions,
 				location,
 			} =>
 			{
@@ -740,7 +573,8 @@ fn preprocess(
 					.next()
 				{
 					let imported_declarations = module.to_vec();
-					*contents = imported_declarations;
+					// TODO
+					let _ = imported_declarations;
 				}
 				else
 				{

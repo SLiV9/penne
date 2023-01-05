@@ -1,0 +1,10 @@
+include "line.pn";
+include "position.pn";
+
+fn main() -> i32
+{
+	var from = Position { x: 20, y: 0 };
+	var to = Position { x: 0, y: 180 };
+	var line = Line { from, to };
+	return: line.from.x + line.to.y
+}

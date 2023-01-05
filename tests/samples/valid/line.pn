@@ -1,6 +1,6 @@
 import "position.pn";
 
-word128 Line
+pub word128 Line
 {
 	from: Position,
 	to: Position,

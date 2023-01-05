@@ -60,8 +60,9 @@ Functionality:
 		☐	pragma once
 		  ☐	Prevent circular imports
 		☐	Public vs private
-			☐	This requires linking multiple source files
+			☐	Think about pub (extern) const (not) being static
 		☐	Namespacing
+	  ☐	Use and pub use
 	☐	Heap allocation
 	☐	stdlib
 		☐	panic()
@@ -92,6 +93,7 @@ Syntax errors:
 Linting errors:
 	These are lints because they only cause runtime problems.
 	☐	Unreachable code
+		☐	gotofail bug in tests/samples/suspicious
 	✔	Loop as only statement in an if-branch @done (2021-01-09 12:45)
 	☐	Functions with side effects in if-statement conditions
 	☐	Var declaration with undefined value in some/all branches

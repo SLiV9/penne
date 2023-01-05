@@ -747,20 +747,7 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 				location_of_declaration,
 			}
 		}
-		Declaration::Import {
-			filename,
-			contents,
-			location,
-		} =>
-		{
-			let contents =
-				contents.into_iter().map(|x| predeclare(x, typer)).collect();
-			Declaration::Import {
-				filename,
-				contents,
-				location,
-			}
-		}
+		Declaration::Import { .. } => declaration,
 		Declaration::Poison(_) => declaration,
 	}
 }
