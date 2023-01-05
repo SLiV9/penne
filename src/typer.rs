@@ -49,8 +49,7 @@ fn visit_structures(declarations: &mut [Declaration]) -> Vec<&mut Declaration>
 		.iter_mut()
 		.filter(|x| get_structure_depth(x).is_some())
 		.collect();
-	// Sort structure declarations (Some) before other declarations (None),
-	// and sort the structure declarations by their depth, from low to high.
+	// Sort the structure declarations by their depth, from low to high.
 	declarations.sort_by_key(|x| get_structure_depth(x));
 	declarations
 }

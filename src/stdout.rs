@@ -34,6 +34,18 @@ impl StdOut
 		Ok(())
 	}
 
+	pub fn io_header(
+		&mut self,
+		preamble: &str,
+		path: &std::path::Path,
+	) -> Result<(), std::io::Error>
+	{
+		let colorspec_header = ColorSpec::new();
+		self.stdout.set_color(&colorspec_header)?;
+		writeln!(self.stdout, "{} {}...", preamble, path.to_string_lossy())?;
+		Ok(())
+	}
+
 	pub fn header(
 		&mut self,
 		preamble: &str,

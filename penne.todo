@@ -57,12 +57,13 @@ Functionality:
 	✘	Vec and String @cancelled (2022-12-01 15:57)
 	✘	Explicit mutable parameters @cancelled (2022-09-03 16:04)
 	☐	Modules
-		☐	pragma once
-		  ☐	Prevent circular imports
-		☐	Public vs private
+		✘	pragma once @cancelled (2023-01-05 19:05)
+		  ✘	Prevent circular imports @cancelled (2023-01-05 19:05)
+		✔	Public vs private @done (2023-01-05 19:05)
 			☐	Think about pub (extern) const (not) being static
 		☐	Namespacing
 	  ☐	Use and pub use
+	  	☐	Deduplicate symbols that are pub used in two different imports
 	☐	Heap allocation
 	☐	stdlib
 		☐	panic()

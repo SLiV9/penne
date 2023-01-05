@@ -206,7 +206,6 @@ fn get_structure_depth(declaration: &Declaration, max: usize) -> usize
 		Declaration::Function { .. } => max,
 		Declaration::FunctionHead { .. } => max,
 		Declaration::Structure { depth, .. } => *depth as usize,
-		Declaration::Processed { .. } => max,
 	}
 }
 
@@ -301,7 +300,6 @@ fn declare(
 			}
 			Ok(())
 		}
-		Declaration::Processed => Ok(()),
 	}
 }
 
@@ -425,7 +423,6 @@ impl Generatable for Declaration
 				// We already declared this.
 				Ok(())
 			}
-			Declaration::Processed => Ok(()),
 		}
 	}
 }

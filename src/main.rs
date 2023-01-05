@@ -7,6 +7,7 @@
 use penne::analyzer;
 use penne::common::Declaration;
 use penne::common::DeclarationFlag;
+use penne::expander;
 use penne::generator;
 use penne::lexer;
 use penne::linter;
@@ -296,27 +297,41 @@ fn do_main() -> Result<(), anyhow::Error>
 	let mut stdout = penne::stdout::StdOut::new(verbose);
 
 	let mut sources = Vec::new();
-	let mut modules = HashMap::new();
-	let mut backend_source = BackendSource::None;
+	let mut modules = Vec::new();
 
 	for filepath in filepaths
 	{
 		let filename = filepath.to_string_lossy().to_string();
 		stdout.newline()?;
-		let program = std::fs::read_to_string(&filepath)?;
+		let source = std::fs::read_to_string(&filepath)?;
 		stdout.header("Lexing", &filename)?;
-		let tokens = lexer::lex(&program, &filename);
+		let tokens = lexer::lex(&source, &filename);
 		stdout.dump_tokens(&tokens)?;
-		sources.push((filename.clone(), program));
 
 		stdout.header("Parsing", &filename)?;
 		let declarations = parser::parse(tokens);
 		stdout.dump_code(&filename, &declarations)?;
 
-		stdout.header("Preprocessing", &filename)?;
-		let declarations = preprocess(declarations, &filepath, &modules)?;
-		stdout.dump_code(&filename, &declarations)?;
+		sources.push((filename, source));
+		modules.push((filepath, declarations));
+	}
 
+	stdout.basic_header("Expanding imports")?;
+	expander::expand(&mut modules);
+	for (filepath, declarations) in &modules
+	{
+		let filename = filepath.to_string_lossy().to_string();
+		stdout.header("Expanding", &filename)?;
+		stdout.dump_code(&filename, &declarations)?;
+	}
+
+	let mut source_cache = ariadne::sources(sources);
+	let mut backend_source = BackendSource::None;
+
+	for (filepath, declarations) in modules
+	{
+		let filename = filepath.to_string_lossy().to_string();
+		stdout.newline()?;
 		stdout.header("Scoping", &filename)?;
 		let declarations = scoper::analyze(declarations);
 		stdout.dump_code(&filename, &declarations)?;
@@ -328,8 +343,6 @@ fn do_main() -> Result<(), anyhow::Error>
 		stdout.header("Analyzing", &filename)?;
 		let declarations = analyzer::analyze(declarations);
 		stdout.dump_code(&filename, &declarations)?;
-
-		let stored_declarations = declarations.clone();
 
 		stdout.header("Linting", &filename)?;
 		let lints = linter::lint(&declarations);
@@ -346,7 +359,7 @@ fn do_main() -> Result<(), anyhow::Error>
 				stdout.prepare_for_errors()?;
 				for error in errors.into_iter()
 				{
-					error.report().eprint(ariadne::sources(sources.clone()))?;
+					error.report().eprint(&mut source_cache)?;
 					stdout.newline()?;
 				}
 				Err(anyhow!("compilation failed",))?;
@@ -358,7 +371,7 @@ fn do_main() -> Result<(), anyhow::Error>
 			for lint in lints
 			{
 				stdout.newline()?;
-				lint.report().eprint(ariadne::sources(sources.clone()))?;
+				lint.report().eprint(&mut source_cache)?;
 			}
 			stdout.newline()?;
 		}
@@ -380,15 +393,13 @@ fn do_main() -> Result<(), anyhow::Error>
 			let dirname = outputpath.parent().context("invalid output dir")?;
 			std::fs::create_dir_all(dirname)?;
 			backend_source = BackendSource::File(outputpath.clone());
-			stdout.header("Writing to", &outputpath.to_string_lossy())?;
+			stdout.io_header("Writing to", &outputpath)?;
 			std::fs::write(outputpath, ir)?;
 		}
 		else
 		{
 			backend_source = BackendSource::Stdin(ir);
 		}
-		// Store the declarations for later use.
-		modules.insert(filepath, stored_declarations);
 	}
 
 	if let Some(output_filepath) = output_filepath.filter(|_x| !skip_backend)
@@ -460,133 +471,6 @@ fn do_main() -> Result<(), anyhow::Error>
 
 	stdout.done()?;
 	Ok(())
-}
-
-fn export(declaration: &Declaration) -> Option<Declaration>
-{
-	match declaration
-	{
-		Declaration::Constant {
-			name,
-			value,
-			value_type,
-			flags,
-			location_of_declaration,
-			location_of_type,
-		} => extract_public(flags).map(|flags| Declaration::Constant {
-			name: name.clone(),
-			value: value.clone(),
-			value_type: value_type.clone(),
-			flags,
-			location_of_declaration: location_of_declaration.clone(),
-			location_of_type: location_of_type.clone(),
-		}),
-		Declaration::Function {
-			name,
-			parameters,
-			return_type,
-			body: _,
-			flags,
-			location_of_declaration,
-			location_of_return_type,
-		} => extract_public(flags).map(|flags| Declaration::FunctionHead {
-			name: name.clone(),
-			parameters: parameters.clone(),
-			return_type: return_type.clone(),
-			flags,
-			location_of_declaration: location_of_declaration.clone(),
-			location_of_return_type: location_of_return_type.clone(),
-		}),
-		Declaration::FunctionHead {
-			name,
-			parameters,
-			return_type,
-			flags,
-			location_of_declaration,
-			location_of_return_type,
-		} => extract_public(flags).map(|flags| Declaration::FunctionHead {
-			name: name.clone(),
-			parameters: parameters.clone(),
-			return_type: return_type.clone(),
-			flags,
-			location_of_declaration: location_of_declaration.clone(),
-			location_of_return_type: location_of_return_type.clone(),
-		}),
-		Declaration::Structure {
-			name,
-			members,
-			structural_type,
-			depth,
-			flags,
-			location_of_declaration,
-		} => extract_public(flags).map(|flags| Declaration::Structure {
-			name: name.clone(),
-			members: members.clone(),
-			structural_type: structural_type.clone(),
-			depth: depth.clone(),
-			flags,
-			location_of_declaration: location_of_declaration.clone(),
-		}),
-		Declaration::Import { .. } => None,
-		Declaration::Poison(_) => None,
-	}
-}
-
-fn extract_public(
-	flags: &EnumSet<DeclarationFlag>,
-) -> Option<EnumSet<DeclarationFlag>>
-{
-	let mut flags = flags.clone();
-	if flags.remove(DeclarationFlag::Public)
-	{
-		Some(flags)
-	}
-	else
-	{
-		None
-	}
-}
-
-fn preprocess(
-	mut declarations: Vec<Declaration>,
-	relative_path: &std::path::Path,
-	modules: &HashMap<std::path::PathBuf, Vec<Declaration>>,
-) -> Result<Vec<Declaration>, anyhow::Error>
-{
-	for declaration in declarations.iter_mut()
-	{
-		match declaration
-		{
-			Declaration::Import {
-				filename,
-				includes_definitions,
-				location,
-			} =>
-			{
-				if let Some(module) = relative_path
-					.ancestors()
-					.skip(1)
-					.filter_map(|path| {
-						let combined = path.join(filename.clone());
-						modules.get(&combined)
-					})
-					.next()
-				{
-					let imported_declarations = module.to_vec();
-					// TODO
-					let _ = imported_declarations;
-				}
-				else
-				{
-					return Err(anyhow!("failed to resolve {:?}", filename))
-						.context(location.format())
-						.context("failed to preprocess");
-				}
-			}
-			_ => (),
-		}
-	}
-	Ok(declarations)
 }
 
 fn get_backend(

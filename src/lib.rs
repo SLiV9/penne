@@ -16,13 +16,14 @@
 //! The Abstract Syntax Tree is detailed in the modules [common], [value_type]
 //! and [resolved]. Errors are laid out in [error]. The other modules contain
 //! the various compiler stages. In order:
-//! [lexer], [parser], [scoper], [typer], [analyzer], [linter], [resolver],
-//! and [generator].
+//! [lexer], [parser], [expander], [scoper], [typer], [analyzer],
+//! [linter], [resolver] and [generator].
 //! The [rebuilder] module allows turning the AST back into (annotated) code.
 
 pub mod analyzer;
 pub mod common;
 pub mod error;
+pub mod expander;
 pub mod generator;
 pub mod lexer;
 pub mod linter;
