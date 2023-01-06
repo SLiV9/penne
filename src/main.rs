@@ -322,6 +322,7 @@ fn do_main() -> Result<(), anyhow::Error>
 
 	let mut source_cache = ariadne::sources(sources);
 	let mut generated_ir_files = Vec::new();
+	let mut generated_ir_contents = Vec::new();
 
 	for (filepath, declarations) in modules
 	{
@@ -393,7 +394,7 @@ fn do_main() -> Result<(), anyhow::Error>
 		}
 		else
 		{
-			// TODO stdin ir
+			generated_ir_contents.push(ir);
 		}
 	}
 
@@ -418,7 +419,7 @@ fn do_main() -> Result<(), anyhow::Error>
 		{
 			cmd.arg(filepath);
 		}
-		if false
+		if !generated_ir_contents.is_empty()
 		{
 			if !is_lli
 			{
@@ -437,9 +438,9 @@ fn do_main() -> Result<(), anyhow::Error>
 		stdout.header("Running", &format!("{:?}", cmd))?;
 		stdout.prepare_for_errors()?;
 		let mut cmd = cmd.spawn()?;
-		if false
+		if !generated_ir_contents.is_empty()
 		{
-			let full_ir = "";
+			let full_ir = generated_ir_contents.join("\n\n\n");
 			cmd.stdin
 				.as_mut()
 				.context("failed to pipe")?
