@@ -7,7 +7,7 @@ By applying modern sensibilities to the use of the `goto` statement instead of b
 
 ## A quick taste
 
-Penne's general aesthetic is inspired by modern programming languages (in particular [Rust](https://www.rust-lang.org/)), with the notable exception of labels and the `goto` statement, which are (at least syntactically) taken from C, and the `loop` statement.
+Penne's general aesthetic is inspired by modern programming languages (in particular Rust), with the notable exception of labels and the `goto` statement, which are (at least syntactically) taken from C, and the `loop` statement.
 
 ```
 // Calculate the number of Collatz steps needed to reach 1.
@@ -115,7 +115,7 @@ Here the line `x = x + 1` is executed forever and the end of the function is nev
 
 ### Views
 
-Function arguments other than pointers (see below), primitives and words are passed as a view. For arrays this means an array view is created and passed into the function. Array views remember the length of their array, which can be accessed with the length operation `|x|`.
+Function arguments other than pointers (see below), primitives and words are passed as a view. For arrays this means an array view (or "slice") is created and passed into the function. Array views remember the length of their array, which can be accessed with the length operation `|x|`.
 
 ```
 fn foo()
@@ -188,9 +188,30 @@ fn set_to_zero(x: &[]i32)
 }
 ```
 
+### Structs and words
+
+Like arrays, structural types declared with the `struct` keyword are implicitly passed as a view and cannot be used as the return value of a function. However fixed size structures, declared with `word8`, `word16`, `word32`, `word64` or `word128`, are passed by value.
+
+### Imports
+
+The `import` keyword is used to import all function signatures, structures and constants marked `pub` from a source file into the destination file. Imports are themselves not public and hence are not re-imported.
+
+### Interoperability with C
+
+Functions marked `extern` use the C ABI, which means it is possible (though not necessarily safe) to call them from C code compiled by LLVM. Conversely, declaring a function header such as
+```
+    extern fn foo(buffer: []u8, length: usize);
+```
+allows you to call a C function from Penne code. Interacting with other programming languages that utilize or support the C ABI, such as C++, Rust, Zig or WebAssembly, is also possible.
+
+Only array views, pointers and the primitive types `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64` and `usize` are allowed in the signature of an `extern` function. Array views in `extern` functions correspond to (const) pointers in C, do not have a length (`|x|`) and must not be null.
+In a future version of Penne, pointers will also be assumed to be non-null and an "optional" type must be used to mark nullable pointers.
+
+Structures and constants can also be declared `extern`, but as of v0.3.0 this has no effect.
+
 ## Non-features
 
-Penne is an esoteric language, not a general purpose or systems programming language. Certain modern language features that I think are essential for a good programming language in 2022 to have, are omitted. This is either because including them would contradict the premise of Penne (see above) or to simplify its implementation.
+Penne is an esoteric language, not a general purpose or systems programming language. Certain modern features that you or I may think essential for a good programming language in 2023 to have, are omitted. This is either because including them would contradict the premise of Penne (see above) or to simplify its implementation.
 As such, the following are decidedly *not* features of Penne:
 
 * classes;

@@ -61,7 +61,6 @@ Functionality:
 		  ✘	Prevent circular imports @cancelled (2023-01-05 19:05)
 		✔	Public vs private @done (2023-01-05 19:05)
 			☐	Think about pub (extern) const (not) being static
-		☐	Think about error in cli if combining two separate compilation units that contain the same symbol (in particular main)
 		☐	Namespacing
 	  ☐	Use and pub use
 	  	☐	Deduplicate symbols that are pub used in two different imports
@@ -141,7 +140,6 @@ Documentation:
 	☐	High def logo
 
 Development:
-	☐	Document structs and words
 	☐	Improve test coverage
 	☐	WASM-4 pull request
 

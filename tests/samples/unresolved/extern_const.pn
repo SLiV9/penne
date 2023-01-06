@@ -1,0 +1,9 @@
+
+extern const X: i32 = 100;
+extern const Y: i32 = 100;
+
+fn main() -> i32
+{
+	var result = X + Y;
+	return: result
+}

@@ -1,0 +1,7 @@
+pub word128 Position
+{
+	x: i32,
+	y: i32,
+	z: i32,
+	_u: i32,
+}

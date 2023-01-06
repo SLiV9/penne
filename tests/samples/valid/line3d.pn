@@ -1,0 +1,7 @@
+import "position3d.pn";
+
+pub struct Line
+{
+	from: Position,
+	to: Position,
+}
