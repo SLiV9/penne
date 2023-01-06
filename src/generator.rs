@@ -17,13 +17,15 @@ use llvm_sys::target_machine::LLVMGetDefaultTargetTriple;
 use llvm_sys::*;
 use llvm_sys::{LLVMBuilder, LLVMContext, LLVMModule};
 
+use anyhow::anyhow;
+
 pub const DEFAULT_DATA_LAYOUT: &str = "e-m:e-p:64:64-i64:64-n8:16:32:64-S64";
 
 pub fn generate(
 	program: &Vec<Declaration>,
 	source_filename: &str,
 	for_wasm: bool,
-) -> Result<String, anyhow::Error>
+) -> Result<Generator, anyhow::Error>
 {
 	let mut generator = Generator::new(source_filename)?;
 	if for_wasm
@@ -41,14 +43,13 @@ pub fn generate(
 	}
 
 	generator.verify();
-	let ircode = generator.generate_ir()?;
-	Ok(ircode)
+	Ok(generator)
 }
 
-struct Generator
+#[must_use]
+pub struct Generator
 {
 	module: *mut LLVMModule,
-	context: *mut LLVMContext,
 	builder: *mut LLVMBuilder,
 	global_variables: std::collections::HashMap<u32, LLVMValueRef>,
 	global_functions: std::collections::HashMap<u32, LLVMValueRef>,
@@ -64,19 +65,14 @@ impl Generator
 	{
 		let module_name = CString::new(module_name)?;
 		let generator = unsafe {
-			let context = LLVMContextCreate();
-			let module = LLVMModuleCreateWithNameInContext(
-				module_name.as_ptr(),
-				context,
-			);
+			let module = LLVMModuleCreateWithName(module_name.as_ptr());
 			LLVMSetTarget(module, LLVMGetDefaultTargetTriple());
 			let data_layout = CString::new(DEFAULT_DATA_LAYOUT)?;
 			LLVMSetDataLayout(module, data_layout.as_ptr());
-			let builder = LLVMCreateBuilderInContext(context);
-			let type_of_usize = LLVMInt64TypeInContext(context);
+			let builder = LLVMCreateBuilder();
+			let type_of_usize = LLVMInt64Type();
 			Generator {
 				module,
-				context,
 				builder,
 				global_variables: std::collections::HashMap::new(),
 				global_functions: std::collections::HashMap::new(),
@@ -97,7 +93,7 @@ impl Generator
 			let data_layout = "e-p:32:32-i64:64-n32:64-S64";
 			let data_layout = CString::new(data_layout)?;
 			LLVMSetDataLayout(self.module, data_layout.as_ptr());
-			self.type_of_usize = LLVMInt32TypeInContext(self.context);
+			self.type_of_usize = LLVMInt32Type();
 			Ok(())
 		}
 	}
@@ -123,7 +119,7 @@ impl Generator
 		}
 	}
 
-	fn generate_ir(&self) -> Result<String, anyhow::Error>
+	pub fn generate_ir(&self) -> Result<String, anyhow::Error>
 	{
 		let ircode: CString = unsafe {
 			let raw = LLVMPrintModuleToString(self.module);
@@ -135,10 +131,30 @@ impl Generator
 		Ok(ircode)
 	}
 
+	pub fn absorb(&mut self, other: Generator) -> Result<(), anyhow::Error>
+	{
+		let errorcode = unsafe {
+			llvm_sys::linker::LLVMLinkModules2(self.module, other.module)
+		};
+		if errorcode != 0
+		{
+			Err(anyhow!("failed to link modules"))
+		}
+		else
+		{
+			Ok(())
+		}
+	}
+
+	fn context(&self) -> *mut LLVMContext
+	{
+		unsafe { LLVMGetModuleContext(self.module) }
+	}
+
 	fn const_bool(&mut self, value: bool) -> LLVMValueRef
 	{
 		unsafe {
-			let bytetype = LLVMInt1TypeInContext(self.context);
+			let bytetype = LLVMInt1Type();
 			LLVMConstInt(bytetype, value as u64, 0)
 		}
 	}
@@ -146,7 +162,7 @@ impl Generator
 	fn const_u8(&mut self, value: u8) -> LLVMValueRef
 	{
 		unsafe {
-			let bytetype = LLVMInt8TypeInContext(self.context);
+			let bytetype = LLVMInt8Type();
 			LLVMConstInt(bytetype, value as u64, 0)
 		}
 	}
@@ -154,7 +170,7 @@ impl Generator
 	fn const_i32(&mut self, value: i32) -> LLVMValueRef
 	{
 		unsafe {
-			let inttype = LLVMInt32TypeInContext(self.context);
+			let inttype = LLVMInt32Type();
 			LLVMConstInt(inttype, value as u64, 1)
 		}
 	}
@@ -183,7 +199,6 @@ impl Drop for Generator
 		unsafe {
 			LLVMDisposeBuilder(self.builder);
 			LLVMDisposeModule(self.module);
-			LLVMContextDispose(self.context);
 		}
 	}
 }
@@ -236,7 +251,7 @@ fn declare(
 				Some(return_type) => return_type.generate(llvm)?,
 
 				None =>
-				unsafe { LLVMVoidTypeInContext(llvm.context) },
+				unsafe { LLVMVoidType() },
 			};
 
 			let function_name = CString::new(name.name.as_bytes())?;
@@ -276,7 +291,7 @@ fn declare(
 		{
 			let name = CString::new(&name.name as &str)?;
 			let struct_type =
-				unsafe { LLVMStructCreateNamed(llvm.context, name.as_ptr()) };
+				unsafe { LLVMStructCreateNamed(llvm.context(), name.as_ptr()) };
 
 			let member_types: Result<Vec<LLVMTypeRef>, anyhow::Error> = members
 				.iter()
@@ -285,7 +300,7 @@ fn declare(
 			let mut member_types = member_types?;
 			if member_types.is_empty()
 			{
-				let bytetype = unsafe { LLVMInt8TypeInContext(llvm.context) };
+				let bytetype = unsafe { LLVMInt8Type() };
 				member_types.push(bytetype);
 			}
 			let is_packed = 0;
@@ -368,8 +383,7 @@ impl Generatable for Declaration
 
 				let entry_block_name = CString::new("entry")?;
 				unsafe {
-					let entry_block = LLVMAppendBasicBlockInContext(
-						llvm.context,
+					let entry_block = LLVMAppendBasicBlock(
 						function,
 						entry_block_name.as_ptr(),
 					);
@@ -474,11 +488,8 @@ impl Generatable for Block
 			let inner_block = unsafe {
 				let current_block = LLVMGetInsertBlock(llvm.builder);
 				let function = LLVMGetBasicBlockParent(current_block);
-				let inner_block = LLVMAppendBasicBlockInContext(
-					llvm.context,
-					function,
-					cname.as_ptr(),
-				);
+				let inner_block =
+					LLVMAppendBasicBlock(function, cname.as_ptr());
 				LLVMPositionBuilderAtEnd(llvm.builder, current_block);
 				LLVMBuildBr(llvm.builder, inner_block);
 				LLVMPositionBuilderAtEnd(llvm.builder, inner_block);
@@ -495,11 +506,8 @@ impl Generatable for Block
 			unsafe {
 				let function = LLVMGetBasicBlockParent(inner_block);
 				LLVMBuildBr(llvm.builder, inner_block);
-				let after_block = LLVMAppendBasicBlockInContext(
-					llvm.context,
-					function,
-					cname.as_ptr(),
-				);
+				let after_block =
+					LLVMAppendBasicBlock(function, cname.as_ptr());
 				LLVMPositionBuilderAtEnd(llvm.builder, after_block);
 			}
 		}
@@ -601,11 +609,8 @@ impl Generatable for Statement
 				let cname = CString::new("unreachable-after-goto")?;
 				let unreachable_block = unsafe {
 					let function = LLVMGetBasicBlockParent(current_block);
-					let unreachable_block = LLVMAppendBasicBlockInContext(
-						llvm.context,
-						function,
-						cname.as_ptr(),
-					);
+					let unreachable_block =
+						LLVMAppendBasicBlock(function, cname.as_ptr());
 					unreachable_block
 				};
 				let labeled_block = find_or_append_labeled_block(llvm, label)?;
@@ -639,11 +644,8 @@ impl Generatable for Statement
 
 				let cname = CString::new("then")?;
 				let then_start_block = unsafe {
-					let then_block = LLVMAppendBasicBlockInContext(
-						llvm.context,
-						function,
-						cname.as_ptr(),
-					);
+					let then_block =
+						LLVMAppendBasicBlock(function, cname.as_ptr());
 					LLVMPositionBuilderAtEnd(llvm.builder, then_block);
 					then_block
 				};
@@ -657,11 +659,8 @@ impl Generatable for Statement
 				{
 					let cname = CString::new("else")?;
 					let start_block = unsafe {
-						let else_block = LLVMAppendBasicBlockInContext(
-							llvm.context,
-							function,
-							cname.as_ptr(),
-						);
+						let else_block =
+							LLVMAppendBasicBlock(function, cname.as_ptr());
 						LLVMPositionBuilderAtEnd(llvm.builder, else_block);
 						else_block
 					};
@@ -679,11 +678,8 @@ impl Generatable for Statement
 
 				let cname = CString::new("after")?;
 				let after_block = unsafe {
-					let after_block = LLVMAppendBasicBlockInContext(
-						llvm.context,
-						function,
-						cname.as_ptr(),
-					);
+					let after_block =
+						LLVMAppendBasicBlock(function, cname.as_ptr());
 					after_block
 				};
 				unsafe {
@@ -733,11 +729,7 @@ fn find_or_append_labeled_block(
 		let block = unsafe {
 			let current_block = LLVMGetInsertBlock(llvm.builder);
 			let function = LLVMGetBasicBlockParent(current_block);
-			let labeled_block = LLVMAppendBasicBlockInContext(
-				llvm.context,
-				function,
-				cname.as_ptr(),
-			);
+			let labeled_block = LLVMAppendBasicBlock(function, cname.as_ptr());
 			labeled_block
 		};
 		llvm.local_labeled_blocks.insert(label.resolution_id, block);
@@ -1075,27 +1067,27 @@ impl Generatable for PrimitiveLiteral
 		{
 			PrimitiveLiteral::Int8(value) =>
 			unsafe {
-				let inttype = LLVMInt8TypeInContext(llvm.context);
+				let inttype = LLVMInt8Type();
 				Ok(LLVMConstInt(inttype, *value as u64, 1))
 			},
 			PrimitiveLiteral::Int16(value) =>
 			unsafe {
-				let inttype = LLVMInt16TypeInContext(llvm.context);
+				let inttype = LLVMInt16Type();
 				Ok(LLVMConstInt(inttype, *value as u64, 1))
 			},
 			PrimitiveLiteral::Int32(value) =>
 			unsafe {
-				let inttype = LLVMInt32TypeInContext(llvm.context);
+				let inttype = LLVMInt32Type();
 				Ok(LLVMConstInt(inttype, *value as u64, 1))
 			},
 			PrimitiveLiteral::Int64(value) =>
 			unsafe {
-				let inttype = LLVMInt64TypeInContext(llvm.context);
+				let inttype = LLVMInt64Type();
 				Ok(LLVMConstInt(inttype, *value as u64, 1))
 			},
 			PrimitiveLiteral::Int128(value) =>
 			unsafe {
-				let inttype = LLVMInt128TypeInContext(llvm.context);
+				let inttype = LLVMInt128Type();
 				let value: i128 = *value;
 				let value_bits: u128 = value as u128;
 				let words = [
@@ -1106,27 +1098,27 @@ impl Generatable for PrimitiveLiteral
 			},
 			PrimitiveLiteral::Uint8(value) =>
 			unsafe {
-				let inttype = LLVMInt8TypeInContext(llvm.context);
+				let inttype = LLVMInt8Type();
 				Ok(LLVMConstInt(inttype, *value as u64, 0))
 			},
 			PrimitiveLiteral::Uint16(value) =>
 			unsafe {
-				let inttype = LLVMInt16TypeInContext(llvm.context);
+				let inttype = LLVMInt16Type();
 				Ok(LLVMConstInt(inttype, *value as u64, 0))
 			},
 			PrimitiveLiteral::Uint32(value) =>
 			unsafe {
-				let inttype = LLVMInt32TypeInContext(llvm.context);
+				let inttype = LLVMInt32Type();
 				Ok(LLVMConstInt(inttype, *value as u64, 0))
 			},
 			PrimitiveLiteral::Uint64(value) =>
 			unsafe {
-				let inttype = LLVMInt64TypeInContext(llvm.context);
+				let inttype = LLVMInt64Type();
 				Ok(LLVMConstInt(inttype, *value as u64, 0))
 			},
 			PrimitiveLiteral::Uint128(value) =>
 			unsafe {
-				let inttype = LLVMInt128TypeInContext(llvm.context);
+				let inttype = LLVMInt128Type();
 				let value: u128 = *value;
 				let value_bits: u128 = value as u128;
 				let words = [
@@ -1154,38 +1146,28 @@ impl Generatable for ValueType
 		{
 			ValueType::Void => unreachable!(),
 			ValueType::Int8 =>
-			unsafe { LLVMInt8TypeInContext(llvm.context) },
+			unsafe { LLVMInt8Type() },
 			ValueType::Int16 =>
-			unsafe { LLVMInt16TypeInContext(llvm.context) },
+			unsafe { LLVMInt16Type() },
 			ValueType::Int32 =>
-			unsafe { LLVMInt32TypeInContext(llvm.context) },
+			unsafe { LLVMInt32Type() },
 			ValueType::Int64 =>
-			unsafe { LLVMInt64TypeInContext(llvm.context) },
+			unsafe { LLVMInt64Type() },
 			ValueType::Int128 =>
-			unsafe {
-				LLVMInt128TypeInContext(llvm.context)
-			},
+			unsafe { LLVMInt128Type() },
 			ValueType::Uint8 =>
-			unsafe { LLVMInt8TypeInContext(llvm.context) },
+			unsafe { LLVMInt8Type() },
 			ValueType::Uint16 =>
-			unsafe {
-				LLVMInt16TypeInContext(llvm.context)
-			},
+			unsafe { LLVMInt16Type() },
 			ValueType::Uint32 =>
-			unsafe {
-				LLVMInt32TypeInContext(llvm.context)
-			},
+			unsafe { LLVMInt32Type() },
 			ValueType::Uint64 =>
-			unsafe {
-				LLVMInt64TypeInContext(llvm.context)
-			},
+			unsafe { LLVMInt64Type() },
 			ValueType::Uint128 =>
-			unsafe {
-				LLVMInt128TypeInContext(llvm.context)
-			},
+			unsafe { LLVMInt128Type() },
 			ValueType::Usize => llvm.type_of_usize,
 			ValueType::Bool =>
-			unsafe { LLVMInt1TypeInContext(llvm.context) },
+			unsafe { LLVMInt1Type() },
 			ValueType::Array {
 				element_type,
 				length,
@@ -1202,8 +1184,7 @@ impl Generatable for ValueType
 				let sizetype = ValueType::Usize.generate(llvm)?;
 				let mut member_types = [pointertype, sizetype];
 				unsafe {
-					LLVMStructTypeInContext(
-						llvm.context,
+					LLVMStructType(
 						member_types.as_mut_ptr(),
 						member_types.len() as u32,
 						0,
@@ -1594,12 +1575,7 @@ fn generate_array_slice(
 	let sizetype = ValueType::Usize.generate(llvm)?;
 	let mut member_types = [pointertype, sizetype];
 	let slice_type = unsafe {
-		LLVMStructTypeInContext(
-			llvm.context,
-			member_types.as_mut_ptr(),
-			member_types.len() as u32,
-			0,
-		)
+		LLVMStructType(member_types.as_mut_ptr(), member_types.len() as u32, 0)
 	};
 	let mut slice = unsafe { LLVMGetUndef(slice_type) };
 	let address_value = unsafe {

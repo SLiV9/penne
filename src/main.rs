@@ -5,8 +5,6 @@
 //
 
 use penne::analyzer;
-use penne::common::Declaration;
-use penne::common::DeclarationFlag;
 use penne::expander;
 use penne::generator;
 use penne::lexer;
@@ -16,13 +14,11 @@ use penne::resolver;
 use penne::scoper;
 use penne::typer;
 
-use std::collections::HashMap;
 use std::io::Write;
 
 use anyhow::anyhow;
 use anyhow::Context;
 use clap::Parser;
-use enumset::EnumSet;
 use serde::Deserialize;
 
 #[cfg(feature = "logging")]
@@ -326,6 +322,7 @@ fn do_main() -> Result<(), anyhow::Error>
 
 	let mut source_cache = ariadne::sources(sources);
 	let mut generated_ir_files = Vec::new();
+	let mut generated_megamodule: Option<generator::Generator> = None;
 
 	for (filepath, declarations) in modules
 	{
@@ -378,7 +375,8 @@ fn do_main() -> Result<(), anyhow::Error>
 
 		stdout.header("Generating IR for", &filename)?;
 		stdout.prepare_for_errors()?;
-		let ir = generator::generate(&declarations, &filename, wasm)?;
+		let module = generator::generate(&declarations, &filename, wasm)?;
+		let ir = module.generate_ir()?;
 		stdout.dump_text(&ir)?;
 
 		if let Some(out_dir) = &out_dir
@@ -397,7 +395,18 @@ fn do_main() -> Result<(), anyhow::Error>
 		}
 		else
 		{
-			// TODO stdin ir
+			match &mut generated_megamodule
+			{
+				Some(existing) =>
+				{
+					stdout.basic_header("Linking modules")?;
+					existing.absorb(module)?;
+				}
+				None =>
+				{
+					generated_megamodule = Some(module);
+				}
+			}
 		}
 	}
 
@@ -422,7 +431,7 @@ fn do_main() -> Result<(), anyhow::Error>
 		{
 			cmd.arg(filepath);
 		}
-		if false
+		if generated_megamodule.is_some()
 		{
 			if !is_lli
 			{
@@ -441,9 +450,9 @@ fn do_main() -> Result<(), anyhow::Error>
 		stdout.header("Running", &format!("{:?}", cmd))?;
 		stdout.prepare_for_errors()?;
 		let mut cmd = cmd.spawn()?;
-		if false
+		if let Some(module) = generated_megamodule
 		{
-			let full_ir = "";
+			let full_ir = module.generate_ir()?;
 			cmd.stdin
 				.as_mut()
 				.context("failed to pipe")?
