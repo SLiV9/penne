@@ -252,11 +252,7 @@ impl Resolvable for Declaration
 					depth,
 				})
 			}
-			Declaration::Import {
-				filename,
-				includes_definitions: _,
-				location,
-			} =>
+			Declaration::Import { filename, location } =>
 			{
 				// For code run through the CLI, this should be unreachable
 				// because the imports are processed in an earlier stage.

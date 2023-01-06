@@ -316,12 +316,6 @@ impl Rebuildable for Declaration
 			}
 			Declaration::Import {
 				filename,
-				includes_definitions: true,
-				location: _,
-			} => Ok(format!("{}include \"{}\";\n", indentation, filename)),
-			Declaration::Import {
-				filename,
-				includes_definitions: false,
 				location: _,
 			} => Ok(format!("{}import \"{}\";\n", indentation, filename)),
 			Declaration::Poison(poison) => poison.rebuild(indentation),

@@ -263,7 +263,6 @@ fn can_start_declaration(token: &Token) -> bool
 {
 	match token
 	{
-		Token::Include => true,
 		Token::Import => true,
 		Token::Pub => true,
 		Token::Extern => true,
@@ -314,7 +313,6 @@ fn parse_declaration(tokens: &mut Tokens) -> Result<Declaration, Error>
 		location_of_declaration.unwrap_or_else(|| location.clone());
 	match token
 	{
-		Token::Include => parse_include(location_of_declaration, tokens),
 		Token::Import => parse_import(location_of_declaration, tokens),
 		Token::Const =>
 		{
@@ -355,21 +353,6 @@ fn parse_declaration(tokens: &mut Tokens) -> Result<Declaration, Error>
 	}
 }
 
-fn parse_include(
-	location_of_include: Location,
-	tokens: &mut Tokens,
-) -> Result<Declaration, Error>
-{
-	let filename = parse_quoted_path(tokens)?;
-	consume(Token::Semicolon, "expected semicolon", tokens)?;
-	let declaration = Declaration::Import {
-		filename,
-		includes_definitions: true,
-		location: location_of_include,
-	};
-	Ok(declaration)
-}
-
 fn parse_import(
 	location_of_import: Location,
 	tokens: &mut Tokens,
@@ -379,7 +362,6 @@ fn parse_import(
 	consume(Token::Semicolon, "expected semicolon", tokens)?;
 	let declaration = Declaration::Import {
 		filename,
-		includes_definitions: false,
 		location: location_of_import,
 	};
 	Ok(declaration)

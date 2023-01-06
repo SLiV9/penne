@@ -15,53 +15,44 @@ pub fn expand(modules: &mut [(std::path::PathBuf, Vec<Declaration>)])
 {
 	let keys: Vec<std::path::PathBuf> =
 		modules.iter().map(|(k, _v)| k.clone()).collect();
-	let mut includes = HashSet::new();
 	let mut imports = HashSet::new();
 
 	for (offset_of_includer, module) in modules.iter_mut().enumerate()
 	{
 		let (path_of_includer, declarations) = module;
 
-		// Sort import declarations (-1) before other declarations (0),
-		// and sort the import declarations by their order, from low to high.
-		// Note that this stable sort preserves the order of the non-imports.
+		// Sort import declarations (-1) before other declarations (0).
+		// It is important that this sort is stable for non-import declarations.
 		declarations.sort_by_key(|x| -1 * i32::from(is_import(x)));
 
-		// Build two directed graphs from the import declarations.
+		// Process the import declarations.
 		let k = declarations.partition_point(|x| is_import(x));
 		for declaration in &mut declarations[0..k]
 		{
 			match declaration
 			{
-				Declaration::Import {
-					filename,
-					includes_definitions,
-					location,
-				} => match get_key_offset(filename, &keys, path_of_includer)
+				Declaration::Import { filename, location } =>
 				{
-					Some(offset) if *includes_definitions =>
+					match get_key_offset(filename, &keys, path_of_includer)
 					{
-						includes.insert((offset_of_includer, offset));
+						Some(offset) =>
+						{
+							imports.insert((offset_of_includer, offset));
+						}
+						None =>
+						{
+							let error = Error::UnresolvedImport {
+								filename: filename.to_string(),
+								location: location.clone(),
+							};
+							*declaration = Declaration::Poison(error.into());
+						}
 					}
-					Some(offset) =>
-					{
-						imports.insert((offset_of_includer, offset));
-					}
-					None =>
-					{
-						let error = Error::UnresolvedImport {
-							filename: filename.to_string(),
-							location: location.clone(),
-						};
-						*declaration = Declaration::Poison(error.into());
-					}
-				},
+				}
 				_ => unreachable!(),
 			}
 		}
 	}
-
-	// TODO do something with includes
 
 	for (_, declarations) in modules.iter_mut()
 	{

@@ -13,7 +13,7 @@ variables:
   word_x: 'word8|word16|word32|word64|word128'
   type_keyword: 'void|{{int_suffixes}}|{{float_suffixes}}|bool|struct|{{word_x}}'
   literal_keyword: 'true|false'
-  hard_keyword: 'fn|var|const|if|goto|loop|else|as|include|import|pub|extern'
+  hard_keyword: 'fn|var|const|if|goto|loop|else|as|import|pub|extern'
   keyword: '{{hard_keyword}}|{{type_keyword}}|{{literal_keyword}}'
 
 contexts:
@@ -70,7 +70,7 @@ contexts:
       scope: storage.type.penne
     - match: '\b(pub|extern)\b'
       scope: storage.modifier.penne
-    - match: '\b(include|import)\b'
+    - match: '\b(import)\b'
       scope: keyword.control.import.penne
     - match: '\b(const)\b'
       scope: keyword.declaration.other.penne storage.modifier.penne

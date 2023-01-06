@@ -59,7 +59,6 @@ pub enum Declaration
 	Import
 	{
 		filename: String,
-		includes_definitions: bool,
 		location: Location,
 	},
 	Poison(Poison),

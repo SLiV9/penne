@@ -139,6 +139,8 @@ Documentation:
 
 Development:
 	☐	Cleanup main.rs
+	☐	Add doc comments for stdout and expander
+	☐	Use LLVMLinkModules2 to link modules or pass multiple arguments to clang
 	☐	Document structs and words
 	☐	Improve test coverage
 	☐	WASM-4 pull request
