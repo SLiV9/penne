@@ -276,8 +276,7 @@ fn do_main() -> Result<(), anyhow::Error>
 
 	let output_filepath = output_filepath.or_else(|| {
 		filepaths
-			.iter()
-			.last()
+			.get(0)
 			.and_then(|filepath| filepath.file_name())
 			.map(|filename| {
 				let mut path = out_dir.clone().unwrap_or_default();
@@ -326,7 +325,7 @@ fn do_main() -> Result<(), anyhow::Error>
 	}
 
 	let mut source_cache = ariadne::sources(sources);
-	let mut backend_source = BackendSource::None;
+	let mut generated_ir_files = Vec::new();
 
 	for (filepath, declarations) in modules
 	{
@@ -392,21 +391,18 @@ fn do_main() -> Result<(), anyhow::Error>
 			};
 			let dirname = outputpath.parent().context("invalid output dir")?;
 			std::fs::create_dir_all(dirname)?;
-			backend_source = BackendSource::File(outputpath.clone());
+			generated_ir_files.push(outputpath.clone());
 			stdout.io_header("Writing to", &outputpath)?;
 			std::fs::write(outputpath, ir)?;
 		}
 		else
 		{
-			backend_source = BackendSource::Stdin(ir);
+			// TODO stdin ir
 		}
 	}
 
 	if let Some(output_filepath) = output_filepath.filter(|_x| !skip_backend)
 	{
-		stdout.basic_header("Building")?;
-		stdout.prepare_for_errors()?;
-
 		let mut cmd = std::process::Command::new(&backend);
 		if let Some(backend_args) = backend_args
 		{
@@ -422,37 +418,36 @@ fn do_main() -> Result<(), anyhow::Error>
 				cmd.arg(format!("-Wl,{}", arg));
 			}
 		}
-		match &backend_source
+		for filepath in generated_ir_files
 		{
-			BackendSource::File(filepath) =>
-			{
-				cmd.arg(filepath);
-			}
-			BackendSource::Stdin(_) =>
-			{
-				if !is_lli
-				{
-					cmd.arg("-x");
-					cmd.arg("ir");
-				}
-				cmd.arg("-");
-				cmd.stdin(std::process::Stdio::piped());
-			}
-			BackendSource::None => (),
+			cmd.arg(filepath);
 		}
-		cmd.arg("-o");
-		cmd.arg(output_filepath);
-		let mut cmd = cmd.spawn()?;
-		match backend_source
+		if false
 		{
-			BackendSource::Stdin(full_ir) =>
+			if !is_lli
 			{
-				cmd.stdin
-					.as_mut()
-					.context("failed to pipe")?
-					.write_all(full_ir.as_bytes())?;
+				cmd.arg("-x");
+				cmd.arg("ir");
 			}
-			_ => (),
+			cmd.arg("-");
+			cmd.stdin(std::process::Stdio::piped());
+		}
+		if !is_lli
+		{
+			cmd.arg("-o");
+			cmd.arg(output_filepath);
+		}
+
+		stdout.header("Running", &format!("{:?}", cmd))?;
+		stdout.prepare_for_errors()?;
+		let mut cmd = cmd.spawn()?;
+		if false
+		{
+			let full_ir = "";
+			cmd.stdin
+				.as_mut()
+				.context("failed to pipe")?
+				.write_all(full_ir.as_bytes())?;
 		}
 		let status = cmd.wait()?;
 		if is_lli
@@ -496,13 +491,6 @@ fn get_backend(
 			})
 		})
 		.unwrap_or_else(|| Ok(default.to_string()))
-}
-
-enum BackendSource
-{
-	File(std::path::PathBuf),
-	Stdin(String),
-	None,
 }
 
 fn get_exe_extension() -> &'static str
