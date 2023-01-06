@@ -1,0 +1,5 @@
+pub word64 Position
+{
+	x: i32,
+	y: i32,
+}

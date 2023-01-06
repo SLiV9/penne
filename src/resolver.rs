@@ -252,7 +252,15 @@ impl Resolvable for Declaration
 					depth,
 				})
 			}
-			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Import { filename, location } =>
+			{
+				// For code run through the CLI, this should be unreachable
+				// because the imports are processed in an earlier stage.
+				// For tests we do not want to import files except when we are
+				// explicitly testing importing.
+				let error = Error::UnresolvedImport { filename, location };
+				Err(error.into())
+			}
 			Declaration::Poison(poison) => Err(poison.into()),
 		}
 	}

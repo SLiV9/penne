@@ -263,6 +263,7 @@ fn can_start_declaration(token: &Token) -> bool
 {
 	match token
 	{
+		Token::Import => true,
 		Token::Pub => true,
 		Token::Extern => true,
 		Token::Const => true,
@@ -312,6 +313,7 @@ fn parse_declaration(tokens: &mut Tokens) -> Result<Declaration, Error>
 		location_of_declaration.unwrap_or_else(|| location.clone());
 	match token
 	{
+		Token::Import => parse_import(location_of_declaration, tokens),
 		Token::Const =>
 		{
 			parse_constant_declaration(flags, location_of_declaration, tokens)
@@ -344,38 +346,43 @@ fn parse_declaration(tokens: &mut Tokens) -> Result<Declaration, Error>
 		{
 			parse_word_declaration(16, flags, location_of_declaration, tokens)
 		}
-		Token::DebugDollar =>
-		{
-			let (token, location) = extract("expected path", tokens)?;
-			match token
-			{
-				Token::StringLiteral { bytes } =>
-				{
-					match String::from_utf8(bytes)
-					{
-						Ok(directive) =>
-						{
-							Ok(Declaration::PreprocessorDirective {
-								directive,
-								location,
-							})
-						}
-						Err(_error) => Err(Error::UnexpectedToken {
-							location,
-							expectation: "expected UTF-8 encoded include path"
-								.to_string(),
-						}),
-					}
-				}
-				_ => Err(Error::UnexpectedToken {
-					location,
-					expectation: "expected include path".to_string(),
-				}),
-			}
-		}
 		_ => Err(Error::UnexpectedToken {
 			location,
 			expectation: "expected top-level declaration".to_string(),
+		}),
+	}
+}
+
+fn parse_import(
+	location_of_import: Location,
+	tokens: &mut Tokens,
+) -> Result<Declaration, Error>
+{
+	let filename = parse_quoted_path(tokens)?;
+	consume(Token::Semicolon, "expected semicolon", tokens)?;
+	let declaration = Declaration::Import {
+		filename,
+		location: location_of_import,
+	};
+	Ok(declaration)
+}
+
+fn parse_quoted_path(tokens: &mut Tokens) -> Result<String, Error>
+{
+	let (token, location) = extract("expected path", tokens)?;
+	match token
+	{
+		Token::StringLiteral { bytes } => match String::from_utf8(bytes)
+		{
+			Ok(filename) => Ok(filename),
+			Err(_error) => Err(Error::UnexpectedToken {
+				location,
+				expectation: "expected UTF-8 encoded path".to_string(),
+			}),
+		},
+		_ => Err(Error::UnexpectedToken {
+			location,
+			expectation: "expected path".to_string(),
 		}),
 	}
 }

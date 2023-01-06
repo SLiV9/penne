@@ -49,8 +49,7 @@ fn visit_structures(declarations: &mut [Declaration]) -> Vec<&mut Declaration>
 		.iter_mut()
 		.filter(|x| get_structure_depth(x).is_some())
 		.collect();
-	// Sort structure declarations (Some) before other declarations (None),
-	// and sort the structure declarations by their depth, from low to high.
+	// Sort the structure declarations by their depth, from low to high.
 	declarations.sort_by_key(|x| get_structure_depth(x));
 	declarations
 }
@@ -68,7 +67,7 @@ fn get_structure_depth(declaration: &Declaration) -> Option<u32>
 			Some(Err(_poison)) => Some(0),
 			None => unreachable!(),
 		},
-		Declaration::PreprocessorDirective { .. } => unreachable!(),
+		Declaration::Import { .. } => None,
 		Declaration::Poison(_) => None,
 	}
 }
@@ -747,7 +746,7 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 				location_of_declaration,
 			}
 		}
-		Declaration::PreprocessorDirective { .. } => unreachable!(),
+		Declaration::Import { .. } => declaration,
 		Declaration::Poison(_) => declaration,
 	}
 }
@@ -796,7 +795,7 @@ fn prealign(declaration: &mut Declaration, typer: &mut Typer)
 				(structural_type, _) => structural_type,
 			};
 		}
-		Declaration::PreprocessorDirective { .. } => unreachable!(),
+		Declaration::Import { .. } => (),
 		Declaration::Poison(_) => (),
 	}
 }
@@ -918,7 +917,7 @@ impl Analyzable for Declaration
 				// types that may appear through the other declarations.
 				self
 			}
-			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Import { .. } => self,
 			Declaration::Poison(_) => self,
 		}
 	}

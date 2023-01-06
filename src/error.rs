@@ -313,6 +313,11 @@ pub enum Error
 	{
 		name: String, location: Location
 	},
+	UnresolvedImport
+	{
+		filename: String,
+		location: Location,
+	},
 	ConflictingTypes
 	{
 		name: String,
@@ -556,6 +561,7 @@ impl Error
 			Error::DuplicateDeclarationParameter { .. } => 424,
 			Error::DuplicateDeclarationStructure { .. } => 425,
 			Error::DuplicateDeclarationMember { .. } => 426,
+			Error::UnresolvedImport { .. } => 470,
 			Error::ConflictingTypes { .. } => 500,
 			Error::NotAnArray { .. } => 501,
 			Error::NotAnArrayWithLength { .. } => 502,
@@ -660,6 +666,7 @@ impl Error
 			Error::DuplicateDeclarationParameter { location, .. } => &location,
 			Error::DuplicateDeclarationStructure { location, .. } => &location,
 			Error::DuplicateDeclarationMember { location, .. } => &location,
+			Error::UnresolvedImport { location, .. } => &location,
 			Error::ConflictingTypes { location, .. } => &location,
 			Error::NotAnArray { location, .. } => &location,
 			Error::NotAnArrayWithLength { location, .. } => &location,
@@ -1512,6 +1519,19 @@ fn write(
 					.with_message(format!(
 						"Reference to undefined label '{}'.",
 						name.fg(PRIMARY)
+					))
+					.with_color(PRIMARY),
+			)
+		}
+
+		Error::UnresolvedImport { filename, location } =>
+		{
+			report.with_message("Unresolved import").with_label(
+				location
+					.label()
+					.with_message(format!(
+						"Reference to unknown file '{}'.",
+						filename.fg(PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)

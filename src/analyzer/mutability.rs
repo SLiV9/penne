@@ -170,7 +170,7 @@ impl Analyzable for Declaration
 					location_of_declaration,
 				}
 			}
-			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Import { .. } => self,
 			Declaration::Poison(_) => self,
 		}
 	}

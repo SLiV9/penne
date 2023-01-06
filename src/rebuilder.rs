@@ -12,7 +12,7 @@ use crate::common::*;
 use std::fmt::Write;
 
 pub fn rebuild(
-	program: &Vec<Declaration>,
+	program: &[Declaration],
 	indentation: &Indentation,
 ) -> Result<String, anyhow::Error>
 {
@@ -314,7 +314,10 @@ impl Rebuildable for Declaration
 				writeln!(&mut buffer, "{}}}", indentation)?;
 				Ok(buffer)
 			}
-			Declaration::PreprocessorDirective { .. } => unreachable!(),
+			Declaration::Import {
+				filename,
+				location: _,
+			} => Ok(format!("{}import \"{}\";\n", indentation, filename)),
 			Declaration::Poison(poison) => poison.rebuild(indentation),
 		}
 	}

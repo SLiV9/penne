@@ -5,24 +5,21 @@
 //
 
 use penne::analyzer;
-use penne::common::Declaration;
+use penne::expander;
 use penne::generator;
 use penne::lexer;
 use penne::linter;
 use penne::parser;
-use penne::rebuilder;
 use penne::resolver;
 use penne::scoper;
 use penne::typer;
 
-use std::collections::HashMap;
 use std::io::Write;
 
 use anyhow::anyhow;
 use anyhow::Context;
 use clap::Parser;
 use serde::Deserialize;
-use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 #[cfg(feature = "logging")]
 use env_logger;
@@ -145,13 +142,8 @@ fn main() -> Result<(), anyhow::Error>
 	let result = do_main();
 	if result.is_err()
 	{
-		let mut stdout = StandardStream::stdout(ColorChoice::Auto);
-		let colorspec_error = ColorSpec::new()
-			.set_fg(Some(Color::Red))
-			.set_bold(true)
-			.to_owned();
-		stdout.set_color(&colorspec_error)?;
-		writeln!(stdout)?;
+		let mut stdout = penne::stdout::StdOut::new(false);
+		stdout.prepare_for_errors()?;
 	}
 	result
 }
@@ -280,8 +272,7 @@ fn do_main() -> Result<(), anyhow::Error>
 
 	let output_filepath = output_filepath.or_else(|| {
 		filepaths
-			.iter()
-			.last()
+			.get(0)
 			.and_then(|filepath| filepath.file_name())
 			.map(|filename| {
 				let mut path = out_dir.clone().unwrap_or_default();
@@ -298,232 +289,95 @@ fn do_main() -> Result<(), anyhow::Error>
 			})
 	});
 
-	let mut stdout = StandardStream::stdout(ColorChoice::Auto);
-	let colorspec_header = ColorSpec::new();
-	let colorspec_dump = ColorSpec::new().set_dimmed(true).to_owned();
-	let colorspec_error = ColorSpec::new()
-		.set_fg(Some(Color::Red))
-		.set_bold(true)
-		.to_owned();
-	let colorspec_warning = ColorSpec::new()
-		.set_fg(Some(Color::Yellow))
-		.set_bold(true)
-		.to_owned();
-	let colorspec_success =
-		ColorSpec::new().set_fg(Some(Color::Green)).to_owned();
+	let mut stdout = penne::stdout::StdOut::new(verbose);
 
 	let mut sources = Vec::new();
-	let mut modules = HashMap::new();
-	let mut backend_source = BackendSource::None;
+	let mut modules = Vec::new();
 
 	for filepath in filepaths
 	{
 		let filename = filepath.to_string_lossy().to_string();
-		writeln!(stdout)?;
-		let program = std::fs::read_to_string(&filepath)?;
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Lexing {}...", filename)?;
-		}
-		let tokens = lexer::lex(&program, &filename);
-		if verbose
-		{
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{:?}", tokens)?;
-			writeln!(stdout)?;
-			for token in &tokens
-			{
-				match &token.result
-				{
-					Result::Ok(token) => write!(stdout, "{:?}   ", token)?,
-					Result::Err(_) => write!(stdout, "ERROR   ")?,
-				}
-			}
-			writeln!(stdout)?;
-			writeln!(stdout)?;
-		}
-		sources.push((filename.clone(), program));
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Parsing {}...", filename)?;
-		}
+		stdout.newline()?;
+		let source = std::fs::read_to_string(&filepath)?;
+		stdout.header("Lexing", &filename)?;
+		let tokens = lexer::lex(&source, &filename);
+		stdout.dump_tokens(&tokens)?;
+
+		stdout.header("Parsing", &filename)?;
 		let declarations = parser::parse(tokens);
-		if verbose
-		{
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{:?}", declarations)?;
-			writeln!(stdout)?;
-		}
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Preprocessing {}...", filename)?;
-		}
-		let declarations = preprocess(declarations, &filepath, &modules)?;
-		if verbose
-		{
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{:?}", declarations)?;
-			writeln!(stdout)?;
-		}
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Rebuilding {}...", filename)?;
-			let indentation = rebuilder::Indentation {
-				value: "\u{00a6}   ",
-				amount: 1,
-			};
-			let code = rebuilder::rebuild(&declarations, &indentation)?;
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{}", code)?;
-		}
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Scoping {}...", filename)?;
-		}
+		stdout.dump_code(&filename, &declarations)?;
+
+		sources.push((filename, source));
+		modules.push((filepath, declarations));
+	}
+
+	stdout.basic_header("Expanding imports")?;
+	expander::expand(&mut modules);
+	for (filepath, declarations) in &modules
+	{
+		let filename = filepath.to_string_lossy().to_string();
+		stdout.header("Expanding", &filename)?;
+		stdout.dump_code(&filename, &declarations)?;
+	}
+
+	let mut source_cache = ariadne::sources(sources);
+	let mut generated_ir_files = Vec::new();
+	let mut generated_ir_contents = Vec::new();
+
+	for (filepath, declarations) in modules
+	{
+		let filename = filepath.to_string_lossy().to_string();
+		stdout.newline()?;
+		stdout.header("Scoping", &filename)?;
 		let declarations = scoper::analyze(declarations);
-		if verbose
-		{
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{:?}", declarations)?;
-			writeln!(stdout)?;
-		}
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Rebuilding {}...", filename)?;
-			let indentation = rebuilder::Indentation {
-				value: "\u{00a6}   ",
-				amount: 1,
-			};
-			let code = rebuilder::rebuild(&declarations, &indentation)?;
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{}", code)?;
-		}
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Typing {}...", filename)?;
-		}
+		stdout.dump_code(&filename, &declarations)?;
+
+		stdout.header("Typing", &filename)?;
 		let declarations = typer::analyze(declarations);
-		if verbose
-		{
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{:?}", declarations)?;
-			writeln!(stdout)?;
-		}
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Rebuilding {}...", filename)?;
-			let indentation = rebuilder::Indentation {
-				value: "\u{00a6}   ",
-				amount: 1,
-			};
-			let code = rebuilder::rebuild(&declarations, &indentation)?;
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{}", code)?;
-			writeln!(stdout)?;
-		}
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Analyzing {}...", filename)?;
-		}
+		stdout.dump_code(&filename, &declarations)?;
+
+		stdout.header("Analyzing", &filename)?;
 		let declarations = analyzer::analyze(declarations);
-		if verbose
-		{
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{:?}", declarations)?;
-			writeln!(stdout)?;
-		}
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Rebuilding {}...", filename)?;
-			let indentation = rebuilder::Indentation {
-				value: "\u{00a6}   ",
-				amount: 1,
-			};
-			let code = rebuilder::rebuild(&declarations, &indentation)?;
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{}", code)?;
-		}
-		let stored_declarations = declarations.clone();
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Linting {}...", filename)?;
-		}
+		stdout.dump_code(&filename, &declarations)?;
+
+		stdout.header("Linting", &filename)?;
 		let lints = linter::lint(&declarations);
-		if verbose
-		{
-			if !lints.is_empty()
-			{
-				stdout.set_color(&colorspec_warning)?;
-				// We show them after resolution, if there are no errors.
-				writeln!(stdout, "Linting raised some warnings.")?;
-			}
-			else
-			{
-				stdout.set_color(&colorspec_success)?;
-				writeln!(stdout, "Linting complete.")?;
-			}
-			writeln!(stdout)?;
-		}
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Resolving {}...", filename)?;
-		}
+		// We show the lints after resolution, if there are no errors.
+		let linting_was_successful = lints.is_empty();
+		stdout.linting(linting_was_successful)?;
+
+		stdout.header("Resolving", &filename)?;
 		let declarations = match resolver::resolve(declarations)
 		{
 			Ok(declarations) => declarations,
 			Err(errors) =>
 			{
-				stdout.set_color(&colorspec_error)?;
+				stdout.prepare_for_errors()?;
 				for error in errors.into_iter()
 				{
-					writeln!(stdout)?;
-					error.report().eprint(ariadne::sources(sources.clone()))?;
-					writeln!(stdout)?;
+					error.report().eprint(&mut source_cache)?;
+					stdout.newline()?;
 				}
 				Err(anyhow!("compilation failed",))?;
 				Vec::new()
 			}
 		};
-		if verbose
-		{
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{:?}", declarations)?;
-			writeln!(stdout)?;
-		}
 		if !lints.is_empty()
 		{
 			for lint in lints
 			{
-				writeln!(stdout)?;
-				lint.report().eprint(ariadne::sources(sources.clone()))?;
+				stdout.newline()?;
+				lint.report().eprint(&mut source_cache)?;
 			}
-			writeln!(stdout)?;
+			stdout.newline()?;
 		}
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			write!(stdout, "Generating IR for {}...", filename)?;
-		}
-		stdout.set_color(&colorspec_error)?;
-		writeln!(stdout)?;
+		stdout.dump_resolved(&filename, &declarations)?;
+
+		stdout.header("Generating IR for", &filename)?;
+		stdout.prepare_for_errors()?;
 		let ir = generator::generate(&declarations, &filename, wasm)?;
-		if verbose
-		{
-			stdout.set_color(&colorspec_dump)?;
-			writeln!(stdout, "{}", ir)?;
-		}
+		stdout.dump_text(&ir)?;
+
 		if let Some(out_dir) = &out_dir
 		{
 			let outputpath = {
@@ -534,29 +388,18 @@ fn do_main() -> Result<(), anyhow::Error>
 			};
 			let dirname = outputpath.parent().context("invalid output dir")?;
 			std::fs::create_dir_all(dirname)?;
-			backend_source = BackendSource::File(outputpath.clone());
-			stdout.set_color(&colorspec_header)?;
-			writeln!(stdout, "Writing to {}...", outputpath.to_string_lossy())?;
+			generated_ir_files.push(outputpath.clone());
+			stdout.io_header("Writing to", &outputpath)?;
 			std::fs::write(outputpath, ir)?;
 		}
 		else
 		{
-			backend_source = BackendSource::Stdin(ir);
+			generated_ir_contents.push(ir);
 		}
-		// Store the declarations for later use.
-		modules.insert(filepath, stored_declarations);
 	}
 
 	if let Some(output_filepath) = output_filepath.filter(|_x| !skip_backend)
 	{
-		if verbose
-		{
-			stdout.set_color(&colorspec_header)?;
-			write!(stdout, "Compiling...")?;
-		}
-		stdout.set_color(&colorspec_error)?;
-		writeln!(stdout)?;
-
 		let mut cmd = std::process::Command::new(&backend);
 		if let Some(backend_args) = backend_args
 		{
@@ -572,44 +415,42 @@ fn do_main() -> Result<(), anyhow::Error>
 				cmd.arg(format!("-Wl,{}", arg));
 			}
 		}
-		match &backend_source
+		for filepath in generated_ir_files
 		{
-			BackendSource::File(filepath) =>
-			{
-				cmd.arg(filepath);
-			}
-			BackendSource::Stdin(_) =>
-			{
-				if !is_lli
-				{
-					cmd.arg("-x");
-					cmd.arg("ir");
-				}
-				cmd.arg("-");
-				cmd.stdin(std::process::Stdio::piped());
-			}
-			BackendSource::None => (),
+			cmd.arg(filepath);
 		}
-		cmd.arg("-o");
-		cmd.arg(output_filepath);
-		let mut cmd = cmd.spawn()?;
-		match backend_source
+		if !generated_ir_contents.is_empty()
 		{
-			BackendSource::Stdin(full_ir) =>
+			if !is_lli
 			{
-				cmd.stdin
-					.as_mut()
-					.context("failed to pipe")?
-					.write_all(full_ir.as_bytes())?;
+				cmd.arg("-x");
+				cmd.arg("ir");
 			}
-			_ => (),
+			cmd.arg("-");
+			cmd.stdin(std::process::Stdio::piped());
+		}
+		if !is_lli
+		{
+			cmd.arg("-o");
+			cmd.arg(output_filepath);
+		}
+
+		stdout.header("Running", &format!("{:?}", cmd))?;
+		stdout.prepare_for_errors()?;
+		let mut cmd = cmd.spawn()?;
+		if !generated_ir_contents.is_empty()
+		{
+			let full_ir = generated_ir_contents.join("\n\n\n");
+			cmd.stdin
+				.as_mut()
+				.context("failed to pipe")?
+				.write_all(full_ir.as_bytes())?;
 		}
 		let status = cmd.wait()?;
 		if is_lli
 		{
 			let exitcode = status.code().context("no exitcode")?;
-			stdout.reset()?;
-			writeln!(stdout, "Output: {}", exitcode)?;
+			stdout.output(exitcode)?;
 		}
 		else
 		{
@@ -620,57 +461,8 @@ fn do_main() -> Result<(), anyhow::Error>
 		}
 	}
 
-	stdout.reset()?;
-	writeln!(stdout, "Done.")?;
-
+	stdout.done()?;
 	Ok(())
-}
-
-fn preprocess(
-	mut declarations: Vec<Declaration>,
-	relative_path: &std::path::Path,
-	modules: &HashMap<std::path::PathBuf, Vec<Declaration>>,
-) -> Result<Vec<Declaration>, anyhow::Error>
-{
-	while let Some(i) = declarations.iter().position(is_directive)
-	{
-		let (directive, location) = match declarations.remove(i)
-		{
-			Declaration::PreprocessorDirective {
-				directive,
-				location,
-			} => (directive, location),
-			_ => unreachable!(),
-		};
-		if let Some(module) = relative_path
-			.ancestors()
-			.skip(1)
-			.filter_map(|path| {
-				let combined = path.join(directive.clone());
-				modules.get(&combined)
-			})
-			.next()
-		{
-			let imported_declarations = module.to_vec();
-			declarations.splice(i..i, imported_declarations);
-		}
-		else
-		{
-			return Err(anyhow!("failed to resolve {:?}", directive))
-				.context(location.format())
-				.context("failed to preprocess");
-		}
-	}
-	Ok(declarations)
-}
-
-fn is_directive(declaration: &Declaration) -> bool
-{
-	match declaration
-	{
-		Declaration::PreprocessorDirective { .. } => true,
-		_ => false,
-	}
 }
 
 fn get_backend(
@@ -696,13 +488,6 @@ fn get_backend(
 			})
 		})
 		.unwrap_or_else(|| Ok(default.to_string()))
-}
-
-enum BackendSource
-{
-	File(std::path::PathBuf),
-	Stdin(String),
-	None,
 }
 
 fn get_exe_extension() -> &'static str

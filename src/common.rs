@@ -56,9 +56,9 @@ pub enum Declaration
 		depth: Option<Poisonable<u32>>,
 		location_of_declaration: Location,
 	},
-	PreprocessorDirective
+	Import
 	{
-		directive: String,
+		filename: String,
 		location: Location,
 	},
 	Poison(Poison),
