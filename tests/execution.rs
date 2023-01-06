@@ -394,8 +394,11 @@ fn execute_constant_array() -> Result<(), anyhow::Error>
 #[test]
 fn execute_import_position_and_line() -> Result<(), anyhow::Error>
 {
-	let result =
-		execute_calculation("tests/samples/valid/import_position_and_line.pn")?;
+	let result = execute_calculation_with_imports(&[
+		"tests/samples/valid/import_position_and_line.pn",
+		"tests/samples/valid/position.pn",
+		"tests/samples/valid/line.pn",
+	])?;
 	assert_eq!(result, 200);
 	Ok(())
 }
@@ -410,6 +413,45 @@ fn execute_calculation(filename: &str) -> Result<i32, anyhow::Error>
 		Err(errors) => match errors.panic() {},
 	};
 	let ir = generator::generate(&declarations, filename, false)?;
+	execute_ir(&ir)
+}
+
+fn execute_calculation_with_imports(
+	filenames: &[&str],
+) -> Result<i32, anyhow::Error>
+{
+	let mut modules = Vec::new();
+	for filename in filenames
+	{
+		let source = std::fs::read_to_string(&filename)?;
+		let tokens = lexer::lex(&source, filename);
+		let declarations = parser::parse(tokens);
+		let filepath = filename.parse()?;
+		modules.push((filepath, declarations));
+	}
+	expander::expand(&mut modules);
+	let mut irs = Vec::new();
+	for (filepath, declarations) in modules
+	{
+		let filename = filepath.to_str().unwrap();
+		let declarations = scoper::analyze(declarations);
+		let declarations = typer::analyze(declarations);
+		let declarations = analyzer::analyze(declarations);
+		let declarations = match resolver::resolve(declarations)
+		{
+			Ok(declarations) => declarations,
+			#[allow(unreachable_code)]
+			Err(errors) => match errors.panic() {},
+		};
+		let ir = generator::generate(&declarations, filename, false)?;
+		irs.push(ir);
+	}
+	let ir = irs.join("\n\n\n");
+	execute_ir(&ir)
+}
+
+fn execute_ir(ir: &str) -> Result<i32, anyhow::Error>
+{
 	let llistr: std::borrow::Cow<str> = match std::env::var("PENNE_LLI")
 	{
 		Ok(value) => value.into(),

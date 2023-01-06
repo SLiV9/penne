@@ -61,6 +61,7 @@ Functionality:
 		  ✘	Prevent circular imports @cancelled (2023-01-05 19:05)
 		✔	Public vs private @done (2023-01-05 19:05)
 			☐	Think about pub (extern) const (not) being static
+		☐	Think about error in cli if combining two separate compilation units that contain the same symbol (in particular main)
 		☐	Namespacing
 	  ☐	Use and pub use
 	  	☐	Deduplicate symbols that are pub used in two different imports
@@ -114,6 +115,8 @@ Usability:
 		☐	Prevent duplicate "reference to undefined struct" errors?
 		☐	Better "duplicate variable" error text for parameters and members
 			And simularly MissingConstantType
+		☐ Disable error recovery after parsing error, and after import error
+			Because "undefined struct Line" is not useful without "line.pn".
 	✔	Switch to custom error printed with ariadne @done (2022-10-09 22:24)
 	☐	Debug symbols in the resulting IR/executable
 	☐	Add helpful note when trying to jump backwards
@@ -138,8 +141,6 @@ Documentation:
 	☐	High def logo
 
 Development:
-	☐	Cleanup main.rs
-	☐	Add doc comments for stdout and expander
 	☐	Document structs and words
 	☐	Improve test coverage
 	☐	WASM-4 pull request

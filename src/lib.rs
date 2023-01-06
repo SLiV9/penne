@@ -14,11 +14,12 @@
 //! by running `penne help` from the command line.
 //!
 //! The Abstract Syntax Tree is detailed in the modules [common], [value_type]
-//! and [resolved]. Errors are laid out in [error]. The other modules contain
-//! the various compiler stages. In order:
+//! and [resolved]. Errors are laid out in [error]. The compiler stages are
+//! (in order):
 //! [lexer], [parser], [expander], [scoper], [typer], [analyzer],
 //! [linter], [resolver] and [generator].
 //! The [rebuilder] module allows turning the AST back into (annotated) code.
+//! The [stdout] module contains helper code for the command line interface.
 
 pub mod analyzer;
 pub mod common;
@@ -41,7 +42,7 @@ pub use error::Errors;
 pub use resolved::Declaration;
 
 /// Convience method that parses source code and runs it through each of the
-/// compiler stages.
+/// compiler stages, except the expander.
 pub fn compile_source(
 	source: &str,
 	filename: &str,

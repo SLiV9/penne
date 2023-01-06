@@ -4,6 +4,9 @@
 // License: MIT
 //
 
+//! The command line interface outputs colored dumps of intermediate code
+//! when run with the _verbose_ flag.
+
 use crate::common;
 use crate::lexer;
 use crate::rebuilder;
