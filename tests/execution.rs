@@ -409,8 +409,7 @@ fn execute_calculation(filename: &str) -> Result<i32, anyhow::Error>
 		#[allow(unreachable_code)]
 		Err(errors) => match errors.panic() {},
 	};
-	let module = generator::generate(&declarations, filename, false)?;
-	let ir = module.generate_ir()?;
+	let ir = generator::generate(&declarations, filename, false)?;
 	let llistr: std::borrow::Cow<str> = match std::env::var("PENNE_LLI")
 	{
 		Ok(value) => value.into(),
