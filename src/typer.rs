@@ -1344,7 +1344,7 @@ impl Analyzable for Statement
 				let value_type = value.value_type();
 				let reference = reference.analyze_assignment(
 					value_type,
-					Some(value.location()),
+					Some(&value),
 					typer,
 				);
 				Statement::Assignment {
@@ -2026,7 +2026,7 @@ impl Reference
 	fn analyze_assignment(
 		self,
 		value_type: Option<Poisonable<ValueType>>,
-		location_of_value: Option<&Location>,
+		assignment_value: Option<&Expression>,
 		typer: &mut Typer,
 	) -> Self
 	{
@@ -2079,40 +2079,30 @@ impl Reference
 			Ok(()) => member_error,
 			Err(error) => Err(error),
 		};
-		let base = match assignment_error
+		let base = match (assignment_error, assignment_value)
 		{
-			Ok(()) => self.base,
-			Err(Error::ConflictingTypes {
-				name,
-				current_type,
-				previous_type,
-				location: original_location,
-				previous,
-			}) =>
+			(Ok(()), _) => self.base,
+			(
+				Err(Error::ConflictingTypes {
+					name,
+					current_type,
+					previous_type,
+					location: _,
+					previous,
+				}),
+				Some(assignment_value),
+			) =>
 			{
-				let error = if let Some(location) = location_of_value
-				{
-					Error::ConflictingTypesInAssignment {
-						name,
-						current_type,
-						previous_type,
-						location: location.clone(),
-						previous,
-					}
-				}
-				else
-				{
-					Error::ConflictingTypes {
-						name,
-						current_type,
-						previous_type,
-						location: original_location,
-						previous,
-					}
+				let error = Error::ConflictingTypesInAssignment {
+					name,
+					current_type,
+					previous_type,
+					location: assignment_value.location().clone(),
+					previous,
 				};
 				Err(Poison::Error(error))
 			}
-			Err(error) => Err(Poison::Error(error)),
+			(Err(error), _) => Err(Poison::Error(error)),
 		};
 
 		Reference {
