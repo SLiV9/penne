@@ -24,6 +24,29 @@ pub fn resolve(
 	program.resolve()
 }
 
+pub fn check_surface_level_errors(
+	declarations: &[common::Declaration],
+) -> Result<(), Errors>
+{
+	let errors: Vec<Error> = declarations
+		.iter()
+		.filter_map(|declaration| match declaration
+		{
+			Declaration::Poison(Poison::Error(error)) => Some(error.clone()),
+			Declaration::Poison(Poison::Poisoned) => None,
+			_ => None,
+		})
+		.collect();
+	if !errors.is_empty()
+	{
+		Err(Errors { errors })
+	}
+	else
+	{
+		Ok(())
+	}
+}
+
 trait Resolvable
 {
 	type Item;

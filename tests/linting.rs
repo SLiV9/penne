@@ -5,6 +5,7 @@
 //
 
 use penne::analyzer;
+use penne::expander;
 use penne::lexer;
 use penne::linter;
 use penne::linter::Lint;
@@ -20,6 +21,13 @@ fn lint(filename: &str) -> Vec<Lint>
 	let source = std::fs::read_to_string(filename).unwrap();
 	let tokens = lexer::lex(&source, filename);
 	let declarations = parser::parse(tokens);
+	let declarations = expander::expand_one(filename, declarations);
+	match resolver::check_surface_level_errors(&declarations)
+	{
+		Ok(_) => (),
+		#[allow(unreachable_code)]
+		Err(errors) => match errors.panic() {},
+	}
 	let declarations = scoper::analyze(declarations);
 	let declarations = typer::analyze(declarations);
 	let declarations = analyzer::analyze(declarations);

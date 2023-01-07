@@ -479,6 +479,18 @@ pub enum Error
 		location_of_operand: Location,
 		location_of_type: Location,
 	},
+
+	// Lints:
+	LoopAsFirstStatement
+	{
+		location_of_loop: Location,
+		location_of_condition: Location,
+		location_of_block: Location,
+	},
+	UnreachableCode
+	{
+		location: Location
+	},
 }
 
 impl Error
@@ -589,6 +601,10 @@ impl Error
 			Error::MisplacedLoopStatement { .. } => 801,
 			Error::VariableDeclarationMayBeSkipped { .. } => 820,
 			Error::MissingBraces { .. } => 840,
+
+			// Lints:
+			Error::LoopAsFirstStatement { .. } => 1800,
+			Error::UnreachableCode { .. } => 1880,
 		}
 	}
 
@@ -706,6 +722,12 @@ impl Error
 				&location
 			}
 			Error::MissingBraces { location, .. } => &location,
+
+			// Lints:
+			Error::LoopAsFirstStatement {
+				location_of_loop, ..
+			} => &location_of_loop,
+			Error::UnreachableCode { location } => &location,
 		}
 	}
 
@@ -714,12 +736,17 @@ impl Error
 	pub fn report(&self) -> Report<(String, std::ops::Range<usize>)>
 	{
 		let location = self.location();
-		let report = Report::build(
-			ReportKind::Error,
-			&location.source_filename,
-			location.span.end,
-		)
-		.with_code(format!("E{}", self.code()));
+		let code = self.code();
+		let (kind, letter) = match code
+		{
+			100..=999 => (ReportKind::Error, 'E'),
+			1000..=1999 => (ReportKind::Warning, 'L'),
+			2000..=2999 => (ReportKind::Advice, 'L'),
+			_ => (ReportKind::Error, 'E'),
+		};
+		let report =
+			Report::build(kind, &location.source_filename, location.span.end)
+				.with_code(format!("{}{}", letter, code));
 		let report = write(report, self);
 		report.finish()
 	}
@@ -2111,6 +2138,53 @@ fn write(
 				possible_value_types,
 				possible_coerced_types,
 			)),
+
+		// Lints:
+		Error::LoopAsFirstStatement {
+			location_of_loop,
+			location_of_condition,
+			location_of_block,
+		} => report
+			.with_message("Conditional infinite loop")
+			.with_label(
+				location_of_loop
+					.label()
+					.with_message(
+						"...this loop statement will cause an infinite loop..."
+							.to_string(),
+					)
+					.with_color(PRIMARY),
+			)
+			.with_label(
+				location_of_block
+					.label()
+					.with_message(
+						"...because it belongs to this block.".to_string(),
+					)
+					.with_color(TERTIARY),
+			)
+			.with_label(
+				location_of_condition
+					.label()
+					.with_message("If this condition is met...".to_string())
+					.with_color(SECONDARY),
+			)
+			.with_note(format!(
+				"Perhaps use {} instead to jump to a {} elsewhere. To \
+				 surpress this warning, add a label.",
+				"`goto`".fg(PRIMARY),
+				"`loop`".fg(PRIMARY)
+			)),
+
+		Error::UnreachableCode { location } =>
+		{
+			report.with_message("Unreachable code").with_label(
+				location
+					.label()
+					.with_message("starting here".to_string())
+					.with_color(PRIMARY),
+			)
+		}
 	}
 }
 

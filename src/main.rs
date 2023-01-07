@@ -311,6 +311,8 @@ fn do_main() -> Result<(), anyhow::Error>
 		modules.push((filepath, declarations));
 	}
 
+	let mut source_cache = ariadne::sources(sources);
+
 	stdout.basic_header("Expanding imports")?;
 	expander::expand(&mut modules);
 	for (filepath, declarations) in &modules
@@ -318,9 +320,18 @@ fn do_main() -> Result<(), anyhow::Error>
 		let filename = filepath.to_string_lossy().to_string();
 		stdout.header("Expanding", &filename)?;
 		stdout.dump_code(&filename, &declarations)?;
+
+		// If there are surface level errors during lexing or parsing,
+		// or during import expansion, scoping errors are unhelpful.
+		// So we abort now, after dumping the code at this stage.
+		if let Err(errors) = resolver::check_surface_level_errors(&declarations)
+		{
+			stdout.prepare_for_errors()?;
+			stdout.show_errors(errors, &mut source_cache)?;
+			return Err(anyhow!("compilation failed"));
+		}
 	}
 
-	let mut source_cache = ariadne::sources(sources);
 	let mut generated_ir_files = Vec::new();
 	let mut generated_ir_contents = Vec::new();
 
@@ -353,23 +364,13 @@ fn do_main() -> Result<(), anyhow::Error>
 			Err(errors) =>
 			{
 				stdout.prepare_for_errors()?;
-				for error in errors.into_iter()
-				{
-					error.report().eprint(&mut source_cache)?;
-					stdout.newline()?;
-				}
-				Err(anyhow!("compilation failed",))?;
-				Vec::new()
+				stdout.show_errors(errors, &mut source_cache)?;
+				return Err(anyhow!("compilation failed"));
 			}
 		};
 		if !lints.is_empty()
 		{
-			for lint in lints
-			{
-				stdout.newline()?;
-				lint.report().eprint(&mut source_cache)?;
-			}
-			stdout.newline()?;
+			stdout.show_errors(lints, &mut source_cache)?;
 		}
 		stdout.dump_resolved(&filename, &declarations)?;
 

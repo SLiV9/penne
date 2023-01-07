@@ -115,3 +115,9 @@ fn fail_to_scope_missing_member()
 {
 	compile_to_fail(&[406], "tests/samples/invalid/missing_member.pn")
 }
+
+#[test]
+fn fail_to_parse_unresolved_import()
+{
+	compile_to_fail(&[470], "tests/samples/invalid/unresolved_import.pn")
+}

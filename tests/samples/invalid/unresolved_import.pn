@@ -1,0 +1,7 @@
+import "does_not_exist_2d57775CUIrtnvVZQQRK7fZTOEtV02ZpckS7bo0fxk4Ct.pn";
+
+fn main() -> i32
+{
+	var foo = Foo { x: 20, y: 0 };
+	return: foo.x + foo.y
+}

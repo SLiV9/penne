@@ -43,6 +43,7 @@ pub fn parse(tokens: Vec<LexedToken>) -> Vec<Declaration>
 	declarations
 }
 
+#[derive(Debug)]
 struct Tokens
 {
 	tokens: VecDeque<LexedToken>,
@@ -281,13 +282,33 @@ fn can_start_declaration(token: &Token) -> bool
 
 fn skip_until_next_declaration(tokens: &mut Tokens)
 {
-	while let Some(token) = peek(tokens)
+	loop
 	{
-		if can_start_declaration(token)
+		match tokens.tokens.front()
 		{
-			return;
+			Some(LexedToken {
+				result: Ok(token),
+				location: _,
+			}) =>
+			{
+				if can_start_declaration(token)
+				{
+					return;
+				}
+				else
+				{
+					tokens.pop_front();
+				}
+			}
+			Some(LexedToken {
+				result: Err(_),
+				location: _,
+			}) =>
+			{
+				tokens.pop_front();
+			}
+			None => return,
 		}
-		tokens.pop_front();
 	}
 }
 
@@ -401,7 +422,8 @@ fn parse_constant_declaration(
 	let value_type = if let Some(Token::Colon) = peek(tokens)
 	{
 		tokens.pop_front();
-		parse_wellformed_type(tokens)
+		let value_type = parse_wellformed_type(tokens)?;
+		Ok(value_type)
 	}
 	else
 	{
@@ -502,7 +524,6 @@ fn parse_struct_members(tokens: &mut Tokens) -> Result<Vec<Member>, Error>
 			}
 			Err(error) =>
 			{
-				skip_until_next_declaration(tokens);
 				return Err(error);
 			}
 		}
@@ -520,14 +541,11 @@ fn parse_function_declaration(
 {
 	let name = extract_identifier("expected function name", tokens)?;
 	consume(Token::ParenLeft, "expected left parenthesis", tokens)?;
-	let signature = parse_rest_of_function_signature(tokens);
+	let signature = parse_rest_of_function_signature(tokens)?;
 	let (parameters, return_type, location_of_return_type) = signature;
 	let location_of_return_type =
 		location_of_return_type.unwrap_or_else(|| tokens.last_location.clone());
-	if return_type.is_err()
-	{
-		skip_rest_of_function_signature(tokens);
-	}
+	let return_type = Ok(return_type);
 
 	if peek(tokens) == Some(&Token::Semicolon)
 	{
@@ -566,7 +584,7 @@ fn parse_function_declaration(
 
 fn parse_rest_of_function_signature(
 	tokens: &mut Tokens,
-) -> (Vec<Parameter>, Poisonable<ValueType>, Option<Location>)
+) -> Result<(Vec<Parameter>, ValueType, Option<Location>), Error>
 {
 	let mut parameters = Vec::new();
 	loop
@@ -576,72 +594,33 @@ fn parse_rest_of_function_signature(
 			break;
 		}
 
-		match parse_parameter(tokens)
-		{
-			Ok(parameter) =>
-			{
-				parameters.push(parameter);
+		let parameter = parse_parameter(tokens)?;
+		parameters.push(parameter);
 
-				if let Some(Token::Comma) = peek(tokens)
-				{
-					tokens.pop_front();
-				}
-				else
-				{
-					// Break now, we will try to consume a right parenthesis
-					// which will create an error.
-					break;
-				}
-			}
-			Err(error) =>
-			{
-				// An error during parameter parsing is indistinguishable from
-				// an error during return type parsing.
-				return (parameters, Err(error.into()), None);
-			}
+		if let Some(Token::Comma) = peek(tokens)
+		{
+			tokens.pop_front();
+		}
+		else
+		{
+			break;
 		}
 	}
 
-	match consume(Token::ParenRight, "expected right parenthesis", tokens)
-	{
-		Ok(()) => (),
-		Err(error) =>
-		{
-			// If the closing parenthesis is missing we cannot parse the
-			// return type, because any type we find might be part of
-			// an unfinished parameter.
-			return (parameters, Err(error.into()), None);
-		}
-	}
+	consume(Token::ParenRight, "expected right parenthesis", tokens)?;
 
 	if let Some(Token::Arrow) = peek(tokens)
 	{
 		tokens.pop_front();
 
 		let start = tokens.start_location_span();
-		let return_type = parse_wellformed_type(tokens).map_err(|e| e.into());
+		let return_type = parse_wellformed_type(tokens)?;
 		let location = tokens.location_of_span(start);
-		(parameters, return_type, Some(location))
+		Ok((parameters, return_type, Some(location)))
 	}
 	else
 	{
-		(parameters, Ok(ValueType::Void), None)
-	}
-}
-
-fn skip_rest_of_function_signature(tokens: &mut Tokens)
-{
-	while let Some(token) = peek(tokens)
-	{
-		match token
-		{
-			token if can_start_declaration(token) => return,
-			Token::BraceLeft => return,
-			Token::BraceRight => return,
-			Token::Semicolon => return,
-			_ => (),
-		}
-		tokens.pop_front();
+		Ok((parameters, ValueType::Void, None))
 	}
 }
 
@@ -653,7 +632,8 @@ fn parse_member(tokens: &mut Tokens) -> Result<Member, Error>
 	let value_type = if let Some(Token::Colon) = peek(tokens)
 	{
 		tokens.pop_front();
-		parse_wellformed_type(tokens)
+		let value_type = parse_wellformed_type(tokens)?;
+		Ok(value_type)
 	}
 	else
 	{
@@ -679,7 +659,8 @@ fn parse_parameter(tokens: &mut Tokens) -> Result<Parameter, Error>
 	let value_type = if let Some(Token::Colon) = peek(tokens)
 	{
 		tokens.pop_front();
-		parse_wellformed_type(tokens)
+		let value_type = parse_wellformed_type(tokens)?;
+		Ok(value_type)
 	}
 	else
 	{

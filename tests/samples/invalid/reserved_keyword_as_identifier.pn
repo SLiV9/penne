@@ -1,9 +1,4 @@
 
-fn i128()
-{
-	var ok = true;
-}
-
 fn foo()
 {
 	var usize = true;
@@ -14,16 +9,6 @@ fn bar()
 	start:
 	extern:
 	end:
-}
-
-struct void
-{
-	x: i32,
-}
-
-struct Baz
-{
-	bool: i32,
 }
 
 fn do_something()

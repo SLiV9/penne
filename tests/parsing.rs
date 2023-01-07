@@ -88,7 +88,7 @@ fn fail_to_parse_multiple_invalid_escapes()
 fn fail_to_parse_invalid_trailing_slash_in_string()
 {
 	compile_to_fail(
-		&[161, 110, 160],
+		&[161],
 		"tests/samples/invalid/invalid_trailing_slash_in_string.pn",
 	)
 }
@@ -133,6 +133,21 @@ fn fail_to_parse_untyped_integer_too_big()
 fn fail_to_parse_bit_integer_too_big()
 {
 	compile_to_fail(&[143], "tests/samples/invalid/bit_integer_too_big.pn")
+}
+
+#[test]
+fn unfinished_function_signature()
+{
+	compile_to_fail(
+		&[300],
+		"tests/samples/invalid/unfinished_function_signature.pn",
+	)
+}
+
+#[test]
+fn fail_to_parse_import_without_semicolon()
+{
+	compile_to_fail(&[300], "tests/samples/invalid/import_without_semicolon.pn")
 }
 
 #[test]
@@ -190,7 +205,16 @@ fn fail_to_parse_missing_closing_parenthesis_after_parameters()
 fn fail_to_parse_reserved_keyword_as_identifier()
 {
 	compile_to_fail(
-		&[300, 300, 300, 300, 300, 300],
+		&[300, 300, 300],
 		"tests/samples/invalid/reserved_keyword_as_identifier.pn",
+	)
+}
+
+#[test]
+fn fail_to_parse_reserved_keyword_as_declaration_identifier()
+{
+	compile_to_fail(
+		&[300, 300, 300],
+		"tests/samples/invalid/reserved_keyword_as_declaration_identifier.pn",
 	)
 }

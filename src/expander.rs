@@ -78,6 +78,18 @@ pub fn expand(modules: &mut [(std::path::PathBuf, Vec<Declaration>)])
 	}
 }
 
+pub fn expand_one(
+	filename: &str,
+	declarations: Vec<Declaration>,
+) -> Vec<Declaration>
+{
+	let filepath = filename.parse().unwrap_or_default();
+	let mut modules = [(filepath, declarations)];
+	expand(&mut modules[..]);
+	let [(_, declarations)] = modules;
+	declarations
+}
+
 fn is_import(declaration: &Declaration) -> bool
 {
 	match declaration

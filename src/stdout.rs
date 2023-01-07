@@ -195,6 +195,21 @@ impl StdOut
 		Ok(())
 	}
 
+	pub fn show_errors(
+		&mut self,
+		errors: impl IntoIterator<Item = crate::error::Error>,
+		mut source_cache: impl ariadne::Cache<String>,
+	) -> Result<(), std::io::Error>
+	{
+		for error in errors
+		{
+			self.newline()?;
+			error.report().eprint(&mut source_cache)?;
+		}
+		self.newline()?;
+		Ok(())
+	}
+
 	pub fn output(&mut self, value: i32) -> Result<(), std::io::Error>
 	{
 		self.stdout.reset()?;

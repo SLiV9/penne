@@ -42,7 +42,7 @@ pub use error::Errors;
 pub use resolved::Declaration;
 
 /// Convience method that parses source code and runs it through each of the
-/// compiler stages, except the expander.
+/// compiler stages.
 pub fn compile_source(
 	source: &str,
 	filename: &str,
@@ -50,6 +50,8 @@ pub fn compile_source(
 {
 	let tokens = lexer::lex(source, filename);
 	let declarations = parser::parse(tokens);
+	let declarations = expander::expand_one(filename, declarations);
+	resolver::check_surface_level_errors(&declarations)?;
 	let declarations = scoper::analyze(declarations);
 	let declarations = typer::analyze(declarations);
 	let declarations = analyzer::analyze(declarations);

@@ -1,0 +1,6 @@
+
+fn foo(
+
+import "bar.pn";
+
+fn use_bar(bar: Bar);

@@ -1,0 +1,7 @@
+import "pointer_in_word.pn"
+
+fn main() -> i32
+{
+	var foo = Foo { x: 20, y: 0 };
+	return: foo.x + foo.y
+}

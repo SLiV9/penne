@@ -9,7 +9,7 @@
 
 use crate::common::*;
 
-use ariadne::{Fmt, Report, ReportKind};
+pub use crate::error::Error as Lint;
 
 pub fn lint(program: &Vec<Declaration>) -> Vec<Lint>
 {
@@ -23,99 +23,6 @@ pub fn lint(program: &Vec<Declaration>) -> Vec<Lint>
 		declaration.lint(&mut linter);
 	}
 	linter.lints
-}
-
-#[derive(Debug, Clone)]
-pub enum Lint
-{
-	LoopAsFirstStatement
-	{
-		location_of_loop: Location,
-		location_of_condition: Location,
-		location_of_block: Location,
-	},
-	UnreachableCode
-	{
-		location: Location
-	},
-}
-
-impl Lint
-{
-	pub fn code(&self) -> u16
-	{
-		match self
-		{
-			Lint::LoopAsFirstStatement { .. } => 1800,
-			Lint::UnreachableCode { .. } => 1880,
-		}
-	}
-
-	pub fn report(&self) -> Report<(String, std::ops::Range<usize>)>
-	{
-		let a = ariadne::Color::Yellow;
-		let b = ariadne::Color::Cyan;
-		let c = ariadne::Color::Magenta;
-
-		match self
-		{
-			Lint::LoopAsFirstStatement {
-				location_of_loop,
-				location_of_condition,
-				location_of_block,
-			} => Report::build(
-				ReportKind::Warning,
-				&location_of_loop.source_filename,
-				location_of_loop.span.start,
-			)
-			.with_code(format!("L{}", self.code()))
-			.with_message("Conditional infinite loop")
-			.with_label(
-				location_of_loop
-					.label()
-					.with_message(
-						"...this loop statement will cause an infinite loop..."
-							.to_string(),
-					)
-					.with_color(a),
-			)
-			.with_label(
-				location_of_block
-					.label()
-					.with_message(
-						"...because it belongs to this block.".to_string(),
-					)
-					.with_color(c),
-			)
-			.with_label(
-				location_of_condition
-					.label()
-					.with_message("If this condition is met...".to_string())
-					.with_color(b),
-			)
-			.with_note(format!(
-				"Perhaps use {} instead. To surpress this warning, add a \
-				 label.",
-				"`goto`".fg(a)
-			))
-			.finish(),
-
-			Lint::UnreachableCode { location } => Report::build(
-				ReportKind::Advice,
-				&location.source_filename,
-				location.span.start,
-			)
-			.with_code(format!("L{}", self.code()))
-			.with_message("Unreachable code")
-			.with_label(
-				location
-					.label()
-					.with_message("starting here".to_string())
-					.with_color(a),
-			)
-			.finish(),
-		}
-	}
 }
 
 struct Linter

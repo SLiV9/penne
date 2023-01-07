@@ -1,0 +1,16 @@
+
+fn i128()
+{
+	var ok = true;
+}
+
+struct void
+{
+	x: i32,
+}
+
+struct Foo
+{
+	bool: i32,
+}
+

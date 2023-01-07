@@ -430,6 +430,15 @@ fn execute_calculation_with_imports(
 		modules.push((filepath, declarations));
 	}
 	expander::expand(&mut modules);
+	for (_filepath, declarations) in &modules
+	{
+		match resolver::check_surface_level_errors(&declarations)
+		{
+			Ok(_) => declarations,
+			#[allow(unreachable_code)]
+			Err(errors) => match errors.panic() {},
+		};
+	}
 	let mut irs = Vec::new();
 	for (filepath, declarations) in modules
 	{
