@@ -289,6 +289,25 @@ fn do_main() -> Result<(), anyhow::Error>
 			})
 	});
 
+	// If there are multiple compilation units, we need to generate separate
+	// (temporary) LLVM IR files in order to pass them to the backend.
+	// Do this after determining the output_filepath, because it makes no sense
+	// for the actual user output to be a temporary file.
+	let scoped_temp_dir = if out_dir.is_none() && filepaths.len() > 1
+	{
+		let temp_dir = tempfile::tempdir()?;
+		Some(temp_dir)
+	}
+	else
+	{
+		None
+	};
+	let out_dir = match &scoped_temp_dir
+	{
+		Some(temp_dir) => Some(temp_dir.path().to_owned()),
+		None => out_dir,
+	};
+
 	let mut stdout = penne::stdout::StdOut::new(verbose);
 
 	let mut sources = Vec::new();
@@ -333,7 +352,7 @@ fn do_main() -> Result<(), anyhow::Error>
 	}
 
 	let mut generated_ir_files = Vec::new();
-	let mut generated_ir_contents = Vec::new();
+	let mut generated_ir = None;
 
 	for (filepath, declarations) in modules
 	{
@@ -395,7 +414,7 @@ fn do_main() -> Result<(), anyhow::Error>
 		}
 		else
 		{
-			generated_ir_contents.push(ir);
+			generated_ir = Some(ir);
 		}
 	}
 
@@ -420,7 +439,7 @@ fn do_main() -> Result<(), anyhow::Error>
 		{
 			cmd.arg(filepath);
 		}
-		if !generated_ir_contents.is_empty()
+		if generated_ir.is_some()
 		{
 			if !is_lli
 			{
@@ -439,9 +458,8 @@ fn do_main() -> Result<(), anyhow::Error>
 		stdout.header("Running", &format!("{:?}", cmd))?;
 		stdout.prepare_for_errors()?;
 		let mut cmd = cmd.spawn()?;
-		if !generated_ir_contents.is_empty()
+		if let Some(full_ir) = generated_ir
 		{
-			let full_ir = generated_ir_contents.join("\n\n\n");
 			cmd.stdin
 				.as_mut()
 				.context("failed to pipe")?
@@ -461,6 +479,9 @@ fn do_main() -> Result<(), anyhow::Error>
 				.context("compilation unsuccessful")?;
 		}
 	}
+
+	// Make sure we drop the scoped temp dir (if any) here and not before.
+	std::mem::drop(scoped_temp_dir);
 
 	stdout.done()?;
 	Ok(())
