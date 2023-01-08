@@ -33,7 +33,10 @@ impl StdOut
 
 	pub fn newline(&mut self) -> Result<(), std::io::Error>
 	{
-		writeln!(self.stdout)?;
+		if self.is_verbose
+		{
+			writeln!(self.stdout)?;
+		}
 		Ok(())
 	}
 
@@ -46,6 +49,19 @@ impl StdOut
 		let colorspec_header = ColorSpec::new();
 		self.stdout.set_color(&colorspec_header)?;
 		writeln!(self.stdout, "{} {}...", preamble, path.to_string_lossy())?;
+		Ok(())
+	}
+
+	pub fn cmd_header(
+		&mut self,
+		preamble: &str,
+		command: String,
+	) -> Result<(), std::io::Error>
+	{
+		let colorspec_header = ColorSpec::new();
+		self.stdout.set_color(&colorspec_header)?;
+		writeln!(self.stdout)?;
+		writeln!(self.stdout, "{} {}...", preamble, &command)?;
 		Ok(())
 	}
 
@@ -203,10 +219,10 @@ impl StdOut
 	{
 		for error in errors
 		{
-			self.newline()?;
+			writeln!(self.stdout)?;
 			error.report().eprint(&mut source_cache)?;
 		}
-		self.newline()?;
+		writeln!(self.stdout)?;
 		Ok(())
 	}
 

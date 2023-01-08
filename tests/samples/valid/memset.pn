@@ -1,0 +1,16 @@
+const FRAMEBUFFER: &[6400]u8 = 0xa0;
+
+fn memset()
+{
+    var i = 0;
+    var row = [3, 3 << 2, 3 << 4, 3 << 6];
+    var value = row[0] | row[1] | row[2] | row[3];
+    {
+        if i == |FRAMEBUFFER|
+            goto end;
+        FRAMEBUFFER[i] = value;
+        i = i + 1;
+        loop;
+    }
+    end:
+}

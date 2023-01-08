@@ -14,6 +14,28 @@ fn compile(filename: &str) -> Result<Vec<Declaration>, Errors>
 	penne::compile_source(&source, &filename)
 }
 
+#[test]
+fn resolve_autoderef_memset()
+{
+	match compile("tests/samples/valid/memset.pn")
+	{
+		Ok(_) => (),
+		#[allow(unreachable_code)]
+		Err(errors) => match errors.panic() {},
+	}
+}
+
+#[test]
+fn resolve_wasm4_pixel()
+{
+	match compile("tests/samples/valid/wasm4_pixel.pn")
+	{
+		Ok(_) => (),
+		#[allow(unreachable_code)]
+		Err(errors) => match errors.panic() {},
+	}
+}
+
 fn compile_to_fail(codes: &[u16], filename: &str)
 {
 	match compile(filename)

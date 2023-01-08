@@ -25,6 +25,7 @@ Functionality:
 	✔	FFI @done (2022-09-22 15:22)
 		✔	extern C fn(); @done (2022-09-05 18:38)
 		✔	pub extern C fn() {...} @done (2022-09-05 16:51)
+	☐	Parenthesized subexpressions
 	☐	Floats
 	✔	Other integer sizes @done (2022-09-05 14:30)
 		✔	Think about size of usize @done (2022-12-15 19:37)
@@ -69,7 +70,7 @@ Functionality:
 		☐	panic()
 		☐	print()
 		☐	fopen(), fclose()
-		☐	memcpy()
+		☐	memcpy(), memset()
 		☐	transmute() implemented met bitcast (geen struct size checks)
 	☐	Compile-time string and byte-array inclusion from file
 
@@ -139,6 +140,7 @@ Documentation:
 Development:
 	☐	Improve test coverage
 	☐	WASM-4 pull request
+		☐	memset() code example
 
 Theory:
 	☐	Prove Turing completeness

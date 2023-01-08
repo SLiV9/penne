@@ -1,0 +1,12 @@
+fn foo(input: i32) -> i32
+{
+    var a: i32 = 0;
+    var x: &i32 = &a;
+    if input == 0
+        goto next;
+    var b: i32 = 100;
+    &x = &b;
+    next:
+    a = 300;
+    return: x
+}

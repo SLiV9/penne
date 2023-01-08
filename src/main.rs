@@ -455,7 +455,7 @@ fn do_main() -> Result<(), anyhow::Error>
 			cmd.arg(output_filepath);
 		}
 
-		stdout.header("Running", &format!("{:?}", cmd))?;
+		stdout.cmd_header("Running", format!("{:?}", cmd))?;
 		stdout.prepare_for_errors()?;
 		let mut cmd = cmd.spawn()?;
 		if let Some(full_ir) = generated_ir
