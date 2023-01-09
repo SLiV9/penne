@@ -1,5 +1,0 @@
-fn main() -> i32
-{
-	var result: i32;
-	return: result
-}

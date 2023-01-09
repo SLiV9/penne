@@ -102,6 +102,7 @@ Linting errors:
 	☐	Undefined members
 	☐	Non-extern function without body
 	☐	Returning pointer, slice or view of temporary
+		☐	Suspicious dangling pointer (or is this out of scope for this lang?)
 	☐	Private struct used in public declaration
 	☐	Discarding the result of a function (but only if error-like?)
 	☐	Missing members in structure initialization

@@ -105,12 +105,6 @@ fn fail_to_analyze_conditional_declaration()
 }
 
 #[test]
-fn fail_to_analyze_non_lexical_lifetime()
-{
-	compile_to_fail(&[820], "tests/samples/invalid/non_lexical_lifetime.pn");
-}
-
-#[test]
 fn fail_to_analyze_var_in_naked_branch()
 {
 	compile_to_fail(&[840], "tests/samples/invalid/var_in_naked_branch.pn");

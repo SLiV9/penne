@@ -13,3 +13,17 @@ fn foo(x: i32) -> i32
 	}
 	return: result
 }
+
+fn bar() -> i32
+{
+	var result: i32;
+	return: result
+}
+
+fn baz() -> i32
+{
+	var result;
+	goto return;
+	result = 10;
+	return: result
+}

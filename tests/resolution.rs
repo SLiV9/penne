@@ -14,10 +14,9 @@ fn compile(filename: &str) -> Result<Vec<Declaration>, Errors>
 	penne::compile_source(&source, &filename)
 }
 
-#[test]
-fn resolve_autoderef_memset()
+fn allow_to_compile(filename: &str)
 {
-	match compile("tests/samples/valid/memset.pn")
+	match compile(filename)
 	{
 		Ok(_) => (),
 		#[allow(unreachable_code)]
@@ -26,14 +25,33 @@ fn resolve_autoderef_memset()
 }
 
 #[test]
-fn resolve_wasm4_pixel()
+fn allow_use_of_untyped_array_in_memset()
 {
-	match compile("tests/samples/valid/wasm4_pixel.pn")
-	{
-		Ok(_) => (),
-		#[allow(unreachable_code)]
-		Err(errors) => match errors.panic() {},
-	}
+	allow_to_compile("tests/samples/valid/memset.pn")
+}
+
+#[test]
+fn allow_skipped_region_in_wasm4_pixel()
+{
+	allow_to_compile("tests/samples/valid/wasm4_pixel.pn")
+}
+
+#[test]
+fn allow_dubious_dangling_pointers()
+{
+	allow_to_compile("tests/samples/valid/dubious_dangling_pointers.pn")
+}
+
+#[test]
+fn allow_dubious_conditional_definition()
+{
+	allow_to_compile("tests/samples/valid/dubious_conditional_definition.pn")
+}
+
+#[test]
+fn allow_skip_shortlived_var()
+{
+	allow_to_compile("tests/samples/valid/skip_shortlived_var.pn")
 }
 
 fn compile_to_fail(codes: &[u16], filename: &str)

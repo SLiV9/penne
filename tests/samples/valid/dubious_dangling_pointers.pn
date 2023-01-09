@@ -1,0 +1,31 @@
+// This could be valid because var b remains in scope for the duration of x,
+// but wasn't in v0.3.0 because its declaration may be skipped by the goto.
+fn foo(input: i32) -> i32
+{
+    var a: i32 = 1;
+    var x: &i32 = &a;
+    if input == 0
+        goto next;
+    var b: i32 = 2;
+    &x = &b;
+    next:
+    x = 3;
+    a = 4;
+    return: x
+}
+
+// This is valid but undefined behavior due to the dangling pointer, even
+// though the code ostensibly does the same thing as foo().
+fn bar(input: i32) -> i32
+{
+    var a: i32 = 1;
+    var x: &i32 = &a;
+    if input != 0
+    {
+        var b: i32 = 2;
+        &x = &b;
+    }
+    x = 3;
+    a = 4;
+    return: x
+}
