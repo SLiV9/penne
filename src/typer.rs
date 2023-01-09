@@ -2390,6 +2390,24 @@ impl Reference
 				}
 
 				(
+					ValueType::Arraylike { element_type },
+					_,
+					Some(ReferenceStep::Element {
+						argument,
+						is_endless: _,
+					}),
+				) =>
+				{
+					let step = ReferenceStep::Element {
+						argument: argument.clone(),
+						is_endless: Some(true),
+					};
+					taken_steps.push(step);
+					available_steps.next();
+					current_type = *element_type;
+				}
+
+				(
 					ValueType::Struct { .. },
 					_,
 					Some(ReferenceStep::Member { member, offset }),
