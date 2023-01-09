@@ -7,7 +7,7 @@ fn main() -> i32
 	return: result
 }
 
-fn foo() -> i32
+fn main_with_unrelated_label() -> i32
 {
 	var result = 200;
 	goto return;
@@ -17,7 +17,7 @@ fn foo() -> i32
 	return: result
 }
 
-fn bar() -> i32
+fn main_with_suggestive_blocks() -> i32
 {
 	var result = 200;
 	goto return;
@@ -28,7 +28,7 @@ fn bar() -> i32
 	return: result
 }
 
-fn baz(input: i32) -> i32
+fn dependent(input: i32) -> i32
 {
 	var result = 200;
 	if input == 1
@@ -40,7 +40,7 @@ fn baz(input: i32) -> i32
 	return: result
 }
 
-fn baz_with_suggestive_blocks(input: i32) -> i32
+fn dependent_with_suggestive_blocks(input: i32) -> i32
 {
 	var result = 200;
 	if input == 1
@@ -71,7 +71,24 @@ fn containing_loop(input: i32) -> i32
 	return: result
 }
 
-fn with_overlap(input: i32) -> i32
+fn containing_loop_with_suggestive_blocks(input: i32) -> i32
+{
+	var result = 200;
+	var i = 0;
+	{
+		if i == input
+			goto return;
+		{
+			var x = 400;
+			result = x;
+			i = i + 1;
+		}
+		loop;
+	}
+	return: result
+}
+
+fn overlapping(input: i32) -> i32
 {
 	var result = 200;
 	if input == 0
@@ -85,5 +102,28 @@ fn with_overlap(input: i32) -> i32
 	next:
 	var b = 10;
 	result = result + b;
+	return: result
+}
+
+fn overlapping_with_suggestive_blocks(input: i32) -> i32
+{
+	var result = 200;
+	if input == 0
+		goto return;
+	{
+		if input == 1
+			goto next;
+		{
+			var a = 20;
+			result = result + a;
+			if input == 2
+				goto return;
+		}
+		next:
+		{
+			var b = 10;
+			result = result + b;
+		}
+	}
 	return: result
 }

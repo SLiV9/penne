@@ -317,9 +317,11 @@ impl Resolvable for FunctionBody
 
 	fn resolve(self) -> Result<Self::Item, Errors>
 	{
+		let (statements, return_value) =
+			(self.statements, self.return_value).resolve()?;
 		Ok(resolved::FunctionBody {
-			statements: self.statements.resolve()?,
-			return_value: self.return_value.map(|v| v.resolve()).transpose()?,
+			statements,
+			return_value,
 		})
 	}
 }

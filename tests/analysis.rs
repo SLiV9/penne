@@ -95,13 +95,16 @@ fn fail_to_analyze_return_array_by_value()
 #[test]
 fn fail_to_analyze_skip_declaration()
 {
-	compile_to_fail(&[820], "tests/samples/invalid/skip_declaration.pn");
+	compile_to_fail(&[482], "tests/samples/invalid/skip_declaration.pn");
 }
 
 #[test]
 fn fail_to_analyze_conditional_declaration()
 {
-	compile_to_fail(&[820], "tests/samples/invalid/conditional_declaration.pn");
+	compile_to_fail(
+		&[482, 482],
+		"tests/samples/invalid/conditional_declaration.pn",
+	);
 }
 
 #[test]

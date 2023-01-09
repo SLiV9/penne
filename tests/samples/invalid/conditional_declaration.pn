@@ -12,6 +12,23 @@ fn foo(x: i32) -> i32
 		goto return;
 	if x == 421
 		goto return;
-	var result = 500;
+	var result = 500i32;
+	return: result
+}
+
+fn overlapping(input: i32) -> i32
+{
+	var result = 200;
+	if input == 0
+		goto return;
+	if input == 1
+		goto next;
+	var a = 20;
+	result = result + a;
+	if input == 2
+		goto return;
+	next:
+	var b = 10;
+	result = result + a + b;
 	return: result
 }

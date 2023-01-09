@@ -429,8 +429,10 @@ pub enum Error
 	},
 	VariableDeclarationMayBeSkipped
 	{
+		name: String,
 		label: String,
 		location: Location,
+		location_of_declaration: Location,
 		location_of_goto: Location,
 		location_of_label: Location,
 	},
@@ -574,6 +576,7 @@ impl Error
 			Error::DuplicateDeclarationStructure { .. } => 425,
 			Error::DuplicateDeclarationMember { .. } => 426,
 			Error::UnresolvedImport { .. } => 470,
+			Error::VariableDeclarationMayBeSkipped { .. } => 482,
 			Error::ConflictingTypes { .. } => 500,
 			Error::NotAnArray { .. } => 501,
 			Error::NotAnArrayWithLength { .. } => 502,
@@ -599,7 +602,6 @@ impl Error
 			Error::AmbiguousTypeOfStringLiteral { .. } => 584,
 			Error::NonFinalLoopStatement { .. } => 800,
 			Error::MisplacedLoopStatement { .. } => 801,
-			Error::VariableDeclarationMayBeSkipped { .. } => 820,
 			Error::MissingBraces { .. } => 840,
 
 			// Lints:
@@ -1478,7 +1480,8 @@ fn write(
 				location
 					.label()
 					.with_message(format!(
-						"Reference to undefined variable named '{}'.",
+						"There is no variable, parameter or constant named \
+						 '{}' in this scope.",
 						name.fg(PRIMARY)
 					))
 					.with_color(PRIMARY),
@@ -1947,8 +1950,10 @@ fn write(
 			)),
 
 		Error::VariableDeclarationMayBeSkipped {
+			name,
 			label,
 			location,
+			location_of_declaration,
 			location_of_goto,
 			location_of_label,
 		} => report
@@ -1956,7 +1961,16 @@ fn write(
 			.with_label(
 				location
 					.label()
-					.with_message("...may skip this variable declaration.")
+					.with_message("The variable is referenced here.")
+					.with_color(PRIMARY),
+			)
+			.with_label(
+				location_of_declaration
+					.label()
+					.with_message(format!(
+						"...may skip the declaration of the variable '{}'.",
+						name.fg(PRIMARY)
+					))
 					.with_color(PRIMARY),
 			)
 			.with_label(
@@ -1972,10 +1986,10 @@ fn write(
 			.with_label(
 				location_of_label
 					.label()
-					.with_message(
-						"After this label, the existence of the declared \
-						 variable is dubious.",
-					)
+					.with_message(format!(
+						"After this label, the existence of '{}' is dubious.",
+						name.fg(PRIMARY)
+					))
 					.with_color(TERTIARY),
 			),
 

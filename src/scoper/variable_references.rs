@@ -13,6 +13,9 @@ pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 		variable_stack: Vec::new(),
 		function_list: Vec::new(),
 		structures: Vec::new(),
+		unresolved_labels: std::collections::HashMap::new(),
+		pruned_variables: std::collections::HashMap::new(),
+		poisoned_variables: std::collections::HashSet::new(),
 		resolution_id: 1,
 	};
 	let mut declarations: Vec<Declaration> = program;
@@ -40,6 +43,9 @@ struct Analyzer
 	variable_stack: Vec<Vec<Identifier>>,
 	function_list: Vec<Identifier>,
 	structures: Vec<Structure>,
+	unresolved_labels: std::collections::HashMap<u32, UnresolvedPruning>,
+	pruned_variables: std::collections::HashMap<u32, Pruning>,
+	poisoned_variables: std::collections::HashSet<u32>,
 	resolution_id: u32,
 }
 
@@ -48,6 +54,18 @@ struct Structure
 	identifier: Identifier,
 	contained_structure_ids: std::collections::HashSet<u32>,
 	depth: Option<Poisonable<u32>>,
+}
+
+struct UnresolvedPruning
+{
+	intersection_of_variables: std::collections::HashSet<u32>,
+	location_of_goto: Location,
+}
+
+struct Pruning
+{
+	label: Identifier,
+	location_of_goto: Location,
 }
 
 impl Analyzer
@@ -161,25 +179,57 @@ impl Analyzer
 		}
 	}
 
-	fn use_variable(&self, identifier: Identifier)
-		-> Result<Identifier, Error>
+	fn use_variable(
+		&mut self,
+		identifier: Identifier,
+	) -> Result<Identifier, Poison>
 	{
-		for scope in &self.variable_stack
+		let previous = self
+			.variable_stack
+			.iter()
+			.flat_map(|layer| layer.iter())
+			.find(|x| x.name == identifier.name);
+		let previous_identifier = match previous
 		{
-			if let Some(previous_identifier) =
-				scope.iter().find(|x| x.name == identifier.name)
+			Some(previous) => previous,
+			None =>
 			{
-				return Ok(Identifier {
-					resolution_id: previous_identifier.resolution_id,
-					is_authoritative: false,
-					..identifier
-				});
+				let error = Error::UndefinedVariable {
+					name: identifier.name,
+					location: identifier.location,
+				};
+				return Err(error.into());
 			}
+		};
+		let resolution_id = previous_identifier.resolution_id;
+
+		if let Some(pruning) = self.pruned_variables.remove(&resolution_id)
+		{
+			self.poisoned_variables.insert(resolution_id);
+
+			let Pruning {
+				label,
+				location_of_goto,
+			} = pruning;
+			let error = Error::VariableDeclarationMayBeSkipped {
+				name: identifier.name,
+				label: label.name,
+				location: identifier.location,
+				location_of_declaration: previous_identifier.location.clone(),
+				location_of_goto,
+				location_of_label: label.location,
+			};
+			return Err(error.into());
+		}
+		else if self.poisoned_variables.contains(&resolution_id)
+		{
+			return Err(Poison::Poisoned);
 		}
 
-		Err(Error::UndefinedVariable {
-			name: identifier.name,
-			location: identifier.location,
+		Ok(Identifier {
+			resolution_id,
+			is_authoritative: false,
+			..identifier
 		})
 	}
 
@@ -540,6 +590,72 @@ impl Analyzer
 	fn pop_scope(&mut self)
 	{
 		self.variable_stack.pop();
+	}
+
+	fn prepare_to_prune_at_goto(
+		&mut self,
+		label: &Identifier,
+		location_of_goto: &Location,
+	)
+	{
+		// We need all variables in scope because the label is (probably) at a
+		// higher scope than the goto statement, but we do not yet know which.
+		let variables_in_scope = std::collections::HashSet::from_iter(
+			self.variable_stack.iter().flat_map(|layer| {
+				layer.iter().map(|identifier| identifier.resolution_id)
+			}),
+		);
+		// When we prune, we can only retain the variables that were in scope
+		// for each of the goto statements.
+		self.unresolved_labels
+			.entry(label.resolution_id)
+			.and_modify(|e| {
+				e.intersection_of_variables
+					.retain(|x| variables_in_scope.contains(x));
+			})
+			.or_insert(UnresolvedPruning {
+				intersection_of_variables: variables_in_scope,
+				location_of_goto: location_of_goto.clone(),
+			});
+	}
+
+	fn prune_at_label(&mut self, label: &Identifier)
+	{
+		// Label scoping happens before variable scoping, so we can assume
+		// that there will be no more gotos for this label..
+		let resolved = self.unresolved_labels.remove(&label.resolution_id);
+		// We only need variables from the same layer (i.e. indentation level)
+		// as the label, because variables from higher scopes must also be
+		// higher up in the code than gotos for this label, hence not a problem.
+		let layer = &self.variable_stack.last();
+		match (resolved, layer)
+		{
+			(Some(pruning), Some(variables_in_layer)) =>
+			{
+				let UnresolvedPruning {
+					intersection_of_variables,
+					location_of_goto,
+				} = pruning;
+				// For the variables in this layer, keep those that were in
+				// scope for all of the goto statements for this label,
+				// and prune the rest.
+				let pruned = variables_in_layer.iter().filter(|x| {
+					!intersection_of_variables.contains(&x.resolution_id)
+				});
+				for declaration in pruned
+				{
+					let id = declaration.resolution_id;
+					self.pruned_variables.entry(id).or_insert_with(|| {
+						Pruning {
+							label: label.clone(),
+							location_of_goto: location_of_goto.clone(),
+						}
+					});
+				}
+			}
+			(None, _) => (),
+			(_, None) => (),
+		}
 	}
 }
 
@@ -964,8 +1080,16 @@ impl Analyzable for Statement
 				}
 			}
 			Statement::Loop { .. } => self,
-			Statement::Goto { .. } => self,
-			Statement::Label { .. } => self,
+			Statement::Goto { label, location } =>
+			{
+				analyzer.prepare_to_prune_at_goto(&label, &location);
+				Statement::Goto { label, location }
+			}
+			Statement::Label { label, location } =>
+			{
+				analyzer.prune_at_label(&label);
+				Statement::Label { label, location }
+			}
 			Statement::If {
 				condition,
 				then_branch,
@@ -1210,9 +1334,7 @@ impl Analyzable for Reference
 {
 	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
-		let base = self
-			.base
-			.and_then(|base| analyzer.use_variable(base).map_err(|e| e.into()));
+		let base = self.base.and_then(|base| analyzer.use_variable(base));
 		let steps: Vec<ReferenceStep> = self
 			.steps
 			.into_iter()

@@ -124,7 +124,7 @@ Usability:
 	✔ Match expected error codes in tests @done (2022-10-10 14:23)
 	☐	Generate error index by formatting literate-style samples with ansi2html
 	✔	Color default terminal output differently from LLVM errors @done (2022-09-07 15:22)
-	☐	Allow goto to skip var declaration if short-lived (skip_shortlived_var.pn)
+	✔	Allow goto to skip var declaration if short-lived (skip_shortlived_var.pn) @done (2023-01-09 17:57)
 	☐	Add options to disable color and unicode symbols in errors
 	☐	Prevent crash if number of structures exceeded
 

@@ -10,8 +10,6 @@ use crate::error::Error;
 pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 {
 	let mut analyzer = Analyzer {
-		discovered_labels: std::collections::HashMap::new(),
-		unresolved_gotos: std::collections::HashMap::new(),
 		is_naked_then_branch: false,
 		is_naked_else_branch: false,
 		is_in_block: false,
@@ -24,65 +22,9 @@ pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 
 struct Analyzer
 {
-	discovered_labels: std::collections::HashMap<u32, Identifier>,
-	unresolved_gotos: std::collections::HashMap<u32, Identifier>,
 	is_naked_then_branch: bool,
 	is_naked_else_branch: bool,
 	is_in_block: bool,
-}
-
-impl Analyzer
-{
-	fn discover_label(
-		&mut self,
-		label: &Identifier,
-		location_for_context: &Location,
-	)
-	{
-		let context = Identifier {
-			location: location_for_context.clone(),
-			..label.clone()
-		};
-		self.discovered_labels.insert(label.resolution_id, context);
-	}
-
-	fn add_goto(&mut self, label: &Identifier, location_for_context: &Location)
-	{
-		let context = Identifier {
-			location: location_for_context.clone(),
-			..label.clone()
-		};
-		self.unresolved_gotos.insert(label.resolution_id, context);
-	}
-
-	fn resolve_goto(&mut self, label: &Identifier)
-	{
-		self.unresolved_gotos.remove(&label.resolution_id);
-	}
-
-	fn get_first_unresolved_goto(&self) -> Option<UnresolvedGoto>
-	{
-		if let Some((rid, goto)) = self.unresolved_gotos.iter().next()
-		{
-			let goto = goto.clone();
-			let label = match self.discovered_labels.get(rid)
-			{
-				Some(label) => Ok(label.clone()),
-				None => Err(()),
-			};
-			Some(UnresolvedGoto { goto, label })
-		}
-		else
-		{
-			None
-		}
-	}
-}
-
-struct UnresolvedGoto
-{
-	goto: Identifier,
-	label: Result<Identifier, ()>,
 }
 
 trait Analyzable
@@ -155,8 +97,6 @@ impl Analyzable for FunctionBody
 {
 	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
-		discover_labels(&self.statements, analyzer);
-
 		// We are a function body, not a block.
 		analyzer.is_in_block = false;
 
@@ -178,8 +118,6 @@ impl Analyzable for Block
 {
 	fn analyze(self, analyzer: &mut Analyzer) -> Self
 	{
-		discover_labels(&self.statements, analyzer);
-
 		let (others, last) = {
 			let mut statements = self.statements;
 			let last = statements.pop();
@@ -224,29 +162,6 @@ impl Analyzable for Block
 	}
 }
 
-fn discover_labels(statements: &[Statement], analyzer: &mut Analyzer)
-{
-	// Look ahead into the top-level statements of this function body or block
-	// for labels, so that any goto-related error knows where the corresponding
-	// label is.
-	for statement in statements
-	{
-		match statement
-		{
-			Statement::Label { label, location } =>
-			{
-				analyzer.discover_label(label, location);
-			}
-			Statement::Block(_) =>
-			{
-				// Do not look into blocks because they have their own
-				// label scope.
-			}
-			_ => (),
-		}
-	}
-}
-
 impl Analyzable for Statement
 {
 	fn analyze(self, analyzer: &mut Analyzer) -> Self
@@ -272,35 +187,7 @@ impl Analyzable for Statement
 
 		match self
 		{
-			Statement::Declaration {
-				name,
-				value,
-				value_type,
-				location,
-			} => match analyzer.get_first_unresolved_goto()
-			{
-				Some(UnresolvedGoto {
-					goto,
-					label: Ok(label),
-				}) => Statement::Poison(Poison::Error(
-					Error::VariableDeclarationMayBeSkipped {
-						label: label.name.clone(),
-						location,
-						location_of_goto: goto.location,
-						location_of_label: label.location,
-					},
-				)),
-				Some(UnresolvedGoto {
-					goto: _,
-					label: Err(()),
-				}) => Statement::Poison(Poison::Poisoned),
-				None => Statement::Declaration {
-					name,
-					value,
-					value_type,
-					location,
-				},
-			},
+			Statement::Declaration { .. } => self,
 			Statement::Assignment { .. } => self,
 			Statement::MethodCall { .. } => self,
 			Statement::Loop { location } =>
@@ -316,16 +203,8 @@ impl Analyzable for Statement
 					))
 				}
 			}
-			Statement::Goto { label, location } =>
-			{
-				analyzer.add_goto(&label, &location);
-				Statement::Goto { label, location }
-			}
-			Statement::Label { label, location } =>
-			{
-				analyzer.resolve_goto(&label);
-				Statement::Label { label, location }
-			}
+			Statement::Goto { .. } => self,
+			Statement::Label { .. } => self,
 			Statement::If {
 				condition,
 				then_branch,
