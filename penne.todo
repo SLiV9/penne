@@ -77,6 +77,7 @@ Functionality:
 	☐	Compile-time string and byte-array inclusion from file
 
 Syntactic sugar:
+	☐	Operator assignment syntax (e.g. i += 1)
 	☐	Pre-block scope-merging variable declarations
 		var i = 0,
 		{
