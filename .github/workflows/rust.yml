@@ -14,9 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - name: Cache LLVM
-      id: cache-llvm
-      uses: actions/cache@v3
+    - name: Restore LLVM
+      id: restore-llvm
+      uses: actions/cache/restore@v3
       with:
         path: ./llvm
         key: llvm-10.0
@@ -24,11 +24,19 @@ jobs:
       uses: KyleMayes/install-llvm-action@v1
       with:
         version: "10.0"
-        cached: ${{ steps.cache-llvm.outputs.cache-hit }}
+        cached: ${{ steps.restore-llvm.outputs.cache-hit }}
+    - name: Cache LLVM
+      uses: actions/cache/save@v3
+      if: steps.restore-llvm.outputs.cache-hit != 'true'
+      with:
+        path: ./llvm
+        key: llvm-10.0
+    - name: Test llvm version (relative)
+      run: ./llvm/llvm-config --version
+    - name: Test llvm version using PATH
+      run: llvm-config --version
     - name: Build linux
       run: cargo build --release
-      env:
-        LLVM_SYS_60_PREFIX: ./llvm
     - name: Package linux
       shell: bash
       run: |
