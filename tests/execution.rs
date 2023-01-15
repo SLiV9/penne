@@ -50,6 +50,15 @@ fn execute_bitwise_operations() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_bitwise_expression() -> Result<(), anyhow::Error>
+{
+	let result =
+		execute_calculation("tests/samples/valid/bitwise_expression.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_scoped_variables() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation("examples/scoped_variables.pn")?;

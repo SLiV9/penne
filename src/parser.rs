@@ -1638,6 +1638,17 @@ fn parse_primary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 			};
 			Ok(expression)
 		}
+		Token::ParenLeft =>
+		{
+			let inner = parse_expression(tokens)?;
+			consume(Token::ParenRight, "expected closing parenthesis", tokens)?;
+			let location = location.combined_with(&tokens.last_location);
+			let expression = Expression::Parenthesized {
+				inner: Box::new(inner),
+				location,
+			};
+			Ok(expression)
+		}
 		_ => Err(Error::UnexpectedToken {
 			location,
 			expectation: "expected literal or identifier".to_string(),

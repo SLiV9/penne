@@ -993,6 +993,7 @@ impl Generatable for Expression
 				structural_type,
 				members,
 			} => generate_structure_literal(structural_type, members, llvm),
+			Expression::Parenthesized { inner } => inner.generate(llvm),
 			Expression::Deref {
 				reference,
 				deref_type,

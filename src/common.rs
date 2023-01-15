@@ -288,6 +288,11 @@ pub enum Expression
 		structural_type: Poisonable<ValueType>,
 		location: Location,
 	},
+	Parenthesized
+	{
+		inner: Box<Expression>,
+		location: Location,
+	},
 	Deref
 	{
 		reference: Reference,
@@ -336,6 +341,7 @@ impl Expression
 			Expression::StringLiteral { location, .. } => location,
 			Expression::ArrayLiteral { array, .. } => &array.location,
 			Expression::Structural { location, .. } => location,
+			Expression::Parenthesized { location, .. } => location,
 			Expression::Deref { reference, .. } => &reference.location,
 			Expression::Autocoerce { expression, .. } => expression.location(),
 			Expression::PrimitiveCast { location, .. } => location,

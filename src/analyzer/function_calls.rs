@@ -533,6 +533,14 @@ impl Analyzable for Expression
 					location,
 				}
 			}
+			Expression::Parenthesized { inner, location } =>
+			{
+				let inner = inner.analyze(analyzer);
+				Expression::Parenthesized {
+					inner: Box::new(inner),
+					location,
+				}
+			}
 			Expression::Deref {
 				reference,
 				deref_type,

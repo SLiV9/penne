@@ -660,6 +660,10 @@ impl Rebuildable for Expression
 				write!(&mut buffer, "{}}}", indentation)?;
 				Ok(buffer)
 			}
+			Expression::Parenthesized { inner, location: _ } =>
+			{
+				Ok(format!("({})", inner.rebuild(&indentation.increased())?))
+			}
 			Expression::Deref {
 				reference,
 				deref_type: None,

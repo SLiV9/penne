@@ -1493,6 +1493,10 @@ impl Typed for Expression
 			Expression::Structural {
 				structural_type, ..
 			} => Some(structural_type.clone()),
+			Expression::Parenthesized { inner, location: _ } =>
+			{
+				inner.value_type()
+			}
 			Expression::Deref {
 				reference: _,
 				deref_type,
@@ -1645,6 +1649,14 @@ impl Analyzable for Expression
 				structural_type,
 				location,
 			} => analyze_structural(members, structural_type, location, typer),
+			Expression::Parenthesized { inner, location } =>
+			{
+				let inner = inner.analyze(typer);
+				Expression::Parenthesized {
+					inner: Box::new(inner),
+					location,
+				}
+			}
 			Expression::Deref {
 				reference: _,
 				deref_type: Some(_),

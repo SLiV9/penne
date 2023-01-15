@@ -622,6 +622,11 @@ impl Resolvable for Expression
 					members,
 				})
 			}
+			Expression::Parenthesized { inner, location: _ } =>
+			{
+				let inner = inner.resolve()?;
+				Ok(resolved::Expression::Parenthesized { inner })
+			}
 			Expression::Deref {
 				reference,
 				deref_type,

@@ -461,6 +461,14 @@ impl Analyzable for Expression
 					location,
 				}
 			}
+			Expression::Parenthesized { inner, location } =>
+			{
+				let inner = inner.analyze(analyzer);
+				Expression::Parenthesized {
+					inner: Box::new(inner),
+					location,
+				}
+			}
 			Expression::Autocoerce {
 				expression,
 				coerced_type,

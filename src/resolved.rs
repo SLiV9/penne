@@ -181,6 +181,10 @@ pub enum Expression
 		members: Vec<MemberExpression>,
 		structural_type: ValueType,
 	},
+	Parenthesized
+	{
+		inner: Box<Expression>,
+	},
 	Deref
 	{
 		reference: Reference,
