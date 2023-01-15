@@ -25,9 +25,15 @@ fn allow_to_compile(filename: &str)
 }
 
 #[test]
-fn allow_use_of_untyped_array_in_memset()
+fn allow_use_of_untyped_array_in_wasm4_memset()
 {
 	allow_to_compile("tests/samples/valid/wasm4_memset_without_parentheses.pn")
+}
+
+#[test]
+fn allow_bitwise_expression_in_wasm4_memset()
+{
+	allow_to_compile("tests/samples/valid/wasm4_memset.pn")
 }
 
 #[test]

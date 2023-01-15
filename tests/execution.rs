@@ -401,6 +401,14 @@ fn execute_constant_array() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_i32_to_le_bytes() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation("tests/samples/valid/i32_to_le_bytes.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_import_position_and_line() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation_with_imports(&[

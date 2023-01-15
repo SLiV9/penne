@@ -71,7 +71,9 @@ Functionality:
 		☐	print()
 		☐	fopen(), fclose()
 		☐	memcpy(), memset()
+			☐	wasm4 basic-drawing.md code sample versimplen
 		☐	transmute() implemented met bitcast (geen struct size checks)
+			☐	wasm4 saving-data.md code sample versimpelen
 	☐	Compile-time string and byte-array inclusion from file
 
 Syntactic sugar:
@@ -141,7 +143,12 @@ Documentation:
 Development:
 	☐	Improve test coverage
 	☐	WASM-4 pull request
-		☐	memset() code example
+		✔	memset() code example @done (2023-01-15 17:23)
+		✔	diskw() code example @done (2023-01-15 17:43)
+		☐	Custom fonts code example
+			☐	Testen
+		☐	Snake tutorial
+			☐ Doorlopen met clean ubuntu
 
 Theory:
 	☐	Prove Turing completeness

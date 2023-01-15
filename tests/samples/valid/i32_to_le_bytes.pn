@@ -1,0 +1,31 @@
+
+fn main() -> i32
+{
+    var data: i32 = 1337;
+    var buffer: [4]u8;
+
+    // Store the data as little-endian bytes.
+    {
+        var bits = data as u32;
+        buffer = [
+            ((bits >> 24) & 0xFF) as u8,
+            ((bits >> 16) & 0xFF) as u8,
+            ((bits >> 8) & 0xFF) as u8,
+            (bits & 0xFF) as u8,
+        ];
+    }
+    
+    // Read little-endian bytes.
+    {
+        var bits = (buffer[0] as u32 << 24) | (buffer[1] as u32 << 16)
+            | (buffer[2] as u32 << 8) | (buffer[3] as u32);
+        data = bits as i32;
+    }
+
+    var result = 1;
+    if data == 1337
+    {
+        result = 200;
+    }
+    return: result
+}
