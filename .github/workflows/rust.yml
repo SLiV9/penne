@@ -11,7 +11,7 @@ env:
 
 jobs:
   release:    
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v3
     - name: Restore LLVM
@@ -33,10 +33,8 @@ jobs:
         key: llvm-10.0
     - name: Find llvm
       run: which llvm-config clang lli
-    - name: Test llvm version using PATH
+    - name: Test llvm version
       run: llvm-config --version
-    - name: Test llvm version (relative)
-      run: ./llvm/bin/llvm-config --version
     - name: Build linux
       run: cargo build --release
     - name: Package linux
