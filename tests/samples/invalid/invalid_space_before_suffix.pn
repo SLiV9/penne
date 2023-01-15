@@ -1,0 +1,5 @@
+fn main() -> i32
+{
+	var x = 2 i32;
+	return: x
+}

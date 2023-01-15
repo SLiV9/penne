@@ -100,6 +100,15 @@ fn fail_to_parse_missing_closing_quote()
 }
 
 #[test]
+fn fail_to_parse_invalid_space_before_suffix()
+{
+	compile_to_fail(
+		&[300],
+		"tests/samples/invalid/invalid_space_before_suffix.pn",
+	)
+}
+
+#[test]
 fn fail_to_parse_invalid_integer_suffix()
 {
 	compile_to_fail(&[141], "tests/samples/invalid/invalid_integer_suffix.pn")
