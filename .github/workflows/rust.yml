@@ -31,10 +31,12 @@ jobs:
       with:
         path: ./llvm
         key: llvm-10.0
-    - name: Test llvm version (relative)
-      run: ./llvm/llvm-config --version
+    - name: Find llvm
+      run: which llvm-config clang lli
     - name: Test llvm version using PATH
       run: llvm-config --version
+    - name: Test llvm version (relative)
+      run: ./llvm/bin/llvm-config --version
     - name: Build linux
       run: cargo build --release
     - name: Package linux
