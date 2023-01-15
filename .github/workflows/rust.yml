@@ -16,7 +16,7 @@ jobs:
     - uses: actions/checkout@v3
     - name: Cache LLVM
       id: cache-llvm
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: ./llvm
         key: llvm-10.0
@@ -27,6 +27,8 @@ jobs:
         cached: ${{ steps.cache-llvm.outputs.cache-hit }}
     - name: Build linux
       run: cargo build --release
+      env:
+        LLVM_SYS_60_PREFIX: ./llvm
     - name: Package linux
       shell: bash
       run: |

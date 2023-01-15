@@ -146,10 +146,9 @@ Development:
 	☐	WASM-4 pull request
 		✔	memset() code example @done (2023-01-15 17:23)
 		✔	diskw() code example @done (2023-01-15 17:43)
-		☐	Custom fonts code example
-			☐	Testen
-		☐	Snake tutorial
-			☐ Doorlopen met clean ubuntu
+		✔	Custom fonts code example @done (2023-01-15 18:31)
+		✘	Snake tutorial @cancelled (2023-01-15 18:31)
+		☐ Doorlopen met clean ubuntu
 
 Theory:
 	☐	Prove Turing completeness
