@@ -4,6 +4,12 @@ fn length_of(x: []u8) -> usize
 	return: y
 }
 
+fn length_of_mut(x: &[]u8) -> usize
+{
+	var y = |x|;
+	return: y
+}
+
 const DATA: [3]u8 = [1, 2, 3];
 
 fn main() -> usize
@@ -12,6 +18,7 @@ fn main() -> usize
 	var x = length_of(DATA);
 	var y = length_of(data_on_stack);
 	var z = length_of([100, 100, 100]);
-	var result = 191 + x + y + z;
+	var u = length_of_mut(&data_on_stack);
+	var result = 188 + x + y + z + u;
 	return: result
 }

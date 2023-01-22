@@ -1,0 +1,24 @@
+fn foo(x: &[]i32)
+{
+	|x| = 300;
+}
+
+fn bar(len: &[]i32)
+{
+	set_size(&|x|);
+}
+
+fn set_size(len: &usize)
+{
+	len = 400;
+}
+
+fn main() -> usize
+{
+	var x: []i32 = [17, 50];
+	foo(&x);
+	bar(&x);
+	|x| = 500;
+	var len = |x|;
+	return: len
+}

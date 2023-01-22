@@ -142,13 +142,13 @@ Documentation:
 	☐	High def logo
 
 Development:
+	☐	Fix fail_to_scope_assign_to_unknown_struct
+	☐	Fix |x| of &[]i32 requiring dereference
+		☐	Add [&:] internal type (not exactly mut slice but "slice of mut")
 	☐	Improve test coverage
-	☐	WASM-4 pull request
-		✔	memset() code example @done (2023-01-15 17:23)
-		✔	diskw() code example @done (2023-01-15 17:43)
-		✔	Custom fonts code example @done (2023-01-15 18:31)
-		✘	Snake tutorial @cancelled (2023-01-15 18:31)
-		☐ Doorlopen met clean ubuntu
 
 Theory:
 	☐	Prove Turing completeness
+		☐	Implement translation from 2-register Minsky machine to Penne code
+			☐	Using goto enum with fallthrough
+				☐	But for "match"-like goto enum I do not want fallthrough...

@@ -102,6 +102,15 @@ fn fail_to_scope_missing_structure()
 }
 
 #[test]
+fn fail_to_scope_assign_to_unknown_struct()
+{
+	compile_to_fail(
+		&[405, 405],
+		"tests/samples/invalid/assign_to_unknown_struct.pn",
+	)
+}
+
+#[test]
 fn fail_to_scope_cyclical_structures()
 {
 	compile_to_fail(

@@ -1,0 +1,21 @@
+const BAR: &Bar = 0x7F00;
+
+fn set_foo(x: &Foo)
+{
+	x = 0;
+}
+
+fn set_bar()
+{
+	BAR = Bar { x: 0, y: 0 };
+}
+
+fn set_bar_x()
+{
+	BAR.x = 200;
+}
+
+fn set_baz_y_z(x: &Baz)
+{
+	x.y.z = 200;
+}

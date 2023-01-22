@@ -88,7 +88,11 @@ impl Analyzable for Declaration
 				location_of_type,
 			} =>
 			{
-				analyzer.declare_variable(&name, false);
+				// If the constant type contains an error, autoderef may have
+				// been skipped, which means we do not know if we have interior
+				// mutability. Avoid cascading errors by faking mutability.
+				let is_error = value_type.is_err();
+				analyzer.declare_variable(&name, false || is_error);
 				let value = value.analyze(analyzer);
 				Declaration::Constant {
 					name,
@@ -200,7 +204,11 @@ impl Analyzable for Parameter
 		{
 			Ok(name) =>
 			{
-				analyzer.declare_variable(name, false);
+				// If the parameter type contains an error, autoderef may have
+				// been skipped, which means we do not know if we have interior
+				// mutability. Avoid cascading errors by faking mutability.
+				let is_error = self.value_type.is_err();
+				analyzer.declare_variable(name, false || is_error);
 			}
 			Err(_poison) => (),
 		}

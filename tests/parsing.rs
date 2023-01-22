@@ -227,3 +227,12 @@ fn fail_to_parse_reserved_keyword_as_declaration_identifier()
 		"tests/samples/invalid/reserved_keyword_as_declaration_identifier.pn",
 	)
 }
+
+#[test]
+fn fail_to_parse_assign_to_array_slice_length()
+{
+	compile_to_fail(
+		&[300, 300, 300],
+		"tests/samples/invalid/assign_to_array_slice_length.pn",
+	)
+}
