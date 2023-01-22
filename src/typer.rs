@@ -247,7 +247,11 @@ impl Typer
 		let mut x = match base_type
 		{
 			Ok(base_type) => base_type.fully_dereferenced(),
-			Err(_poison) => return Some(Err(Poison::Poisoned)),
+			Err(_poison) =>
+			{
+				reference.base = Err(Poison::Poisoned);
+				return Some(Err(Poison::Poisoned));
+			}
 		};
 		for (num_steps_taken, step) in reference.steps.iter_mut().enumerate()
 		{
