@@ -236,3 +236,12 @@ fn fail_to_parse_assign_to_array_slice_length()
 		"tests/samples/invalid/assign_to_array_slice_length.pn",
 	)
 }
+
+#[test]
+fn fail_to_parse_address_of_literal()
+{
+	compile_to_fail(
+		&[300, 300, 300],
+		"tests/samples/invalid/address_of_literal.pn",
+	)
+}

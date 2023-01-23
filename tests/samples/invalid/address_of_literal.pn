@@ -1,0 +1,23 @@
+struct Foo
+{
+	x: i32,
+	y: i32,
+}
+
+fn change_data(data: &[]u8);
+fn change_foo(foo: &Foo);
+
+fn call_1()
+{
+	change_data(&"hallo");
+}
+
+fn call_2()
+{
+	change_data(&[1, 2, 3]);
+}
+
+fn call_3()
+{
+	change_data(&Foo { x: 0, y: 0 });
+}

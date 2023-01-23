@@ -398,6 +398,17 @@ pub enum PrimitiveLiteral
 
 #[must_use]
 #[derive(Debug, Clone)]
+pub enum DesliceOffset
+{
+	// 0
+	ArrayByView,
+	ArrayByPointer,
+	// 1
+	Length,
+}
+
+#[must_use]
+#[derive(Debug, Clone)]
 pub enum ReferenceStep
 {
 	Element
@@ -412,7 +423,7 @@ pub enum ReferenceStep
 	},
 	Autodeslice
 	{
-		offset: u8,
+		offset: DesliceOffset,
 	},
 	Autoderef,
 	Autoview,

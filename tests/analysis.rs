@@ -178,3 +178,12 @@ fn fail_to_analyze_assign_to_pointer_parameter()
 		"tests/samples/invalid/assign_to_pointer_parameter.pn",
 	);
 }
+
+#[test]
+fn fail_to_analyze_assign_to_array_pointer_parameter()
+{
+	compile_to_fail(
+		&[530],
+		"tests/samples/invalid/assign_to_array_pointer_parameter.pn",
+	);
+}

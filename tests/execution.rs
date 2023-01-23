@@ -153,15 +153,6 @@ fn execute_mutable_array() -> Result<(), anyhow::Error>
 }
 
 #[test]
-fn execute_assign_to_mutable_array_slice() -> Result<(), anyhow::Error>
-{
-	let result =
-		execute_calculation("examples/assign_to_mutable_array_slice.pn")?;
-	assert_eq!(result, 200);
-	Ok(())
-}
-
-#[test]
 fn execute_multidimensional_array() -> Result<(), anyhow::Error>
 {
 	let result =

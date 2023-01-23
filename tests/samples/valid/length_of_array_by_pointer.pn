@@ -1,5 +1,11 @@
 fn length_of(x: &[]u8) -> usize
 {
+	var y = length_of__impl(&x);
+	return: y
+}
+
+fn length_of__impl(x: &[]u8) -> usize
+{
 	var y = |x|;
 	return: y
 }

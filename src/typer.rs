@@ -80,6 +80,7 @@ struct Typer
 	contextual_type: Option<Poisonable<ValueType>>,
 }
 
+#[derive(Debug)]
 struct Symbol
 {
 	identifier: Identifier,
@@ -1707,11 +1708,14 @@ impl Analyzable for Expression
 							.analyze_length(base_type, array_type, typer);
 						Expression::LengthOfArray { reference }
 					}
-					Some(Ok(ValueType::Slice { .. })) =>
+					Some(Ok(ValueType::Slice { .. }))
+					| Some(Ok(ValueType::SlicePointer { .. })) =>
 					{
 						let mut reference = reference
 							.analyze_length(base_type, array_type, typer);
-						let autostep = ReferenceStep::Autodeslice { offset: 1 };
+						let autostep = ReferenceStep::Autodeslice {
+							offset: DesliceOffset::Length,
+						};
 						reference.steps.push(autostep);
 						Expression::Deref {
 							reference,
@@ -1913,15 +1917,25 @@ fn analyze_assignment_steps(
 				{
 					ValueType::Slice { .. } =>
 					{
-						let autostep = ReferenceStep::Autodeslice { offset: 0 };
+						let autostep = ReferenceStep::Autodeslice {
+							offset: DesliceOffset::ArrayByView,
+						};
+						steps.push(autostep);
+					}
+					ValueType::SlicePointer { .. } =>
+					{
+						let autostep = ReferenceStep::Autodeslice {
+							offset: DesliceOffset::ArrayByPointer,
+						};
 						steps.push(autostep);
 					}
 					_ => (),
 				}
-				let is_endless = match &current_type
+				let is_endless = match current_type
 				{
 					ValueType::Array { .. } => Some(false),
 					ValueType::Slice { .. } => Some(false),
+					ValueType::SlicePointer { .. } => Some(false),
 					ValueType::EndlessArray { .. } => Some(true),
 					ValueType::Arraylike { .. } => None,
 					_ => None,
@@ -1989,13 +2003,16 @@ fn analyze_assignment_steps(
 				}
 				_ => unreachable!(),
 			},
-			ReferenceStep::Autodeslice { offset: 0 } => step,
-			ReferenceStep::Autodeslice { offset: 1 } =>
+			ReferenceStep::Autodeslice { ref offset } => match offset
 			{
-				current_type = ValueType::Usize;
-				step
-			}
-			ReferenceStep::Autodeslice { offset: _ } => unreachable!(),
+				DesliceOffset::ArrayByView => step,
+				DesliceOffset::ArrayByPointer => step,
+				DesliceOffset::Length =>
+				{
+					current_type = ValueType::Usize;
+					step
+				}
+			},
 		};
 		steps.push(step);
 	}
@@ -2186,6 +2203,19 @@ impl Reference
 				let poison = base_type_poison;
 				Expression::Poison(poison)
 			}
+			(None, Some(Ok(ValueType::SlicePointer { element_type })), _) =>
+			{
+				// We cannot do a normal simple deref because SlicePointer
+				// is not a concretization of array.
+				let base_type = Some(Ok(ValueType::Pointer {
+					deref_type: Box::new(ValueType::Arraylike {
+						element_type: element_type.clone(),
+					}),
+				}));
+				let deref_type =
+					Some(Ok(ValueType::SlicePointer { element_type }));
+				self.simple_deref(base_type, deref_type, typer)
+			}
 			(None, deref_type, _) =>
 			{
 				let base_type = deref_type.clone();
@@ -2265,8 +2295,8 @@ impl Reference
 					take_address = true;
 					break;
 				}
-				(ct, ValueType::Pointer { deref_type }, None)
-					if ct.can_coerce_address_into_pointer_to(deref_type)
+				(ct, tt, None)
+					if ct.can_coerce_address_into(tt)
 						&& self.address_depth > 0
 						&& !take_address =>
 				{
@@ -2393,7 +2423,31 @@ impl Reference
 					}),
 				) =>
 				{
-					let autostep = ReferenceStep::Autodeslice { offset: 0 };
+					let autostep = ReferenceStep::Autodeslice {
+						offset: DesliceOffset::ArrayByView,
+					};
+					taken_steps.push(autostep);
+
+					let step = ReferenceStep::Element {
+						argument: argument.clone(),
+						is_endless: Some(false),
+					};
+					taken_steps.push(step);
+					available_steps.next();
+					current_type = *element_type;
+				}
+				(
+					ValueType::SlicePointer { element_type },
+					_,
+					Some(ReferenceStep::Element {
+						argument,
+						is_endless: _,
+					}),
+				) =>
+				{
+					let autostep = ReferenceStep::Autodeslice {
+						offset: DesliceOffset::ArrayByPointer,
+					};
 					taken_steps.push(autostep);
 
 					let step = ReferenceStep::Element {
@@ -2708,6 +2762,13 @@ fn analyze_type(
 				element_type: Box::new(element_type),
 			})
 		}
+		ValueType::SlicePointer { element_type } =>
+		{
+			let element_type = analyze_type(*element_type, typer)?;
+			Ok(ValueType::SlicePointer {
+				element_type: Box::new(element_type),
+			})
+		}
 		ValueType::EndlessArray { element_type } =>
 		{
 			let element_type = analyze_type(*element_type, typer)?;
@@ -2842,21 +2903,9 @@ fn fix_type_for_flags(
 			{
 				ValueType::Arraylike { element_type } =>
 				{
-					let deref_type =
-						Box::new(ValueType::Slice { element_type });
-					Ok(ValueType::Pointer { deref_type })
+					Ok(ValueType::SlicePointer { element_type })
 				}
 				_ => Ok(ValueType::Pointer { deref_type }),
-			},
-			ValueType::View { deref_type } => match *deref_type
-			{
-				ValueType::Arraylike { element_type } =>
-				{
-					let deref_type =
-						Box::new(ValueType::Slice { element_type });
-					Ok(ValueType::View { deref_type })
-				}
-				_ => Ok(ValueType::View { deref_type }),
 			},
 			_ => Ok(value_type),
 		}

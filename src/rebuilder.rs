@@ -794,6 +794,10 @@ impl Rebuildable for ValueType
 			{
 				Ok(format!("[:]{}", element_type.rebuild(indentation)?))
 			}
+			ValueType::SlicePointer { element_type } =>
+			{
+				Ok(format!("[&,:]{}", element_type.rebuild(indentation)?))
+			}
 			ValueType::EndlessArray { element_type } =>
 			{
 				Ok(format!("[...]{}", element_type.rebuild(indentation)?))
@@ -882,10 +886,15 @@ impl Rebuildable for Reference
 						write!(&mut buffer, ".{}", identify(member))?
 					}
 				}
-				ReferenceStep::Autodeslice { offset } =>
+				ReferenceStep::Autodeslice { offset } => match offset
 				{
-					write!(&mut buffer, ".{}", offset)?
-				}
+					DesliceOffset::ArrayByView => write!(&mut buffer, ".0")?,
+					DesliceOffset::ArrayByPointer =>
+					{
+						write!(&mut buffer, ".^0")?
+					}
+					DesliceOffset::Length => write!(&mut buffer, ".1")?,
+				},
 				ReferenceStep::Autoderef => write!(&mut buffer, ".^")?,
 				ReferenceStep::Autoview => write!(&mut buffer, ".^")?,
 			}

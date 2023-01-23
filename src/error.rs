@@ -2295,6 +2295,10 @@ fn show_type_inner(value_type: &ValueType) -> String
 		{
 			format!("[:]{}", show_type_inner(element_type))
 		}
+		ValueType::SlicePointer { element_type } =>
+		{
+			format!("&[:]{}", show_type_inner(element_type))
+		}
 		ValueType::EndlessArray { element_type } =>
 		{
 			format!("[...]{}", show_type_inner(element_type))

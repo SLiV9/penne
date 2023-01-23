@@ -1195,7 +1195,8 @@ impl Generatable for ValueType
 				let element_type = element_type.generate(llvm)?;
 				unsafe { LLVMArrayType(element_type, *length as u32) }
 			}
-			ValueType::Slice { element_type } =>
+			ValueType::Slice { element_type }
+			| ValueType::SlicePointer { element_type } =>
 			{
 				let element_type = element_type.generate(llvm)?;
 				let storagetype = unsafe { LLVMArrayType(element_type, 0u32) };
@@ -1333,7 +1334,7 @@ impl Reference
 		{
 			if self.steps.is_empty()
 			{
-				// We assume that the parameter is ValueType::Slice.
+				// We assume that the parameter is ValueType::Slice(Pointer).
 				let param = *value;
 				let tmpname = CString::new("")?;
 				let tmp = unsafe {
@@ -1722,7 +1723,7 @@ fn generate_autocoerce(
 			} => match deref_type
 			{
 				ValueType::Array {
-					element_type,
+					element_type: _,
 					length,
 				} =>
 				{
@@ -1733,13 +1734,13 @@ fn generate_autocoerce(
 			},
 			Expression::ArrayLiteral {
 				elements,
-				element_type,
+				element_type: _,
 			} =>
 			{
 				let value = expression.generate(llvm)?;
 				let length = elements.len();
 				let array_type = ValueType::Array {
-					element_type: Box::new(element_type.clone()),
+					element_type: element_type.clone(),
 					length,
 				};
 				let vtype = array_type.generate(llvm)?;
@@ -1752,6 +1753,26 @@ fn generate_autocoerce(
 				let length = bytes.len();
 				generate_array_slice(address, element_type, length, llvm)
 			}
+			_ => unimplemented!(),
+		},
+		ValueType::SlicePointer { element_type } => match expression
+		{
+			Expression::Deref {
+				reference,
+				deref_type: x,
+			} if reference.take_address => match x.get_pointee_type()
+			{
+				Some(ValueType::Array {
+					element_type: _,
+					length,
+				}) =>
+				{
+					let address = reference.generate_storage_address(llvm)?;
+					generate_array_slice(address, &element_type, length, llvm)
+				}
+				Some(_) => unimplemented!(),
+				None => unreachable!(),
+			},
 			_ => unimplemented!(),
 		},
 		ValueType::View { deref_type } => match deref_type.as_ref()
@@ -1810,8 +1831,8 @@ fn generate_autocoerce(
 			{
 				Expression::Deref {
 					reference,
-					deref_type: expr_type,
-				} if reference.take_address => match expr_type.get_pointee_type()
+					deref_type: x,
+				} if reference.take_address => match x.get_pointee_type()
 				{
 					Some(pointee_type) =>
 					{

@@ -41,6 +41,10 @@ where
 	{
 		element_type: Box<ValueType<I>>,
 	},
+	SlicePointer
+	{
+		element_type: Box<ValueType<I>>,
+	},
 	EndlessArray
 	{
 		element_type: Box<ValueType<I>>,
@@ -113,6 +117,7 @@ where
 			ValueType::Bool => false,
 			ValueType::Array { .. } => false,
 			ValueType::Slice { .. } => false,
+			ValueType::SlicePointer { .. } => false,
 			ValueType::EndlessArray { .. } => false,
 			ValueType::Arraylike { .. } => false,
 			ValueType::Struct { .. } => false,
@@ -142,6 +147,7 @@ where
 			ValueType::Bool => Some(1),
 			ValueType::Array { .. } => None,
 			ValueType::Slice { .. } => None,
+			ValueType::SlicePointer { .. } => None,
 			ValueType::EndlessArray { .. } => None,
 			ValueType::Arraylike { .. } => None,
 			ValueType::Struct { .. } => None,
@@ -178,7 +184,7 @@ where
 		}
 	}
 
-	pub fn can_be_used_as(&self, other: &ValueType<I>) -> bool
+	fn can_be_used_as(&self, other: &ValueType<I>) -> bool
 	{
 		match self
 		{
@@ -216,6 +222,15 @@ where
 				ValueType::Arraylike { element_type: b } => a == b,
 				_ => self == other,
 			},
+			ValueType::SlicePointer { element_type: a } => match other
+			{
+				ValueType::Pointer { deref_type } => match deref_type.as_ref()
+				{
+					ValueType::Arraylike { element_type: b } => a == b,
+					_ => false,
+				},
+				_ => self == other,
+			},
 			_ => self == other,
 		}
 	}
@@ -242,6 +257,23 @@ where
 					a.can_be_concretization_of(b)
 				}
 				ValueType::Arraylike { element_type: b } => a.can_be_used_as(b),
+				_ => self.can_be_used_as(other),
+			},
+			ValueType::SlicePointer { element_type: a } => match other
+			{
+				ValueType::SlicePointer { element_type: b } =>
+				{
+					a.can_be_concretization_of(b)
+				}
+				ValueType::Arraylike { element_type: b } => a.can_be_used_as(b),
+				ValueType::Pointer { deref_type } => match deref_type.as_ref()
+				{
+					ValueType::Arraylike { element_type: b } =>
+					{
+						a.can_be_used_as(b)
+					}
+					_ => self.can_be_used_as(other),
+				},
 				_ => self.can_be_used_as(other),
 			},
 			ValueType::EndlessArray { element_type: a } => match other
@@ -322,6 +354,15 @@ where
 				},
 				_ => false,
 			},
+			ValueType::SlicePointer { element_type: a } => match other
+			{
+				ValueType::Pointer { deref_type } => match deref_type.as_ref()
+				{
+					ValueType::EndlessArray { element_type: b } => a == b,
+					_ => false,
+				},
+				_ => false,
+			},
 			ValueType::Struct { .. } => match other
 			{
 				ValueType::View { deref_type } => deref_type.as_ref() == self,
@@ -331,10 +372,7 @@ where
 		}
 	}
 
-	pub fn can_coerce_address_into_pointer_to(
-		&self,
-		other: &ValueType<I>,
-	) -> bool
+	pub fn can_coerce_address_into(&self, other: &ValueType<I>) -> bool
 	{
 		match self
 		{
@@ -343,13 +381,12 @@ where
 				length: _,
 			} => match other
 			{
-				ValueType::Slice { element_type: b } => a == b,
-				ValueType::EndlessArray { element_type: b } => a == b,
-				_ => false,
-			},
-			ValueType::Slice { element_type: a } => match other
-			{
-				ValueType::EndlessArray { element_type: b } => a == b,
+				ValueType::SlicePointer { element_type: b } => a == b,
+				ValueType::Pointer { deref_type } => match deref_type.as_ref()
+				{
+					ValueType::EndlessArray { element_type: b } => a == b,
+					_ => false,
+				},
 				_ => false,
 			},
 			_ => false,
@@ -368,6 +405,10 @@ where
 			{
 				self == other || self.can_coerce_into(other)
 			}
+			ValueType::SlicePointer { .. } =>
+			{
+				self == other || self.can_coerce_into(other)
+			}
 			ValueType::EndlessArray { .. } =>
 			{
 				self == other || self.can_coerce_into(other)
@@ -378,22 +419,22 @@ where
 			}
 			ValueType::View { deref_type } =>
 			{
-				deref_type.as_ref() == other
+				self == other
+					|| deref_type.as_ref() == other
 					|| deref_type.can_subautoderef_into(other)
-					|| other.get_viewee_type().map_or(false, |t| {
-						deref_type.as_ref() == &t
-							|| deref_type.can_subautoderef_into(&t)
-					})
+					|| other
+						.get_viewee_type()
+						.map_or(false, |t| deref_type.can_subautoderef_into(&t))
 			}
 			ValueType::Pointer { deref_type } =>
 			{
-				deref_type.as_ref() == other
+				self == other
+					|| deref_type.as_ref() == other
+					|| deref_type.can_coerce_address_into(other)
 					|| deref_type.can_subautoderef_into(other)
-					|| other.get_pointee_type().map_or(false, |t| {
-						deref_type.as_ref() == &t
-							|| deref_type.can_subautoderef_into(&t)
-							|| deref_type.can_coerce_address_into_pointer_to(&t)
-					})
+					|| other
+						.get_pointee_type()
+						.map_or(false, |t| deref_type.can_subautoderef_into(&t))
 			}
 			_ => false,
 		}
@@ -403,26 +444,21 @@ where
 	{
 		match self
 		{
-			ValueType::Array { .. } => self == other,
-			ValueType::Slice { .. } => self == other,
-			ValueType::EndlessArray { .. } => self == other,
 			ValueType::View { deref_type } =>
 			{
 				deref_type.as_ref() == other
 					|| deref_type.can_subautoderef_into(other)
-					|| other.get_viewee_type().map_or(false, |t| {
-						deref_type.as_ref() == &t
-							|| deref_type.can_subautoderef_into(&t)
-					})
+					|| other
+						.get_viewee_type()
+						.map_or(false, |t| deref_type.can_subautoderef_into(&t))
 			}
 			ValueType::Pointer { deref_type } =>
 			{
 				deref_type.as_ref() == other
 					|| deref_type.can_subautoderef_into(other)
-					|| other.get_pointee_type().map_or(false, |t| {
-						deref_type.as_ref() == &t
-							|| deref_type.can_subautoderef_into(&t)
-					})
+					|| other
+						.get_pointee_type()
+						.map_or(false, |t| deref_type.can_subautoderef_into(&t))
 			}
 			_ => false,
 		}
@@ -438,6 +474,10 @@ where
 				length,
 			} => *length > 0 && element_type.is_wellformed_element(),
 			ValueType::Slice { element_type } =>
+			{
+				element_type.is_wellformed_element()
+			}
+			ValueType::SlicePointer { element_type } =>
 			{
 				element_type.is_wellformed_element()
 			}
@@ -464,6 +504,7 @@ where
 		{
 			ValueType::Array { .. } => self.is_wellformed_inner(),
 			ValueType::Slice { .. } => false,
+			ValueType::SlicePointer { .. } => false,
 			ValueType::EndlessArray { .. } => false,
 			ValueType::Arraylike { .. } => false,
 			ValueType::Pointer { .. } => self.is_wellformed_inner(),
@@ -480,10 +521,8 @@ where
 				element_type,
 				length,
 			} => *length > 0 && element_type.is_wellformed_element(),
-			ValueType::Slice { element_type } =>
-			{
-				element_type.is_wellformed_element()
-			}
+			ValueType::Slice { .. } => false,
+			ValueType::SlicePointer { .. } => false,
 			ValueType::EndlessArray { element_type } =>
 			{
 				element_type.is_wellformed_element()
@@ -507,6 +546,7 @@ where
 		{
 			ValueType::Void => false,
 			ValueType::Slice { .. } => false,
+			ValueType::SlicePointer { .. } => false,
 			ValueType::EndlessArray { .. } => false,
 			ValueType::Arraylike { .. } => false,
 			ValueType::View { .. } => false,
@@ -526,6 +566,7 @@ where
 		{
 			ValueType::Void => false,
 			ValueType::Slice { .. } => false,
+			ValueType::SlicePointer { .. } => false,
 			ValueType::EndlessArray { .. } => false,
 			ValueType::Arraylike { .. } => false,
 			_ => self.is_wellformed(),
@@ -538,6 +579,7 @@ where
 		{
 			ValueType::Void => false,
 			ValueType::Slice { .. } => false,
+			ValueType::SlicePointer { .. } => false,
 			ValueType::EndlessArray { .. } => false,
 			ValueType::Arraylike { .. } => false,
 			ValueType::View { .. } => false,
@@ -562,6 +604,7 @@ where
 		{
 			ValueType::Array { .. } => false,
 			ValueType::Slice { .. } => false,
+			ValueType::SlicePointer { .. } => false,
 			ValueType::EndlessArray { .. } => false,
 			ValueType::Arraylike { .. } => false,
 			ValueType::Struct { .. } => false,
@@ -580,6 +623,10 @@ where
 				length: _,
 			} => Some(element_type.as_ref().clone()),
 			ValueType::Slice { element_type } =>
+			{
+				Some(element_type.as_ref().clone())
+			}
+			ValueType::SlicePointer { element_type } =>
 			{
 				Some(element_type.as_ref().clone())
 			}

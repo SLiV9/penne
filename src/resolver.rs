@@ -773,6 +773,12 @@ impl Resolvable for ReferenceStep
 			} => unreachable!(),
 			ReferenceStep::Autodeslice { offset } =>
 			{
+				let offset = match offset
+				{
+					DesliceOffset::ArrayByView => 0,
+					DesliceOffset::ArrayByPointer => 0,
+					DesliceOffset::Length => 1,
+				};
 				Ok(resolved::ReferenceStep::Autodeslice { offset })
 			}
 			ReferenceStep::Autoderef => Ok(resolved::ReferenceStep::Autoderef),
@@ -826,6 +832,12 @@ impl Resolvable for ValueType
 			ValueType::Slice { element_type } =>
 			{
 				Ok(resolved::ValueType::Slice {
+					element_type: element_type.resolve()?,
+				})
+			}
+			ValueType::SlicePointer { element_type } =>
+			{
+				Ok(resolved::ValueType::SlicePointer {
 					element_type: element_type.resolve()?,
 				})
 			}

@@ -267,6 +267,7 @@ impl Analyzable for Statement
 				let is_mutable = match value_type
 				{
 					Some(Ok(ValueType::Slice { .. })) => false,
+					Some(Ok(ValueType::SlicePointer { .. })) => false,
 					Some(Ok(ValueType::View { .. })) => false,
 					Some(Ok(_)) => true,
 					Some(Err(_)) => true,
@@ -296,7 +297,15 @@ impl Analyzable for Statement
 					{
 						ReferenceStep::Element { .. } => (),
 						ReferenceStep::Member { .. } => (),
-						ReferenceStep::Autodeslice { .. } => (),
+						ReferenceStep::Autodeslice { offset } => match offset
+						{
+							DesliceOffset::ArrayByView => (),
+							DesliceOffset::ArrayByPointer =>
+							{
+								needs_outer_mutability = false;
+							}
+							DesliceOffset::Length => (),
+						},
 						ReferenceStep::Autoderef =>
 						{
 							needs_outer_mutability = false;

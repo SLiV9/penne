@@ -571,6 +571,7 @@ impl Analyzable for Expression
 						}
 					}
 					Some(Ok(vt @ ValueType::Slice { .. }))
+					| Some(Ok(vt @ ValueType::SlicePointer { .. }))
 					| Some(Ok(vt @ ValueType::Arraylike { .. })) =>
 					{
 						if !analyzer.is_immediate_function_argument

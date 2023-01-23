@@ -402,6 +402,17 @@ impl Analyzer
 						element_type: Box::new(element_type),
 					})
 				}
+				ValueType::SlicePointer { element_type } =>
+				{
+					let element_type = self.found_structure_member(
+						name_of_structure,
+						name_of_member,
+						Ok(*element_type),
+					)?;
+					Ok(ValueType::SlicePointer {
+						element_type: Box::new(element_type),
+					})
+				}
 				ValueType::EndlessArray { element_type } =>
 				{
 					let element_type = self.found_structure_member(
@@ -1460,6 +1471,13 @@ fn analyze_type(
 		{
 			let element_type = analyze_type(*element_type, analyzer)?;
 			Ok(ValueType::Slice {
+				element_type: Box::new(element_type),
+			})
+		}
+		ValueType::SlicePointer { element_type } =>
+		{
+			let element_type = analyze_type(*element_type, analyzer)?;
+			Ok(ValueType::SlicePointer {
 				element_type: Box::new(element_type),
 			})
 		}
