@@ -101,7 +101,8 @@ Linting errors:
 		☐	gotofail bug in tests/samples/suspicious
 	✔	Loop as only statement in an if-branch @done (2021-01-09 12:45)
 	☐	Functions with side effects in if-statement conditions
-	☐	Var declaration with undefined value in some/all branches
+	✘	Var declaration with undefined value in some/all branches @cancelled (2023-01-25 12:55)
+		The general case is halting problem, and bespoke analysis is out of scope.
 	☐	Undefined members
 	☐	Non-extern function without body
 	☐	Returning pointer, slice or view of temporary

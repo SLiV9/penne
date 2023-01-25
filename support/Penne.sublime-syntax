@@ -37,7 +37,7 @@ contexts:
       scope: constant.numeric.penne
     - match: '\b(true|false)\b'
       scope: constant.language.penne
-    - match: '\b(var|const|fn|struct|{{word_x}})\s+(?={{keyword}})\b'
+    - match: '\b(var|const|fn|struct|{{word_x}})\s+(?=({{keyword}})\b)\b'
       scope: keyword.other.penne
     - match: '\b(var)\s+({{identifier}})\b'
       captures:

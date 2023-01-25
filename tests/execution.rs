@@ -400,6 +400,16 @@ fn execute_i32_to_le_bytes() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_identifier_starting_with_keyword() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation(
+		"tests/samples/valid/identifier_starting_with_keyword.pn",
+	)?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_import_position_and_line() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation_with_imports(&[

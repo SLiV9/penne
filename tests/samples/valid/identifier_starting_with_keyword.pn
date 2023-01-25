@@ -1,0 +1,11 @@
+
+fn main() -> i32
+{
+	// This is mostly a syntax highlighting test.
+	void_and_darkness:
+	// There was a bug in syntax highlighting where the variable below was
+	// deemed to be a label, because the "var" was blocked by the "if".
+	var if_there_was_a_chance_this_was_a_keyword: i32;
+	// But it's fixed now.
+	return: 200
+}
