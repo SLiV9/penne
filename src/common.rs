@@ -25,6 +25,7 @@ pub enum Declaration
 		value: Expression,
 		value_type: Poisonable<ValueType>,
 		flags: EnumSet<DeclarationFlag>,
+		depth: Option<Poisonable<u32>>,
 		location_of_declaration: Location,
 		location_of_type: Location,
 	},
@@ -464,6 +465,14 @@ pub struct Reference
 	pub steps: Vec<ReferenceStep>,
 	pub address_depth: u8,
 	pub location: Location,
+}
+
+impl Reference
+{
+	pub fn is_trivial(&self) -> bool
+	{
+		self.steps.is_empty() && self.address_depth == 0
+	}
 }
 
 #[must_use]

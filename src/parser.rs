@@ -443,6 +443,7 @@ fn parse_constant_declaration(
 		value: expression,
 		value_type,
 		flags,
+		depth: None,
 		location_of_declaration,
 		location_of_type,
 	};

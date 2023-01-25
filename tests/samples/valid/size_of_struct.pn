@@ -24,6 +24,8 @@ struct Baz
 	foo: Foo,
 }
 
+const SIZE_OF_BAZ: usize = |:Baz|;
+
 struct Empty
 {}
 
@@ -37,5 +39,5 @@ fn main() -> usize
 {
 	var total = |:Position| + |:Foo| + |:Bar| + |:Baz| + |:Empty| + |:Padded|;
 	var expected =    2 * 4 +  2 * 4 +  4 * 8 +  4 * 8 +        1 +     2 * 2;
-	return: 200 + total - expected
+	return: 168 + SIZE_OF_BAZ + total - expected
 }

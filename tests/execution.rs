@@ -42,6 +42,14 @@ fn execute_collatz() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_constants() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation("examples/constants.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_bitwise_operations() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation("examples/bitwise_operations.pn")?;

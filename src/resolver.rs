@@ -197,17 +197,25 @@ impl Resolvable for Declaration
 				value,
 				value_type,
 				flags,
+				depth,
 				location_of_declaration: _,
 				location_of_type: _,
 			} =>
 			{
 				let (name, value, value_type) =
 					(name, value, value_type).resolve()?;
+				let depth = match depth
+				{
+					Some(Ok(depth)) => depth,
+					Some(error) => error?,
+					None => unreachable!(),
+				};
 				Ok(resolved::Declaration::Constant {
 					name,
 					value,
 					value_type,
 					flags,
+					depth,
 				})
 			}
 			Declaration::Function {
@@ -265,7 +273,7 @@ impl Resolvable for Declaration
 				let depth = match depth
 				{
 					Some(Ok(depth)) => depth,
-					Some(Err(_poisoned)) => unreachable!(),
+					Some(error) => error?,
 					None => unreachable!(),
 				};
 				Ok(resolved::Declaration::Structure {

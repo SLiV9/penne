@@ -26,6 +26,9 @@ Functionality:
 		✔	extern C fn(); @done (2022-09-05 18:38)
 		✔	pub extern C fn() {...} @done (2022-09-05 16:51)
 	✔	Parenthesized subexpressions @done (2023-01-15 16:07)
+	☐	Named constants as array lengths
+		✘	LengthOfArray in constant expressions @cancelled (2023-01-25 14:31)
+		✔	SizeOfStructure in constant expressions @done (2023-01-25 14:31)
 	☐	Floats
 	✔	Other integer sizes @done (2022-09-05 14:30)
 		✔	Think about size of usize @done (2022-12-15 19:37)

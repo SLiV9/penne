@@ -1,0 +1,9 @@
+const Q: i32 = Q;
+
+const X: i32 = Y;
+const Y: i32 = X;
+
+const A: i32 = B;
+const B: i32 = C;
+const C: i32 = D;
+const D: i32 = A;

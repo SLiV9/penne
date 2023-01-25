@@ -59,6 +59,7 @@ impl Lintable for Declaration
 				value: _,
 				value_type: _,
 				flags: _,
+				depth: _,
 				location_of_declaration: _,
 				location_of_type: _,
 			} => (),

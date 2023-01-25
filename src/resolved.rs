@@ -27,6 +27,7 @@ pub enum Declaration
 		value: Expression,
 		value_type: ValueType,
 		flags: EnumSet<DeclarationFlag>,
+		depth: u32,
 	},
 	Function
 	{
@@ -224,6 +225,14 @@ pub struct Reference
 	pub base: Identifier,
 	pub steps: Vec<ReferenceStep>,
 	pub take_address: bool,
+}
+
+impl Reference
+{
+	pub fn is_trivial(&self) -> bool
+	{
+		self.steps.is_empty() && !self.take_address
+	}
 }
 
 #[must_use]

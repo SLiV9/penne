@@ -1,0 +1,23 @@
+
+const X: i32 = ONE_HUNDRED;
+const Y: i32 = X;
+const ANSWER: Result = Result { x: X, y: Y };
+
+struct Result
+{
+	x: i32,
+	y: i32,
+}
+
+fn main() -> i32
+{
+	var result = ANSWER.x + ANSWER.y;
+	return: result
+}
+
+const TEN: i32 = (1 - 6) * -2;
+const TWENTY: i32 = 140 / 7;
+const THIRTY: i32 = (60u32 >> 1) as i32;
+const FORTY: i32 = HEX_0x28 as i32;
+const HEX_0x28: u8 = !0b11110111 | (0x2F & 0xF0);
+const ONE_HUNDRED: i32 = TEN + TWENTY + THIRTY + FORTY;

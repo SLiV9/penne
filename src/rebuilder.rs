@@ -121,6 +121,7 @@ impl Rebuildable for Declaration
 				value,
 				value_type,
 				flags,
+				depth,
 				location_of_declaration: _,
 				location_of_type: _,
 			} =>
@@ -134,6 +135,17 @@ impl Rebuildable for Declaration
 				if flags.contains(DeclarationFlag::External)
 				{
 					write!(&mut buffer, "extern ")?;
+				}
+				match depth
+				{
+					Some(Ok(0)) => (),
+					Some(Ok(depth)) => write!(&mut buffer, "(+{}) ", depth)?,
+					Some(Err(poison)) => write!(
+						&mut buffer,
+						"(+{}) ",
+						poison.rebuild(&indentation)?
+					)?,
+					None => (),
 				}
 				writeln!(
 					&mut buffer,
@@ -242,7 +254,7 @@ impl Rebuildable for Declaration
 				members,
 				structural_type,
 				flags,
-				depth: _,
+				depth,
 				location_of_declaration: _,
 			} =>
 			{
@@ -255,6 +267,17 @@ impl Rebuildable for Declaration
 				if flags.contains(DeclarationFlag::External)
 				{
 					write!(&mut buffer, "extern ")?;
+				}
+				match depth
+				{
+					Some(Ok(0)) => (),
+					Some(Ok(depth)) => write!(&mut buffer, "(+{}) ", depth)?,
+					Some(Err(poison)) => write!(
+						&mut buffer,
+						"(+{}) ",
+						poison.rebuild(&indentation)?
+					)?,
+					None => (),
 				}
 				match structural_type
 				{

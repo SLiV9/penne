@@ -196,6 +196,7 @@ impl Analyzable for Declaration
 				value,
 				value_type,
 				flags,
+				depth,
 				location_of_declaration,
 				location_of_type,
 			} =>
@@ -209,6 +210,7 @@ impl Analyzable for Declaration
 					value,
 					value_type,
 					flags,
+					depth,
 					location_of_declaration,
 					location_of_type,
 				}
@@ -456,12 +458,6 @@ impl Analyzable for Expression
 				location_of_op,
 			} =>
 			{
-				if analyzer.is_const_evaluated
-				{
-					let error = Error::UnsupportedInConstContext { location };
-					return Expression::Poison(Poison::Error(error));
-				}
-
 				analyzer.is_immediate_function_argument = false;
 				let left = left.analyze(analyzer);
 				let right = right.analyze(analyzer);
@@ -480,12 +476,6 @@ impl Analyzable for Expression
 				location_of_op,
 			} =>
 			{
-				if analyzer.is_const_evaluated
-				{
-					let error = Error::UnsupportedInConstContext { location };
-					return Expression::Poison(Poison::Error(error));
-				}
-
 				analyzer.is_immediate_function_argument = false;
 				let expression = expression.analyze(analyzer);
 				Expression::Unary {
@@ -546,7 +536,7 @@ impl Analyzable for Expression
 				deref_type,
 			} =>
 			{
-				if analyzer.is_const_evaluated
+				if analyzer.is_const_evaluated && !reference.is_trivial()
 				{
 					let error = Error::UnsupportedInConstContext {
 						location: reference.location,
@@ -654,7 +644,7 @@ impl Analyzable for Expression
 			{
 				if analyzer.is_const_evaluated
 				{
-					let error = Error::UnsupportedInConstContext {
+					let error = Error::FunctionInConstContext {
 						location: name.location,
 					};
 					return Expression::Poison(Poison::Error(error));

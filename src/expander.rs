@@ -120,6 +120,7 @@ fn export(declaration: &Declaration) -> Option<Declaration>
 			value,
 			value_type,
 			flags,
+			depth,
 			location_of_declaration,
 			location_of_type,
 		} => extract_public(flags).map(|flags| Declaration::Constant {
@@ -127,6 +128,7 @@ fn export(declaration: &Declaration) -> Option<Declaration>
 			value: value.clone(),
 			value_type: value_type.clone(),
 			flags,
+			depth: depth.clone(),
 			location_of_declaration: location_of_declaration.clone(),
 			location_of_type: location_of_type.clone(),
 		}),

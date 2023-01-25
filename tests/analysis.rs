@@ -93,6 +93,42 @@ fn fail_to_analyze_return_array_by_value()
 }
 
 #[test]
+fn fail_to_analyze_address_of_constant()
+{
+	compile_to_fail(
+		&[360, 530],
+		"tests/samples/invalid/address_of_constant.pn",
+	);
+}
+
+#[test]
+fn fail_to_analyze_constant_evaluated_dereference()
+{
+	compile_to_fail(
+		&[360],
+		"tests/samples/invalid/constant_evaluated_dereference.pn",
+	);
+}
+
+#[test]
+fn fail_to_analyze_constant_evaluated_member_access()
+{
+	compile_to_fail(
+		&[360],
+		"tests/samples/invalid/constant_evaluated_member_access.pn",
+	);
+}
+
+#[test]
+fn fail_to_analyze_constant_evaluated_function()
+{
+	compile_to_fail(
+		&[361],
+		"tests/samples/invalid/constant_evaluated_function.pn",
+	);
+}
+
+#[test]
 fn fail_to_analyze_skip_declaration()
 {
 	compile_to_fail(&[482], "tests/samples/invalid/skip_declaration.pn");

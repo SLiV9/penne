@@ -1,0 +1,8 @@
+
+struct Foo
+{
+	x: i32,
+}
+
+const FOO: Foo = Foo { x: 100 };
+const X: i32 = FOO.x;

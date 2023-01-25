@@ -1,0 +1,4 @@
+
+const X: i32 = 100;
+const X: i32 = 200;
+const Y: i32 = X;

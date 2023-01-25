@@ -1,7 +1,7 @@
 
 const X: i32 = foo();
 
-fn main()
+fn main() -> i32
 {
 	var result = X;
 	return: X

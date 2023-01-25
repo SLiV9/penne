@@ -31,11 +31,12 @@ pub fn generate(
 		generator.for_wasm()?;
 	}
 
-	for declaration in organize(program)
+	let program = organize(program);
+	for declaration in &program
 	{
 		declare(declaration, &mut generator)?;
 	}
-	for declaration in program
+	for declaration in &program
 	{
 		declaration.generate(&mut generator)?;
 	}
@@ -50,6 +51,7 @@ struct Generator
 	module: *mut LLVMModule,
 	context: *mut LLVMContext,
 	builder: *mut LLVMBuilder,
+	constants: std::collections::HashMap<u32, LLVMValueRef>,
 	global_variables: std::collections::HashMap<u32, LLVMValueRef>,
 	global_functions: std::collections::HashMap<u32, LLVMValueRef>,
 	local_parameters: std::collections::HashMap<u32, LLVMValueRef>,
@@ -78,6 +80,7 @@ impl Generator
 				module,
 				context,
 				builder,
+				constants: std::collections::HashMap::new(),
 				global_variables: std::collections::HashMap::new(),
 				global_functions: std::collections::HashMap::new(),
 				local_parameters: std::collections::HashMap::new(),
@@ -191,18 +194,18 @@ impl Drop for Generator
 fn organize(declarations: &[Declaration]) -> Vec<&Declaration>
 {
 	let mut declarations: Vec<&Declaration> = declarations.iter().collect();
-	// Sort structure declarations before other declarations (infty),
-	// and sort the structure declarations by their depth, from low to high.
-	let n = declarations.len();
-	declarations.sort_by_key(|x| get_structure_depth(x, n));
+	// Sort structures and constants before other declarations (max),
+	// and sort the these declarations by their depth, from low to high.
+	let max = declarations.len();
+	declarations.sort_by_key(|x| get_container_depth(x, max));
 	declarations
 }
 
-fn get_structure_depth(declaration: &Declaration, max: usize) -> usize
+fn get_container_depth(declaration: &Declaration, max: usize) -> usize
 {
 	match declaration
 	{
-		Declaration::Constant { .. } => max,
+		Declaration::Constant { depth, .. } => *depth as usize,
 		Declaration::Function { .. } => max,
 		Declaration::FunctionHead { .. } => max,
 		Declaration::Structure { depth, .. } => *depth as usize,
@@ -328,6 +331,7 @@ impl Generatable for Declaration
 				name,
 				value,
 				value_type,
+				depth: _,
 				flags: _,
 			} =>
 			{
@@ -349,6 +353,11 @@ impl Generatable for Declaration
 				}
 				let constant = value.generate(llvm)?;
 				unsafe { LLVMSetInitializer(global, constant) };
+				let is_const = unsafe { LLVMIsConstant(constant) };
+				if is_const > 0
+				{
+					llvm.constants.insert(name.resolution_id, constant);
+				}
 				Ok(())
 			}
 			Declaration::Function {
@@ -1250,6 +1259,13 @@ impl Reference
 	) -> Result<LLVMValueRef, anyhow::Error>
 	{
 		let id = &self.base.resolution_id;
+		if self.is_trivial()
+		{
+			if let Some(&constant) = llvm.constants.get(id)
+			{
+				return Ok(constant);
+			}
+		}
 		if let Some(param) = llvm.local_parameters.get(id)
 		{
 			let shortcut = self.generate_word_deref(*param, llvm)?;
@@ -1367,6 +1383,7 @@ impl Reference
 		}
 		else
 		{
+			dbg!(self);
 			unreachable!()
 		};
 

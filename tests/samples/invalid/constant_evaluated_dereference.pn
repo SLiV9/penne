@@ -1,0 +1,3 @@
+
+const ADDR: &i32 = 0x7F00;
+const X: i32 = ADDR;

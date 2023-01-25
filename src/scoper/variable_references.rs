@@ -12,10 +12,11 @@ pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 	let mut analyzer = Analyzer {
 		variable_stack: Vec::new(),
 		function_list: Vec::new(),
-		structures: Vec::new(),
+		containers: Vec::new(),
 		unresolved_labels: std::collections::HashMap::new(),
 		pruned_variables: std::collections::HashMap::new(),
 		poisoned_variables: std::collections::HashSet::new(),
+		in_constexpr_of_constant: None,
 		resolution_id: 1,
 	};
 	let mut declarations: Vec<Declaration> = program;
@@ -30,7 +31,7 @@ pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 		.map(|x| x.analyze(&mut analyzer))
 		.collect();
 	// After collecting again, store the priority of structures.
-	analyzer.determine_structure_depths();
+	analyzer.determine_container_depths();
 	declarations = declarations
 		.into_iter()
 		.map(|x| postanalyze(x, &mut analyzer))
@@ -42,18 +43,20 @@ struct Analyzer
 {
 	variable_stack: Vec<Vec<Identifier>>,
 	function_list: Vec<Identifier>,
-	structures: Vec<Structure>,
+	containers: Vec<Container>,
 	unresolved_labels: std::collections::HashMap<u32, UnresolvedPruning>,
 	pruned_variables: std::collections::HashMap<u32, Pruning>,
 	poisoned_variables: std::collections::HashSet<u32>,
+	in_constexpr_of_constant: Option<Identifier>,
 	resolution_id: u32,
 }
 
-struct Structure
+struct Container
 {
 	identifier: Identifier,
-	contained_structure_ids: std::collections::HashSet<u32>,
+	contained_ids: std::collections::HashSet<u32>,
 	depth: Option<Poisonable<u32>>,
+	is_structure: bool,
 }
 
 struct UnresolvedPruning
@@ -75,20 +78,48 @@ impl Analyzer
 		identifier: Identifier,
 	) -> Result<Identifier, Error>
 	{
-		self.declare_variable(identifier)
-			.map_err(|error| match error
-			{
-				Error::DuplicateDeclarationVariable {
-					name,
-					location,
-					previous,
-				} => Error::DuplicateDeclarationConstant {
-					name,
-					location,
-					previous,
-				},
-				error => error,
-			})
+		let recoverable_error = self
+			.containers
+			.iter()
+			.filter(|x| x.is_structure == false)
+			.map(|x| &x.identifier)
+			.find(|x| x.name == identifier.name)
+			.map(|previous_identifier| Error::DuplicateDeclarationConstant {
+				name: identifier.name.clone(),
+				location: identifier.location.clone(),
+				previous: previous_identifier.location.clone(),
+			});
+
+		let identifier = Identifier {
+			resolution_id: self.resolution_id,
+			is_authoritative: true,
+			..identifier
+		};
+		self.resolution_id += 1;
+
+		self.containers.push(Container {
+			identifier: identifier.clone(),
+			contained_ids: Default::default(),
+			depth: None,
+			is_structure: false,
+		});
+		if let Some(scope) = self.variable_stack.last_mut()
+		{
+			scope.push(identifier.clone());
+		}
+		else
+		{
+			self.variable_stack.push(vec![identifier.clone()]);
+		}
+
+		if let Some(error) = recoverable_error
+		{
+			Err(error)
+		}
+		else
+		{
+			Ok(identifier)
+		}
 	}
 
 	fn declare_parameter(
@@ -179,10 +210,8 @@ impl Analyzer
 		}
 	}
 
-	fn use_variable(
-		&mut self,
-		identifier: Identifier,
-	) -> Result<Identifier, Poison>
+	fn use_variable(&mut self, identifier: Identifier)
+		-> Poisonable<Identifier>
 	{
 		let previous = self
 			.variable_stack
@@ -226,11 +255,12 @@ impl Analyzer
 			return Err(Poison::Poisoned);
 		}
 
-		Ok(Identifier {
+		let identifier = Identifier {
 			resolution_id,
 			is_authoritative: false,
 			..identifier
-		})
+		};
+		self.use_containee(identifier)
 	}
 
 	fn declare_function(
@@ -296,8 +326,9 @@ impl Analyzer
 	) -> Result<Identifier, Error>
 	{
 		let recoverable_error = self
-			.structures
+			.containers
 			.iter()
+			.filter(|x| x.is_structure)
 			.map(|x| &x.identifier)
 			.find(|x| x.name == identifier.name)
 			.map(|previous_identifier| Error::DuplicateDeclarationStructure {
@@ -313,10 +344,11 @@ impl Analyzer
 		};
 		self.resolution_id += 1;
 
-		self.structures.push(Structure {
+		self.containers.push(Container {
 			identifier: identifier.clone(),
-			contained_structure_ids: Default::default(),
+			contained_ids: Default::default(),
 			depth: None,
+			is_structure: true,
 		});
 
 		if let Some(error) = recoverable_error
@@ -329,37 +361,40 @@ impl Analyzer
 		}
 	}
 
-	fn use_struct(&self, identifier: Identifier) -> Result<Identifier, Error>
+	fn use_struct(&mut self, identifier: Identifier) -> Poisonable<Identifier>
 	{
 		if let Some(declaration_identifier) = self
-			.structures
+			.containers
 			.iter()
+			.filter(|x| x.is_structure)
 			.map(|x| &x.identifier)
 			.find(|x| x.name == identifier.name)
 		{
-			Ok(Identifier {
+			let identifier = Identifier {
 				resolution_id: declaration_identifier.resolution_id,
 				is_authoritative: false,
 				..identifier
-			})
+			};
+			self.use_containee(identifier)
 		}
 		else
 		{
-			Err(Error::UndefinedStructure {
+			let error = Error::UndefinedStructure {
 				name: identifier.name.clone(),
 				location: identifier.location.clone(),
-			})
+			};
+			Err(error.into())
 		}
 	}
 
-	fn found_structure_member(
+	fn found_container(
 		&mut self,
-		name_of_structure: &Identifier,
-		name_of_member: &Identifier,
-		member_type: Poisonable<ValueType>,
+		name_of_container: &Identifier,
+		name_of_member: Option<&Identifier>,
+		contained_type: Poisonable<ValueType>,
 	) -> Poisonable<ValueType>
 	{
-		match member_type
+		match contained_type
 		{
 			Ok(value_type) => match value_type
 			{
@@ -381,8 +416,8 @@ impl Analyzer
 					length,
 				} =>
 				{
-					let element_type = self.found_structure_member(
-						name_of_structure,
+					let element_type = self.found_container(
+						name_of_container,
 						name_of_member,
 						Ok(*element_type),
 					)?;
@@ -393,8 +428,8 @@ impl Analyzer
 				}
 				ValueType::Slice { element_type } =>
 				{
-					let element_type = self.found_structure_member(
-						name_of_structure,
+					let element_type = self.found_container(
+						name_of_container,
 						name_of_member,
 						Ok(*element_type),
 					)?;
@@ -404,8 +439,8 @@ impl Analyzer
 				}
 				ValueType::SlicePointer { element_type } =>
 				{
-					let element_type = self.found_structure_member(
-						name_of_structure,
+					let element_type = self.found_container(
+						name_of_container,
 						name_of_member,
 						Ok(*element_type),
 					)?;
@@ -415,8 +450,8 @@ impl Analyzer
 				}
 				ValueType::EndlessArray { element_type } =>
 				{
-					let element_type = self.found_structure_member(
-						name_of_structure,
+					let element_type = self.found_container(
+						name_of_container,
 						name_of_member,
 						Ok(*element_type),
 					)?;
@@ -426,8 +461,8 @@ impl Analyzer
 				}
 				ValueType::Arraylike { element_type } =>
 				{
-					let element_type = self.found_structure_member(
-						name_of_structure,
+					let element_type = self.found_container(
+						name_of_container,
 						name_of_member,
 						Ok(*element_type),
 					)?;
@@ -437,8 +472,8 @@ impl Analyzer
 				}
 				ValueType::Struct { identifier } =>
 				{
-					let identifier = self.found_structure_member_1(
-						name_of_structure,
+					let identifier = self.found_container_1(
+						name_of_container,
 						name_of_member,
 						identifier,
 					)?;
@@ -449,8 +484,8 @@ impl Analyzer
 					size_in_bytes,
 				} =>
 				{
-					let identifier = self.found_structure_member_1(
-						name_of_structure,
+					let identifier = self.found_container_1(
+						name_of_container,
 						name_of_member,
 						identifier,
 					)?;
@@ -463,8 +498,8 @@ impl Analyzer
 					identifier: Some(identifier),
 				} =>
 				{
-					let identifier = self.found_structure_member_1(
-						name_of_structure,
+					let identifier = self.found_container_1(
+						name_of_container,
 						name_of_member,
 						identifier,
 					)?;
@@ -483,10 +518,10 @@ impl Analyzer
 		}
 	}
 
-	fn found_structure_member_1(
+	fn found_container_1(
 		&mut self,
 		name_of_container: &Identifier,
-		name_of_member: &Identifier,
+		name_of_member: Option<&Identifier>,
 		name_of_containee: Identifier,
 	) -> Poisonable<Identifier>
 	{
@@ -494,93 +529,116 @@ impl Analyzer
 		let containee_id = name_of_containee.resolution_id;
 
 		let transitive_ids = self
-			.structures
+			.containers
 			.iter()
 			.find(|x| x.identifier.resolution_id == containee_id)
 			.map(|x| {
-				let mut ids = x.contained_structure_ids.clone();
+				let mut ids = x.contained_ids.clone();
 				ids.insert(containee_id);
 				ids
 			})
 			.unwrap_or_else(|| unreachable!());
 
 		let mut container = self
-			.structures
+			.containers
 			.iter_mut()
 			.find(|x| x.identifier.resolution_id == container_id)
 			.unwrap_or_else(|| unreachable!());
 
-		if container.contained_structure_ids.contains(&container_id)
+		if container.contained_ids.contains(&container_id)
 		{
 			return Err(Poison::Poisoned);
 		}
 
-		container.contained_structure_ids =
-			&container.contained_structure_ids | &transitive_ids;
+		container.contained_ids = &container.contained_ids | &transitive_ids;
 
-		if container.contained_structure_ids.contains(&container_id)
+		if container.contained_ids.contains(&container_id)
 		{
-			let error = Error::CyclicalStructure {
-				name: name_of_container.name.clone(),
-				location_of_member: name_of_member.location.clone(),
-				location_of_declaration: name_of_container.location.clone(),
+			let error = if let Some(name_of_member) = name_of_member
+			{
+				Error::CyclicalStructure {
+					name: name_of_container.name.clone(),
+					location_of_member: name_of_member.location.clone(),
+					location_of_declaration: name_of_container.location.clone(),
+				}
+			}
+			else
+			{
+				Error::CyclicalConstant {
+					name: name_of_container.name.clone(),
+					location: name_of_container.location.clone(),
+				}
 			};
 			return Err(Poison::Error(error));
 		}
 
-		for other in &mut self.structures
+		for other in &mut self.containers
 		{
-			if other.contained_structure_ids.contains(&container_id)
+			if other.contained_ids.contains(&container_id)
 			{
-				other.contained_structure_ids =
-					&other.contained_structure_ids | &transitive_ids;
+				other.contained_ids = &other.contained_ids | &transitive_ids;
 			}
 		}
 
 		Ok(name_of_containee)
 	}
 
-	fn determine_structure_depths(&mut self)
+	fn use_containee(
+		&mut self,
+		name_of_containee: Identifier,
+	) -> Poisonable<Identifier>
 	{
-		assert!(self.structures.len() < u32::MAX as usize);
-		let len = self.structures.len() as u32;
+		if let Some(context) = &self.in_constexpr_of_constant
+		{
+			let name_of_constant = context.clone();
+			self.found_container_1(&name_of_constant, None, name_of_containee)
+		}
+		else
+		{
+			Ok(name_of_containee)
+		}
+	}
+
+	fn determine_container_depths(&mut self)
+	{
+		assert!(self.containers.len() < u32::MAX as usize);
+		let len = self.containers.len() as u32;
 		for depth in 0..len
 		{
 			let mut resolved = std::collections::HashSet::new();
-			for structure in &mut self.structures
+			for container in &mut self.containers
 			{
-				if structure.depth.is_none()
-					&& structure.contained_structure_ids.is_empty()
+				if container.depth.is_none()
+					&& container.contained_ids.is_empty()
 				{
-					structure.depth = Some(Ok(depth));
-					resolved.insert(structure.identifier.resolution_id);
+					container.depth = Some(Ok(depth));
+					resolved.insert(container.identifier.resolution_id);
 				}
 			}
 			if resolved.is_empty()
 			{
 				break;
 			}
-			for structure in &mut self.structures
+			for container in &mut self.containers
 			{
-				structure.contained_structure_ids =
-					&structure.contained_structure_ids - &resolved;
+				container.contained_ids = &container.contained_ids - &resolved;
 			}
 		}
-		for structure in &mut self.structures
+		for container in &mut self.containers
 		{
-			if structure.depth.is_none()
+			if container.depth.is_none()
 			{
-				structure.depth = Some(Err(Poison::Poisoned));
+				container.depth = Some(Err(Poison::Poisoned));
 			}
 		}
 	}
 
-	fn determine_structure_depth(
+	fn obtain_container_depth(
 		&self,
 		identifier: &Identifier,
 	) -> Option<Poisonable<u32>>
 	{
-		self.structures
+		self.containers
 			.iter()
 			.find(|x| x.identifier.resolution_id == identifier.resolution_id)
 			.and_then(|x| x.depth.clone())
@@ -675,12 +733,27 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 {
 	match declaration
 	{
-		Declaration::Constant { .. } =>
+		Declaration::Constant {
+			name,
+			value,
+			value_type,
+			flags,
+			depth,
+			location_of_declaration,
+			location_of_type,
+		} => match analyzer.declare_constant(name)
 		{
-			// Constants have to be declared from top to bottom, just to avoid
-			// having to deal with cyclical definitions.
-			declaration
-		}
+			Ok(name) => Declaration::Constant {
+				name,
+				value,
+				value_type,
+				flags,
+				depth,
+				location_of_declaration,
+				location_of_type,
+			},
+			Err(error) => Declaration::Poison(Poison::Error(error)),
+		},
 		Declaration::Function {
 			name,
 			parameters,
@@ -750,7 +823,27 @@ fn postanalyze(declaration: Declaration, analyzer: &mut Analyzer)
 {
 	match declaration
 	{
-		Declaration::Constant { .. } => declaration,
+		Declaration::Constant {
+			name,
+			value,
+			value_type,
+			flags,
+			depth: _,
+			location_of_declaration,
+			location_of_type,
+		} =>
+		{
+			let depth = analyzer.obtain_container_depth(&name);
+			Declaration::Constant {
+				name,
+				value,
+				value_type,
+				flags,
+				depth,
+				location_of_declaration,
+				location_of_type,
+			}
+		}
 		Declaration::Function { .. } => declaration,
 		Declaration::FunctionHead { .. } => declaration,
 		Declaration::Structure {
@@ -762,7 +855,7 @@ fn postanalyze(declaration: Declaration, analyzer: &mut Analyzer)
 			location_of_declaration,
 		} =>
 		{
-			let depth = analyzer.determine_structure_depth(&name);
+			let depth = analyzer.obtain_container_depth(&name);
 			Declaration::Structure {
 				name,
 				members,
@@ -794,25 +887,25 @@ impl Analyzable for Declaration
 				value,
 				value_type,
 				flags,
+				depth,
 				location_of_declaration,
 				location_of_type,
 			} =>
 			{
+				analyzer.in_constexpr_of_constant = Some(name.clone());
 				let value = value.analyze(analyzer);
+				analyzer.in_constexpr_of_constant = None;
 				let value_type = value_type.analyze(analyzer);
-				// Declare the constant after analyzing its definition,
-				// to disallow reflexive definitions.
-				match analyzer.declare_constant(name)
-				{
-					Ok(name) => Declaration::Constant {
-						name,
-						value,
-						value_type,
-						flags,
-						location_of_declaration,
-						location_of_type,
-					},
-					Err(error) => Declaration::Poison(Poison::Error(error)),
+				let value_type =
+					analyzer.found_container(&name, None, value_type);
+				Declaration::Constant {
+					name,
+					value,
+					value_type,
+					flags,
+					depth,
+					location_of_declaration,
+					location_of_type,
 				}
 			}
 			Declaration::Function {
@@ -959,9 +1052,9 @@ impl Member
 	{
 		let value_type = if let Ok(name) = &self.name
 		{
-			analyzer.found_structure_member(
+			analyzer.found_container(
 				name_of_structure,
-				name,
+				Some(name),
 				self.value_type,
 			)
 		}
@@ -1321,7 +1414,7 @@ impl Analyzable for Expression
 				match analyzer.use_struct(name)
 				{
 					Ok(name) => Expression::SizeOfStructure { name },
-					Err(error) => Expression::Poison(Poison::Error(error)),
+					Err(poison) => Expression::Poison(poison),
 				}
 			}
 			Expression::FunctionCall {

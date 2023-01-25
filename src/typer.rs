@@ -592,6 +592,7 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 			value,
 			value_type,
 			flags,
+			depth,
 			location_of_declaration,
 			location_of_type,
 		} =>
@@ -626,6 +627,7 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 					value,
 					value_type,
 					flags,
+					depth,
 					location_of_declaration,
 					location_of_type,
 				},
@@ -821,6 +823,7 @@ impl Analyzable for Declaration
 				value,
 				value_type,
 				flags,
+				depth,
 				location_of_declaration,
 				location_of_type,
 			} =>
@@ -838,6 +841,7 @@ impl Analyzable for Declaration
 					value,
 					value_type,
 					flags,
+					depth,
 					location_of_declaration,
 					location_of_type,
 				}

@@ -120,6 +120,21 @@ fn fail_to_scope_cyclical_structures()
 }
 
 #[test]
+fn fail_to_scope_cyclical_constants()
+{
+	compile_to_fail(
+		&[413, 413, 413],
+		"tests/samples/invalid/cyclical_constants.pn",
+	)
+}
+
+#[test]
+fn fail_to_scope_constant_confusion()
+{
+	compile_to_fail(&[423], "tests/samples/invalid/constant_confusion.pn")
+}
+
+#[test]
 fn fail_to_scope_missing_member()
 {
 	compile_to_fail(&[406], "tests/samples/invalid/missing_member.pn")
