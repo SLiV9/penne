@@ -29,6 +29,8 @@ Functionality:
 	☐	Named constants as array lengths
 		✘	LengthOfArray in constant expressions @cancelled (2023-01-25 14:31)
 		✔	SizeOfStructure in constant expressions @done (2023-01-25 14:31)
+		✔	Think about empty arrays and structs of size 0 @done (2023-01-29 18:19)
+			Follow LLVM, empty structs are of size 0, but empty arrays have length 1.
 	☐	Floats
 	✔	Other integer sizes @done (2022-09-05 14:30)
 		✔	Think about size of usize @done (2022-12-15 19:37)

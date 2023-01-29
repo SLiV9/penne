@@ -760,7 +760,7 @@ fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 					element_type: Box::new(element_type),
 				})
 			}
-			Some(Token::NakedInteger(x)) if *x > 0 =>
+			Some(Token::NakedInteger(x)) if *x >= 0 =>
 			{
 				let length = *x as usize;
 				tokens.pop_front();
@@ -771,9 +771,9 @@ fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 					length,
 				})
 			}
-			Some(Token::Usize(x)) if *x > 0 =>
+			Some(Token::Usize(x)) =>
 			{
-				let length = *x;
+				let length: usize = *x;
 				tokens.pop_front();
 				consume(Token::BracketRight, "expected right bracket", tokens)?;
 				let element_type = parse_type(tokens)?;
@@ -782,10 +782,17 @@ fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 					length,
 				})
 			}
-			Some(_) => Err(Error::UnexpectedToken {
-				expectation: "expected right bracket".to_string(),
-				location,
-			}),
+			Some(_) =>
+			{
+				let named_length =
+					extract_identifier("expected constant name", tokens)?;
+				consume(Token::BracketRight, "expected right bracket", tokens)?;
+				let element_type = parse_type(tokens)?;
+				Ok(ValueType::Array {
+					element_type: Box::new(element_type),
+					length: unimplemented!(),
+				})
+			}
 		},
 		_ => Err(Error::UnexpectedToken {
 			expectation: "expected type keyword".to_string(),

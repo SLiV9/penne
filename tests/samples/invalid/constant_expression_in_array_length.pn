@@ -1,0 +1,11 @@
+const MAX_LEN: usize = 100;
+
+struct PairHolder
+{
+	data: [2 * MAX_LEN]i32,
+}
+
+struct PairHolderTransmuter
+{
+	bytes: [|:PairHolder|]u8,
+}

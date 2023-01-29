@@ -286,11 +286,6 @@ fn declare(
 				.map(|m| m.value_type.generate(llvm))
 				.collect();
 			let mut member_types = member_types?;
-			if member_types.is_empty()
-			{
-				let bytetype = unsafe { LLVMInt8TypeInContext(llvm.context) };
-				member_types.push(bytetype);
-			}
 			let is_packed = 0;
 
 			unsafe {
@@ -1383,7 +1378,6 @@ impl Reference
 		}
 		else
 		{
-			dbg!(self);
 			unreachable!()
 		};
 

@@ -1640,10 +1640,17 @@ impl Analyzable for Expression
 				let array = array.analyze(typer);
 				match put_result
 				{
+					Ok(()) if array.elements.is_empty() =>
+					{
+						let element_type = typer.contextual_type.take();
+						Expression::ArrayLiteral {
+							array,
+							element_type,
+						}
+					}
 					Ok(()) =>
 					{
 						let element_type = typer.get_symbol(&name.inferred());
-
 						Expression::ArrayLiteral {
 							array,
 							element_type,

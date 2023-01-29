@@ -471,8 +471,8 @@ where
 			ValueType::Void => true,
 			ValueType::Array {
 				element_type,
-				length,
-			} => *length > 0 && element_type.is_wellformed_element(),
+				length: _,
+			} => element_type.is_wellformed_element(),
 			ValueType::Slice { element_type } =>
 			{
 				element_type.is_wellformed_element()
@@ -519,8 +519,8 @@ where
 		{
 			ValueType::Array {
 				element_type,
-				length,
-			} => *length > 0 && element_type.is_wellformed_element(),
+				length: _,
+			} => element_type.is_wellformed_element(),
 			ValueType::Slice { .. } => false,
 			ValueType::SlicePointer { .. } => false,
 			ValueType::EndlessArray { element_type } =>

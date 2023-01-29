@@ -60,6 +60,12 @@ fn allow_skip_shortlived_var()
 	allow_to_compile("tests/samples/valid/skip_shortlived_var.pn")
 }
 
+#[test]
+fn allow_constant_array_length()
+{
+	allow_to_compile("tests/samples/valid/constant_array_length.pn")
+}
+
 fn compile_to_fail(codes: &[u16], filename: &str)
 {
 	match compile(filename)

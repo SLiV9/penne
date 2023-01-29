@@ -178,6 +178,15 @@ fn execute_pointers() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_pointer_to_member() -> Result<(), anyhow::Error>
+{
+	let result =
+		execute_calculation("tests/samples/valid/pointer_to_member.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_pointer_to_mut() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation("tests/samples/valid/pointer_to_mut.pn")?;
@@ -403,6 +412,14 @@ fn execute_constant_array() -> Result<(), anyhow::Error>
 fn execute_i32_to_le_bytes() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation("tests/samples/valid/i32_to_le_bytes.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn execute_empty_array() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation("tests/samples/valid/empty_array.pn")?;
 	assert_eq!(result, 200);
 	Ok(())
 }

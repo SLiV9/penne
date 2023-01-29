@@ -1,0 +1,18 @@
+const MAX_LEN: usize = 4;
+
+const GLOBAL_BUFFER: [MAX_LEN]i32 = [1, 2, 3, 4];
+
+const BUFFER_HOLDER_SIZE: usize = |:BufferHolder|;
+
+struct BufferHolderTransmuter
+{
+	bytes: [BUFFER_HOLDER_SIZE]u8,
+}
+
+struct BufferHolder
+{
+	buffer: [MAX_LEN]i32,
+	flags: [NUM_FLAGS]i32,
+}
+
+const NUM_FLAGS: usize = 2 * MAX_LEN;
