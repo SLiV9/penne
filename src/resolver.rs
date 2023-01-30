@@ -837,6 +837,18 @@ impl Resolvable for ValueType
 				element_type: element_type.resolve()?,
 				length,
 			}),
+			ValueType::ArrayWithNamedLength {
+				element_type,
+				named_length,
+			} =>
+			{
+				let (element_type, named_length) =
+					(element_type, named_length).resolve()?;
+				Ok(resolved::ValueType::ArrayWithNamedLength {
+					element_type,
+					named_length,
+				})
+			}
 			ValueType::Slice { element_type } =>
 			{
 				Ok(resolved::ValueType::Slice {

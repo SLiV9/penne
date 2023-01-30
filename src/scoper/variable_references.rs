@@ -426,6 +426,26 @@ impl Analyzer
 						length,
 					})
 				}
+				ValueType::ArrayWithNamedLength {
+					element_type,
+					named_length,
+				} =>
+				{
+					let element_type = self.found_container(
+						name_of_container,
+						name_of_member,
+						Ok(*element_type),
+					)?;
+					let named_length = self.found_container_1(
+						name_of_container,
+						name_of_member,
+						named_length,
+					)?;
+					Ok(ValueType::ArrayWithNamedLength {
+						element_type: Box::new(element_type),
+						named_length,
+					})
+				}
 				ValueType::Slice { element_type } =>
 				{
 					let element_type = self.found_container(
@@ -1558,6 +1578,18 @@ fn analyze_type(
 			Ok(ValueType::Array {
 				element_type: Box::new(element_type),
 				length,
+			})
+		}
+		ValueType::ArrayWithNamedLength {
+			element_type,
+			named_length,
+		} =>
+		{
+			let element_type = analyze_type(*element_type, analyzer)?;
+			let named_length = analyzer.use_variable(named_length)?;
+			Ok(ValueType::ArrayWithNamedLength {
+				element_type: Box::new(element_type),
+				named_length,
 			})
 		}
 		ValueType::Slice { element_type } =>

@@ -788,9 +788,9 @@ fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 					extract_identifier("expected constant name", tokens)?;
 				consume(Token::BracketRight, "expected right bracket", tokens)?;
 				let element_type = parse_type(tokens)?;
-				Ok(ValueType::Array {
+				Ok(ValueType::ArrayWithNamedLength {
 					element_type: Box::new(element_type),
-					length: unimplemented!(),
+					named_length,
 				})
 			}
 		},
