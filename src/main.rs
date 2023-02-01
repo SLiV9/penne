@@ -24,6 +24,11 @@ use serde::Deserialize;
 #[cfg(feature = "logging")]
 use env_logger;
 
+use include_dir::include_dir;
+
+static CORE: include_dir::Dir = include_dir!("./core/");
+static VENDOR: include_dir::Dir = include_dir!("./vendor/");
+
 #[derive(Debug, clap::Parser)]
 #[clap(version, propagate_version = true)]
 #[clap(args_conflicts_with_subcommands = true)]
@@ -289,11 +294,38 @@ fn do_main() -> Result<(), anyhow::Error>
 			})
 	});
 
+	let mut compilation_units = Vec::new();
+
+	for filepath in filepaths
+	{
+		let filename = filepath.to_string_lossy();
+		if let Some((dir, scheme_prefix)) = get_core_or_vendor_dir(&filename)
+		{
+			let found = dir.find("**/*.pn")?;
+			for file in found.filter_map(|e| e.as_file())
+			{
+				let subpath = std::path::PathBuf::from(format!(
+					"{}{}",
+					scheme_prefix,
+					file.path().to_string_lossy()
+				));
+				let source = std::str::from_utf8(file.contents())?;
+				compilation_units.push((subpath, source.to_string()));
+			}
+		}
+		else
+		{
+			let source = std::fs::read_to_string(&filepath)
+				.with_context(|| format!("Failed to open '{}'", filename))?;
+			compilation_units.push((filepath, source));
+		}
+	}
+
 	// If there are multiple compilation units, we need to generate separate
 	// (temporary) LLVM IR files in order to pass them to the backend.
 	// Do this after determining the output_filepath, because it makes no sense
 	// for the actual user output to be a temporary file.
-	let scoped_temp_dir = if out_dir.is_none() && filepaths.len() > 1
+	let scoped_temp_dir = if out_dir.is_none() && compilation_units.len() > 1
 	{
 		let temp_dir = tempfile::tempdir()?;
 		Some(temp_dir)
@@ -313,11 +345,10 @@ fn do_main() -> Result<(), anyhow::Error>
 	let mut sources = Vec::new();
 	let mut modules = Vec::new();
 
-	for filepath in filepaths
+	for (filepath, source) in compilation_units
 	{
 		let filename = filepath.to_string_lossy().to_string();
 		stdout.newline()?;
-		let source = std::fs::read_to_string(&filepath)?;
 		stdout.header("Lexing", &filename)?;
 		let tokens = lexer::lex(&source, &filename);
 		stdout.dump_tokens(&tokens)?;
@@ -485,6 +516,38 @@ fn do_main() -> Result<(), anyhow::Error>
 
 	stdout.done()?;
 	Ok(())
+}
+
+fn get_core_or_vendor_dir(
+	filepath: &str,
+) -> Option<(&'static include_dir::Dir<'static>, &'static str)>
+{
+	get_included_dir(filepath, &CORE, "core:")
+		.or_else(|| get_included_dir(filepath, &VENDOR, "vendor:"))
+}
+
+fn get_included_dir(
+	filepath: &str,
+	included_dir: &'static include_dir::Dir,
+	scheme_prefix: &'static str,
+) -> Option<(&'static include_dir::Dir<'static>, &'static str)>
+{
+	if let Some(subpath) = filepath.strip_prefix(scheme_prefix)
+	{
+		match included_dir.get_entry(subpath)
+		{
+			Some(include_dir::DirEntry::Dir(dir)) =>
+			{
+				Some((&dir, scheme_prefix))
+			}
+			Some(include_dir::DirEntry::File(_file)) => None,
+			None => None,
+		}
+	}
+	else
+	{
+		None
+	}
 }
 
 fn get_backend(

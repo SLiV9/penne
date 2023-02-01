@@ -1,0 +1,17 @@
+pub fn is_control_char(x: u8) -> bool
+{
+	var result;
+	if x < 0x20
+	{
+		result = true;
+	}
+	else if x == 0x7F
+	{
+		result = true;
+	}
+	else
+	{
+		result = false;
+	}
+	return: result
+}

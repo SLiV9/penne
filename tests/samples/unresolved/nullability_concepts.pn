@@ -63,9 +63,9 @@ fn tagged_unions_with_labels()
 {
 	var x: ?DistanceOrColor;
 	{
-		if x != null:
+		if x != null
 			goto x
-		else:
+		else
 			goto default;
 		distance:
 		{

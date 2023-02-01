@@ -105,10 +105,13 @@ fn get_key_offset(
 	path_of_includer: &std::path::Path,
 ) -> Option<usize>
 {
-	path_of_includer
-		.parent()
-		.map(|path| path.join(filename.clone()))
-		.and_then(|path| keys.iter().position(|x| x == &path))
+	let filepath = std::path::Path::new(filename);
+	keys.iter().position(|x| x == filepath).or_else(|| {
+		path_of_includer
+			.parent()
+			.map(|path| path.join(filepath.clone()))
+			.and_then(|path| keys.iter().position(|x| x == &path))
+	})
 }
 
 fn export(declaration: &Declaration) -> Option<Declaration>

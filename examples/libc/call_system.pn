@@ -1,0 +1,12 @@
+import "vendor:libc/ctype.pn";
+import "vendor:libc/stdlib.pn";
+
+fn main() -> i32
+{
+	system("date +%A\0");
+	if true == false
+	{
+		abort();
+	}
+	return: 0
+}

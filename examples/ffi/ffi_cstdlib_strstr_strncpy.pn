@@ -1,5 +1,5 @@
-extern fn strstr(haystack: []u8, needle: []u8) -> &[]u8;
-extern fn strncpy(dst: &[]u8, src: []u8, num: usize) -> &[]u8;
+import "vendor:libc/string.pn";
+
 extern fn printf(format: []u8, text: []u8);
 
 fn main() -> i32
