@@ -1,6 +1,15 @@
 pub fn is_alnum(x: u8) -> bool
 {
-    var result = isalnum(x as i32);
-    return: result as bool
+    var y = isalnum(x as i32);
+    var result;
+    if y == 0
+    {
+        result = true;
+    }
+    else
+    {
+        result = false;
+    }
+    return: result
 }
 extern fn isalnum(x: i32) -> i32;

@@ -22,6 +22,7 @@ Functionality:
 		✔	In extern functions, use pointers instead of slice structs @done (2022-09-08 12:09)
 	✔	String literals @done (2022-12-01 16:31)
 	✔	Byte string literals @done (2022-09-22 15:22)
+		☐	ASCII character literals
 	✔	FFI @done (2022-09-22 15:22)
 		✔	extern C fn(); @done (2022-09-05 18:38)
 		✔	pub extern C fn() {...} @done (2022-09-05 16:51)
@@ -29,6 +30,9 @@ Functionality:
 	☐	Named constants as array lengths
 		✘	LengthOfArray in constant expressions @cancelled (2023-01-25 14:31)
 		✔	SizeOfStructure in constant expressions @done (2023-01-25 14:31)
+	☐	Boolean comparisons outside of if statement condition
+		☐	Update ctype.pn
+	☐	Boolean and, or
 	☐	Floats
 	✔	Other integer sizes @done (2022-09-05 14:30)
 		✔	Think about size of usize @done (2022-12-15 19:37)
@@ -108,6 +112,7 @@ Linting errors:
 		The general case is halting problem, and bespoke analysis is out of scope.
 	☐	Undefined members
 	☐	Non-extern function without body
+		☐	Add external linkage to fix the import_core lli issue?
 	☐	Returning pointer, slice or view of temporary
 		☐	Suspicious dangling pointer (or is this out of scope for this lang?)
 	☐	Private struct used in public declaration

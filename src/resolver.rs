@@ -1205,7 +1205,6 @@ fn is_valid_primitive_cast(
 		(x, y) if x == y => true,
 		(vt, ct) if vt.is_integral() && ct.is_integral() => true,
 		(ValueType::Bool, ct) if ct.is_integral() => true,
-		(vt, ValueType::Bool) if vt.is_integral() => true,
 		(_, _) => false,
 	}
 }
