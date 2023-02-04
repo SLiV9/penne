@@ -121,7 +121,7 @@ fn fail_to_resolve_comparison_ge_pointer()
 fn fail_to_resolve_invalid_casts()
 {
 	compile_to_fail(
-		&[552, 552, 552, 552],
+		&[552, 552, 552, 552, 552],
 		"tests/samples/invalid/invalid_casts.pn",
 	)
 }
