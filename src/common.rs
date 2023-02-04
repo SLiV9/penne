@@ -71,6 +71,7 @@ pub enum DeclarationFlag
 {
 	Public,
 	External,
+	Main,
 }
 
 #[must_use]
