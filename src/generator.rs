@@ -345,12 +345,9 @@ impl Generatable for Declaration
 					LLVMSetGlobalConstant(global, 1);
 					LLVMSetUnnamedAddr(global, 1);
 				}
-				if true
-				{
-					unsafe {
-						LLVMSetLinkage(global, LLVMLinkage::LLVMPrivateLinkage);
-					}
-				}
+				let linkage = LLVMLinkage::LLVMPrivateLinkage;
+				unsafe { LLVMSetLinkage(global, linkage) };
+
 				let constant = value.generate(llvm)?;
 				unsafe { LLVMSetInitializer(global, constant) };
 				let is_const = unsafe { LLVMIsConstant(constant) };
@@ -365,7 +362,7 @@ impl Generatable for Declaration
 				parameters,
 				body,
 				return_type: _,
-				flags: _,
+				flags,
 			} =>
 			{
 				let function = llvm.global_functions.get(&name.resolution_id);
@@ -374,6 +371,17 @@ impl Generatable for Declaration
 					Some(function) => *function,
 					None => unreachable!(),
 				};
+
+				let linkage = if flags.contains(DeclarationFlag::Public)
+					|| flags.contains(DeclarationFlag::Main)
+				{
+					LLVMLinkage::LLVMExternalLinkage
+				}
+				else
+				{
+					LLVMLinkage::LLVMPrivateLinkage
+				};
+				unsafe { LLVMSetLinkage(function, linkage) };
 
 				let entry_block_name = CString::new("entry")?;
 				unsafe {
@@ -406,7 +414,7 @@ impl Generatable for Declaration
 				name,
 				parameters: _,
 				return_type: _,
-				flags,
+				flags: _,
 			} =>
 			{
 				let function = llvm.global_functions.get(&name.resolution_id);
@@ -415,16 +423,8 @@ impl Generatable for Declaration
 					Some(function) => *function,
 					None => unreachable!(),
 				};
-
-				if flags.contains(DeclarationFlag::External)
-				{
-					unsafe {
-						LLVMSetLinkage(
-							function,
-							LLVMLinkage::LLVMExternalLinkage,
-						);
-					}
-				}
+				let linkage = LLVMLinkage::LLVMExternalLinkage;
+				unsafe { LLVMSetLinkage(function, linkage) };
 				Ok(())
 			}
 			Declaration::Structure { .. } =>

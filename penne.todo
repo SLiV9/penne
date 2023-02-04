@@ -30,9 +30,10 @@ Functionality:
 	☐	Named constants as array lengths
 		✘	LengthOfArray in constant expressions @cancelled (2023-01-25 14:31)
 		✔	SizeOfStructure in constant expressions @done (2023-01-25 14:31)
-	☐	Boolean comparisons outside of if statement condition
-		☐	Update ctype.pn
-	☐	Boolean and, or
+	✘	Boolean comparisons outside of if statement condition @cancelled (2023-02-04 18:59)
+		✘	Update ctype.pn @cancelled (2023-02-04 18:59)
+		✘	Boolean and, or @cancelled (2023-02-04 18:59)
+	☐	Disallow function calls in comparisons or boolean expressions
 	☐	Floats
 	✔	Other integer sizes @done (2022-09-05 14:30)
 		✔	Think about size of usize @done (2022-12-15 19:37)
@@ -91,6 +92,19 @@ Syntactic sugar:
 			...
 		}
 		// i is not in scope here
+		And similarly
+		var x = foo(),
+		var y = bar(),
+		if x == y
+		{
+		  ...
+		}
+		else if x == -y
+		{
+		  ...
+		}
+		// x and y are not in scope here
+		(Or perhaps "with" instead of "var"?)
 	✔	C-style string literal concatenation @done (2021-07-10 13:26)
 
 Syntax errors:
@@ -111,8 +125,10 @@ Linting errors:
 	✘	Var declaration with undefined value in some/all branches @cancelled (2023-01-25 12:55)
 		The general case is halting problem, and bespoke analysis is out of scope.
 	☐	Undefined members
-	☐	Non-extern function without body
-		☐	Add external linkage to fix the import_core lli issue?
+	✘	Non-extern function without body @cancelled (2023-02-04 18:01)
+		Imported functions are non-pub non-extern but have external linkage.
+		✘	Add external linkage to fix the import_core lli issue? @cancelled (2023-02-04 18:00)
+			External linkage is already the default.
 	☐	Returning pointer, slice or view of temporary
 		☐	Suspicious dangling pointer (or is this out of scope for this lang?)
 	☐	Private struct used in public declaration

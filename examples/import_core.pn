@@ -4,7 +4,8 @@ import "core:text/char.pn";
 fn main() -> i32
 {
 	var result = 0;
-	if is_control_char(0) == false
+	var should_be_true = is_control_char(33);
+	if should_be_true == false
 	{
 		result = -1;
 	}

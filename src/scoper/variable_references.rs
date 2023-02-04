@@ -940,6 +940,11 @@ impl Analyzable for Declaration
 							let return_type = analyze_type(x, analyzer)?;
 							Ok(return_type)
 						});
+						let flags = match name.name.as_str()
+						{
+							"main" => flags | DeclarationFlag::Main,
+							_ => flags,
+						};
 						Declaration::Function {
 							name,
 							parameters,
