@@ -1117,6 +1117,7 @@ fn write(
 				location_of_declaration
 					.label()
 					.with_message("Declaration marked external here.")
+					.with_order(2)
 					.with_color(SECONDARY),
 			),
 

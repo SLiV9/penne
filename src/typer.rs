@@ -656,8 +656,8 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 			let return_type = fix_return_type_for_flags(
 				return_type.analyze(typer),
 				&flags,
-				&location_of_declaration,
 				&location_of_return_type,
+				&location_of_declaration,
 			);
 
 			let rv_identifier = name.return_value();
@@ -697,8 +697,8 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 			let return_type = fix_return_type_for_flags(
 				return_type.analyze(typer),
 				&flags,
-				&location_of_declaration,
 				&location_of_return_type,
+				&location_of_declaration,
 			);
 
 			let rv_identifier = name.return_value();
