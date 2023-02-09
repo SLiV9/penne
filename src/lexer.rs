@@ -632,9 +632,8 @@ fn lex_line(
 								if let Some(c) = c
 								{
 									let mut buffer = [0; 4];
-									c.encode_utf8(&mut buffer);
-									let slice = &buffer[0..c.len_utf8()];
-									bytes.extend_from_slice(slice);
+									let slice = c.encode_utf8(&mut buffer);
+									bytes.extend_from_slice(slice.as_bytes());
 								}
 								else
 								{

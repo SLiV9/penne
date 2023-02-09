@@ -107,23 +107,23 @@ impl Generator
 
 	fn verify(&self)
 	{
-		unsafe {
+		let _ = unsafe {
 			LLVMVerifyModule(
 				self.module,
-				LLVMVerifierFailureAction::LLVMPrintMessageAction,
+				LLVMVerifierFailureAction::LLVMAbortProcessAction,
 				std::ptr::null_mut(),
-			);
-		}
+			)
+		};
 	}
 
 	fn verify_function(&self, function: LLVMValueRef)
 	{
-		unsafe {
+		let _ = unsafe {
 			LLVMVerifyFunction(
 				function,
-				LLVMVerifierFailureAction::LLVMPrintMessageAction,
-			);
-		}
+				LLVMVerifierFailureAction::LLVMAbortProcessAction,
+			)
+		};
 	}
 
 	fn generate_ir(&self) -> Result<String, anyhow::Error>
