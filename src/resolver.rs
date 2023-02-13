@@ -289,7 +289,11 @@ impl Resolvable for Declaration
 				// because the imports are processed in an earlier stage.
 				// For tests we do not want to import files except when we are
 				// explicitly testing importing.
-				let error = Error::UnresolvedImport { filename, location };
+				let error = Error::UnresolvedImport {
+					filename,
+					location,
+					hinted_package_name: None,
+				};
 				Err(error.into())
 			}
 			Declaration::Poison(poison) => Err(poison.into()),

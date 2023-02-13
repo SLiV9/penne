@@ -7,6 +7,7 @@
 use penne::analyzer;
 use penne::expander;
 use penne::generator;
+use penne::included;
 use penne::lexer;
 use penne::linter;
 use penne::parser;
@@ -23,11 +24,6 @@ use serde::Deserialize;
 
 #[cfg(feature = "logging")]
 use env_logger;
-
-use include_dir::include_dir;
-
-static CORE: include_dir::Dir = include_dir!("./core/");
-static VENDOR: include_dir::Dir = include_dir!("./vendor/");
 
 #[derive(Debug, clap::Parser)]
 #[clap(version, propagate_version = true)]
@@ -299,18 +295,34 @@ fn do_main() -> Result<(), anyhow::Error>
 	for filepath in filepaths
 	{
 		let filename = filepath.to_string_lossy();
-		if let Some((dir, scheme_prefix)) = get_core_or_vendor_dir(&filename)
+		if let Some((entry, scheme_prefix)) = included::find(&filename)
 		{
-			let found = dir.find("**/*.pn")?;
-			for file in found.filter_map(|e| e.as_file())
+			match entry
 			{
-				let subpath = std::path::PathBuf::from(format!(
-					"{}{}",
-					scheme_prefix,
-					file.path().to_string_lossy()
-				));
-				let source = std::str::from_utf8(file.contents())?;
-				compilation_units.push((subpath, source.to_string()));
+				include_dir::DirEntry::Dir(dir) =>
+				{
+					let found = dir.find("**/*.pn")?;
+					for file in found.filter_map(|e| e.as_file())
+					{
+						let subpath = std::path::PathBuf::from(format!(
+							"{}{}",
+							scheme_prefix,
+							file.path().to_string_lossy()
+						));
+						let source = std::str::from_utf8(file.contents())?;
+						compilation_units.push((subpath, source.to_string()));
+					}
+				}
+				include_dir::DirEntry::File(file) =>
+				{
+					let subpath = std::path::PathBuf::from(format!(
+						"{}{}",
+						scheme_prefix,
+						file.path().to_string_lossy()
+					));
+					let source = std::str::from_utf8(file.contents())?;
+					compilation_units.push((subpath, source.to_string()));
+				}
 			}
 		}
 		else
@@ -516,38 +528,6 @@ fn do_main() -> Result<(), anyhow::Error>
 
 	stdout.done()?;
 	Ok(())
-}
-
-fn get_core_or_vendor_dir(
-	filepath: &str,
-) -> Option<(&'static include_dir::Dir<'static>, &'static str)>
-{
-	get_included_dir(filepath, &CORE, "core:")
-		.or_else(|| get_included_dir(filepath, &VENDOR, "vendor:"))
-}
-
-fn get_included_dir(
-	filepath: &str,
-	included_dir: &'static include_dir::Dir,
-	scheme_prefix: &'static str,
-) -> Option<(&'static include_dir::Dir<'static>, &'static str)>
-{
-	if let Some(subpath) = filepath.strip_prefix(scheme_prefix)
-	{
-		match included_dir.get_entry(subpath)
-		{
-			Some(include_dir::DirEntry::Dir(dir)) =>
-			{
-				Some((&dir, scheme_prefix))
-			}
-			Some(include_dir::DirEntry::File(_file)) => None,
-			None => None,
-		}
-	}
-	else
-	{
-		None
-	}
 }
 
 fn get_backend(

@@ -10,6 +10,7 @@
 use crate::common::Declaration;
 use crate::common::DeclarationFlag;
 use crate::error::Error;
+use crate::included;
 
 use enumset::EnumSet;
 use std::collections::HashSet;
@@ -44,9 +45,13 @@ pub fn expand(modules: &mut [(std::path::PathBuf, Vec<Declaration>)])
 						}
 						None =>
 						{
+							let hinted_package_name =
+								included::source_name_hint(filename)
+									.map(|x| x.to_string());
 							let error = Error::UnresolvedImport {
 								filename: filename.to_string(),
 								location: location.clone(),
+								hinted_package_name,
 							};
 							*declaration = Declaration::Poison(error.into());
 						}

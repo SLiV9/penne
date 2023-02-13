@@ -317,6 +317,7 @@ pub enum Error
 	{
 		filename: String,
 		location: Location,
+		hinted_package_name: Option<String>,
 	},
 	ConflictingTypes
 	{
@@ -1555,17 +1556,36 @@ fn write(
 			)
 		}
 
-		Error::UnresolvedImport { filename, location } =>
+		Error::UnresolvedImport {
+			filename,
+			location,
+			hinted_package_name,
+		} =>
 		{
-			report.with_message("Unresolved import").with_label(
-				location
-					.label()
-					.with_message(format!(
-						"Reference to unknown file '{}'.",
-						filename.fg(PRIMARY)
-					))
-					.with_color(PRIMARY),
-			)
+			let note = if let Some(package_name) = hinted_package_name
+			{
+				format!(
+					"Add '{}' as a compiler argument to include it.",
+					package_name.fg(PRIMARY)
+				)
+			}
+			else
+			{
+				"All source files need to be added as compiler arguments."
+					.to_string()
+			};
+			report
+				.with_message("Unresolved import")
+				.with_label(
+					location
+						.label()
+						.with_message(format!(
+							"Reference to unknown source '{}'.",
+							filename.fg(PRIMARY)
+						))
+						.with_color(PRIMARY),
+				)
+				.with_note(note)
 		}
 
 		Error::ConflictingTypes {

@@ -34,6 +34,7 @@ Functionality:
 		✘	Update ctype.pn @cancelled (2023-02-04 18:59)
 		✘	Boolean and, or @cancelled (2023-02-04 18:59)
 	☐	Disallow function calls in comparisons or boolean expressions
+	☐	Operator += etcetera
 	☐	Floats
 	✔	Other integer sizes @done (2022-09-05 14:30)
 		✔	Think about size of usize @done (2022-12-15 19:37)
@@ -75,6 +76,7 @@ Functionality:
 	  	☐	Deduplicate symbols that are pub used in two different imports
 	☐	Heap allocation
 	☐	stdlib
+		☐	Get lli to run import_core.pn
 		☐	panic()
 		☐	print()
 		☐	fopen(), fclose()

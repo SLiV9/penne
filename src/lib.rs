@@ -20,12 +20,14 @@
 //! [linter], [resolver] and [generator].
 //! The [rebuilder] module allows turning the AST back into (annotated) code.
 //! The [stdout] module contains helper code for the command line interface.
+//! The [included] module contains source code of core and vendor libraries.
 
 pub mod analyzer;
 pub mod common;
 pub mod error;
 pub mod expander;
 pub mod generator;
+pub mod included;
 pub mod lexer;
 pub mod linter;
 pub mod parser;
