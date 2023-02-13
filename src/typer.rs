@@ -1724,8 +1724,9 @@ impl Analyzable for Expression
 						ref named_length,
 					})) =>
 					{
+						let named_length = named_length.clone();
 						let usize_check = typer.put_symbol(
-							named_length,
+							&named_length,
 							Some(Ok(ValueType::Usize)),
 						);
 						let reference = reference
@@ -1738,7 +1739,7 @@ impl Analyzable for Expression
 						} = reference;
 						let base = match (usize_check, base)
 						{
-							(Ok(()), Ok(_)) => Ok(named_length.clone()),
+							(Ok(()), Ok(_)) => Ok(named_length),
 							(Ok(()), Err(poison)) => Err(poison),
 							(Err(error), _) => Err(error.into()),
 						};
@@ -2827,11 +2828,11 @@ fn analyze_type(
 			named_length,
 		} =>
 		{
+			typer.put_symbol(&named_length, Some(Ok(ValueType::Usize)))?;
 			let element_type = analyze_type(*element_type, typer)?;
-			// HIER
 			Ok(ValueType::ArrayWithNamedLength {
 				element_type: Box::new(element_type),
-				named_length: todo,
+				named_length,
 			})
 		}
 		ValueType::Slice { element_type } =>

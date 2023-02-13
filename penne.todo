@@ -140,6 +140,7 @@ Usability:
 	✔	Color default terminal output differently from LLVM errors @done (2022-09-07 15:22)
 	✔	Allow goto to skip var declaration if short-lived (skip_shortlived_var.pn) @done (2023-01-09 17:57)
 	☐	Add options to disable color and unicode symbols in errors
+	☐	Improve accuracy of underlines in error messages by giving LengthOfArray etcetera their own location
 	☐	Prevent crash if number of structures exceeded
 
 Performance:

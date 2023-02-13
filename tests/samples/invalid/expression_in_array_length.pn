@@ -9,3 +9,8 @@ struct PairHolderTransmuter
 {
 	bytes: [|:PairHolder|]u8,
 }
+
+struct Negativity
+{
+	data: [-1]i32,
+}

@@ -132,7 +132,7 @@ fn fail_to_scope_cyclical_constants()
 fn fail_to_scope_cyclical_constants_and_structures()
 {
 	compile_to_fail(
-		&[413, 415, 413, 415],
+		&[416, 416],
 		"tests/samples/invalid/cyclical_constants_and_structures.pn",
 	)
 }

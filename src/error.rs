@@ -286,9 +286,17 @@ pub enum Error
 	},
 	CyclicalStructure
 	{
-		name: String,
-		location_of_member: Location,
+		name_of_structure: String,
 		location_of_declaration: Location,
+		location_of_member: Location,
+	},
+	CyclicalStructureWithConstant
+	{
+		name_of_structure: String,
+		name_of_constant: String,
+		location_of_declaration: Location,
+		location_of_member: Location,
+		location_of_constant: Location,
 	},
 	UndefinedVariable
 	{
@@ -568,6 +576,7 @@ impl Error
 			Error::UndefinedMember { .. } => 406,
 			Error::CyclicalConstant { .. } => 413,
 			Error::CyclicalStructure { .. } => 415,
+			Error::CyclicalStructureWithConstant { .. } => 416,
 			Error::DuplicateDeclarationLabel { .. } => 420,
 			Error::DuplicateDeclarationFunction { .. } => 421,
 			Error::DuplicateDeclarationVariable { .. } => 422,
@@ -674,6 +683,10 @@ impl Error
 			Error::UndefinedMember { location, .. } => &location,
 			Error::CyclicalConstant { location, .. } => &location,
 			Error::CyclicalStructure {
+				location_of_declaration,
+				..
+			} => &location_of_declaration,
+			Error::CyclicalStructureWithConstant {
 				location_of_declaration,
 				..
 			} => &location_of_declaration,
@@ -1449,9 +1462,9 @@ fn write(
 		}
 
 		Error::CyclicalStructure {
-			name,
-			location_of_member,
+			name_of_structure,
 			location_of_declaration,
+			location_of_member,
 		} => report
 			.with_message("Cyclical definition")
 			.with_label(
@@ -1460,7 +1473,7 @@ fn write(
 					.with_message(format!(
 						"Cannot determine size of structure '{}' that \
 						 contains itself.",
-						name.fg(PRIMARY)
+						name_of_structure.fg(PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1469,9 +1482,45 @@ fn write(
 					.label()
 					.with_message(format!(
 						"This member contains '{}'.",
-						name.fg(PRIMARY)
+						name_of_structure.fg(PRIMARY)
 					))
 					.with_color(SECONDARY),
+			),
+
+		Error::CyclicalStructureWithConstant {
+			name_of_structure,
+			name_of_constant,
+			location_of_declaration,
+			location_of_member,
+			location_of_constant,
+		} => report
+			.with_message("Cyclical definition")
+			.with_label(
+				location_of_constant
+					.label()
+					.with_message(format!(
+						"This constant depends on the size of '{}'.",
+						name_of_structure.fg(SECONDARY)
+					))
+					.with_color(PRIMARY),
+			)
+			.with_label(
+				location_of_declaration
+					.label()
+					.with_message(format!(
+						"Cannot determine size of structure '{}'...",
+						name_of_structure.fg(SECONDARY)
+					))
+					.with_color(SECONDARY),
+			)
+			.with_label(
+				location_of_member
+					.label()
+					.with_message(format!(
+						"...because this member depends on '{}'.",
+						name_of_constant.fg(PRIMARY)
+					))
+					.with_color(TERTIARY),
 			),
 
 		Error::UndefinedVariable { name, location } =>
@@ -2291,6 +2340,14 @@ fn show_type_inner(value_type: &ValueType) -> String
 			element_type,
 			length,
 		} => format!("[{}]{}", length, show_type_inner(element_type)),
+		ValueType::ArrayWithNamedLength {
+			element_type,
+			named_length,
+		} => format!(
+			"[{}]{}",
+			named_length.name.to_string(),
+			show_type_inner(element_type)
+		),
 		ValueType::Slice { element_type } =>
 		{
 			format!("[:]{}", show_type_inner(element_type))

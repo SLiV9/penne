@@ -247,10 +247,10 @@ fn fail_to_parse_address_of_literal()
 }
 
 #[test]
-fn fail_to_parse_constant_expression_in_array_length()
+fn fail_to_parse_expression_in_array_length()
 {
 	compile_to_fail(
-		&[300, 300],
-		"tests/samples/invalid/constant_expression_in_array_length.pn",
+		&[300, 300, 300],
+		"tests/samples/invalid/expression_in_array_length.pn",
 	)
 }

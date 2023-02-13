@@ -1,0 +1,4 @@
+const MAX_LEN: usize = 3;
+
+const X: [MAX_LEN]i32 = [1, 2];
+const Y: [MAX_LEN]i32 = [1, 2, 3, 4];

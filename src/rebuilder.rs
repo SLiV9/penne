@@ -813,6 +813,14 @@ impl Rebuildable for ValueType
 				length,
 				element_type.rebuild(indentation)?
 			)),
+			ValueType::ArrayWithNamedLength {
+				element_type,
+				named_length,
+			} => Ok(format!(
+				"[{}]{}",
+				identify(named_length),
+				element_type.rebuild(indentation)?
+			)),
 			ValueType::Slice { element_type } =>
 			{
 				Ok(format!("[:]{}", element_type.rebuild(indentation)?))
