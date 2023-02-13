@@ -1208,11 +1208,11 @@ impl Generatable for ValueType
 			} =>
 			{
 				let id = &named_length.resolution_id;
-				let length: u32 = if let Some(&constant) =
-					llvm.constants.get(id)
+				let length = if let Some(&constant) = llvm.constants.get(id)
 				{
-					// TODO get constant value from LLVMValueRef
-					0
+					let v: u64 = unsafe { LLVMConstIntGetZExtValue(constant) };
+					let length: u32 = v.try_into()?;
+					length
 				}
 				else
 				{
