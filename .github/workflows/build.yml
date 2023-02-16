@@ -40,7 +40,7 @@ jobs:
     - name: Run tests
       run: cargo test
     - name: Install cargo-tarpaulin
-      run: cargo install tarpaulin
+      run: cargo install cargo-tarpaulin
     - name: Run cargo-tarpaulin
       run: cargo tarpaulin -o html -o lcov
     - name: Coveralls
