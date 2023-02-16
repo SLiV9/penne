@@ -1,6 +1,18 @@
-# Penne
+<div align="center">
 
-![Penne logo](assets/penne_logo_200x60.png)
+![Penne logo](assets/penne_logo_header.png)
+
+# The Penne Programming Language
+
+[![CI/CD](https://github.com/SLiV9/penne/actions/workflows/rust.yml/badge.svg?event=push)](https://github.com/SLiV9/penne/actions)
+[![Crate](https://img.shields.io/crates/v/penne.svg?colorB=319e8c)](https://crates.io/crates/penne)
+[![License](https://img.shields.io/github/license/SLiV9/penne)](https://github.com/SLiV9/penne/blob/main/LICENSE)
+[![Issues](https://img.shields.io/github/issues/SLiV9/penne)](https://github.com/SLiV9/penne/issues)
+[![Stars](https://img.shields.io/github/stars/SLiV9/penne)](https://github.com/SLiV9/penne/stargazers)
+![GitHub repo size](https://img.shields.io/github/repo-size/SLiV9/penne)
+![Lines of code](https://raster.shields.io/tokei/lines/github/SLiV9/penne)
+
+</div>
 
 Penne is an [esoteric programming language](https://esolangs.org/wiki/Esoteric_programming_language) that imagines a world where, instead of being ostracized for leading to so-called "spaghetti code", the humble `goto` statement became the dominant method of control flow, surpassing `for` loops and `switch` statements, and ultimately obviating the need for the invention of [RAII](https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization) and object-oriented programming in general.
 By applying modern sensibilities to the use of the `goto` statement instead of banishing it altogether, Penne seeks to bring about a rennaissance of pasta-oriented programming.

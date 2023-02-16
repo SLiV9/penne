@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 210 297"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.1.2 (b8e25be833, 2022-02-05)"
+   sodipodi:docname="penne_logo.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:snap-object-midpoints="true"
+     inkscape:snap-center="true"
+     showguides="true"
+     inkscape:guide-bbox="true"
+     inkscape:snap-midpoints="true"
+     inkscape:zoom="1.4142136"
+     inkscape:cx="221.67798"
+     inkscape:cy="113.13708"
+     inkscape:window-width="1920"
+     inkscape:window-height="1027"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer2"
+     inkscape:snap-bbox="true"
+     inkscape:snap-intersection-paths="true"
+     inkscape:bbox-paths="true">
+    <sodipodi:guide
+       position="51.854822,269.2127"
+       orientation="0,-1"
+       id="guide70382" />
+    <sodipodi:guide
+       position="60.235838,278.33131"
+       orientation="0,-1"
+       id="guide70704" />
+    <sodipodi:guide
+       position="62.801238,276.12151"
+       orientation="0,-1"
+       id="guide70706" />
+    <sodipodi:guide
+       position="59.600838,260.09411"
+       orientation="0,-1"
+       id="guide71025" />
+    <sodipodi:guide
+       position="60.032638,262.30391"
+       orientation="0,-1"
+       id="guide71027" />
+    <sodipodi:guide
+       position="60.845438,268.37451"
+       orientation="0,-1"
+       id="guide71029" />
+    <sodipodi:guide
+       position="61.302638,270.58431"
+       orientation="0,-1"
+       id="guide71031" />
+    <sodipodi:guide
+       position="66.040147,277.22641"
+       orientation="0.98480775,-0.17364818"
+       id="guide71033"
+       inkscape:label=""
+       inkscape:locked="false"
+       inkscape:color="rgb(0,0,255)" />
+    <sodipodi:guide
+       position="73.966027,265.3394"
+       orientation="0,-1"
+       id="guide71330" />
+    <sodipodi:guide
+       position="75.507532,273.35287"
+       orientation="0,-1"
+       id="guide71496" />
+    <sodipodi:guide
+       position="86.535802,278.33137"
+       orientation="0.70710678,-0.70710678"
+       id="guide71832"
+       inkscape:label=""
+       inkscape:locked="false"
+       inkscape:color="rgb(0,0,255)" />
+    <sodipodi:guide
+       position="64.138928,266.44431"
+       orientation="0,-1"
+       id="guide71986" />
+    <sodipodi:guide
+       position="64.868964,270.58432"
+       orientation="0,-1"
+       id="guide71988" />
+    <sodipodi:guide
+       position="65.551959,274.45778"
+       orientation="0,-1"
+       id="guide71990" />
+  </sodipodi:namedview>
+  <defs
+     id="defs2">
+    <rect
+       x="40"
+       y="45"
+       width="430"
+       height="187"
+       id="rect14488" />
+  </defs>
+  <g
+     inkscape:groupmode="layer"
+     id="layer2"
+     inkscape:label="BBox"
+     style="display:none">
+    <rect
+       style="fill:#aa12ff;fill-opacity:1;stroke:none;stroke-width:2.2;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="rect73102"
+       width="100"
+       height="50"
+       x="1.8548269"
+       y="2.7873144"
+       inkscape:export-filename="C:\Users\sande\Pictures\Penne\penne_logo_1280x640.png"
+       inkscape:export-xdpi="325.12"
+       inkscape:export-ydpi="325.12" />
+    <rect
+       style="fill:#ff12fb;fill-opacity:1;stroke:none;stroke-width:2.42949;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="rect72090"
+       width="150"
+       height="30"
+       x="-23.14517"
+       y="12.787315"
+       inkscape:export-filename="C:\Users\sande\Pictures\Penne\penne_logo_830x166.png"
+       inkscape:export-xdpi="140.55"
+       inkscape:export-ydpi="140.55" />
+  </g>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       aria-label="Penne"
+       transform="matrix(0.26458333,0,0,0.26458333,5.1517015,1.5610955)"
+       id="text14486"
+       style="font-style:italic;font-weight:bold;font-size:96px;line-height:1.25;font-family:BigNoodleTitling;-inkscape-font-specification:'BigNoodleTitling Bold Italic';white-space:pre;shape-inside:url(#rect14488);fill:#00303b;stroke-width:1.00157">
+      <path
+         d="m 58.144,64.658667 h 16.8 q 11.136,0 8.736,11.808 l -4.128,20.448 Q 77.248,108.62667 66.208,108.62667 h -7.68 l -4.992,24.96 H 44.32 Z m 2.016,35.616003 h 5.856 q 3.648,0 4.512,-4.032003 l 3.84,-19.2 q 0.768,-4.032 -3.36,-4.032 h -5.376 z"
+         id="path70576" />
+      <path
+         d="m 79.552056,133.58667 13.824,-68.928003 h 22.848004 l -1.728,8.352 h -13.632 l -4.128004,20.928 h 12.096004 l -1.728,8.352003 H 95.008056 l -4.608,22.944 h 13.632004 l -1.632,8.352 z"
+         id="path70578" />
+      <path
+         d="m 135.23198,97.970667 6.72,-33.312 h 9.216 l -13.824,68.928003 h -9.216 l 2.784,-13.728 -3.648,-31.392003 -9.024,45.120003 h -9.216 l 13.824,-68.928003 h 9.216 z"
+         id="path70580" />
+      <path
+         d="m 172.192,97.970667 6.72,-33.312 h 9.216 l -13.824,68.928003 h -9.216 l 2.784,-13.728 -3.648,-31.392003 -9.024,45.120003 h -9.216 l 13.824,-68.928003 h 9.216 z"
+         id="path70582" />
+      <path
+         d="m 182.94402,133.58667 13.824,-68.928003 h 22.848 l -1.728,8.352 h -13.632 l -4.128,20.928 h 12.096 l -1.728,8.352003 h -12.096 l -4.608,22.944 h 13.632 l -1.632,8.352 z"
+         id="path70584" />
+    </g>
+    <rect
+       style="fill:none;stroke:#ffce96;stroke-width:2.2169;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="rect70220"
+       width="73.583885"
+       height="25.445284"
+       x="19.962536"
+       y="15.493335"
+       transform="matrix(1,0,-0.17364818,0.98480775,0,0)" />
+    <path
+       style="fill:#ffce96;stroke-width:7.79697"
+       d="m 245.17383,99.837891 -1.47266,8.353519 52.61043,9e-4 1.47266,-8.353516 z"
+       id="path71500"
+       sodipodi:nodetypes="ccccc"
+       transform="scale(0.26458333)" />
+    <path
+       style="fill:#ffce96;stroke-width:7.79697"
+       d="m 250.33594,70.558594 -1.47266,8.351562 h 76.72852 l 1.47265,-8.351562 z"
+       id="rect70406"
+       transform="scale(0.26458333)" />
+    <path
+       style="fill:#ffce96;stroke-width:7.79698"
+       d="m 239.65625,131.13477 -1.47266,8.35156 28.75586,5e-4 1.47266,-8.35156 z"
+       id="path71451"
+       sodipodi:nodetypes="ccccc"
+       transform="scale(0.26458333)" />
+    <path
+       id="rect70406-8-9-9"
+       style="fill:#ffce96;stroke-width:2.06295"
+       d="m 64.138929,30.555701 10.509813,-10e-6 -0.389647,2.209799 -10.509813,1e-5 z"
+       sodipodi:nodetypes="ccccc" />
+    <path
+       id="rect70406-8-9-9-0"
+       style="fill:#ffce96;stroke-width:2.06295"
+       d="m 65.551961,22.542231 17.110251,-10e-6 -0.389647,2.209799 -17.110251,10e-6 z"
+       sodipodi:nodetypes="ccccc" />
+  </g>
+</svg>

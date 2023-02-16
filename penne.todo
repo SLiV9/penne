@@ -144,8 +144,8 @@ Documentation:
 	✔ Move tests from lib.rs to *tests/* @done (2022-10-04 16:44)
 	☐	Reference of all current and unstable language features
 	☐	Changelog.md
-	☐	Tags for crates.io
-	☐	High def logo
+	✔	Tags for crates.io @done (23-02-16 17:29)
+	✔	High def logo @done (23-02-16 17:28)
 
 Development:
 	☐	Improve test coverage
