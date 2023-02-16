@@ -14,8 +14,9 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v3
-    - uses: taiki-e/install-action@cargo-tarpaulin
-    - uses: taiki-e/install-action@cargo-nextest
+    - uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-tarpaulin,cargo-nextest
     - uses: testspace-com/setup-testspace@v1
       with:
         domain: ${{github.repository_owner}}
