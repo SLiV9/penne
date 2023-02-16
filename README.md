@@ -4,14 +4,17 @@
 
 # The Penne Programming Language
 
-[![Build](https://github.com/SLiV9/penne/actions/workflows/build.yml/badge.svg?event=push)](https://github.com/SLiV9/penne/actions)
-[![Release](https://github.com/SLiV9/penne/actions/workflows/release.yml/badge.svg?event=push)](https://github.com/SLiV9/penne/actions/workflows/release.yml)
+[![Latest](https://img.shields.io/github/v/release/SLiV9/penne)](https://github.com/SLiV9/penne/releases/latest)
 [![Crate](https://img.shields.io/crates/v/penne.svg?colorB=319e8c)](https://crates.io/crates/penne)
 [![License](https://img.shields.io/github/license/SLiV9/penne)](https://github.com/SLiV9/penne/blob/main/LICENSE)
-[![Issues](https://img.shields.io/github/issues/SLiV9/penne)](https://github.com/SLiV9/penne/issues)
 [![Stars](https://img.shields.io/github/stars/SLiV9/penne)](https://github.com/SLiV9/penne/stargazers)
-![GitHub repo size](https://img.shields.io/github/repo-size/SLiV9/penne)
-![Lines of code](https://raster.shields.io/tokei/lines/github/SLiV9/penne)
+[![GitHub repo size](https://img.shields.io/github/repo-size/SLiV9/penne)](https://github.com/SLiV9/penne/releases)
+[![Lines of code](https://raster.shields.io/tokei/lines/github/SLiV9/penne)](https://github.com/SLiV9/penne/tree/main/src)
+
+[![Build](https://github.com/SLiV9/penne/actions/workflows/build.yml/badge.svg?event=push)](https://github.com/SLiV9/penne/actions)
+[![Release](https://github.com/SLiV9/penne/actions/workflows/release.yml/badge.svg?event=push)](https://github.com/SLiV9/penne/actions/workflows/release.yml)
+[![Coverage](https://img.shields.io/coveralls/github/SLiV9/penne)](https://coveralls.io/github/SLiV9/penne)
+[![Issues](https://img.shields.io/github/issues/SLiV9/penne)](https://github.com/SLiV9/penne/issues)
 
 </div>
 
