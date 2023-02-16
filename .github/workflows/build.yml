@@ -17,8 +17,8 @@ jobs:
     - uses: taiki-e/install-action@cargo-tarpaulin
     - uses: taiki-e/install-action@cargo-nextest
     - uses: testspace-com/setup-testspace@v1
-       with:
-         domain: ${{github.repository_owner}}
+      with:
+        domain: ${{github.repository_owner}}
     - name: Restore LLVM
       id: restore-llvm
       uses: actions/cache/restore@v3
