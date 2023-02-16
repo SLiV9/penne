@@ -35,19 +35,14 @@ jobs:
       run: which llvm-config clang lli
     - name: Test llvm version
       run: llvm-config --version
-    - name: Install full Rust stable toolchain
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        override: true
     - name: Build
-      run: cargo build --release
+      run: cargo build
     - name: Run tests
       run: cargo test
+    - name: Install cargo-tarpaulin
+      run: cargo install tarpaulin
     - name: Run cargo-tarpaulin
-      uses: actions-rs/tarpaulin@v0.1
-      with:
-        args: '-o html -o lcov'
+      run: cargo tarpaulin -o html -o lcov
     - name: Coveralls
       uses: coverallsapp/github-action@1.1.3
       with:
