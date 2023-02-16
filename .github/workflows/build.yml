@@ -43,8 +43,10 @@ jobs:
       run: llvm-config --version
     - name: Build
       run: cargo build
-    - name: Run tests
-      run: cargo test
+    - name: Run cargo-nextest
+      run: cargo nextest run --profile ci
+    - name: Testspace
+      run: testspace ./target/nextest/ci/junit.xml
     - name: Run cargo-tarpaulin
       run: cargo tarpaulin -o lcov
     - name: Coveralls
@@ -52,7 +54,3 @@ jobs:
       with:
         path-to-lcov: ./lcov.info
         github-token: ${{ secrets.GITHUB_TOKEN }}
-    - name: Run cargo-nextest
-      run: cargo nextest run --profile ci
-    - name: Testspace
-      run: testspace ./target/nextest/ci/junit.xml
