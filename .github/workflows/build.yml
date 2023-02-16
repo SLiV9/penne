@@ -1,0 +1,59 @@
+name: build
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:    
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v3
+    - name: Restore LLVM
+      id: restore-llvm
+      uses: actions/cache/restore@v3
+      with:
+        path: ./llvm
+        key: llvm-10.0
+    - name: Install LLVM
+      uses: KyleMayes/install-llvm-action@v1
+      with:
+        version: "10.0"
+        cached: ${{ steps.restore-llvm.outputs.cache-hit }}
+    - name: Cache LLVM
+      uses: actions/cache/save@v3
+      if: steps.restore-llvm.outputs.cache-hit != 'true'
+      with:
+        path: ./llvm
+        key: llvm-10.0
+    - name: Find llvm
+      run: which llvm-config clang lli
+    - name: Test llvm version
+      run: llvm-config --version
+    - name: Install full Rust stable toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+    - name: Build
+      run: cargo build --release
+    - name: Run tests
+      run: cargo test
+    - name: Run cargo-tarpaulin
+      uses: actions-rs/tarpaulin@v0.1
+      with:
+        args: '-o html -o lcov'
+    - name: Coveralls
+      uses: coverallsapp/github-action@1.1.3
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Archive code coverage results
+      uses: actions/upload-artifact@v1
+      with:
+        name: code-coverage-report
+        path: tarpaulin-report.html

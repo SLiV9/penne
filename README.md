@@ -4,7 +4,8 @@
 
 # The Penne Programming Language
 
-[![CI/CD](https://github.com/SLiV9/penne/actions/workflows/rust.yml/badge.svg?event=push)](https://github.com/SLiV9/penne/actions)
+[![Build](https://github.com/SLiV9/penne/actions/workflows/build.yml/badge.svg?event=push)](https://github.com/SLiV9/penne/actions)
+[![Release](https://github.com/SLiV9/penne/actions/workflows/release.yml/badge.svg?event=push)](https://github.com/SLiV9/penne/actions/workflows/release.yml)
 [![Crate](https://img.shields.io/crates/v/penne.svg?colorB=319e8c)](https://crates.io/crates/penne)
 [![License](https://img.shields.io/github/license/SLiV9/penne)](https://github.com/SLiV9/penne/blob/main/LICENSE)
 [![Issues](https://img.shields.io/github/issues/SLiV9/penne)](https://github.com/SLiV9/penne/issues)
