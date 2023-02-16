@@ -29,8 +29,8 @@
      inkscape:guide-bbox="true"
      inkscape:snap-midpoints="true"
      inkscape:zoom="1.4142136"
-     inkscape:cx="221.67798"
-     inkscape:cy="113.13708"
+     inkscape:cx="206.82873"
+     inkscape:cy="207.18228"
      inkscape:window-width="1920"
      inkscape:window-height="1027"
      inkscape:window-x="-8"
@@ -124,7 +124,7 @@
        height="50"
        x="1.8548269"
        y="2.7873144"
-       inkscape:export-filename="C:\Users\sande\Pictures\Penne\penne_logo_1280x640.png"
+       inkscape:export-filename="C:\Users\sande\Pictures\Penne\penne_logo_1280x640_filled.png"
        inkscape:export-xdpi="325.12"
        inkscape:export-ydpi="325.12" />
     <rect
@@ -134,7 +134,7 @@
        height="30"
        x="-23.14517"
        y="12.787315"
-       inkscape:export-filename="C:\Users\sande\Pictures\Penne\penne_logo_830x166.png"
+       inkscape:export-filename="C:\Users\sande\Pictures\Penne\penne_logo_830x166_filled.png"
        inkscape:export-xdpi="140.55"
        inkscape:export-ydpi="140.55" />
   </g>
@@ -142,6 +142,14 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1">
+    <rect
+       style="fill:#fcfcf6;stroke:#ffce96;stroke-width:2.2169;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;fill-opacity:1"
+       id="rect70220"
+       width="73.583885"
+       height="25.445284"
+       x="19.962536"
+       y="15.493335"
+       transform="matrix(1,0,-0.17364818,0.98480775,0,0)" />
     <g
        aria-label="Penne"
        transform="matrix(0.26458333,0,0,0.26458333,5.1517015,1.5610955)"
@@ -163,14 +171,6 @@
          d="m 182.94402,133.58667 13.824,-68.928003 h 22.848 l -1.728,8.352 h -13.632 l -4.128,20.928 h 12.096 l -1.728,8.352003 h -12.096 l -4.608,22.944 h 13.632 l -1.632,8.352 z"
          id="path70584" />
     </g>
-    <rect
-       style="fill:none;stroke:#ffce96;stroke-width:2.2169;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-       id="rect70220"
-       width="73.583885"
-       height="25.445284"
-       x="19.962536"
-       y="15.493335"
-       transform="matrix(1,0,-0.17364818,0.98480775,0,0)" />
     <path
        style="fill:#ffce96;stroke-width:7.79697"
        d="m 245.17383,99.837891 -1.47266,8.353519 52.61043,9e-4 1.47266,-8.353516 z"
