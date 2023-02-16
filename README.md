@@ -13,6 +13,7 @@
 
 [![Build](https://github.com/SLiV9/penne/actions/workflows/build.yml/badge.svg?event=push)](https://github.com/SLiV9/penne/actions)
 [![Release](https://github.com/SLiV9/penne/actions/workflows/release.yml/badge.svg?event=push)](https://github.com/SLiV9/penne/actions/workflows/release.yml)
+[![Tests](https://img.shields.io/testspace/tests/SLiV9/SLiV9:penne/main)](https://sliv9.testspace.com/spaces/204870/current)
 [![Coverage](https://img.shields.io/coveralls/github/SLiV9/penne)](https://coveralls.io/github/SLiV9/penne)
 [![Issues](https://img.shields.io/github/issues/SLiV9/penne)](https://github.com/SLiV9/penne/issues)
 
