@@ -2,7 +2,9 @@ name: pages
 
 on:
   push:
-    branches: ["main", "gh-workflow-test"]
+    branches:
+      - main
+      - ghworkflow
   workflow_dispatch:
 
 permissions:

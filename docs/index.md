@@ -1,23 +1,6 @@
-<div align="center">
-
 ![Penne logo](assets/penne_logo_header.png)
 
 # The Penne Programming Language
-
-[![Latest](https://img.shields.io/github/v/release/SLiV9/penne)](https://github.com/SLiV9/penne/releases/latest)
-[![Crate](https://img.shields.io/crates/v/penne.svg?colorB=319e8c)](https://crates.io/crates/penne)
-[![License](https://img.shields.io/github/license/SLiV9/penne)](https://github.com/SLiV9/penne/blob/main/LICENSE)
-[![Stars](https://img.shields.io/github/stars/SLiV9/penne)](https://github.com/SLiV9/penne/stargazers)
-[![GitHub repo size](https://img.shields.io/github/repo-size/SLiV9/penne)](https://github.com/SLiV9/penne/releases)
-[![Lines of code](https://img.shields.io/tokei/lines/github/SLiV9/penne)](https://github.com/SLiV9/penne/tree/main/src)
-
-[![Build](https://github.com/SLiV9/penne/actions/workflows/build.yml/badge.svg?event=push)](https://github.com/SLiV9/penne/actions)
-[![Release](https://github.com/SLiV9/penne/actions/workflows/release.yml/badge.svg?event=push)](https://github.com/SLiV9/penne/actions/workflows/release.yml)
-[![Tests](https://img.shields.io/testspace/tests/SLiV9/SLiV9:penne/main)](https://sliv9.testspace.com/spaces/204870/current)
-[![Coverage](https://img.shields.io/coveralls/github/SLiV9/penne)](https://coveralls.io/github/SLiV9/penne)
-[![Issues](https://img.shields.io/github/issues/SLiV9/penne)](https://github.com/SLiV9/penne/issues)
-
-</div>
 
 Penne is an [esoteric programming language](https://esolangs.org/wiki/Esoteric_programming_language) that imagines a world where, instead of being ostracized for leading to so-called "spaghetti code", the humble `goto` statement became the dominant method of control flow, surpassing `for` loops and `switch` statements, and ultimately obviating the need for the invention of [RAII](https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization) and object-oriented programming in general.
 By applying modern sensibilities to the use of the `goto` statement instead of banishing it altogether, Penne seeks to bring about a rennaissance of pasta-oriented programming.
@@ -71,24 +54,6 @@ fn do_collatz_step(x: &i32)
 	end:
 }
 ```
-
-## Usage
-
-The compiler uses LLVM as its backend. It requires LLVM version 6.0 or newer to be installed.
-
-```shell
-# Install it (requires Rust 1.60.0 or newer):
-cargo install penne
-
-# Compile a source file:
-penne examples/addition.pn
-
-# Or run it directly (using lli):
-penne run examples/addition.pn
-# Output: 10
-```
-
-There are [precompiled binaries](https://github.com/SLiV9/penne/releases/latest) for Ubuntu 20.04.
 
 ## Language features
 
@@ -237,15 +202,3 @@ As such, the following are decidedly *not* features of Penne:
 * support for pointers larger than 64 bits;
 * a string type guaranteed to be UTF-8;
 * memory safety of any kind.
-
-## Contributing
-
-Penne and its compiler are still in development, and many language features (enums, modules) are yet to be implemented. However it is my intention for any gaps in functionality to raise a proper error message until they are implemented. If you encounter a compiler segfault or panic, or if the compiler generates invalid LLVM IR, opening an issue with a minimal reproducible example would be much appreciated.
-
-## License
-
-This library was created by Sander in 't Veld.
-It is made available to you under the MIT License,
-as specified in `LICENSE.txt`.
-
-The software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the software or the use or other dealings in the software.
