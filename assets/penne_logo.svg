@@ -2,17 +2,31 @@
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 
 <svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    width="210mm"
    height="297mm"
    viewBox="0 0 210 297"
    version="1.1"
    id="svg5"
-   inkscape:version="1.1.2 (b8e25be833, 2022-02-05)"
-   sodipodi:docname="penne_logo.svg"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:svg="http://www.w3.org/2000/svg">
+   inkscape:version="0.92.3 (2405546, 2018-03-11)"
+   sodipodi:docname="penne_logo.svg">
+  <metadata
+     id="metadata36">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
   <sodipodi:namedview
      id="namedview7"
      pagecolor="#ffffff"
@@ -28,46 +42,54 @@
      showguides="true"
      inkscape:guide-bbox="true"
      inkscape:snap-midpoints="true"
-     inkscape:zoom="1.4142136"
-     inkscape:cx="206.82873"
-     inkscape:cy="207.18228"
+     inkscape:zoom="2.0000001"
+     inkscape:cx="255.20468"
+     inkscape:cy="970.60581"
      inkscape:window-width="1920"
-     inkscape:window-height="1027"
-     inkscape:window-x="-8"
-     inkscape:window-y="-8"
+     inkscape:window-height="1030"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
      inkscape:window-maximized="1"
      inkscape:current-layer="layer2"
      inkscape:snap-bbox="true"
      inkscape:snap-intersection-paths="true"
-     inkscape:bbox-paths="true">
+     inkscape:bbox-paths="true"
+     inkscape:bbox-nodes="true">
     <sodipodi:guide
        position="51.854822,269.2127"
        orientation="0,-1"
-       id="guide70382" />
+       id="guide70382"
+       inkscape:locked="false" />
     <sodipodi:guide
        position="60.235838,278.33131"
        orientation="0,-1"
-       id="guide70704" />
+       id="guide70704"
+       inkscape:locked="false" />
     <sodipodi:guide
        position="62.801238,276.12151"
        orientation="0,-1"
-       id="guide70706" />
+       id="guide70706"
+       inkscape:locked="false" />
     <sodipodi:guide
        position="59.600838,260.09411"
        orientation="0,-1"
-       id="guide71025" />
+       id="guide71025"
+       inkscape:locked="false" />
     <sodipodi:guide
        position="60.032638,262.30391"
        orientation="0,-1"
-       id="guide71027" />
+       id="guide71027"
+       inkscape:locked="false" />
     <sodipodi:guide
        position="60.845438,268.37451"
        orientation="0,-1"
-       id="guide71029" />
+       id="guide71029"
+       inkscape:locked="false" />
     <sodipodi:guide
        position="61.302638,270.58431"
        orientation="0,-1"
-       id="guide71031" />
+       id="guide71031"
+       inkscape:locked="false" />
     <sodipodi:guide
        position="66.040147,277.22641"
        orientation="0.98480775,-0.17364818"
@@ -78,11 +100,13 @@
     <sodipodi:guide
        position="73.966027,265.3394"
        orientation="0,-1"
-       id="guide71330" />
+       id="guide71330"
+       inkscape:locked="false" />
     <sodipodi:guide
        position="75.507532,273.35287"
        orientation="0,-1"
-       id="guide71496" />
+       id="guide71496"
+       inkscape:locked="false" />
     <sodipodi:guide
        position="86.535802,278.33137"
        orientation="0.70710678,-0.70710678"
@@ -93,15 +117,60 @@
     <sodipodi:guide
        position="64.138928,266.44431"
        orientation="0,-1"
-       id="guide71986" />
+       id="guide71986"
+       inkscape:locked="false" />
     <sodipodi:guide
        position="64.868964,270.58432"
        orientation="0,-1"
-       id="guide71988" />
+       id="guide71988"
+       inkscape:locked="false" />
     <sodipodi:guide
        position="65.551959,274.45778"
        orientation="0,-1"
-       id="guide71990" />
+       id="guide71990"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="47.487219,173.43121"
+       orientation="0,1"
+       id="guide898"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="57.060052,182.54981"
+       orientation="0,1"
+       id="guide900"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="53.402452,164.31262"
+       orientation="0,1"
+       id="guide902"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="64.483446,180.34012"
+       orientation="-0.90630779,0.42261826"
+       id="guide904"
+       inkscape:locked="false"
+       inkscape:label=""
+       inkscape:color="rgb(0,0,255)" />
+    <sodipodi:guide
+       position="55.977905,168.45294"
+       orientation="0,1"
+       id="guide906"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="56.70789,172.59255"
+       orientation="0,1"
+       id="guide908"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="57.390936,176.46641"
+       orientation="0,1"
+       id="guide910"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="58.073699,180.34013"
+       orientation="0,1"
+       id="guide912"
+       inkscape:locked="false" />
   </sodipodi:namedview>
   <defs
      id="defs2">
@@ -118,7 +187,7 @@
      inkscape:label="BBox"
      style="display:none">
     <rect
-       style="fill:#aa12ff;fill-opacity:1;stroke:none;stroke-width:2.2;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       style="fill:#aa12ff;fill-opacity:1;stroke:none;stroke-width:2.20000005;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
        id="rect73102"
        width="100"
        height="50"
@@ -128,7 +197,7 @@
        inkscape:export-xdpi="325.12"
        inkscape:export-ydpi="325.12" />
     <rect
-       style="fill:#ff12fb;fill-opacity:1;stroke:none;stroke-width:2.42949;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       style="fill:#ff12fb;fill-opacity:1;stroke:none;stroke-width:2.42949009;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
        id="rect72090"
        width="150"
        height="30"
@@ -137,6 +206,15 @@
        inkscape:export-filename="C:\Users\sande\Pictures\Penne\penne_logo_830x166_filled.png"
        inkscape:export-xdpi="140.55"
        inkscape:export-ydpi="140.55" />
+    <path
+       style="display:inline;fill:#aa12ff;fill-opacity:1;stroke:none;stroke-width:4.70365238;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="M 116.86914,391.44141 V 542.62305 H 268.05078 V 391.44141 Z"
+       transform="scale(0.26458333)"
+       id="rect73102-9"
+       inkscape:connector-curvature="0"
+       inkscape:export-filename="/home/sander/Documents/Rust/Penne/docs/assets/images/favicon.png"
+       inkscape:export-xdpi="325"
+       inkscape:export-ydpi="325" />
   </g>
   <g
      inkscape:label="Layer 1"
@@ -197,6 +275,58 @@
        id="rect70406-8-9-9-0"
        style="fill:#ffce96;stroke-width:2.06295"
        d="m 65.551961,22.542231 17.110251,-10e-6 -0.389647,2.209799 -17.110251,10e-6 z"
+       sodipodi:nodetypes="ccccc" />
+    <rect
+       style="display:inline;fill:#fcfcf6;fill-opacity:1;stroke:#ffce96;stroke-width:2.21690011;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="rect70220-3"
+       width="30.584"
+       height="25.445"
+       x="57.418236"
+       y="112.75269"
+       transform="matrix(1,0,-0.17364818,0.98480774,0,0)" />
+    <g
+       aria-label="Penne"
+       transform="matrix(0.26458333,0,0,0.26458333,25.060266,97.342738)"
+       id="text14486-6"
+       style="display:inline;font-style:italic;font-weight:bold;font-size:96px;line-height:1.25;font-family:BigNoodleTitling;-inkscape-font-specification:'BigNoodleTitling Bold Italic';white-space:pre;shape-inside:url(#rect14488);fill:#00303b;stroke-width:1.00156999">
+      <path
+         inkscape:connector-curvature="0"
+         d="m 58.144,64.658667 h 16.8 q 11.136,0 8.736,11.808 l -4.128,20.448 Q 77.248,108.62667 66.208,108.62667 h -7.68 l -4.992,24.96 H 44.32 Z m 2.016,35.616003 h 5.856 q 3.648,0 4.512,-4.032003 l 3.84,-19.2 q 0.768,-4.032 -3.36,-4.032 h -5.376 z"
+         id="path70576-1" />
+      <path
+         inkscape:connector-curvature="0"
+         d="m 105.00808,97.970092 6.72,-33.312 h 9.216 l -13.824,68.927998 h -9.216005 l 2.784005,-13.728 -3.648005,-31.391998 -9.024,45.119998 h -9.216 l 13.824,-68.927998 h 9.216005 z"
+         id="path70580-9" />
+    </g>
+    <path
+       inkscape:connector-curvature="0"
+       style="display:inline;fill:#ffce96;stroke-width:2.06294823"
+       d="m 57.097533,122.19701 -0.389642,2.2102 4.162804,2.4e-4 0.38964,-2.21021 z"
+       id="path71500-9"
+       sodipodi:nodetypes="ccccc" />
+    <path
+       inkscape:connector-curvature="0"
+       style="display:inline;fill:#ffce96;stroke-width:2.06294823"
+       d="m 58.463341,114.45019 -0.389641,2.20969 6.409746,0 0.38964,-2.20969 z"
+       id="rect70406-4"
+       sodipodi:nodetypes="ccccc" />
+    <path
+       inkscape:connector-curvature="0"
+       style="display:inline;fill:#ffce96;stroke-width:2.06295085"
+       d="m 55.637673,130.47764 -0.389641,2.20968 1.761668,6e-5 0.389641,-2.20968 z"
+       id="path71451-7"
+       sodipodi:nodetypes="ccccc" />
+    <path
+       inkscape:connector-curvature="0"
+       id="rect70406-8-9-9-8"
+       style="display:inline;fill:#ffce96;stroke-width:2.0629499"
+       d="m 56.367553,126.33726 2.96246,1e-5 -0.38965,2.20979 h -2.962457 z"
+       sodipodi:nodetypes="ccccc" />
+    <path
+       inkscape:connector-curvature="0"
+       id="rect70406-8-9-9-0-4"
+       style="display:inline;fill:#ffce96;stroke-width:2.0629499"
+       d="m 57.780586,118.3238 5.286159,0 -0.38964,2.20979 -5.286168,0 z"
        sodipodi:nodetypes="ccccc" />
   </g>
 </svg>

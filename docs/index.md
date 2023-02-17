@@ -1,4 +1,4 @@
-![Penne logo]({{ "/assets/penne_logo_header.png" | relative_url }})
+![Penne logo]({{ "assets/images/penne_logo_header.png" | relative_url }})
 
 # The Penne Programming Language
 

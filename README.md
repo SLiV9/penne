@@ -1,6 +1,6 @@
 <div align="center">
 
-![Penne logo](assets/penne_logo_header.png)
+![Penne logo](docs/assets/images/penne_logo_header.png)
 
 # The Penne Programming Language
 
