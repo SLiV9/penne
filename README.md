@@ -216,9 +216,11 @@ The `import` keyword is used to import all function signatures, structures and c
 ### Interoperability with C
 
 Functions marked `extern` use the C ABI, which means it is possible (though not necessarily safe) to call them from C code compiled by LLVM. Conversely, declaring a function header such as
+
 ```
     extern fn foo(buffer: []u8, length: usize);
 ```
+
 allows you to call a C function from Penne code. Interacting with other programming languages that utilize or support the C ABI, such as C++, Rust, Zig or WebAssembly, is also possible.
 
 Only array views, pointers and the primitive types `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64` and `usize` are allowed in the signature of an `extern` function. Array views in `extern` functions correspond to (const) pointers in C, do not have a length (`|x|`) and must not be null.

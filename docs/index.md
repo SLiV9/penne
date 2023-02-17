@@ -1,4 +1,6 @@
-![Penne logo]({{ "assets/images/penne_logo_header.png" | relative_url }})
+---
+layout: default
+---
 
 # The Penne Programming Language
 
@@ -9,7 +11,7 @@ By applying modern sensibilities to the use of the `goto` statement instead of b
 
 Penne's general aesthetic is inspired by modern programming languages (in particular Rust), with the notable exception of labels and the `goto` statement, which are (at least syntactically) taken from C, and the `loop` statement.
 
-```
+```penne
 // Calculate the number of Collatz steps needed to reach 1.
 // The Collatz conjecture states that this function always terminates.
 fn determine_collatz_number(start: i32) -> i32
@@ -63,7 +65,7 @@ A brief overview of the more unique language features of Penne:
 
 In Penne, `goto` is a local forward-only jump. This is achieved by giving labels a reverse scope: similar to how variables cannot be referenced before they are declared, labels cannot be jumped to _after_ they are declared.
 
-```
+```penne
 fn foo() -> i32
 {
 	var x = 0;
@@ -79,7 +81,7 @@ This function returns 1, not 11.
 
 The only way to jump back is with the `loop` block:
 
-```
+```penne
 fn foo() -> i32
 {
 	var x = 0;
@@ -99,7 +101,7 @@ Here the line `x = x + 1` is executed forever and the end of the function is nev
 
 Function arguments other than pointers (see below), primitives and words are passed as a view. For arrays this means an array view (or "slice") is created and passed into the function. Array views remember the length of their array, which can be accessed with the length operation `|x|`.
 
-```
+```penne
 fn foo()
 {
 	var data: [4]i32 = [1, 2, 3, 4];
@@ -125,7 +127,7 @@ fn sum(x: []i32) -> i32
 
 Views allow you to pass a large value by reference, but they only give immutable access. For mutable access, a pointer is needed. They can be created by taking the address of a value. Unlike in most other languages, reference pointers in Penne automatically dereference to their base type, which is any type that isn't a reference pointer.
 
-```
+```penne
 	var x: i32 = 17;
 	var a: &i32 = &x;
 	var y: i32 = a;
@@ -135,7 +137,7 @@ Views allow you to pass a large value by reference, but they only give immutable
 
 To change which value a reference pointer points to, you need to explicitly modify the address.
 
-```
+```penne
 	var x: i32 = 17;
 	var y: i32 = 30;
 	var z: i32 = 88;
@@ -149,7 +151,7 @@ To change which value a reference pointer points to, you need to explicitly modi
 
 Reference pointers allow a function to modify its arguments, but require the caller to explicitly pass in an address.
 
-```
+```penne
 fn foo()
 {
 	var data: [4]i32 = [1, 2, 3, 4];
@@ -181,9 +183,11 @@ The `import` keyword is used to import all function signatures, structures and c
 ### Interoperability with C
 
 Functions marked `extern` use the C ABI, which means it is possible (though not necessarily safe) to call them from C code compiled by LLVM. Conversely, declaring a function header such as
-```
+
+```penne
     extern fn foo(buffer: []u8, length: usize);
 ```
+
 allows you to call a C function from Penne code. Interacting with other programming languages that utilize or support the C ABI, such as C++, Rust, Zig or WebAssembly, is also possible.
 
 Only array views, pointers and the primitive types `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64` and `usize` are allowed in the signature of an `extern` function. Array views in `extern` functions correspond to (const) pointers in C, do not have a length (`|x|`) and must not be null.

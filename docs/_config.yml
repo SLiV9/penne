@@ -1,5 +1,12 @@
 title: Penne Documentation
-show_description: false
+logo: /assets/images/penne_logo_500x160.png
 favicon_ico: /assets/images/favicon.ico
+
+safe: false
+
+highlighter: rouge
+
+plugins:
+  - jekyll-redirect-from
 
 theme: just-the-docs
