@@ -921,7 +921,7 @@ blockquote {
 .site-logo {
   width: 100%;
   height: 100%;
-  background-image: url("/assets/images/penne_logo_500x160.png");
+  background-image: url("/penne/assets/images/penne_logo_500x160.png");
   background-repeat: no-repeat;
   background-position: left center;
   background-size: contain; }
