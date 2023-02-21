@@ -114,46 +114,6 @@ GEM
     jekyll-sitemap (1.4.0)
       jekyll (>= 3.7, < 5.0)
     jekyll-swiss (1.0.0)
-    jekyll-theme-architect (0.2.0)
-      jekyll (> 3.5, < 5.0)
-      jekyll-seo-tag (~> 2.0)
-    jekyll-theme-cayman (0.2.0)
-      jekyll (> 3.5, < 5.0)
-      jekyll-seo-tag (~> 2.0)
-    jekyll-theme-dinky (0.2.0)
-      jekyll (> 3.5, < 5.0)
-      jekyll-seo-tag (~> 2.0)
-    jekyll-theme-hacker (0.2.0)
-      jekyll (> 3.5, < 5.0)
-      jekyll-seo-tag (~> 2.0)
-    jekyll-theme-leap-day (0.2.0)
-      jekyll (> 3.5, < 5.0)
-      jekyll-seo-tag (~> 2.0)
-    jekyll-theme-merlot (0.2.0)
-      jekyll (> 3.5, < 5.0)
-      jekyll-seo-tag (~> 2.0)
-    jekyll-theme-midnight (0.2.0)
-      jekyll (> 3.5, < 5.0)
-      jekyll-seo-tag (~> 2.0)
-    jekyll-theme-minimal (0.2.0)
-      jekyll (> 3.5, < 5.0)
-      jekyll-seo-tag (~> 2.0)
-    jekyll-theme-modernist (0.2.0)
-      jekyll (> 3.5, < 5.0)
-      jekyll-seo-tag (~> 2.0)
-    jekyll-theme-primer (0.6.0)
-      jekyll (> 3.5, < 5.0)
-      jekyll-github-metadata (~> 2.9)
-      jekyll-seo-tag (~> 2.0)
-    jekyll-theme-slate (0.2.0)
-      jekyll (> 3.5, < 5.0)
-      jekyll-seo-tag (~> 2.0)
-    jekyll-theme-tactile (0.2.0)
-      jekyll (> 3.5, < 5.0)
-      jekyll-seo-tag (~> 2.0)
-    jekyll-theme-time-machine (0.2.0)
-      jekyll (> 3.5, < 5.0)
-      jekyll-seo-tag (~> 2.0)
     jekyll-titles-from-headings (0.5.3)
       jekyll (>= 3.3, < 5.0)
     jekyll-watch (2.2.1)
@@ -243,19 +203,6 @@ DEPENDENCIES
   jekyll-seo-tag
   jekyll-sitemap
   jekyll-swiss
-  jekyll-theme-architect
-  jekyll-theme-cayman
-  jekyll-theme-dinky
-  jekyll-theme-hacker
-  jekyll-theme-leap-day
-  jekyll-theme-merlot
-  jekyll-theme-midnight
-  jekyll-theme-minimal
-  jekyll-theme-modernist
-  jekyll-theme-primer
-  jekyll-theme-slate
-  jekyll-theme-tactile
-  jekyll-theme-time-machine
   jekyll-titles-from-headings
   jemoji
   just-the-docs
