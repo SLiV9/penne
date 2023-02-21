@@ -54,7 +54,7 @@ Jekyll::Hooks.register :site, :pre_render do |site|
 		end
 
 		state :values do
-			rule %r/\$.*?$/, Generic::Error
+			rule %r/\$.*?$/, Error
 			rule %r/"/, Str, :double_quoted_string
 			rule %r/'/, Str, :single_quoted_string
 			rule %r/\b(-)?[0-9][.0-9]*\b/, Num::Integer
@@ -64,15 +64,16 @@ Jekyll::Hooks.register :site, :pre_render do |site|
 		end
 
 		state :declarations do
-			rule %r/\b(fn)\b/, Keyword, :declared_function_identifier
-			rule %r/\b(const)\b/, Keyword, :declared_constant_identifier
-			rule %r/\b(struct|#{Penne.word_keywords.join('|')})\b/, Keyword, :declared_struct_identifier
+			rule %r/\b(fn)\b/, Keyword::Declaration, :function_identifier
+			rule %r/\b(const)\b/, Keyword::Declaration, :constant_identifier
+			rule %r/\b(struct|#{Penne.word_keywords.join('|')})\b/, Keyword::Declaration, :struct_identifier
 		end
 
 		state :main do
-			rule %r/\b(var)\b/, Keyword::Declaration
+			rule %r/\b(var)\b/, Keyword::Pseudo, :var_identifier
 			rule %r/\b(as)\b/, Operator::Word
 			rule %r/\b(#{Penne.type_keywords.join('|')})\b/, Keyword::Type
+			rule %r/\b(pub|extern)\b/, Keyword::Pseudo
 			rule %r/\b(#{Penne.keywords.join('|')})\b/, Keyword
 			rule %r/\b(#{Penne.identifier})(?=\s*\{)/, Text, :structural
 			rule %r/\{/, Text, :block_body
@@ -98,8 +99,8 @@ Jekyll::Hooks.register :site, :pre_render do |site|
 			rule %r/\\u\{[0-9a-fA-F]{1,}\}/, Str::Escape
 			rule %r/\\./, Str::Escape
 			rule %r/[^"\\]+/, Str
-			rule %r/\\$/, Generic::Error
-			rule %r/$/, Generic::Error, :pop!
+			rule %r/\\$/, Error
+			rule %r/$/, Error, :pop!
 		end
 
 		state :single_quoted_string do
@@ -107,19 +108,27 @@ Jekyll::Hooks.register :site, :pre_render do |site|
 			rule %r/\\x[0-9a-fA-F]{2}/, Str::Escape
 			rule %r/\\./, Str::Escape
 			rule %r/[^'\\]+/, Str
-			rule %r/\\$/, Generic::Error
-			rule %r/$/, Generic::Error, :pop!
+			rule %r/\\$/, Error
+			rule %r/$/, Error, :pop!
 		end
 
-		state :declared_constant_identifier do
+		state :var_identifier do
+			rule %r/\b(#{Penne.keywords.join('|')})\b/, Keyword, :pop!
+			rule %r/\b#{Penne.identifier}\b/, Name::Variable, :pop!
+			mixin :comments
+			mixin :whitespace
+			rule %r/[^\w]+/, Error, :pop!
+		end
+
+		state :constant_identifier do
 			rule %r/\b(#{Penne.keywords.join('|')})\b/, Keyword, :pop!
 			rule %r/\b#{Penne.identifier}\b/, Name::Constant, :pop!
 			mixin :comments
 			mixin :whitespace
-			rule %r/[^\w]+/, Generic::Error, :pop!
+			rule %r/[^\w]+/, Error, :pop!
 		end
 
-		state :declared_struct_identifier do
+		state :struct_identifier do
 			rule %r/\b(#{Penne.keywords.join('|')})\b/, Keyword, :pop!
 			rule %r/\b#{Penne.identifier}\b/ do
 				token Name::Class
@@ -128,21 +137,21 @@ Jekyll::Hooks.register :site, :pre_render do |site|
 			end
 			mixin :comments
 			mixin :whitespace
-			rule %r/[^\w]+/, Generic::Error, :pop!
+			rule %r/[^\w]+/, Error, :pop!
 		end
 
-		state :declared_function_identifier do
+		state :function_identifier do
 			rule %r/\b(#{Penne.keywords.join('|')})\b/, Keyword, :pop!
 			rule %r/\b#{Penne.identifier}\b/, Name::Function, :pop!
 			mixin :comments
 			mixin :whitespace
-			rule %r/[^\w]+/, Generic::Error, :pop!
+			rule %r/[^\w]+/, Error, :pop!
 		end
 
 		state :block_body do
 			rule %r/\}/, Text, :pop!
 			rule %r/\b(#{Penne.keywords.join('|')})(?=:)/, Keyword
-			rule %r/\b#{Penne.identifier}:/, Name::Tag
+			rule %r/\b#{Penne.identifier}:/, Name::Label
 			mixin :comments
 			mixin :values
 			mixin :main

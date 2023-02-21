@@ -9,6 +9,7 @@ plugins:
   - jekyll-redirect-from
 
 theme: just-the-docs
+color_scheme: penne
 
 search_enabled: true
 aux_links:
