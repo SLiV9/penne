@@ -1,5 +1,6 @@
 ---
 layout: default
+title: Home
 ---
 
 # The Penne Programming Language
@@ -16,44 +17,44 @@ Penne's general aesthetic is inspired by modern programming languages (in partic
 // The Collatz conjecture states that this function always terminates.
 fn determine_collatz_number(start: i32) -> i32
 {
-	var x = start;
-	var steps = 0;
-	{
-		if x == 1
-			goto return;
-		do_collatz_step(&x);
-		steps = steps + 1;
-		loop;
-	}
+    var x = start;
+    var steps = 0;
+    {
+        if x == 1
+            goto return;
+        do_collatz_step(&x);
+        steps = steps + 1;
+        loop;
+    }
 
-	return: steps
+    return: steps
 }
 
 // If x is even, divide it by 2. Otherwise calculate 3 * x + 1.
 // Do this without division or modulo operators (for demonstrative purposes).
 fn do_collatz_step(x: &i32)
 {
-	var y = x;
-	{
-		if y == 0
-		{
-			if y + y == x
-			{
-				x = y;
-				goto end;
-			}
-			y = y + 1;
-			loop;
-		}
-		else if y == 1
-		{
-			x = 3 * x + 1;
-			goto end;
-		}
-		y = y - 2;
-		loop;
-	}
-	end:
+    var y = x;
+    {
+        if y == 0
+        {
+            if y + y == x
+            {
+                x = y;
+                goto end;
+            }
+            y = y + 1;
+            loop;
+        }
+        else if y == 1
+        {
+            x = 3 * x + 1;
+            goto end;
+        }
+        y = y - 2;
+        loop;
+    }
+    end:
 }
 ```
 
@@ -68,12 +69,12 @@ In Penne, `goto` is a local forward-only jump. This is achieved by giving labels
 ```penne
 fn foo() -> i32
 {
-	var x = 0;
-	goto end;
-	x = 10; // this line is not executed
-	end:
-	x = x + 1;
-	return: x
+    var x = 0;
+    goto end;
+    x = 10; // this line is not executed
+    end:
+    x = x + 1;
+    return: x
 }
 ```
 
@@ -84,14 +85,14 @@ The only way to jump back is with the `loop` block:
 ```penne
 fn foo() -> i32
 {
-	var x = 0;
+    var x = 0;
 
-	{
-		x = x + 1;
-		loop;
-	}
+    {
+        x = x + 1;
+        loop;
+    }
 
-	return: x
+    return: x
 }
 ```
 
@@ -104,22 +105,22 @@ Function arguments other than pointers (see below), primitives and words are pas
 ```penne
 fn foo()
 {
-	var data: [4]i32 = [1, 2, 3, 4];
-	var total = sum(data);
+    var data: [4]i32 = [1, 2, 3, 4];
+    var total = sum(data);
 }
 
 fn sum(x: []i32) -> i32
 {
-	var total = 0;
-	var i = 0;
-	{
-		if i == |x|
-			goto return;
-		total = total + x[i];
-		i = i + 1;
-		loop;
-	}
-	return: total
+    var total = 0;
+    var i = 0;
+    {
+        if i == |x|
+            goto return;
+        total = total + x[i];
+        i = i + 1;
+        loop;
+    }
+    return: total
 }
 ```
 
@@ -128,25 +129,25 @@ fn sum(x: []i32) -> i32
 Views allow you to pass a large value by reference, but they only give immutable access. For mutable access, a pointer is needed. They can be created by taking the address of a value. Unlike in most other languages, reference pointers in Penne automatically dereference to their base type, which is any type that isn't a reference pointer.
 
 ```penne
-	var x: i32 = 17;
-	var a: &i32 = &x;
-	var y: i32 = a;
-	a = 30;
-	// Now x == 30 and y == 17.
+    var x: i32 = 17;
+    var a: &i32 = &x;
+    var y: i32 = a;
+    a = 30;
+    // Now x == 30 and y == 17.
 ```
 
 To change which value a reference pointer points to, you need to explicitly modify the address.
 
 ```penne
-	var x: i32 = 17;
-	var y: i32 = 30;
-	var z: i32 = 88;
-	var a: &i32 = &x;
-	&a = &y;
-	// Now a points to y instead of x.
-	var b: &i32 = &z;
-	&a = &b;
-	// Now a and b both point to z.
+    var x: i32 = 17;
+    var y: i32 = 30;
+    var z: i32 = 88;
+    var a: &i32 = &x;
+    &a = &y;
+    // Now a points to y instead of x.
+    var b: &i32 = &z;
+    &a = &b;
+    // Now a and b both point to z.
 ```
 
 Reference pointers allow a function to modify its arguments, but require the caller to explicitly pass in an address.
@@ -154,21 +155,21 @@ Reference pointers allow a function to modify its arguments, but require the cal
 ```penne
 fn foo()
 {
-	var data: [4]i32 = [1, 2, 3, 4];
-	set_to_zero(&data);
+    var data: [4]i32 = [1, 2, 3, 4];
+    set_to_zero(&data);
 }
 
 fn set_to_zero(x: &[]i32)
 {
-	var i = 0;
-	{
-		if i == |x|
-			goto end;
-		x[i] = 0;
-		i = i + 1;
-		loop;
-	}
-	end:
+    var i = 0;
+    {
+        if i == |x|
+            goto end;
+        x[i] = 0;
+        i = i + 1;
+        loop;
+    }
+    end:
 }
 ```
 
