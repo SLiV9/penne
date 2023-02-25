@@ -326,6 +326,11 @@ fn do_main() -> Result<(), anyhow::Error>
 		let declarations = parser::parse(tokens);
 		stdout.dump_code(&filename, &declarations)?;
 
+		let mut source = source;
+		if source.is_empty()
+		{
+			source.push_str(" ");
+		}
 		sources.push((filename, source));
 		modules.push((filepath, declarations));
 	}
