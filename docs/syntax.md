@@ -1,7 +1,10 @@
 ---
 layout: default
-title: Syntax
+title: Syntax Overview
+nav_order: 3
 ---
+
+## Syntax Overview
 
 The following codesample displays a broad range of syntax.
 

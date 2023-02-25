@@ -94,25 +94,25 @@ There are [precompiled binaries](https://github.com/SLiV9/penne/releases/latest)
 
 A brief overview of the more unique language features of Penne:
 
-### `goto` and `loop`
+### Scoped goto statements
 
-In Penne, `goto` is a local forward-only jump. This is achieved by giving labels a reverse scope: similar to how variables cannot be referenced before they are declared, labels cannot be jumped to _after_ they are declared.
+In Penne, `goto` is a local forward-only jump. This is achieved by giving labels a reverse scope: similar to how variables cannot be referenced before they are declared, labels cannot be jumped to after they are declared.
 
 ```
 fn foo() -> i32
 {
 	var x = 0;
 	goto end;
-	x = 10; // this line is not executed
+	x = 10; // This line is not executed.
 	end:
 	x = x + 1;
 	return: x
 }
 ```
 
-This function returns 1, not 11.
+### Scoped loop statements
 
-The only way to jump back is with the `loop` block:
+The only way to jump back is with the `loop` statement.
 
 ```
 fn foo() -> i32
@@ -124,11 +124,12 @@ fn foo() -> i32
 		loop;
 	}
 
+	// This line is never reached.
 	return: x
 }
 ```
 
-Here the line `x = x + 1` is executed forever and the end of the function is never reached.
+In order to keep backward jumps isolated and easy to find, `loop` can only appears as the last statement in a block.
 
 ### Views
 
@@ -207,7 +208,7 @@ fn set_to_zero(x: &[]i32)
 
 ### Structs and words
 
-Like arrays, structural types declared with the `struct` keyword are implicitly passed as a view and cannot be used as the return value of a function. However fixed size structures, declared with `word8`, `word16`, `word32`, `word64` or `word128`, are passed by value.
+Like arrays, structural types declared with the `struct` keyword are implicitly passed as a view and cannot be used as the return value of a function. Fixed size structures, declared with `word8`, `word16`, `word32`, `word64` or `word128`, are passed by value.
 
 ### Imports
 

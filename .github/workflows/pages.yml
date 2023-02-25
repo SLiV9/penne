@@ -5,6 +5,8 @@ on:
     branches:
       - main
       - ghpages
+    paths:
+      - 'docs/**'
   workflow_dispatch:
 
 permissions:

@@ -1,4 +1,5 @@
 @charset "UTF-8";
+@import url("https://fonts.googleapis.com/css?family=Source+Code+Pro:wght@400,600,700&text=╭─│·┬─╰──╯&font-display=swap");
 .highlight .c {
   color: #586e75; }
 
@@ -6556,3 +6557,35 @@ a.skip-to-main:active {
 
 div.opaque {
   background-color: #fff; }
+
+.terminal-output {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 0.8em;
+  line-height: 1.3;
+  color: #232221;
+  background-color: #ffffff;
+  white-space: pre-wrap;
+  padding-left: 12px;
+  padding-right: 12px; }
+  .terminal-output .bold {
+    font-weight: bold; }
+  .terminal-output .underline {
+    text-decoration: underline; }
+  .terminal-output .line-through {
+    text-decoration: line-through; }
+  .terminal-output .ef246 {
+    color: #898179; }
+  .terminal-output .ef249 {
+    color: #67615c; }
+  .terminal-output .f1 {
+    color: #cb2f2c;
+    font-weight: 600; }
+  .terminal-output .f3 {
+    color: #ff924f;
+    font-weight: 600; }
+  .terminal-output .f5 {
+    color: #ac59ae;
+    font-weight: 600; }
+  .terminal-output .f6 {
+    color: #167c9d;
+    font-weight: 600; }

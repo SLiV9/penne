@@ -1,15 +1,15 @@
 fn main() -> i32
 {
-	var x = 33;
-
-	goto next;
-
-	x = 100;
-
+	goto inner; // Invalid, the label `inner` is not in scope here.
+	var i = 1;
 	{
-		next:
-		x = 50;
+		var x = 10;
+		{ // The scope of the label `inner` ends here.
+			inner: // The scope of the label `inner` starts here.
+			var y = 20;
+			i = y;
+		}
+		i = x;
 	}
-
-	return: x
+	return: i
 }
