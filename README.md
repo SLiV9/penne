@@ -129,11 +129,9 @@ fn foo() -> i32
 }
 ```
 
-In order to keep backward jumps isolated and easy to find, `loop` can only appears as the last statement in a block.
-
 ### Views
 
-Function arguments other than pointers (see below), primitives and words are passed as a view. For arrays this means an array view (or "slice") is created and passed into the function. Array views remember the length of their array, which can be accessed with the length operation `|x|`.
+Function arguments such as arrays and structs are passed as a view. For arrays this means an array view (or "slice") is created and passed into the function. Array views remember the length of their array, which can be accessed with the length operation `|x|`.
 
 ```
 fn foo()
@@ -159,30 +157,6 @@ fn sum(x: []i32) -> i32
 
 ### Reference pointers
 
-Views allow you to pass a large value by reference, but they only give immutable access. For mutable access, a pointer is needed. They can be created by taking the address of a value. Unlike in most other languages, reference pointers in Penne automatically dereference to their base type, which is any type that isn't a reference pointer.
-
-```
-	var x: i32 = 17;
-	var a: &i32 = &x;
-	var y: i32 = a;
-	a = 30;
-	// Now x == 30 and y == 17.
-```
-
-To change which value a reference pointer points to, you need to explicitly modify the address.
-
-```
-	var x: i32 = 17;
-	var y: i32 = 30;
-	var z: i32 = 88;
-	var a: &i32 = &x;
-	&a = &y;
-	// Now a points to y instead of x.
-	var b: &i32 = &z;
-	&a = &b;
-	// Now a and b both point to z.
-```
-
 Reference pointers allow a function to modify its arguments, but require the caller to explicitly pass in an address.
 
 ```
@@ -204,6 +178,31 @@ fn set_to_zero(x: &[]i32)
 	}
 	end:
 }
+```
+
+Unlike pointers in most other languages, reference pointers (including pointers to pointers) automatically dereference to their base type, which is any type that isn't a reference pointer.
+
+```
+	var x: i32 = 17;
+	var a: &i32 = &x;
+	var b: &&i32 = &&a;
+	var y: i32 = b;
+	b = 30;
+	// Now x == 30 and y == 17.
+```
+
+To change which value a reference pointer points to, you need to explicitly modify the address.
+
+```
+	var x: i32 = 17;
+	var y: i32 = 30;
+	var z: i32 = 88;
+	var a: &i32 = &x;
+	&a = &y;
+	// Now a points to y instead of x.
+	var b: &i32 = &z;
+	&a = &b;
+	// Now a and b both point to z.
 ```
 
 ### Structs and words
@@ -240,6 +239,10 @@ As such, the following are decidedly *not* features of Penne:
 * support for pointers larger than 64 bits;
 * a string type guaranteed to be UTF-8;
 * memory safety of any kind.
+
+## Documentation
+
+[A detailed reference of language features and error codes is available on the website.](https://sliv9.github.io/penne)
 
 ## Contributing
 
