@@ -142,22 +142,12 @@ Usability:
 		☐	Better "duplicate variable" error text for parameters and members
 		☐	Better "conflicting types" error text for assigning to arrays
 			Because it will call 0i32 an expression of type []i32, for instance.
-	✔	Switch to custom error printed with ariadne @done (2022-10-09 22:24)
 	☐	Debug symbols in the resulting IR/executable
 	☐	Add helpful note when trying to jump backwards
 		☐	Similarly, add note when referencing variable declared later
 		☐	Add note when referencing variable from an inner scope
-	✔	Error codes @done (2022-10-10 14:23)
-	✔ Match expected error codes in tests @done (2022-10-10 14:23)
-	☐	Generate error index by formatting literate-style samples with ansi2html
-	✔	Color default terminal output differently from LLVM errors @done (2022-09-07 15:22)
 	✔	Allow goto to skip var declaration if short-lived (skip_shortlived_var.pn) @done (2023-01-09 17:57)
 	☐	Add options to disable color and unicode symbols in errors
-	☐	Add option to read from stdin (with "<input>" as source_filename)
-		☐	Use this in penne_annotated_error_reference.rb
-	✔	Prevent crash if file is empty @done (2023-02-27 15:46)
-	☐	Add option for expected error codes
-	☐	Prevent crash if number of structures exceeded
 
 Performance:
 	☐	Add parameter attributes such as nonnull and readonly
