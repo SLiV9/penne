@@ -25,6 +25,30 @@ fn allow_to_compile(filename: &str)
 }
 
 #[test]
+fn allow_empty_file_with_comment()
+{
+	allow_to_compile("tests/samples/valid/empty_file_with_comment.pn")
+}
+
+#[test]
+fn allow_empty_file_with_space()
+{
+	allow_to_compile("tests/samples/valid/empty_file_with_space.pn")
+}
+
+#[test]
+fn allow_empty_file_with_tab()
+{
+	allow_to_compile("tests/samples/valid/empty_file_with_tab.pn")
+}
+
+#[test]
+fn allow_empty_file_with_newline()
+{
+	allow_to_compile("tests/samples/valid/empty_file_with_newline.pn")
+}
+
+#[test]
 fn allow_use_of_untyped_array_in_wasm4_memset()
 {
 	allow_to_compile("tests/samples/valid/wasm4_memset_without_parentheses.pn")

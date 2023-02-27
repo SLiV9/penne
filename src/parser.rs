@@ -21,21 +21,24 @@ pub fn parse(tokens: Vec<LexedToken>) -> Vec<Declaration>
 {
 	let mut declarations = Vec::new();
 
-	let mut tokens = Tokens::from(tokens);
-	while !tokens.is_empty()
+	if !tokens.is_empty()
 	{
-		match parse_declaration(&mut tokens)
+		let mut tokens = Tokens::from(tokens);
+		while !tokens.is_empty()
 		{
-			Ok(declaration) =>
+			match parse_declaration(&mut tokens)
 			{
-				declarations.push(declaration);
-			}
-			Err(error) =>
-			{
-				let poison = error.into();
-				let declaration = Declaration::Poison(poison);
-				declarations.push(declaration);
-				skip_until_next_declaration(&mut tokens);
+				Ok(declaration) =>
+				{
+					declarations.push(declaration);
+				}
+				Err(error) =>
+				{
+					let poison = error.into();
+					let declaration = Declaration::Poison(poison);
+					declarations.push(declaration);
+					skip_until_next_declaration(&mut tokens);
+				}
 			}
 		}
 	}

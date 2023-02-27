@@ -67,6 +67,12 @@ fn fail_to_lex_unexpected_end_of_file()
 }
 
 #[test]
+fn fail_to_lex_empty_file()
+{
+	compile_to_fail(&[101], "tests/samples/invalid/empty_file.pn")
+}
+
+#[test]
 fn fail_to_parse_invalid_character()
 {
 	compile_to_fail(&[110], "tests/samples/invalid/invalid_character.pn")

@@ -503,6 +503,10 @@ impl Error
 		{
 			Error::UnexpectedEndOfFile { .. } => 100,
 			Error::Lexical {
+				error: lexer::Error::UnexpectedZeroByteFile,
+				..
+			} => 101,
+			Error::Lexical {
 				error: lexer::Error::UnexpectedCharacter,
 				..
 			} => 110,
@@ -784,6 +788,20 @@ fn write(
 					.with_order(2)
 					.with_color(SECONDARY),
 			),
+
+		Error::Lexical {
+			error: lexer::Error::UnexpectedZeroByteFile,
+			expectation,
+			location,
+		} => report
+			.with_message("Unexpected end of file")
+			.with_label(
+				location
+					.label()
+					.with_message(expectation)
+					.with_color(PRIMARY),
+			)
+			.with_note("Provided file contains zero bytes of data."),
 
 		Error::Lexical {
 			error: lexer::Error::UnexpectedCharacter,

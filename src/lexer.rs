@@ -95,6 +95,7 @@ pub enum Token
 #[derive(Debug, Clone)]
 pub enum Error
 {
+	UnexpectedZeroByteFile,
 	UnexpectedCharacter,
 	InvalidIntegerLiteral(std::num::ParseIntError),
 	InvalidNakedIntegerLiteral,
@@ -175,6 +176,19 @@ pub fn lex(source: &str, source_filename: &str) -> Vec<LexedToken>
 		// Syntax should remain such that each line can be lexed independently.
 		lex_line(line, source_filename, offset, 1 + i, &mut tokens);
 		offset += line.chars().count() + 1;
+	}
+	if source.len() == 0
+	{
+		let placeholder = LexedToken {
+			result: Err(Error::UnexpectedZeroByteFile),
+			location: Location {
+				source_filename: source_filename.to_string(),
+				span: 0..0,
+				line_number: 1,
+				line_offset: 1,
+			},
+		};
+		tokens.push(placeholder);
 	}
 	tokens
 }
@@ -292,7 +306,7 @@ fn lex_line(
 			{
 				Some((_, '/')) =>
 				{
-					break;
+					return;
 				}
 				_ => Ok(Token::Divide),
 			},
