@@ -1,6 +1,6 @@
 <div align="center">
 
-![Penne logo](assets/penne_logo_header.png)
+![Penne logo](docs/assets/images/penne_logo_header.png)
 
 # The Penne Programming Language
 
@@ -94,25 +94,25 @@ There are [precompiled binaries](https://github.com/SLiV9/penne/releases/latest)
 
 A brief overview of the more unique language features of Penne:
 
-### `goto` and `loop`
+### Scoped goto statements
 
-In Penne, `goto` is a local forward-only jump. This is achieved by giving labels a reverse scope: similar to how variables cannot be referenced before they are declared, labels cannot be jumped to _after_ they are declared.
+In Penne, `goto` is a local forward-only jump. This is achieved by giving labels a reverse scope: similar to how variables cannot be referenced before they are declared, labels cannot be jumped to after they are declared.
 
 ```
 fn foo() -> i32
 {
 	var x = 0;
 	goto end;
-	x = 10; // this line is not executed
+	x = 10; // This line is not executed.
 	end:
 	x = x + 1;
 	return: x
 }
 ```
 
-This function returns 1, not 11.
+### Scoped loop statements
 
-The only way to jump back is with the `loop` block:
+The only way to jump back is with the `loop` statement.
 
 ```
 fn foo() -> i32
@@ -124,15 +124,14 @@ fn foo() -> i32
 		loop;
 	}
 
+	// This line is never reached.
 	return: x
 }
 ```
 
-Here the line `x = x + 1` is executed forever and the end of the function is never reached.
-
 ### Views
 
-Function arguments other than pointers (see below), primitives and words are passed as a view. For arrays this means an array view (or "slice") is created and passed into the function. Array views remember the length of their array, which can be accessed with the length operation `|x|`.
+Function arguments such as arrays and structs are passed as a view. For arrays this means an array view (or "slice") is created and passed into the function. Array views remember the length of their array, which can be accessed with the length operation `|x|`.
 
 ```
 fn foo()
@@ -158,30 +157,6 @@ fn sum(x: []i32) -> i32
 
 ### Reference pointers
 
-Views allow you to pass a large value by reference, but they only give immutable access. For mutable access, a pointer is needed. They can be created by taking the address of a value. Unlike in most other languages, reference pointers in Penne automatically dereference to their base type, which is any type that isn't a reference pointer.
-
-```
-	var x: i32 = 17;
-	var a: &i32 = &x;
-	var y: i32 = a;
-	a = 30;
-	// Now x == 30 and y == 17.
-```
-
-To change which value a reference pointer points to, you need to explicitly modify the address.
-
-```
-	var x: i32 = 17;
-	var y: i32 = 30;
-	var z: i32 = 88;
-	var a: &i32 = &x;
-	&a = &y;
-	// Now a points to y instead of x.
-	var b: &i32 = &z;
-	&a = &b;
-	// Now a and b both point to z.
-```
-
 Reference pointers allow a function to modify its arguments, but require the caller to explicitly pass in an address.
 
 ```
@@ -205,9 +180,34 @@ fn set_to_zero(x: &[]i32)
 }
 ```
 
+Unlike pointers in most other languages, reference pointers (including pointers to pointers) automatically dereference to their base type, which is any type that isn't a reference pointer.
+
+```
+	var x: i32 = 17;
+	var a: &i32 = &x;
+	var b: &&i32 = &&a;
+	var y: i32 = b;
+	b = 30;
+	// Now x == 30 and y == 17.
+```
+
+To change which value a reference pointer points to, you need to explicitly modify the address.
+
+```
+	var x: i32 = 17;
+	var y: i32 = 30;
+	var z: i32 = 88;
+	var a: &i32 = &x;
+	&a = &y;
+	// Now a points to y instead of x.
+	var b: &i32 = &z;
+	&a = &b;
+	// Now a and b both point to z.
+```
+
 ### Structs and words
 
-Like arrays, structural types declared with the `struct` keyword are implicitly passed as a view and cannot be used as the return value of a function. However fixed size structures, declared with `word8`, `word16`, `word32`, `word64` or `word128`, are passed by value.
+Like arrays, structural types declared with the `struct` keyword are implicitly passed as a view and cannot be used as the return value of a function. Fixed size structures, declared with `word8`, `word16`, `word32`, `word64` or `word128`, are passed by value.
 
 ### Imports
 
@@ -216,9 +216,11 @@ The `import` keyword is used to import all function signatures, structures and c
 ### Interoperability with C
 
 Functions marked `extern` use the C ABI, which means it is possible (though not necessarily safe) to call them from C code compiled by LLVM. Conversely, declaring a function header such as
+
 ```
     extern fn foo(buffer: []u8, length: usize);
 ```
+
 allows you to call a C function from Penne code. Interacting with other programming languages that utilize or support the C ABI, such as C++, Rust, Zig or WebAssembly, is also possible.
 
 Only array views, pointers and the primitive types `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64` and `usize` are allowed in the signature of an `extern` function. Array views in `extern` functions correspond to (const) pointers in C, do not have a length (`|x|`) and must not be null.
@@ -237,6 +239,10 @@ As such, the following are decidedly *not* features of Penne:
 * support for pointers larger than 64 bits;
 * a string type guaranteed to be UTF-8;
 * memory safety of any kind.
+
+## Documentation
+
+[A detailed reference of language features and error codes is available on the website.](https://sliv9.github.io/penne)
 
 ## Contributing
 
