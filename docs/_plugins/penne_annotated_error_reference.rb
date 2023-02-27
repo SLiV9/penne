@@ -13,6 +13,7 @@ module Jekyll
 			current_error_code = nil
 			current_code_sample = nil
 			is_erroneous_code_sample = false
+			is_snippet = false
 			in_code_block = false;
 			output = ""
 			input.each_line do |line|
@@ -30,16 +31,18 @@ module Jekyll
 						output << get_error_message_html(current_code_sample,
 							current_error_code)
 						is_erroneous_code_sample = false
-					else
+					elsif not is_snippet
 						expect_no_errors(current_code_sample,
 							current_error_code)
 					end
 				end
 				if in_code_block
 					current_code_sample << line
+					is_snippet &&= line.match?(/^(  |\t)/)
 				end
 				if line.match?(/^```penne/) and not current_error_code.nil?
 					in_code_block = true
+					is_snippet = true
 					current_code_sample = ""
 				end
 			end
