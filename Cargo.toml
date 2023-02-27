@@ -7,6 +7,7 @@ license = "MIT"
 readme = "README.md"
 description = "Penne is a pasta-oriented programming language that favors the goto-statement for flow control."
 repository = "https://github.com/SLiV9/penne"
+exclude = ["/docs/_site"]
 
 [dependencies]
 enumset = "1.0"
