@@ -503,7 +503,7 @@ impl Error
 		{
 			Error::UnexpectedEndOfFile { .. } => 100,
 			Error::Lexical {
-				error: lexer::Error::UnexpectedEmptyFile,
+				error: lexer::Error::UnexpectedZeroByteFile,
 				..
 			} => 101,
 			Error::Lexical {
@@ -790,7 +790,7 @@ fn write(
 			),
 
 		Error::Lexical {
-			error: lexer::Error::UnexpectedEmptyFile,
+			error: lexer::Error::UnexpectedZeroByteFile,
 			expectation,
 			location,
 		} => report
@@ -801,7 +801,7 @@ fn write(
 					.with_message(expectation)
 					.with_color(PRIMARY),
 			)
-			.with_note("The smallest valid program is an empty comment."),
+			.with_note("Provided file contains zero bytes of data."),
 
 		Error::Lexical {
 			error: lexer::Error::UnexpectedCharacter,

@@ -73,24 +73,6 @@ fn fail_to_lex_empty_file()
 }
 
 #[test]
-fn fail_to_lex_empty_file_with_space()
-{
-	compile_to_fail(&[101], "tests/samples/invalid/empty_file_with_space.pn")
-}
-
-#[test]
-fn fail_to_lex_empty_file_with_tab()
-{
-	compile_to_fail(&[101], "tests/samples/invalid/empty_file_with_tab.pn")
-}
-
-#[test]
-fn fail_to_lex_empty_file_with_newline()
-{
-	compile_to_fail(&[101], "tests/samples/invalid/empty_file_with_newline.pn")
-}
-
-#[test]
 fn fail_to_parse_invalid_character()
 {
 	compile_to_fail(&[110], "tests/samples/invalid/invalid_character.pn")

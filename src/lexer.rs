@@ -88,9 +88,6 @@ pub enum Token
 		bytes: Vec<u8>,
 	},
 
-	// Comments
-	LineComment(String),
-
 	// Types.
 	Type(ValueType),
 }
@@ -98,7 +95,7 @@ pub enum Token
 #[derive(Debug, Clone)]
 pub enum Error
 {
-	UnexpectedEmptyFile,
+	UnexpectedZeroByteFile,
 	UnexpectedCharacter,
 	InvalidIntegerLiteral(std::num::ParseIntError),
 	InvalidNakedIntegerLiteral,
@@ -180,10 +177,10 @@ pub fn lex(source: &str, source_filename: &str) -> Vec<LexedToken>
 		lex_line(line, source_filename, offset, 1 + i, &mut tokens);
 		offset += line.chars().count() + 1;
 	}
-	if tokens.is_empty()
+	if source.len() == 0
 	{
 		let placeholder = LexedToken {
-			result: Err(Error::UnexpectedEmptyFile),
+			result: Err(Error::UnexpectedZeroByteFile),
 			location: Location {
 				source_filename: source_filename.to_string(),
 				span: 0..0,
@@ -309,17 +306,6 @@ fn lex_line(
 			{
 				Some((_, '/')) =>
 				{
-					iter.next();
-					source_offset_end += 1;
-					let comment: String = iter.map(|(_i, x)| x).collect();
-					source_offset_end += comment.chars().count();
-					let token = Token::LineComment(comment);
-					let result = Ok(token);
-					let location = Location {
-						span: source_offset_start..source_offset_end,
-						..location
-					};
-					tokens.push(LexedToken { result, location });
 					return;
 				}
 				_ => Ok(Token::Divide),
