@@ -88,6 +88,9 @@ pub enum Token
 		bytes: Vec<u8>,
 	},
 
+	// Comments
+	LineComment(String),
+
 	// Types.
 	Type(ValueType),
 }
@@ -306,7 +309,18 @@ fn lex_line(
 			{
 				Some((_, '/')) =>
 				{
-					break;
+					iter.next();
+					source_offset_end += 1;
+					let comment: String = iter.map(|(_i, x)| x).collect();
+					source_offset_end += comment.chars().count();
+					let token = Token::LineComment(comment);
+					let result = Ok(token);
+					let location = Location {
+						span: source_offset_start..source_offset_end,
+						..location
+					};
+					tokens.push(LexedToken { result, location });
+					return;
 				}
 				_ => Ok(Token::Divide),
 			},

@@ -63,8 +63,16 @@ impl From<Vec<LexedToken>> for Tokens
 			}) => location.clone(),
 			None => unreachable!(),
 		};
+		let tokens: VecDeque<LexedToken> = tokens
+			.into_iter()
+			.filter(|token| match token.result
+			{
+				Ok(Token::LineComment(_)) => false,
+				_ => true,
+			})
+			.collect();
 		Tokens {
-			tokens: VecDeque::from(tokens),
+			tokens,
 			last_location,
 			reserved_token: None,
 		}
