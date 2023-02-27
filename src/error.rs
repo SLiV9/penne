@@ -502,46 +502,19 @@ impl Error
 		match self
 		{
 			Error::UnexpectedEndOfFile { .. } => 100,
-			Error::Lexical {
-				error: lexer::Error::UnexpectedZeroByteFile,
-				..
-			} => 101,
-			Error::Lexical {
-				error: lexer::Error::UnexpectedCharacter,
-				..
-			} => 110,
-			Error::Lexical {
-				error: lexer::Error::InvalidIntegerLiteral(..),
-				..
-			} => 140,
-			Error::Lexical {
-				error: lexer::Error::InvalidIntegerTypeSuffix,
-				..
-			} => 141,
-			Error::Lexical {
-				error: lexer::Error::InvalidNakedIntegerLiteral,
-				..
-			} => 142,
-			Error::Lexical {
-				error: lexer::Error::InvalidBitIntegerLiteral,
-				..
-			} => 143,
-			Error::Lexical {
-				error: lexer::Error::MissingClosingQuote,
-				..
-			} => 160,
-			Error::Lexical {
-				error: lexer::Error::UnexpectedTrailingBackslash,
-				..
-			} => 161,
-			Error::Lexical {
-				error: lexer::Error::InvalidEscapeSequence,
-				..
-			} => 162,
-			Error::Lexical {
-				error: lexer::Error::InvalidMixedString,
-				..
-			} => 163,
+			Error::Lexical { error, .. } => match error
+			{
+				lexer::Error::UnexpectedZeroByteFile => 101,
+				lexer::Error::UnexpectedCharacter => 110,
+				lexer::Error::InvalidIntegerLiteral(..) => 140,
+				lexer::Error::InvalidIntegerTypeSuffix => 141,
+				lexer::Error::InvalidNakedIntegerLiteral => 142,
+				lexer::Error::InvalidBitIntegerLiteral => 143,
+				lexer::Error::MissingClosingQuote => 160,
+				lexer::Error::UnexpectedTrailingBackslash => 161,
+				lexer::Error::InvalidEscapeSequence => 162,
+				lexer::Error::InvalidMixedString => 163,
+			},
 			Error::UnexpectedToken { .. } => 300,
 			Error::UnexpectedSemicolonAfterIdentifier { .. } => 301,
 			Error::UnexpectedSemicolonAfterReturnValue { .. } => 302,

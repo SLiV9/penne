@@ -1,0 +1,2 @@
+const OK: [11]u8 = "hello\x07world";
+const NOT_OK: [11]u8 = "helloworld";

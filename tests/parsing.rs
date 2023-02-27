@@ -5,6 +5,7 @@
 //
 
 use penne::lexer::Token;
+use penne::resolved::{Expression, Statement};
 use penne::*;
 
 use pretty_assertions::assert_eq;
@@ -16,7 +17,7 @@ fn compile(filename: &str) -> Result<Vec<Declaration>, Errors>
 }
 
 #[test]
-fn parse_euro_in_string()
+fn lex_euro_in_string()
 {
 	let filename = "tests/samples/valid/euro_in_string.pn";
 	let source = std::fs::read_to_string(filename).unwrap();
@@ -48,6 +49,44 @@ fn parse_euro_in_string()
 	assert_eq!(&gathered[..], &expected[..]);
 }
 
+fn parse_string_in_file(filename: &str, expected: &str)
+{
+	let declarations = match compile(filename)
+	{
+		Ok(declarations) => declarations,
+		#[allow(unreachable_code)]
+		Err(errors) => match errors.panic() {},
+	};
+	assert_eq!(declarations.len(), 1);
+	let body = match declarations.into_iter().next()
+	{
+		Some(Declaration::Function { body, .. }) => body,
+		_ => panic!("broken test"),
+	};
+	assert_eq!(body.statements.len(), 1);
+	let statement = body.statements.into_iter().next();
+	match statement
+	{
+		Some(Statement::Declaration {
+			value: Some(Expression::StringLiteral { bytes, .. }),
+			..
+		}) =>
+		{
+			assert_eq!(&bytes[..], expected.as_bytes());
+		}
+		_ => panic!("broken test"),
+	}
+}
+
+#[test]
+fn parse_unicode_string_in_utf8_file()
+{
+	parse_string_in_file(
+		"tests/samples/valid/unicode_string_in_utf8_file.pn",
+		"$10/£10/€10. Aÿ!!! 하와!!!",
+	)
+}
+
 fn compile_to_fail(codes: &[u16], filename: &str)
 {
 	match compile(filename)
@@ -76,6 +115,15 @@ fn fail_to_lex_empty_file()
 fn fail_to_parse_invalid_character()
 {
 	compile_to_fail(&[110], "tests/samples/invalid/invalid_character.pn")
+}
+
+#[test]
+fn fail_to_parse_invalid_character_in_string()
+{
+	compile_to_fail(
+		&[110],
+		"tests/samples/invalid/invalid_character_in_string.pn",
+	)
 }
 
 #[test]

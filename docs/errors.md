@@ -49,6 +49,23 @@ A source file being completely empty is quite uncommon, and it may indicate some
 One particular example is writing source code to a newly created temporary file and passing the name of that file to the compiler *before* flushing and closing the temporary file.
 Because a Penne source file without declarations produces no other errors, this error code is used to warn about such a scenario.
 
+## Error code E110
+
+Unexpected character in source file or string literal.
+
+### Example of erroneous code
+
+```penne
+fn main() -> i32
+{
+    var x = 1 @ 2;
+}
+```
+
+### Explanation
+
+Penne source files must be US-ASCII or UTF-8 encoded. In addition, ASCII control characters (`U+0000` through `U+001F`, and `U+007F`) are disallowed inside string literals and must be escaped. Outside of string literals, only letters, digits, underscores and characters used in Penne operators are allowed.
+
 ## Error code E482
 
 A `goto` statement jumps past a variable declaration to a label, but this variable is used afterwards. This results in a variable that is declared in some branches, but not others, which is unsound.
