@@ -59,7 +59,7 @@ module Jekyll
 				if $? != 0
 					raise "Failed to get errors for E#{expected_error_code}"
 				end
-				emitted_html.sub!(/\/tmp\/penne_[a-zA-Z0-9._-]+_sample\.pn/,
+				emitted_html.gsub!(/\/tmp\/penne_[a-zA-Z0-9._-]+_sample\.pn/,
 					'&lt;source&gt;')
 				emitted_html.sub!(/\nError: compilation failed\n?\z/, '')
 				html << '<pre class="terminal-output f9 b9">' + "\n"

@@ -148,6 +148,8 @@ Usability:
 		☐	Add note when referencing variable from an inner scope
 	✔	Allow goto to skip var declaration if short-lived (skip_shortlived_var.pn) @done (2023-01-09 17:57)
 	☐	Add options to disable color and unicode symbols in errors
+	☐	Disallow implicit pointer types for variables (`let x = &a;`) again
+		☐	tests/samples/unresolved/implicit_pointer_type.pn
 
 Performance:
 	☐	Add parameter attributes such as nonnull and readonly
@@ -161,6 +163,7 @@ Documentation:
 
 Development:
 	☐	Improve test coverage
+		☐	Is E332 unreachable?
 
 Theory:
 	☐	Prove Turing completeness

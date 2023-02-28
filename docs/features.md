@@ -230,7 +230,7 @@ The `import` keyword is used to import all function signatures, structures and c
 Functions marked `extern` use the C ABI, which means it is possible (though not necessarily safe) to call them from C code compiled by LLVM. Conversely, declaring a function header such as
 
 ```penne
-    extern fn foo(buffer: []u8, length: usize);
+extern fn foo(buffer: []u8, length: usize);
 ```
 
 allows you to call a C function from Penne code. Interacting with other programming languages that utilize or support the C ABI, such as C++, Rust, Zig or WebAssembly, is also possible.
