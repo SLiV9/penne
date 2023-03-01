@@ -181,19 +181,6 @@ fn main() -> bool
 }
 ```
 
-## Error code E333
-
-The return type does not match the type of the return value.
-
-### Example of erroneous code
-
-```penne
-fn main() -> bool
-{
-    return: 50
-}
-```
-
 ## Error code E334
 
 A function with a return type is missing its return value.
@@ -483,6 +470,250 @@ struct Xyz
 ### Explanation
 
 Words are declared with a keyword that also specifies the size of the word in bits. For example, a `word32` could consist of a single `i32` member, or two `u16` members, or a `word16`, a `word8` and an `i8`.
+
+## Error code E400
+
+A `goto` statement uses a label that is not defined or not in scope.
+
+### Example of erroneous code
+
+```penne
+fn main() -> i32
+{
+    goto inner;
+    var i = 1;
+    {
+        var x = 10;
+        {
+            inner:
+            var y = 20;
+            i = y;
+        }
+        i = x;
+    }
+    return: i
+}
+```
+
+### Explanation
+
+See the documentation on [label scopes and `goto`](features.html#scoped-goto-statements).
+
+## Error code E401
+
+A function call refers to a function that has not been declared.
+
+### Example of erroneous code
+
+```penne
+fn foo()
+{
+    bar();
+}
+```
+
+Functions that are resolved at link time must be predeclared.
+
+```penne
+fn bar();
+
+fn foo()
+{
+    bar();
+}
+```
+
+## Error code E402
+
+An expression refers to a variable, parameter or constant that has not been declared or that is not in scope.
+
+### Example of erroneous code
+
+```penne
+fn foo()
+{
+    return: x
+}
+```
+
+## Error code E405
+
+An identifier is used as a type, but no struct or word with that name has been declared.
+
+### Example of erroneous code
+
+```penne
+fn foo() -> UndeclaredStruct;
+```
+
+## Error code E406
+
+A structure literal or dereference refers to a member that is not part of that structure's declaration.
+
+### Example of erroneous code
+
+```penne
+struct Digest
+{
+    buffer: [1024]u8,
+    len: usize,
+}
+
+fn foo()
+{
+    var digest = Digest {
+        length: 0usize,
+    };
+    var buffer = &digest.buffre;
+}
+```
+
+## Error code E413
+
+The definition of a constant depends on its own value.
+
+### Example of erroneous code
+
+```penne
+const X: i32 = Y + 1;
+const Y: i32 = X + 1;
+```
+
+## Error code E415
+
+A structure is embedded into one of its own members.
+
+### Example of erroneous code
+
+```penne
+struct Buffer
+{
+    data: [1024]u8,
+    metadata: Metadata,
+}
+
+struct Metadata
+{
+    debug_code: i32,
+    message: Buffer,
+}
+```
+
+## Error code E420
+
+Two labels with the same name are present in the same scope.
+
+### Example of erroneous code
+
+```penne
+fn main()
+{
+    next:
+    next:
+}
+```
+
+## Error code E421
+
+Two functions with the same name are declared.
+
+### Example of erroneous code
+
+```penne
+fn foo(x: i32);
+
+fn foo(x: i64);
+```
+
+## Error code E422
+
+A variable is declared with the same name as another variable, parameter or constant in scope.
+
+### Example of erroneous code
+
+```penne
+fn foo(x: i32) -> i32
+{
+    var x = 0;
+    return: x
+}
+```
+
+## Error code E423
+
+Two constants with the same name are declared.
+
+### Example of erroneous code
+
+```penne
+const X: i32 = 200;
+const Y: i32 = 250;
+const X: i32 = 300;
+```
+
+## Error code E424
+
+A parameter is declared with the same name as another parameter or constant in scope.
+
+### Example of erroneous code
+
+```penne
+fn draw_rectangle(x: i32, y: i32, w: i32, w: i32);
+```
+
+## Error code E425
+
+Two structures with the same name are declared.
+
+### Example of erroneous code
+
+```penne
+struct Position
+{
+    x: i32,
+    y: i32,
+    z: i32,
+}
+
+word16 Position
+{
+    row: i8,
+    col: i8,
+}
+```
+
+## Error code E426
+
+A structure is declared with two members of the same name.
+
+### Example of erroneous code
+
+```penne
+struct ItemCollection
+{
+    items: [1024]u64,
+    items: usize,
+}
+```
+
+## Error code E470
+
+An `import` declaration could not be resolved.
+
+### Example of erroneous code
+
+```penne
+import "nice_functionality.pn";
+```
+
+### Explanation
+
+The Penne compiler does not search for additional files on its own.
+In order to include a source file in the compilation process, add it as an extra argument after the main entry point.
+
+```console
+$ penne build src/main.pn src/nice_functionality.pn
+```
 
 ## Error code E482
 

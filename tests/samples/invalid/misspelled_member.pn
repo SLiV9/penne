@@ -1,0 +1,13 @@
+struct Digest
+{
+    buffer: [1024]u8,
+    len: usize,
+}
+
+fn foo()
+{
+    var digest = Digest {
+        length: 0usize,
+    };
+    var buffer = &digest.buffre;
+}

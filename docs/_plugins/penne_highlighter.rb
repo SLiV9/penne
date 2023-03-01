@@ -57,6 +57,7 @@ Jekyll::Hooks.register :site, :pre_render do |site|
 			rule %r/\$.*?$/, Error
 			rule %r/"/, Str, :double_quoted_string
 			rule %r/'/, Str, :single_quoted_string
+			rule %r/\b(-)?[0-9][.0-9]*(?=(i|u))/, Num::Integer
 			rule %r/\b(-)?[0-9][.0-9]*\b/, Num::Integer
 			rule %r/\b0x[0-9a-fA-F]+\b/, Num::Integer
 			rule %r/\b0b[0-1]+\b/, Num::Integer

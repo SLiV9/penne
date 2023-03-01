@@ -139,22 +139,7 @@
  <span class="ef246">3 │</span> <span class="ef249">    return: </span><span class="f3">50</span>
  <span class="ef246">  ·</span>             <span class="f3">─┬</span>  
  <span class="ef246">  ·</span>              <span class="f3">╰──</span> Value of type <span class="f3">`i32`</span> returned here.
-<span class="ef246">───╯</span></pre><h2 id="error-code-e333-1"> <a href="#error-code-e333-1" class="anchor-heading" aria-labelledby="error-code-e333-1"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E333 </h2> <p>The return type does not match the type of the return value.</p> <h3 id="example-of-erroneous-code-9"> <a href="#example-of-erroneous-code-9" class="anchor-heading" aria-labelledby="example-of-erroneous-code-9"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>() -&gt; <span class="kt">bool</span>
-{
-    <span class="nl">return:</span> <span class="mi">50</span>
-}
-</code></pre></div></div><pre class="terminal-output f9 b9">
-<span class="f1">[E333] Error:</span> Conflicting return value
-   <span class="ef246">╭─[</span>&lt;source&gt;:3:15<span class="ef246">]</span>
-   <span class="ef246">│</span>
- <span class="ef246">1 │</span> <span class="ef249">fn </span><span class="f6">main</span><span class="ef249">() -&gt; bool</span>
- <span class="ef246">  ·</span>    <span class="f6">──┬─</span>  
- <span class="ef246">  ·</span>      <span class="f6">╰───</span> Expected <span class="f6">`bool`</span> based on this declaration.
- <span class="ef246">  ·</span> 
- <span class="ef246">3 │</span> <span class="ef249">    return: </span><span class="f3">50</span>
- <span class="ef246">  ·</span>             <span class="f3">─┬</span>  
- <span class="ef246">  ·</span>              <span class="f3">╰──</span> Value of type <span class="f3">`i32`</span> returned here.
-<span class="ef246">───╯</span></pre><h2 id="error-code-e334"> <a href="#error-code-e334" class="anchor-heading" aria-labelledby="error-code-e334"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E334 </h2> <p>A function with a return type is missing its return value.</p> <h3 id="example-of-erroneous-code-10"> <a href="#example-of-erroneous-code-10" class="anchor-heading" aria-labelledby="example-of-erroneous-code-10"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>() -&gt; <span class="kt">bool</span>
+<span class="ef246">───╯</span></pre><h2 id="error-code-e334"> <a href="#error-code-e334" class="anchor-heading" aria-labelledby="error-code-e334"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E334 </h2> <p>A function with a return type is missing its return value.</p> <h3 id="example-of-erroneous-code-9"> <a href="#example-of-erroneous-code-9" class="anchor-heading" aria-labelledby="example-of-erroneous-code-9"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>() -&gt; <span class="kt">bool</span>
 {
     <span class="kp">var</span> <span class="nv">result</span> = <span class="kc">true</span>;
 }
@@ -174,7 +159,7 @@
     <span class="kp">var</span> <span class="nv">result</span> = <span class="kc">true</span>;
     <span class="nl">return:</span> result
 }
-</code></pre></div></div> <h2 id="error-code-e335"> <a href="#error-code-e335" class="anchor-heading" aria-labelledby="error-code-e335"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E335 </h2> <p>A return value is missing after a <code class="language-plaintext highlighter-rouge">return</code> label.</p> <h3 id="example-of-erroneous-code-11"> <a href="#example-of-erroneous-code-11" class="anchor-heading" aria-labelledby="example-of-erroneous-code-11"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
+</code></pre></div></div> <h2 id="error-code-e335"> <a href="#error-code-e335" class="anchor-heading" aria-labelledby="error-code-e335"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E335 </h2> <p>A return value is missing after a <code class="language-plaintext highlighter-rouge">return</code> label.</p> <h3 id="example-of-erroneous-code-10"> <a href="#example-of-erroneous-code-10" class="anchor-heading" aria-labelledby="example-of-erroneous-code-10"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
 {
     <span class="nl">return:</span>
 }
@@ -191,7 +176,7 @@
 {
     <span class="nl">end:</span>
 }
-</code></pre></div></div> <h3 id="explanation-4"> <a href="#explanation-4" class="anchor-heading" aria-labelledby="explanation-4"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>Although <code class="language-plaintext highlighter-rouge">return</code> is not keyword, the label <code class="language-plaintext highlighter-rouge">return</code> has a special meaning. It is used in the body of a function to separate the statements from the return value. Even functions without statements must use the <code class="language-plaintext highlighter-rouge">return</code> label to return a value, and <code class="language-plaintext highlighter-rouge">return</code> must always be the last label used.</p> <p>In functions that do not return a value, any identifier other than <code class="language-plaintext highlighter-rouge">return</code> may be used as the last label.</p> <h2 id="error-code-e343"> <a href="#error-code-e343" class="anchor-heading" aria-labelledby="error-code-e343"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E343 </h2> <p>A constant declaration is missing its type.</p> <h3 id="example-of-erroneous-code-12"> <a href="#example-of-erroneous-code-12" class="anchor-heading" aria-labelledby="example-of-erroneous-code-12"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="no">X</span> = <span class="mi">98</span>;
+</code></pre></div></div> <h3 id="explanation-4"> <a href="#explanation-4" class="anchor-heading" aria-labelledby="explanation-4"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>Although <code class="language-plaintext highlighter-rouge">return</code> is not keyword, the label <code class="language-plaintext highlighter-rouge">return</code> has a special meaning. It is used in the body of a function to separate the statements from the return value. Even functions without statements must use the <code class="language-plaintext highlighter-rouge">return</code> label to return a value, and <code class="language-plaintext highlighter-rouge">return</code> must always be the last label used.</p> <p>In functions that do not return a value, any identifier other than <code class="language-plaintext highlighter-rouge">return</code> may be used as the last label.</p> <h2 id="error-code-e343"> <a href="#error-code-e343" class="anchor-heading" aria-labelledby="error-code-e343"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E343 </h2> <p>A constant declaration is missing its type.</p> <h3 id="example-of-erroneous-code-11"> <a href="#example-of-erroneous-code-11" class="anchor-heading" aria-labelledby="example-of-erroneous-code-11"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="no">X</span> = <span class="mi">98</span>;
 </code></pre></div></div><pre class="terminal-output f9 b9">
 <span class="f1">[E343] Error:</span> Missing type
    <span class="ef246">╭─[</span>&lt;source&gt;:1:8<span class="ef246">]</span>
@@ -200,7 +185,7 @@
  <span class="ef246">  ·</span>       <span class="f3">┬</span>  
  <span class="ef246">  ·</span>       <span class="f3">╰──</span> Constants need an explicit type.
 <span class="ef246">───╯</span></pre><p>To fix this, add an explicit type.</p> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="no">X</span>: <span class="kt">i32</span> = <span class="mi">98</span>;
-</code></pre></div></div> <h2 id="error-code-e344"> <a href="#error-code-e344" class="anchor-heading" aria-labelledby="error-code-e344"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E344 </h2> <p>A function parameter is missing its type.</p> <h3 id="example-of-erroneous-code-13"> <a href="#example-of-erroneous-code-13" class="anchor-heading" aria-labelledby="example-of-erroneous-code-13"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>(x) -&gt; <span class="kt">i32</span>
+</code></pre></div></div> <h2 id="error-code-e344"> <a href="#error-code-e344" class="anchor-heading" aria-labelledby="error-code-e344"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E344 </h2> <p>A function parameter is missing its type.</p> <h3 id="example-of-erroneous-code-12"> <a href="#example-of-erroneous-code-12" class="anchor-heading" aria-labelledby="example-of-erroneous-code-12"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>(x) -&gt; <span class="kt">i32</span>
 {
     <span class="nl">return:</span> x * x
 }
@@ -215,7 +200,7 @@
 {
     <span class="nl">return:</span> x * x
 }
-</code></pre></div></div> <h2 id="error-code-e346"> <a href="#error-code-e346" class="anchor-heading" aria-labelledby="error-code-e346"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E346 </h2> <p>A structure member is missing its type.</p> <h3 id="example-of-erroneous-code-14"> <a href="#example-of-erroneous-code-14" class="anchor-heading" aria-labelledby="example-of-erroneous-code-14"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">struct</span> <span class="nc">Foo</span>
+</code></pre></div></div> <h2 id="error-code-e346"> <a href="#error-code-e346" class="anchor-heading" aria-labelledby="error-code-e346"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E346 </h2> <p>A structure member is missing its type.</p> <h3 id="example-of-erroneous-code-13"> <a href="#example-of-erroneous-code-13" class="anchor-heading" aria-labelledby="example-of-erroneous-code-13"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">struct</span> <span class="nc">Foo</span>
 {
     x,
     y,
@@ -239,7 +224,7 @@
     x: <span class="kt">i32</span>,
     y: <span class="kt">i32</span>,
 }
-</code></pre></div></div> <h2 id="error-code-e350"> <a href="#error-code-e350" class="anchor-heading" aria-labelledby="error-code-e350"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E350 </h2> <p>A compound type is deemed invalid.</p> <h3 id="example-of-erroneous-code-15"> <a href="#example-of-erroneous-code-15" class="anchor-heading" aria-labelledby="example-of-erroneous-code-15"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>()
+</code></pre></div></div> <h2 id="error-code-e350"> <a href="#error-code-e350" class="anchor-heading" aria-labelledby="error-code-e350"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E350 </h2> <p>A compound type is deemed invalid.</p> <h3 id="example-of-erroneous-code-14"> <a href="#example-of-erroneous-code-14" class="anchor-heading" aria-labelledby="example-of-erroneous-code-14"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>()
 {
     <span class="kp">var</span> <span class="nv">x</span>: [][]<span class="kt">i32</span>;
 }
@@ -250,7 +235,7 @@
  <span class="ef246">3 │</span> <span class="ef249">    var x: </span><span class="f3">[][]i32</span><span class="ef249">;</span>
  <span class="ef246">  ·</span>            <span class="f3">───┬───</span>  
  <span class="ef246">  ·</span>               <span class="f3">╰─────</span> The type <span class="f3">`[][]i32`</span> is invalid.
-<span class="ef246">───╯</span></pre><h3 id="explanation-5"> <a href="#explanation-5" class="anchor-heading" aria-labelledby="explanation-5"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>In addition to primitive types such as <code class="language-plaintext highlighter-rouge">i32</code> or <code class="language-plaintext highlighter-rouge">bool</code>, compound types can be created such as <code class="language-plaintext highlighter-rouge">[10]i32</code> (an array of <code class="language-plaintext highlighter-rouge">i32</code> of length 10), <code class="language-plaintext highlighter-rouge">&amp;bool</code> (a pointer to a <code class="language-plaintext highlighter-rouge">bool</code>) or <code class="language-plaintext highlighter-rouge">&amp;[]u8</code> (a pointer to an array slice of <code class="language-plaintext highlighter-rouge">u8</code>). Not all such compounds are valid.</p> <p>In particular, <code class="language-plaintext highlighter-rouge">[10]T</code> and <code class="language-plaintext highlighter-rouge">[]T</code> are only valid if the type <code class="language-plaintext highlighter-rouge">T</code> is valid and has a size that is known at compile time. The type <code class="language-plaintext highlighter-rouge">[]T</code> does not have a compile-time known size, hence compound types such as <code class="language-plaintext highlighter-rouge">[10][]u8</code> and <code class="language-plaintext highlighter-rouge">[][]i32</code> are invalid.</p> <h2 id="error-code-e351"> <a href="#error-code-e351" class="anchor-heading" aria-labelledby="error-code-e351"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E351 </h2> <p>A type that cannot be returned is used as a return type.</p> <h3 id="example-of-erroneous-code-16"> <a href="#example-of-erroneous-code-16" class="anchor-heading" aria-labelledby="example-of-erroneous-code-16"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>() -&gt; [<span class="mi">1000</span>]<span class="kt">i32</span>;
+<span class="ef246">───╯</span></pre><h3 id="explanation-5"> <a href="#explanation-5" class="anchor-heading" aria-labelledby="explanation-5"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>In addition to primitive types such as <code class="language-plaintext highlighter-rouge">i32</code> or <code class="language-plaintext highlighter-rouge">bool</code>, compound types can be created such as <code class="language-plaintext highlighter-rouge">[10]i32</code> (an array of <code class="language-plaintext highlighter-rouge">i32</code> of length 10), <code class="language-plaintext highlighter-rouge">&amp;bool</code> (a pointer to a <code class="language-plaintext highlighter-rouge">bool</code>) or <code class="language-plaintext highlighter-rouge">&amp;[]u8</code> (a pointer to an array slice of <code class="language-plaintext highlighter-rouge">u8</code>). Not all such compounds are valid.</p> <p>In particular, <code class="language-plaintext highlighter-rouge">[10]T</code> and <code class="language-plaintext highlighter-rouge">[]T</code> are only valid if the type <code class="language-plaintext highlighter-rouge">T</code> is valid and has a size that is known at compile time. The type <code class="language-plaintext highlighter-rouge">[]T</code> does not have a compile-time known size, hence compound types such as <code class="language-plaintext highlighter-rouge">[10][]u8</code> and <code class="language-plaintext highlighter-rouge">[][]i32</code> are invalid.</p> <h2 id="error-code-e351"> <a href="#error-code-e351" class="anchor-heading" aria-labelledby="error-code-e351"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E351 </h2> <p>A type that cannot be returned is used as a return type.</p> <h3 id="example-of-erroneous-code-15"> <a href="#example-of-erroneous-code-15" class="anchor-heading" aria-labelledby="example-of-erroneous-code-15"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>() -&gt; [<span class="mi">1000</span>]<span class="kt">i32</span>;
 </code></pre></div></div><pre class="terminal-output f9 b9">
 <span class="f1">[E351] Error:</span> Invalid return type
    <span class="ef246">╭─[</span>&lt;source&gt;:1:22<span class="ef246">]</span>
@@ -258,7 +243,7 @@
  <span class="ef246">1 │</span> <span class="ef249">fn foo() -&gt; </span><span class="f3">[1000]i32</span><span class="ef249">;</span>
  <span class="ef246">  ·</span>             <span class="f3">────┬────</span>  
  <span class="ef246">  ·</span>                 <span class="f3">╰──────</span> The type <span class="f3">`[1000]i32`</span> is not allowed as a return value.
-<span class="ef246">───╯</span></pre><h3 id="explanation-6"> <a href="#explanation-6" class="anchor-heading" aria-labelledby="explanation-6"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>Not all valid types can be used as a return type. In particular structs, arrays and array slices cannot be returned.</p> <h2 id="error-code-e352"> <a href="#error-code-e352" class="anchor-heading" aria-labelledby="error-code-e352"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E352 </h2> <p>A type that cannot be assigned is used to declare a variable.</p> <h3 id="example-of-erroneous-code-17"> <a href="#example-of-erroneous-code-17" class="anchor-heading" aria-labelledby="example-of-erroneous-code-17"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
+<span class="ef246">───╯</span></pre><h3 id="explanation-6"> <a href="#explanation-6" class="anchor-heading" aria-labelledby="explanation-6"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>Not all valid types can be used as a return type. In particular structs, arrays and array slices cannot be returned.</p> <h2 id="error-code-e352"> <a href="#error-code-e352" class="anchor-heading" aria-labelledby="error-code-e352"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E352 </h2> <p>A type that cannot be assigned is used to declare a variable.</p> <h3 id="example-of-erroneous-code-16"> <a href="#example-of-erroneous-code-16" class="anchor-heading" aria-labelledby="example-of-erroneous-code-16"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
 {
     <span class="kp">var</span> <span class="nv">x</span>: <span class="kt">void</span>;
 }
@@ -269,7 +254,7 @@
  <span class="ef246">3 │</span> <span class="ef249">    var </span><span class="f3">x</span><span class="ef249">: void;</span>
  <span class="ef246">  ·</span>         <span class="f3">┬</span>  
  <span class="ef246">  ·</span>         <span class="f3">╰──</span> A value of type <span class="f3">`void`</span> cannot be assigned to a variable.
-<span class="ef246">───╯</span></pre><h2 id="error-code-e353"> <a href="#error-code-e353" class="anchor-heading" aria-labelledby="error-code-e353"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E353 </h2> <p>A type that cannot be a constant is used to declare a constant.</p> <h3 id="example-of-erroneous-code-18"> <a href="#example-of-erroneous-code-18" class="anchor-heading" aria-labelledby="example-of-erroneous-code-18"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="no">X</span>: []<span class="kt">i32</span> = [<span class="mi">10</span>, <span class="mi">20</span>, <span class="mi">30</span>];
+<span class="ef246">───╯</span></pre><h2 id="error-code-e353"> <a href="#error-code-e353" class="anchor-heading" aria-labelledby="error-code-e353"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E353 </h2> <p>A type that cannot be a constant is used to declare a constant.</p> <h3 id="example-of-erroneous-code-17"> <a href="#example-of-erroneous-code-17" class="anchor-heading" aria-labelledby="example-of-erroneous-code-17"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="no">X</span>: []<span class="kt">i32</span> = [<span class="mi">10</span>, <span class="mi">20</span>, <span class="mi">30</span>];
 </code></pre></div></div><pre class="terminal-output f9 b9">
 <span class="f1">[E353] Error:</span> Invalid constant type
    <span class="ef246">╭─[</span>&lt;source&gt;:1:8<span class="ef246">]</span>
@@ -278,7 +263,7 @@
  <span class="ef246">  ·</span>       <span class="f3">┬</span>  
  <span class="ef246">  ·</span>       <span class="f3">╰──</span> A value of type <span class="f3">`[:]i32`</span> cannot be assigned to a constant.
 <span class="ef246">───╯</span></pre><p>To fix this, add an explicit size to the array type.</p> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="no">X</span>: [<span class="mi">3</span>]<span class="kt">i32</span> = [<span class="mi">10</span>, <span class="mi">20</span>, <span class="mi">30</span>];
-</code></pre></div></div> <h2 id="error-code-e354"> <a href="#error-code-e354" class="anchor-heading" aria-labelledby="error-code-e354"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E354 </h2> <p>A type that cannot be used as a parameter is used to declare a parameter.</p> <h3 id="example-of-erroneous-code-19"> <a href="#example-of-erroneous-code-19" class="anchor-heading" aria-labelledby="example-of-erroneous-code-19"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>(x: <span class="kt">void</span>);
+</code></pre></div></div> <h2 id="error-code-e354"> <a href="#error-code-e354" class="anchor-heading" aria-labelledby="error-code-e354"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E354 </h2> <p>A type that cannot be used as a parameter is used to declare a parameter.</p> <h3 id="example-of-erroneous-code-18"> <a href="#example-of-erroneous-code-18" class="anchor-heading" aria-labelledby="example-of-erroneous-code-18"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>(x: <span class="kt">void</span>);
 </code></pre></div></div><pre class="terminal-output f9 b9">
 <span class="f1">[E354] Error:</span> Invalid parameter type
    <span class="ef246">╭─[</span>&lt;source&gt;:1:9<span class="ef246">]</span>
@@ -286,7 +271,7 @@
  <span class="ef246">1 │</span> <span class="ef249">fn foo(</span><span class="f3">x</span><span class="ef249">: void);</span>
  <span class="ef246">  ·</span>        <span class="f3">┬</span>  
  <span class="ef246">  ·</span>        <span class="f3">╰──</span> The type <span class="f3">`void`</span> is not allowed as a parameter.
-<span class="ef246">───╯</span></pre><h2 id="error-code-e356"> <a href="#error-code-e356" class="anchor-heading" aria-labelledby="error-code-e356"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E356 </h2> <p>A type that cannot be part of a struct is used to declare a struct member, or a type that cannot be part of a word is used to declare a word member.</p> <h3 id="example-of-erroneous-code-20"> <a href="#example-of-erroneous-code-20" class="anchor-heading" aria-labelledby="example-of-erroneous-code-20"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">word64</span> <span class="nc">Foo</span>
+<span class="ef246">───╯</span></pre><h2 id="error-code-e356"> <a href="#error-code-e356" class="anchor-heading" aria-labelledby="error-code-e356"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E356 </h2> <p>A type that cannot be part of a struct is used to declare a struct member, or a type that cannot be part of a word is used to declare a word member.</p> <h3 id="example-of-erroneous-code-19"> <a href="#example-of-erroneous-code-19" class="anchor-heading" aria-labelledby="example-of-erroneous-code-19"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">word64</span> <span class="nc">Foo</span>
 {
     x: &amp;<span class="kt">i32</span>,
 }
@@ -297,7 +282,7 @@
  <span class="ef246">3 │</span> <span class="ef249">    </span><span class="f3">x</span><span class="ef249">: &amp;i32,</span>
  <span class="ef246">  ·</span>     <span class="f3">┬</span>  
  <span class="ef246">  ·</span>     <span class="f3">╰──</span> The type <span class="f3">`&amp;i32`</span> is not allowed as a member of a word.
-<span class="ef246">───╯</span></pre><h3 id="explanation-7"> <a href="#explanation-7" class="anchor-heading" aria-labelledby="explanation-7"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>The members of word can be fixed size integers, <code class="language-plaintext highlighter-rouge">bool</code> or other words.</p> <h2 id="error-code-e358"> <a href="#error-code-e358" class="anchor-heading" aria-labelledby="error-code-e358"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E358 </h2> <p>A type that is not part of the external ABI is used in a function marked <code class="language-plaintext highlighter-rouge">extern</code>.</p> <h3 id="example-of-erroneous-code-21"> <a href="#example-of-erroneous-code-21" class="anchor-heading" aria-labelledby="example-of-erroneous-code-21"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kp">extern</span> <span class="kd">fn</span> <span class="nf">foo</span>(x: <span class="kt">u128</span>);
+<span class="ef246">───╯</span></pre><h3 id="explanation-7"> <a href="#explanation-7" class="anchor-heading" aria-labelledby="explanation-7"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>The members of word can be fixed size integers, <code class="language-plaintext highlighter-rouge">bool</code> or other words.</p> <h2 id="error-code-e358"> <a href="#error-code-e358" class="anchor-heading" aria-labelledby="error-code-e358"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E358 </h2> <p>A type that is not part of the external ABI is used in a function marked <code class="language-plaintext highlighter-rouge">extern</code>.</p> <h3 id="example-of-erroneous-code-20"> <a href="#example-of-erroneous-code-20" class="anchor-heading" aria-labelledby="example-of-erroneous-code-20"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kp">extern</span> <span class="kd">fn</span> <span class="nf">foo</span>(x: <span class="kt">u128</span>);
 </code></pre></div></div><pre class="terminal-output f9 b9">
 <span class="f1">[E358] Error:</span> Invalid external type
    <span class="ef246">╭─[</span>&lt;source&gt;:1:22<span class="ef246">]</span>
@@ -307,7 +292,7 @@
  <span class="ef246">  ·</span>    <span class="f6">│</span>              <span class="f3">╰────</span> The type <span class="f3">`u128`</span> is not allowed in external declarations.
  <span class="ef246">  ·</span>    <span class="f6">│</span>                   
  <span class="ef246">  ·</span>    <span class="f6">╰───────────────────</span> Declaration marked external here.
-<span class="ef246">───╯</span></pre><h3 id="explanation-8"> <a href="#explanation-8" class="anchor-heading" aria-labelledby="explanation-8"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>For a detailed list of the types that allowed in <code class="language-plaintext highlighter-rouge">extern</code>, see the documentation about the <a href="features.html#interoperability-with-c">external ABI</a>.</p> <h2 id="error-code-e360"> <a href="#error-code-e360" class="anchor-heading" aria-labelledby="error-code-e360"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E360 </h2> <p>A constant expression contains an unsupported operation.</p> <h3 id="example-of-erroneous-code-22"> <a href="#example-of-erroneous-code-22" class="anchor-heading" aria-labelledby="example-of-erroneous-code-22"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="no">A</span>: <span class="kt">i32</span> = <span class="mi">200</span>;
+<span class="ef246">───╯</span></pre><h3 id="explanation-8"> <a href="#explanation-8" class="anchor-heading" aria-labelledby="explanation-8"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>For a detailed list of the types that allowed in <code class="language-plaintext highlighter-rouge">extern</code>, see the documentation about the <a href="features.html#interoperability-with-c">external ABI</a>.</p> <h2 id="error-code-e360"> <a href="#error-code-e360" class="anchor-heading" aria-labelledby="error-code-e360"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E360 </h2> <p>A constant expression contains an unsupported operation.</p> <h3 id="example-of-erroneous-code-21"> <a href="#example-of-erroneous-code-21" class="anchor-heading" aria-labelledby="example-of-erroneous-code-21"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="no">A</span>: <span class="kt">i32</span> = <span class="mi">200</span>;
 <span class="kd">const</span> <span class="no">X</span>: &amp;<span class="kt">i32</span> = &amp;A;
 </code></pre></div></div><pre class="terminal-output f9 b9">
 <span class="f1">[E360] Error:</span> Unsupported expression in constant expression
@@ -316,7 +301,7 @@
  <span class="ef246">2 │</span> <span class="ef249">const X: &amp;i32 = </span><span class="f3">&amp;</span><span class="ef249">A;</span>
  <span class="ef246">  ·</span>                 <span class="f3">┬</span>  
  <span class="ef246">  ·</span>                 <span class="f3">╰──</span> This expression is not supported in a constant expression.
-<span class="ef246">───╯</span></pre><h3 id="explanation-9"> <a href="#explanation-9" class="anchor-heading" aria-labelledby="explanation-9"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>The value assigned to a constant must be evaluated at compile time. In addition to literals and other constants, constant expressions may use basic arithmetic, bitwise operations and primitive casts.</p> <h2 id="error-code-e361"> <a href="#error-code-e361" class="anchor-heading" aria-labelledby="error-code-e361"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E361 </h2> <p>A constant expression contains a function call.</p> <h3 id="example-of-erroneous-code-23"> <a href="#example-of-erroneous-code-23" class="anchor-heading" aria-labelledby="example-of-erroneous-code-23"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">calculate_value</span>() -&gt; <span class="kt">i32</span>;
+<span class="ef246">───╯</span></pre><h3 id="explanation-9"> <a href="#explanation-9" class="anchor-heading" aria-labelledby="explanation-9"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>The value assigned to a constant must be evaluated at compile time. In addition to literals and other constants, constant expressions may use basic arithmetic, bitwise operations and primitive casts.</p> <h2 id="error-code-e361"> <a href="#error-code-e361" class="anchor-heading" aria-labelledby="error-code-e361"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E361 </h2> <p>A constant expression contains a function call.</p> <h3 id="example-of-erroneous-code-22"> <a href="#example-of-erroneous-code-22" class="anchor-heading" aria-labelledby="example-of-erroneous-code-22"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">calculate_value</span>() -&gt; <span class="kt">i32</span>;
 <span class="kd">const</span> <span class="no">A</span>: <span class="kt">i32</span> = calculate_value();
 </code></pre></div></div><pre class="terminal-output f9 b9">
 <span class="f1">[E361] Error:</span> Function in constant expression
@@ -325,7 +310,7 @@
  <span class="ef246">2 │</span> <span class="ef249">const A: i32 = </span><span class="f3">calculate_value</span><span class="ef249">();</span>
  <span class="ef246">  ·</span>                <span class="f3">───────┬───────</span>  
  <span class="ef246">  ·</span>                       <span class="f3">╰─────────</span> Function calls cannot occur in a constant expression.
-<span class="ef246">───╯</span></pre><h3 id="explanation-10"> <a href="#explanation-10" class="anchor-heading" aria-labelledby="explanation-10"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>Function calls are not allowed in constant expressions because their return value is not known at compile time.</p> <h2 id="error-code-e380"> <a href="#error-code-e380" class="anchor-heading" aria-labelledby="error-code-e380"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E380 </h2> <p>The declared size of a word does not match the total size of its members.</p> <h3 id="example-of-erroneous-code-24"> <a href="#example-of-erroneous-code-24" class="anchor-heading" aria-labelledby="example-of-erroneous-code-24"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">word64</span> <span class="nc">Xyz</span>
+<span class="ef246">───╯</span></pre><h3 id="explanation-10"> <a href="#explanation-10" class="anchor-heading" aria-labelledby="explanation-10"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>Function calls are not allowed in constant expressions because their return value is not known at compile time.</p> <h2 id="error-code-e380"> <a href="#error-code-e380" class="anchor-heading" aria-labelledby="error-code-e380"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E380 </h2> <p>The declared size of a word does not match the total size of its members.</p> <h3 id="example-of-erroneous-code-23"> <a href="#example-of-erroneous-code-23" class="anchor-heading" aria-labelledby="example-of-erroneous-code-23"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">word64</span> <span class="nc">Xyz</span>
 {
     x: <span class="kt">i32</span>,
     y: <span class="kt">i32</span>,
@@ -353,7 +338,247 @@
     y: <span class="kt">i32</span>,
     z: <span class="kt">i32</span>,
 }
-</code></pre></div></div> <h3 id="explanation-11"> <a href="#explanation-11" class="anchor-heading" aria-labelledby="explanation-11"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>Words are declared with a keyword that also specifies the size of the word in bits. For example, a <code class="language-plaintext highlighter-rouge">word32</code> could consist of a single <code class="language-plaintext highlighter-rouge">i32</code> member, or two <code class="language-plaintext highlighter-rouge">u16</code> members, or a <code class="language-plaintext highlighter-rouge">word16</code>, a <code class="language-plaintext highlighter-rouge">word8</code> and an <code class="language-plaintext highlighter-rouge">i8</code>.</p> <h2 id="error-code-e482"> <a href="#error-code-e482" class="anchor-heading" aria-labelledby="error-code-e482"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E482 </h2> <p>A <code class="language-plaintext highlighter-rouge">goto</code> statement jumps past a variable declaration to a label, but this variable is used afterwards. This results in a variable that is declared in some branches, but not others, which is unsound.</p> <h3 id="example-of-erroneous-code-25"> <a href="#example-of-erroneous-code-25" class="anchor-heading" aria-labelledby="example-of-erroneous-code-25"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>(input: <span class="kt">i32</span>) -&gt; <span class="kt">i32</span>
+</code></pre></div></div> <h3 id="explanation-11"> <a href="#explanation-11" class="anchor-heading" aria-labelledby="explanation-11"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>Words are declared with a keyword that also specifies the size of the word in bits. For example, a <code class="language-plaintext highlighter-rouge">word32</code> could consist of a single <code class="language-plaintext highlighter-rouge">i32</code> member, or two <code class="language-plaintext highlighter-rouge">u16</code> members, or a <code class="language-plaintext highlighter-rouge">word16</code>, a <code class="language-plaintext highlighter-rouge">word8</code> and an <code class="language-plaintext highlighter-rouge">i8</code>.</p> <h2 id="error-code-e400"> <a href="#error-code-e400" class="anchor-heading" aria-labelledby="error-code-e400"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E400 </h2> <p>A <code class="language-plaintext highlighter-rouge">goto</code> statement uses a label that is not defined or not in scope.</p> <h3 id="example-of-erroneous-code-24"> <a href="#example-of-erroneous-code-24" class="anchor-heading" aria-labelledby="example-of-erroneous-code-24"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>() -&gt; <span class="kt">i32</span>
+{
+    <span class="k">goto</span> inner;
+    <span class="kp">var</span> <span class="nv">i</span> = <span class="mi">1</span>;
+    {
+        <span class="kp">var</span> <span class="nv">x</span> = <span class="mi">10</span>;
+        {
+            <span class="nl">inner:</span>
+            <span class="kp">var</span> <span class="nv">y</span> = <span class="mi">20</span>;
+            i = y;
+        }
+        i = x;
+    }
+    <span class="nl">return:</span> i
+}
+</code></pre></div></div><pre class="terminal-output f9 b9">
+<span class="f1">[E400] Error:</span> Undefined label
+   <span class="ef246">╭─[</span>&lt;source&gt;:3:15<span class="ef246">]</span>
+   <span class="ef246">│</span>
+ <span class="ef246">3 │</span> <span class="ef249">    goto </span><span class="f3">inner</span><span class="ef249">;</span>
+ <span class="ef246">  ·</span>          <span class="f3">──┬──</span>  
+ <span class="ef246">  ·</span>            <span class="f3">╰────</span> Reference to undefined label '<span class="f3">inner</span>'.
+<span class="ef246">───╯</span></pre><h3 id="explanation-12"> <a href="#explanation-12" class="anchor-heading" aria-labelledby="explanation-12"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>See the documentation on <a href="features.html#scoped-goto-statements">label scopes and <code class="language-plaintext highlighter-rouge">goto</code></a>.</p> <h2 id="error-code-e401"> <a href="#error-code-e401" class="anchor-heading" aria-labelledby="error-code-e401"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E401 </h2> <p>A function call refers to a function that has not been declared.</p> <h3 id="example-of-erroneous-code-25"> <a href="#example-of-erroneous-code-25" class="anchor-heading" aria-labelledby="example-of-erroneous-code-25"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>()
+{
+    bar();
+}
+</code></pre></div></div><pre class="terminal-output f9 b9">
+<span class="f1">[E401] Error:</span> Undefined reference
+   <span class="ef246">╭─[</span>&lt;source&gt;:3:8<span class="ef246">]</span>
+   <span class="ef246">│</span>
+ <span class="ef246">3 │</span> <span class="ef249">    </span><span class="f3">bar</span><span class="ef249">();</span>
+ <span class="ef246">  ·</span>     <span class="f3">─┬─</span>  
+ <span class="ef246">  ·</span>      <span class="f3">╰───</span> Reference to undefined function named '<span class="f3">bar</span>'.
+<span class="ef246">───╯</span></pre><p>Functions that are resolved at link time must be predeclared.</p> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">bar</span>();
+
+<span class="kd">fn</span> <span class="nf">foo</span>()
+{
+    bar();
+}
+</code></pre></div></div> <h2 id="error-code-e402"> <a href="#error-code-e402" class="anchor-heading" aria-labelledby="error-code-e402"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E402 </h2> <p>An expression refers to a variable, parameter or constant that has not been declared or that is not in scope.</p> <h3 id="example-of-erroneous-code-26"> <a href="#example-of-erroneous-code-26" class="anchor-heading" aria-labelledby="example-of-erroneous-code-26"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>()
+{
+    <span class="nl">return:</span> x
+}
+</code></pre></div></div><pre class="terminal-output f9 b9">
+<span class="f1">[E402] Error:</span> Undefined reference
+   <span class="ef246">╭─[</span>&lt;source&gt;:3:14<span class="ef246">]</span>
+   <span class="ef246">│</span>
+ <span class="ef246">3 │</span> <span class="ef249">    return: </span><span class="f3">x</span>
+ <span class="ef246">  ·</span>             <span class="f3">┬</span>  
+ <span class="ef246">  ·</span>             <span class="f3">╰──</span> There is no variable, parameter or constant named '<span class="f3">x</span>' in this scope.
+<span class="ef246">───╯</span></pre><h2 id="error-code-e405"> <a href="#error-code-e405" class="anchor-heading" aria-labelledby="error-code-e405"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E405 </h2> <p>An identifier is used as a type, but no struct or word with that name has been declared.</p> <h3 id="example-of-erroneous-code-27"> <a href="#example-of-erroneous-code-27" class="anchor-heading" aria-labelledby="example-of-erroneous-code-27"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>() -&gt; UndeclaredStruct;
+</code></pre></div></div><pre class="terminal-output f9 b9">
+<span class="f1">[E405] Error:</span> Undefined reference
+   <span class="ef246">╭─[</span>&lt;source&gt;:1:29<span class="ef246">]</span>
+   <span class="ef246">│</span>
+ <span class="ef246">1 │</span> <span class="ef249">fn foo() -&gt; </span><span class="f3">UndeclaredStruct</span><span class="ef249">;</span>
+ <span class="ef246">  ·</span>             <span class="f3">────────┬───────</span>  
+ <span class="ef246">  ·</span>                     <span class="f3">╰─────────</span> Reference to undefined struct or word named '<span class="f3">UndeclaredStruct</span>'.
+<span class="ef246">───╯</span></pre><h2 id="error-code-e406"> <a href="#error-code-e406" class="anchor-heading" aria-labelledby="error-code-e406"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E406 </h2> <p>A structure literal or dereference refers to a member that is not part of that structure’s declaration.</p> <h3 id="example-of-erroneous-code-28"> <a href="#example-of-erroneous-code-28" class="anchor-heading" aria-labelledby="example-of-erroneous-code-28"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">struct</span> <span class="nc">Digest</span>
+{
+    buffer: [<span class="mi">1024</span>]<span class="kt">u8</span>,
+    len: <span class="kt">usize</span>,
+}
+
+<span class="kd">fn</span> <span class="nf">foo</span>()
+{
+    <span class="kp">var</span> <span class="nv">digest</span> = Digest {
+        length: <span class="mi">0</span><span class="kt">usize</span>,
+    };
+    <span class="kp">var</span> <span class="nv">buffer</span> = &amp;digest.buffre;
+}
+</code></pre></div></div><pre class="terminal-output f9 b9">
+<span class="f1">[E406] Error:</span> Undefined member
+    <span class="ef246">╭─[</span>&lt;source&gt;:10:15<span class="ef246">]</span>
+    <span class="ef246">│</span>
+ <span class="ef246"> 1 │</span> <span class="ef249">struct </span><span class="f6">Digest</span>
+ <span class="ef246">   ·</span>        <span class="f6">───┬──</span>  
+ <span class="ef246">   ·</span>           <span class="f6">╰────</span> The structure '<span class="f6">Digest</span>' is defined here.
+ <span class="ef246">   ·</span> 
+ <span class="ef246">10 │</span> <span class="ef249">        </span><span class="f3">length</span><span class="ef249">: 0usize,</span>
+ <span class="ef246">   ·</span>         <span class="f3">───┬──</span>  
+ <span class="ef246">   ·</span>            <span class="f3">╰────</span> No member '<span class="f3">length</span>' exists for structure '<span class="f6">Digest</span>'.
+<span class="ef246">────╯</span>
+<span class="f1">[E406] Error:</span> Undefined member
+    <span class="ef246">╭─[</span>&lt;source&gt;:12:32<span class="ef246">]</span>
+    <span class="ef246">│</span>
+ <span class="ef246"> 1 │</span> <span class="ef249">struct </span><span class="f6">Digest</span>
+ <span class="ef246">   ·</span>        <span class="f6">───┬──</span>  
+ <span class="ef246">   ·</span>           <span class="f6">╰────</span> The structure '<span class="f6">Digest</span>' is defined here.
+ <span class="ef246">   ·</span> 
+ <span class="ef246">12 │</span> <span class="ef249">    var buffer = &amp;digest.</span><span class="f3">buffre</span><span class="ef249">;</span>
+ <span class="ef246">   ·</span>                          <span class="f3">───┬──</span>  
+ <span class="ef246">   ·</span>                             <span class="f3">╰────</span> No member '<span class="f3">buffre</span>' exists for structure '<span class="f6">Digest</span>'.
+<span class="ef246">────╯</span></pre><h2 id="error-code-e413"> <a href="#error-code-e413" class="anchor-heading" aria-labelledby="error-code-e413"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E413 </h2> <p>The definition of a constant depends on its own value.</p> <h3 id="example-of-erroneous-code-29"> <a href="#example-of-erroneous-code-29" class="anchor-heading" aria-labelledby="example-of-erroneous-code-29"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="no">X</span>: <span class="kt">i32</span> = Y + <span class="mi">1</span>;
+<span class="kd">const</span> <span class="no">Y</span>: <span class="kt">i32</span> = X + <span class="mi">1</span>;
+</code></pre></div></div><pre class="terminal-output f9 b9">
+<span class="f1">[E413] Error:</span> Cyclical definition
+   <span class="ef246">╭─[</span>&lt;source&gt;:2:8<span class="ef246">]</span>
+   <span class="ef246">│</span>
+ <span class="ef246">2 │</span> <span class="ef249">const </span><span class="f3">Y</span><span class="ef249">: i32 = X + 1;</span>
+ <span class="ef246">  ·</span>       <span class="f3">┬</span>  
+ <span class="ef246">  ·</span>       <span class="f3">╰──</span> The definition of constant '<span class="f3">Y</span>' depends on itself.
+<span class="ef246">───╯</span></pre><h2 id="error-code-e415"> <a href="#error-code-e415" class="anchor-heading" aria-labelledby="error-code-e415"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E415 </h2> <p>A structure is embedded into one of its own members.</p> <h3 id="example-of-erroneous-code-30"> <a href="#example-of-erroneous-code-30" class="anchor-heading" aria-labelledby="example-of-erroneous-code-30"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">struct</span> <span class="nc">Buffer</span>
+{
+    data: [<span class="mi">1024</span>]<span class="kt">u8</span>,
+    metadata: Metadata,
+}
+
+<span class="kd">struct</span> <span class="nc">Metadata</span>
+{
+    debug_code: <span class="kt">i32</span>,
+    message: Buffer,
+}
+</code></pre></div></div><pre class="terminal-output f9 b9">
+<span class="f1">[E415] Error:</span> Cyclical definition
+    <span class="ef246">╭─[</span>&lt;source&gt;:7:16<span class="ef246">]</span>
+    <span class="ef246">│</span>
+ <span class="ef246"> 7 │</span> <span class="ef249">struct </span><span class="f3">Metadata</span>
+ <span class="ef246">   ·</span>        <span class="f3">────┬───</span>  
+ <span class="ef246">   ·</span>            <span class="f3">╰─────</span> Cannot determine size of structure '<span class="f3">Metadata</span>' that contains itself.
+ <span class="ef246">   ·</span> 
+ <span class="ef246">10 │</span> <span class="ef249">    </span><span class="f6">message</span><span class="ef249">: Buffer,</span>
+ <span class="ef246">   ·</span>     <span class="f6">───┬───</span>  
+ <span class="ef246">   ·</span>        <span class="f6">╰─────</span> This member contains '<span class="f3">Metadata</span>'.
+<span class="ef246">────╯</span></pre><h2 id="error-code-e420"> <a href="#error-code-e420" class="anchor-heading" aria-labelledby="error-code-e420"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E420 </h2> <p>Two labels with the same name are present in the same scope.</p> <h3 id="example-of-erroneous-code-31"> <a href="#example-of-erroneous-code-31" class="anchor-heading" aria-labelledby="example-of-erroneous-code-31"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
+{
+    <span class="nl">next:</span>
+    <span class="nl">next:</span>
+}
+</code></pre></div></div><pre class="terminal-output f9 b9">
+<span class="f1">[E420] Error:</span> Duplicate label
+   <span class="ef246">╭─[</span>&lt;source&gt;:4:10<span class="ef246">]</span>
+   <span class="ef246">│</span>
+ <span class="ef246">3 │</span> <span class="ef249">    </span><span class="f6">next:</span>
+ <span class="ef246">  ·</span>     <span class="f6">──┬──</span>  
+ <span class="ef246">  ·</span>       <span class="f6">╰────</span> Previously defined here.
+ <span class="ef246">4 │</span> <span class="ef249">    </span><span class="f3">next:</span>
+ <span class="ef246">  ·</span>     <span class="f3">──┬──</span>  
+ <span class="ef246">  ·</span>       <span class="f3">╰────</span> The label '<span class="f3">next</span>' is already defined in this scope.
+<span class="ef246">───╯</span></pre><h2 id="error-code-e421"> <a href="#error-code-e421" class="anchor-heading" aria-labelledby="error-code-e421"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E421 </h2> <p>Two functions with the same name are declared.</p> <h3 id="example-of-erroneous-code-32"> <a href="#example-of-erroneous-code-32" class="anchor-heading" aria-labelledby="example-of-erroneous-code-32"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>(x: <span class="kt">i32</span>);
+
+<span class="kd">fn</span> <span class="nf">foo</span>(x: <span class="kt">i64</span>);
+</code></pre></div></div><pre class="terminal-output f9 b9">
+<span class="f1">[E421] Error:</span> Duplicate function
+   <span class="ef246">╭─[</span>&lt;source&gt;:3:7<span class="ef246">]</span>
+   <span class="ef246">│</span>
+ <span class="ef246">1 │</span> <span class="ef249">fn </span><span class="f6">foo</span><span class="ef249">(x: i32);</span>
+ <span class="ef246">  ·</span>    <span class="f6">─┬─</span>  
+ <span class="ef246">  ·</span>     <span class="f6">╰───</span> Previously defined here.
+ <span class="ef246">  ·</span> 
+ <span class="ef246">3 │</span> <span class="ef249">fn </span><span class="f3">foo</span><span class="ef249">(x: i64);</span>
+ <span class="ef246">  ·</span>    <span class="f3">─┬─</span>  
+ <span class="ef246">  ·</span>     <span class="f3">╰───</span> A function named '<span class="f3">foo</span>' is already defined.
+<span class="ef246">───╯</span></pre><h2 id="error-code-e422"> <a href="#error-code-e422" class="anchor-heading" aria-labelledby="error-code-e422"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E422 </h2> <p>A variable is declared with the same name as another variable, parameter or constant in scope.</p> <h3 id="example-of-erroneous-code-33"> <a href="#example-of-erroneous-code-33" class="anchor-heading" aria-labelledby="example-of-erroneous-code-33"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>(x: <span class="kt">i32</span>) -&gt; <span class="kt">i32</span>
+{
+    <span class="kp">var</span> <span class="nv">x</span> = <span class="mi">0</span>;
+    <span class="nl">return:</span> x
+}
+</code></pre></div></div><pre class="terminal-output f9 b9">
+<span class="f1">[E422] Error:</span> Duplicate variable
+   <span class="ef246">╭─[</span>&lt;source&gt;:3:10<span class="ef246">]</span>
+   <span class="ef246">│</span>
+ <span class="ef246">1 │</span> <span class="ef249">fn foo(</span><span class="f6">x</span><span class="ef249">: i32) -&gt; i32</span>
+ <span class="ef246">  ·</span>        <span class="f6">┬</span>  
+ <span class="ef246">  ·</span>        <span class="f6">╰──</span> Previously defined here.
+ <span class="ef246">  ·</span> 
+ <span class="ef246">3 │</span> <span class="ef249">    var </span><span class="f3">x</span><span class="ef249"> = 0;</span>
+ <span class="ef246">  ·</span>         <span class="f3">┬</span>  
+ <span class="ef246">  ·</span>         <span class="f3">╰──</span> A variable named '<span class="f3">x</span>' is already defined in this scope.
+<span class="ef246">───╯</span></pre><h2 id="error-code-e423"> <a href="#error-code-e423" class="anchor-heading" aria-labelledby="error-code-e423"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E423 </h2> <p>Two constants with the same name are declared.</p> <h3 id="example-of-erroneous-code-34"> <a href="#example-of-erroneous-code-34" class="anchor-heading" aria-labelledby="example-of-erroneous-code-34"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="no">X</span>: <span class="kt">i32</span> = <span class="mi">200</span>;
+<span class="kd">const</span> <span class="no">Y</span>: <span class="kt">i32</span> = <span class="mi">250</span>;
+<span class="kd">const</span> <span class="no">X</span>: <span class="kt">i32</span> = <span class="mi">300</span>;
+</code></pre></div></div><pre class="terminal-output f9 b9">
+<span class="f1">[E423] Error:</span> Duplicate constant
+   <span class="ef246">╭─[</span>&lt;source&gt;:3:8<span class="ef246">]</span>
+   <span class="ef246">│</span>
+ <span class="ef246">1 │</span> <span class="ef249">const </span><span class="f6">X</span><span class="ef249">: i32 = 200;</span>
+ <span class="ef246">  ·</span>       <span class="f6">┬</span>  
+ <span class="ef246">  ·</span>       <span class="f6">╰──</span> Previously defined here.
+ <span class="ef246">  ·</span> 
+ <span class="ef246">3 │</span> <span class="ef249">const </span><span class="f3">X</span><span class="ef249">: i32 = 300;</span>
+ <span class="ef246">  ·</span>       <span class="f3">┬</span>  
+ <span class="ef246">  ·</span>       <span class="f3">╰──</span> The constant '<span class="f3">X</span>' is already defined.
+<span class="ef246">───╯</span></pre><h2 id="error-code-e424"> <a href="#error-code-e424" class="anchor-heading" aria-labelledby="error-code-e424"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E424 </h2> <p>A parameter is declared with the same name as another parameter or constant in scope.</p> <h3 id="example-of-erroneous-code-35"> <a href="#example-of-erroneous-code-35" class="anchor-heading" aria-labelledby="example-of-erroneous-code-35"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">draw_rectangle</span>(x: <span class="kt">i32</span>, y: <span class="kt">i32</span>, w: <span class="kt">i32</span>, w: <span class="kt">i32</span>);
+</code></pre></div></div><pre class="terminal-output f9 b9">
+<span class="f1">[E424] Error:</span> Duplicate parameter
+   <span class="ef246">╭─[</span>&lt;source&gt;:1:44<span class="ef246">]</span>
+   <span class="ef246">│</span>
+ <span class="ef246">1 │</span> <span class="ef249">fn draw_rectangle(x: i32, y: i32, </span><span class="f6">w</span><span class="ef249">: i32, </span><span class="f3">w</span><span class="ef249">: i32);</span>
+ <span class="ef246">  ·</span>                                   <span class="f6">┬</span>       <span class="f3">┬</span>  
+ <span class="ef246">  ·</span>                                   <span class="f6">╰──────────</span> Previously defined here.
+ <span class="ef246">  ·</span>                                           <span class="f3">│</span>  
+ <span class="ef246">  ·</span>                                           <span class="f3">╰──</span> A parameter named '<span class="f3">w</span>' is already defined for this function.
+<span class="ef246">───╯</span></pre><h2 id="error-code-e425"> <a href="#error-code-e425" class="anchor-heading" aria-labelledby="error-code-e425"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E425 </h2> <p>Two structures with the same name are declared.</p> <h3 id="example-of-erroneous-code-36"> <a href="#example-of-erroneous-code-36" class="anchor-heading" aria-labelledby="example-of-erroneous-code-36"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">struct</span> <span class="nc">Position</span>
+{
+    x: <span class="kt">i32</span>,
+    y: <span class="kt">i32</span>,
+    z: <span class="kt">i32</span>,
+}
+
+<span class="kd">word16</span> <span class="nc">Position</span>
+{
+    row: <span class="kt">i8</span>,
+    col: <span class="kt">i8</span>,
+}
+</code></pre></div></div><pre class="terminal-output f9 b9">
+<span class="f1">[E425] Error:</span> Duplicate structure
+   <span class="ef246">╭─[</span>&lt;source&gt;:8:16<span class="ef246">]</span>
+   <span class="ef246">│</span>
+ <span class="ef246">1 │</span> <span class="ef249">struct </span><span class="f6">Position</span>
+ <span class="ef246">  ·</span>        <span class="f6">────┬───</span>  
+ <span class="ef246">  ·</span>            <span class="f6">╰─────</span> Previously defined here.
+ <span class="ef246">  ·</span> 
+ <span class="ef246">8 │</span> <span class="ef249">word16 </span><span class="f3">Position</span>
+ <span class="ef246">  ·</span>        <span class="f3">────┬───</span>  
+ <span class="ef246">  ·</span>            <span class="f3">╰─────</span> A struct or word named '<span class="f3">Position</span>' is already defined.
+<span class="ef246">───╯</span></pre><h2 id="error-code-e426"> <a href="#error-code-e426" class="anchor-heading" aria-labelledby="error-code-e426"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E426 </h2> <p>A structure is declared with two members of the same name.</p> <h3 id="example-of-erroneous-code-37"> <a href="#example-of-erroneous-code-37" class="anchor-heading" aria-labelledby="example-of-erroneous-code-37"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">struct</span> <span class="nc">ItemCollection</span>
+{
+    items: [<span class="mi">1024</span>]<span class="kt">u64</span>,
+    items: <span class="kt">usize</span>,
+}
+</code></pre></div></div><pre class="terminal-output f9 b9">
+<span class="f1">[E426] Error:</span> Duplicate member
+   <span class="ef246">╭─[</span>&lt;source&gt;:4:10<span class="ef246">]</span>
+   <span class="ef246">│</span>
+ <span class="ef246">3 │</span> <span class="ef249">    </span><span class="f6">items</span><span class="ef249">: [1024]u64,</span>
+ <span class="ef246">  ·</span>     <span class="f6">──┬──</span>  
+ <span class="ef246">  ·</span>       <span class="f6">╰────</span> Previously defined here.
+ <span class="ef246">4 │</span> <span class="ef249">    </span><span class="f3">items</span><span class="ef249">: usize,</span>
+ <span class="ef246">  ·</span>     <span class="f3">──┬──</span>  
+ <span class="ef246">  ·</span>       <span class="f3">╰────</span> A member named '<span class="f3">items</span>' is already defined in this structure.
+<span class="ef246">───╯</span></pre><h2 id="error-code-e470"> <a href="#error-code-e470" class="anchor-heading" aria-labelledby="error-code-e470"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E470 </h2> <p>An <code class="language-plaintext highlighter-rouge">import</code> declaration could not be resolved.</p> <h3 id="example-of-erroneous-code-38"> <a href="#example-of-erroneous-code-38" class="anchor-heading" aria-labelledby="example-of-erroneous-code-38"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="s">"nice_functionality.pn"</span>;
+</code></pre></div></div><pre class="terminal-output f9 b9">
+<span class="f1">[E470] Error:</span> Unresolved import
+   <span class="ef246">╭─[</span>&lt;source&gt;:1:7<span class="ef246">]</span>
+   <span class="ef246">│</span>
+ <span class="ef246">1 │</span> <span class="f3">import</span><span class="ef249"> &quot;nice_functionality.pn&quot;;</span>
+ <span class="ef246">  ·</span> <span class="f3">───┬──</span>  
+ <span class="ef246">  ·</span>    <span class="f3">╰────</span> Reference to unknown file '<span class="f3">nice_functionality.pn</span>'.
+<span class="ef246">───╯</span></pre><h3 id="explanation-13"> <a href="#explanation-13" class="anchor-heading" aria-labelledby="explanation-13"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>The Penne compiler does not search for additional files on its own. In order to include a source file in the compilation process, add it as an extra argument after the main entry point.</p> <div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span><span class="w"> </span>penne build src/main.pn src/nice_functionality.pn
+</code></pre></div></div> <h2 id="error-code-e482"> <a href="#error-code-e482" class="anchor-heading" aria-labelledby="error-code-e482"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E482 </h2> <p>A <code class="language-plaintext highlighter-rouge">goto</code> statement jumps past a variable declaration to a label, but this variable is used afterwards. This results in a variable that is declared in some branches, but not others, which is unsound.</p> <h3 id="example-of-erroneous-code-39"> <a href="#example-of-erroneous-code-39" class="anchor-heading" aria-labelledby="example-of-erroneous-code-39"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>(input: <span class="kt">i32</span>) -&gt; <span class="kt">i32</span>
 {
     <span class="kp">var</span> <span class="nv">result</span> = <span class="mi">0</span>;
     <span class="k">if</span> input == <span class="mi">1</span>
@@ -394,7 +619,7 @@
     result = result + a;
     <span class="nl">return:</span> result
 }
-</code></pre></div></div> <h2 id="error-code-l1800"> <a href="#error-code-l1800" class="anchor-heading" aria-labelledby="error-code-l1800"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code L1800 </h2> <p>A <code class="language-plaintext highlighter-rouge">loop</code> statement appears on its own in the branch of an <code class="language-plaintext highlighter-rouge">if</code> statement.</p> <h3 id="example-of-erroneous-code-26"> <a href="#example-of-erroneous-code-26" class="anchor-heading" aria-labelledby="example-of-erroneous-code-26"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>() -&gt; <span class="kt">i32</span>
+</code></pre></div></div> <h2 id="error-code-l1800"> <a href="#error-code-l1800" class="anchor-heading" aria-labelledby="error-code-l1800"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code L1800 </h2> <p>A <code class="language-plaintext highlighter-rouge">loop</code> statement appears on its own in the branch of an <code class="language-plaintext highlighter-rouge">if</code> statement.</p> <h3 id="example-of-erroneous-code-40"> <a href="#example-of-erroneous-code-40" class="anchor-heading" aria-labelledby="example-of-erroneous-code-40"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>() -&gt; <span class="kt">i32</span>
 {
     <span class="kp">var</span> <span class="nv">x</span> = <span class="mi">33</span>;
     <span class="kp">var</span> <span class="nv">i</span> = <span class="mi">1</span>;
@@ -427,7 +652,7 @@
  <span class="ef246">   ·</span>     
  <span class="ef246">   ·</span>     <span class="ef115">Note</span>: Perhaps use <span class="f3">`goto`</span> instead to jump to a <span class="f3">`loop`</span> elsewhere. To surpress this warning, add a label.
 <span class="ef246">────╯</span>
-</pre><h3 id="explanation-12"> <a href="#explanation-12" class="anchor-heading" aria-labelledby="explanation-12"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>The branches of an <code class="language-plaintext highlighter-rouge">if</code> statement must be either <code class="language-plaintext highlighter-rouge">goto</code> statements or block statements. Therefore the following code is not valid:</p> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="k">if</span> i != <span class="mi">10</span>
+</pre><h3 id="explanation-14"> <a href="#explanation-14" class="anchor-heading" aria-labelledby="explanation-14"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>The branches of an <code class="language-plaintext highlighter-rouge">if</code> statement must be either <code class="language-plaintext highlighter-rouge">goto</code> statements or block statements. Therefore the following code is not valid:</p> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="k">if</span> i != <span class="mi">10</span>
             <span class="k">loop</span>;
 </code></pre></div></div> <p>One might attempt to solve this by wrapping the <code class="language-plaintext highlighter-rouge">loop</code> statement in braces:</p> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="k">if</span> i != <span class="mi">10</span>
         {
