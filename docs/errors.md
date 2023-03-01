@@ -66,6 +66,158 @@ fn main() -> i32
 
 Penne source files must be US-ASCII or UTF-8 encoded. In addition, ASCII control characters (`U+0000` through `U+001F`, and `U+007F`) are disallowed inside string literals and must be escaped. Outside of string literals, only letters, digits, underscores and characters used in Penne operators are allowed.
 
+## Error code E140
+
+An integer literal is larger than the maximum value for its type, or smaller than the minimum value.
+
+### Example of erroneous code
+
+```penne
+fn main() -> i32
+{
+    return: 2138712987321987319321987317931831928i32
+}
+```
+
+## Error code E141
+
+An integer literal has a suffix that is not a valid integer type.
+
+### Example of erroneous code
+
+```penne
+fn main()
+{
+    var x = 123127312i63;
+}
+```
+
+## Error code E142
+
+An integer literal without type suffix is too big to parse.
+
+### Example of erroneous code
+
+```penne
+fn main()
+{
+    var x: i128 = 1180591620717411303424;
+}
+```
+
+To fix this, add an explicit type suffix.
+
+```penne
+fn main()
+{
+    var x: i128 = 1180591620717411303424i128;
+}
+```
+
+### Explanation
+
+An integer literal must have a type suffix if it fits neither an `i64` nor a `u64` --- that is, if it is smaller than `-(2^63 - 1)` or larger than `2^64 - 1`.
+This type suffix must be `i128` or `u128`.
+
+## Error code E143
+
+A hexadecimal or binary integer literal is too big to parse.
+
+### Example of erroneous code
+
+```penne
+fn main()
+{
+    var x: u128 = 0x46252a329482eaf72058e10b93e6f52;
+}
+```
+
+### Explanation
+
+Hexadecimal and binary integer literals have to fit a `u64` --- that is, they cannot be larger than `2^64 - 1`.
+
+## Error code E160
+
+A string literal is not closed before the end of the line.
+
+### Example of erroneous code
+
+```penne
+fn main()
+{
+    var x = "Hello
+    world!";
+}
+```
+
+Multiline strings are not supported. Newlines in strings have to be escaped.
+
+```penne
+fn main()
+{
+    var x = "Hello\nworld!";
+}
+```
+
+If a string is too large to fit one line according to your formatting preferences, it can be closed and then reopened on a new line.
+
+```penne
+fn main()
+{
+    var x = "Hello"
+    " world!";
+}
+```
+
+This string is identical to `"Hello world!"`.
+
+## Error code E161
+
+A string literal contains a backslash just before the end of the line.
+
+### Example of erroneous code
+
+```penne
+fn main()
+{
+    var x = "Hello \
+    world!";
+}
+```
+
+This form of line continuation is seen in other languages but is not supported in Penne.
+To wrap a string across multiple lines, it can be closed and then reopened on a new line.
+
+```penne
+fn main()
+{
+    var x = "Hello "
+    "world!";
+}
+```
+
+## Error code E162
+
+A string literal contains an invalid escape sequence or an unescaped backslash.
+
+### Example of erroneous code
+
+```penne
+fn main()
+{
+    var x = "C:\Program Files";
+}
+```
+
+Backslashes must be escaped inside string literals.
+
+```penne
+fn main()
+{
+    var x = "C:\\Program Files";
+}
+```
+
 ## Error code E300
 
 The parser expected a different token based on context.
@@ -753,6 +905,129 @@ fn main(input: i32) -> i32
 }
 ```
 
+## Error code E800
+
+A `loop` statement is not the final statement of the block in which it appears.
+
+### Example of erroneous code
+
+```penne
+fn main() -> i32
+{
+    var result;
+    var i: i32 = 0;
+    {
+        var y = 3000 + i;
+        i = i + 1;
+        if i == 10
+            goto exit_loop;
+        loop;
+        exit_loop:
+        result = y;
+    }
+    result = result * 2;
+    return: result
+}
+```
+
+A `loop` statement may only appear as the final statement in a block.
+The code needs to be restructured.
+
+```penne
+fn main() -> i32
+{
+    var result;
+    var i: i32 = 0;
+    {
+        var y = 3000 + i;
+        i = i + 1;
+        if i == 10
+        {
+            result = y;
+            goto exit_loop;
+        }
+        loop;
+    }
+    exit_loop:
+    result = result * 2;
+    return: result
+}
+```
+
+## Error code E801
+
+A `loop` statement appears on its own in the body of a function.
+
+### Example of erroneous code
+
+```penne
+fn read_from_client(buffer: &[]u8, exact_size: usize);
+fn handle_message_from_client(buffer: []u8, message_size: usize);
+
+fn listen_to_client()
+{
+    var header_buffer: [1]u8;
+    var message_buffer: [256]u8;
+    read_from_client(&header_buffer, 1);
+    var header: u8 = header_buffer[0];
+    var message_size: usize = header as usize;
+    read_from_client(&message_buffer, message_size);
+    handle_message_from_client(message_buffer, message_size);
+    loop;
+}
+```
+
+To fix this, wrap the looping statements in a block.
+
+```penne
+fn read_from_client(buffer: &[]u8, exact_size: usize);
+fn handle_message_from_client(buffer: []u8, message_size: usize);
+
+fn listen_to_client()
+{
+    var header_buffer: [1]u8;
+    var message_buffer: [256]u8;
+    {
+        read_from_client(&header_buffer, 1);
+        var header: u8 = header_buffer[0];
+        var message_size: usize = header as usize;
+        read_from_client(&message_buffer, message_size);
+        handle_message_from_client(message_buffer, message_size);
+        loop;
+    }
+}
+```
+
+## Error code E840
+
+Missing braces around a conditional branch.
+
+### Example of erroneous code
+
+```penne
+fn main(x: i32) -> i32
+{
+    var result = 1;
+    if x == 0
+        result = 10;
+    return: result
+}
+```
+
+To fix this, add braces around the statement (or statements) that belong to that branch.
+
+```penne
+fn main(x: i32) -> i32
+{
+    var result = 1;
+    if x == 0
+    {
+        result = 10;
+    }
+    return: result
+}
+```
+
 ## Error code L1800
 
 A `loop` statement appears on its own in the branch of an `if` statement.
@@ -773,8 +1048,7 @@ fn main() -> i32
         }
     }
     x = x + 1;
-    return:
-    x
+    return: x
 }
 ```
 
@@ -824,8 +1098,7 @@ fn main() -> i32
     }
     end:
     x = x + 1;
-    return:
-    x
+    return: x
 }
 ```
 

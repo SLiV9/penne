@@ -21,313 +21,383 @@
     "relUrl": "/errors.html#error-code-e110"
   },"3": {
     "doc": "Error Code Reference",
+    "title": "Error code E140",
+    "content": "An integer literal is larger than the maximum value for its type, or smaller than the minimum value. Example of erroneous code . fn main() -&gt; i32 { return: 2138712987321987319321987317931831928i32 } . [E140] Error: Invalid integer literal ╭─[&lt;source&gt;:3:53] │ 3 │ return: 2138712987321987319321987317931831928i32 · ────────────────────┬─────────────────── · ╰───────────────────── expected literal or identifier · · Note: number too large to fit in target type ───╯ . ",
+    "url": "/penne/errors.html#error-code-e140",
+    
+    "relUrl": "/errors.html#error-code-e140"
+  },"4": {
+    "doc": "Error Code Reference",
+    "title": "Error code E141",
+    "content": "An integer literal has a suffix that is not a valid integer type. Example of erroneous code . fn main() { var x = 123127312i63; } . [E141] Error: Invalid integer literal type suffix ╭─[&lt;source&gt;:3:25] │ 3 │ var x = 123127312i63; · ──────┬───── · ╰─────── expected literal or identifier ───╯ . ",
+    "url": "/penne/errors.html#error-code-e141",
+    
+    "relUrl": "/errors.html#error-code-e141"
+  },"5": {
+    "doc": "Error Code Reference",
+    "title": "Error code E142",
+    "content": "An integer literal without type suffix is too big to parse. Example of erroneous code . fn main() { var x: i128 = 1180591620717411303424; } . [E142] Error: Invalid untyped integer literal ╭─[&lt;source&gt;:3:41] │ 3 │ var x: i128 = 1180591620717411303424; · ───────────┬────────── · ╰──────────── expected literal or identifier · · Note: Consider adding a type suffix like `i128`. ───╯ . To fix this, add an explicit type suffix. fn main() { var x: i128 = 1180591620717411303424i128; } . Explanation . An integer literal must have a type suffix if it fits neither an i64 nor a u64 — that is, if it is smaller than -(2^63 - 1) or larger than 2^64 - 1. This type suffix must be i128 or u128. ",
+    "url": "/penne/errors.html#error-code-e142",
+    
+    "relUrl": "/errors.html#error-code-e142"
+  },"6": {
+    "doc": "Error Code Reference",
+    "title": "Error code E143",
+    "content": "A hexadecimal or binary integer literal is too big to parse. Example of erroneous code . fn main() { var x: u128 = 0x46252a329482eaf72058e10b93e6f52; } . [E143] Error: Invalid bit integer literal ╭─[&lt;source&gt;:3:52] │ 3 │ var x: u128 = 0x46252a329482eaf72058e10b93e6f52; · ────────────────┬──────────────── · ╰────────────────── expected literal or identifier · · Note: Hexadecimal and binary integer literals have to fit `u64`. ───╯ . Explanation . Hexadecimal and binary integer literals have to fit a u64 — that is, they cannot be larger than 2^64 - 1. ",
+    "url": "/penne/errors.html#error-code-e143",
+    
+    "relUrl": "/errors.html#error-code-e143"
+  },"7": {
+    "doc": "Error Code Reference",
+    "title": "Error code E160",
+    "content": "A string literal is not closed before the end of the line. Example of erroneous code . fn main() { var x = \"Hello world!\"; } . [E160] Error: Missing closing quote ╭─[&lt;source&gt;:3:19] │ 3 │ var x = &quot;Hello · ───┬── · ╰──── expected literal or identifier · · Note: To continue a string across multiple lines, close it and then reopen it on the next line. ───╯ . Multiline strings are not supported. Newlines in strings have to be escaped. fn main() { var x = \"Hello\\nworld!\"; } . If a string is too large to fit one line according to your formatting preferences, it can be closed and then reopened on a new line. fn main() { var x = \"Hello\" \" world!\"; } . This string is identical to \"Hello world!\". ",
+    "url": "/penne/errors.html#error-code-e160",
+    
+    "relUrl": "/errors.html#error-code-e160"
+  },"8": {
+    "doc": "Error Code Reference",
+    "title": "Error code E161",
+    "content": "A string literal contains a backslash just before the end of the line. Example of erroneous code . fn main() { var x = \"Hello \\ world!\"; } . [E161] Error: Unexpected trailing backslash ╭─[&lt;source&gt;:4:1] │ 3 │ var x = &quot;Hello \\ · ─┬ · ╰── Unexpected trailing backslash · · Note: To continue a string across multiple lines, close it and then reopen it on the next line. ───╯ . This form of line continuation is seen in other languages but is not supported in Penne. To wrap a string across multiple lines, it can be closed and then reopened on a new line. fn main() { var x = \"Hello \" \"world!\"; } . ",
+    "url": "/penne/errors.html#error-code-e161",
+    
+    "relUrl": "/errors.html#error-code-e161"
+  },"9": {
+    "doc": "Error Code Reference",
+    "title": "Error code E162",
+    "content": "A string literal contains an invalid escape sequence or an unescaped backslash. Example of erroneous code . fn main() { var x = \"C:\\Program Files\"; } . [E162] Error: Invalid escape sequence ╭─[&lt;source&gt;:3:18] │ 3 │ var x = &quot;C:\\Program Files&quot;; · ─┬ · ╰── Invalid character escape sequence ───╯ . Backslashes must be escaped inside string literals. fn main() { var x = \"C:\\\\Program Files\"; } . ",
+    "url": "/penne/errors.html#error-code-e162",
+    
+    "relUrl": "/errors.html#error-code-e162"
+  },"10": {
+    "doc": "Error Code Reference",
     "title": "Error code E300",
     "content": "The parser expected a different token based on context. Example of erroneous code . fn main() { var usize = true; } . [E300] Error: Unexpected token ╭─[&lt;source&gt;:3:14] │ 3 │ var usize = true; · ──┬── · ╰──── expected variable name ───╯ . ",
     "url": "/penne/errors.html#error-code-e300",
     
     "relUrl": "/errors.html#error-code-e300"
-  },"4": {
+  },"11": {
     "doc": "Error Code Reference",
     "title": "Error code E301",
     "content": "A non-keyword identifier was followed directly by a semicolon. Example of erroneous code . fn main() { stop; } . [E301] Error: Unexpected token ╭─[&lt;source&gt;:3:10] │ 3 │ stop; · ──┬─┬ · │ ╰── Unexpected semicolon · │ · ╰──── This is not a valid statement. ───╯ . ",
     "url": "/penne/errors.html#error-code-e301",
     
     "relUrl": "/errors.html#error-code-e301"
-  },"5": {
+  },"12": {
     "doc": "Error Code Reference",
     "title": "Error code E302",
     "content": "A return value was followed by a semicolon. Example of erroneous code . fn main() -&gt; i32 { return: 10; } . [E302] Error: Unexpected semicolon after return value ╭─[&lt;source&gt;:3:16] │ 3 │ return: 10; · ─┬┬ · │╰── Unexpected semicolon · │ · ╰─── This is the return value of this function. ───╯ . To fix this, remove the semicolon after the return value. fn main() -&gt; i32 { return: 10 } . Explanation . Only statements are terminated by semicolons. There is no return statement. A function’s return value is separated from the rest of the function body by the special return label. ",
     "url": "/penne/errors.html#error-code-e302",
     
     "relUrl": "/errors.html#error-code-e302"
-  },"6": {
+  },"13": {
     "doc": "Error Code Reference",
     "title": "Error code E330",
     "content": "The return type is missing from a function with a return value. Example of erroneous code . fn foo() { return: true } . [E330] Error: Missing return type ╭─[&lt;source&gt;:3:17] │ 1 │ fn foo() · ─┬─ · ╰─── Function declared here. · 3 │ return: true · ──┬─ · ╰─── Value of type `bool` returned here. ───╯ . To fix this, add an explicit return type. fn foo() -&gt; bool { return: true } . ",
     "url": "/penne/errors.html#error-code-e330",
     
     "relUrl": "/errors.html#error-code-e330"
-  },"7": {
+  },"14": {
     "doc": "Error Code Reference",
     "title": "Error code E331",
     "content": "The return type is missing from a function with an ambiguous return value. This is usually accompanied by another type inference error, such as E581 or E582. Example of erroneous code . fn foo() { return: 500 } . [E582] Error: Ambiguous type ╭─[&lt;source&gt;:3:16] │ 3 │ return: 500 · ─┬─│ · ╰─── Failed to infer type of integer literal. · │ · ╰─ Consider adding a type suffix like `i32`. ───╯ [E331] Error: Missing return type ╭─[&lt;source&gt;:3:16] │ 1 │ fn foo() · ─┬─ · ╰─── Function declared here. · 3 │ return: 500 · ─┬─ · ╰─── Value of indiscernible type returned here. ───╯ . To fix both errors, add an explicit return type. fn foo() -&gt; i32 { return: 500 } . Explanation . Type inference does not cross function borders and functions with a return value need an explicit return type. In some cases the compiler cannot infer the type of the return value in order to give a useful suggestion. ",
     "url": "/penne/errors.html#error-code-e331",
     
     "relUrl": "/errors.html#error-code-e331"
-  },"8": {
+  },"15": {
     "doc": "Error Code Reference",
     "title": "Error code E333",
     "content": "The return type does not match the type of the return value. Example of erroneous code . fn main() -&gt; bool { return: 50 } . [E333] Error: Conflicting return value ╭─[&lt;source&gt;:3:15] │ 1 │ fn main() -&gt; bool · ──┬─ · ╰─── Expected `bool` based on this declaration. · 3 │ return: 50 · ─┬ · ╰── Value of type `i32` returned here. ───╯ . ",
     "url": "/penne/errors.html#error-code-e333",
     
     "relUrl": "/errors.html#error-code-e333"
-  },"9": {
+  },"16": {
     "doc": "Error Code Reference",
     "title": "Error code E334",
     "content": "A function with a return type is missing its return value. Example of erroneous code . fn main() -&gt; bool { var result = true; } . [E334] Error: Missing return value ╭─[&lt;source&gt;:4:2] │ 1 │ fn main() -&gt; bool · ──┬─ · ╰─── Expected `bool` based on this declaration. · 4 │ } · ┬ · ╰── No return value. ───╯ . In order to return a value from a function, use the special return label followed by the value you want to return. fn main() -&gt; bool { var result = true; return: result } . ",
     "url": "/penne/errors.html#error-code-e334",
     
     "relUrl": "/errors.html#error-code-e334"
-  },"10": {
+  },"17": {
     "doc": "Error Code Reference",
     "title": "Error code E335",
     "content": "A return value is missing after a return label. Example of erroneous code . fn main() { return: } . [E335] Error: Missing return value ╭─[&lt;source&gt;:4:2] │ 3 │ return: · ───┬───│ · │ ╰─ Expected return value... · │ · ╰───── ...after this `return` label. ───╯ . Functions that do not return a value must use a different label instead. fn main() { end: } . Explanation . Although return is not keyword, the label return has a special meaning. It is used in the body of a function to separate the statements from the return value. Even functions without statements must use the return label to return a value, and return must always be the last label used. In functions that do not return a value, any identifier other than return may be used as the last label. ",
     "url": "/penne/errors.html#error-code-e335",
     
     "relUrl": "/errors.html#error-code-e335"
-  },"11": {
+  },"18": {
     "doc": "Error Code Reference",
     "title": "Error code E343",
     "content": "A constant declaration is missing its type. Example of erroneous code . const X = 98; . [E343] Error: Missing type ╭─[&lt;source&gt;:1:8] │ 1 │ const X = 98; · ┬ · ╰── Constants need an explicit type. ───╯ . To fix this, add an explicit type. const X: i32 = 98; . ",
     "url": "/penne/errors.html#error-code-e343",
     
     "relUrl": "/errors.html#error-code-e343"
-  },"12": {
+  },"19": {
     "doc": "Error Code Reference",
     "title": "Error code E344",
     "content": "A function parameter is missing its type. Example of erroneous code . fn foo(x) -&gt; i32 { return: x * x } . [E344] Error: Missing type ╭─[&lt;source&gt;:1:9] │ 1 │ fn foo(x) -&gt; i32 · ┬ · ╰── Function parameters need an explicit type. ───╯ . To fix this, add an explicit type. fn foo(x: i32) -&gt; i32 { return: x * x } . ",
     "url": "/penne/errors.html#error-code-e344",
     
     "relUrl": "/errors.html#error-code-e344"
-  },"13": {
+  },"20": {
     "doc": "Error Code Reference",
     "title": "Error code E346",
     "content": "A structure member is missing its type. Example of erroneous code . struct Foo { x, y, } . [E346] Error: Missing type ╭─[&lt;source&gt;:3:6] │ 3 │ x, · ┬ · ╰── Structure members need an explicit type. ───╯ [E346] Error: Missing type ╭─[&lt;source&gt;:4:6] │ 4 │ y, · ┬ · ╰── Structure members need an explicit type. ───╯ . To fix this, add an explicit type. struct Foo { x: i32, y: i32, } . ",
     "url": "/penne/errors.html#error-code-e346",
     
     "relUrl": "/errors.html#error-code-e346"
-  },"14": {
+  },"21": {
     "doc": "Error Code Reference",
     "title": "Error code E350",
     "content": "A compound type is deemed invalid. Example of erroneous code . fn foo() { var x: [][]i32; } . [E350] Error: Invalid type ╭─[&lt;source&gt;:3:19] │ 3 │ var x: [][]i32; · ───┬─── · ╰───── The type `[][]i32` is invalid. ───╯ . Explanation . In addition to primitive types such as i32 or bool, compound types can be created such as [10]i32 (an array of i32 of length 10), &amp;bool (a pointer to a bool) or &amp;[]u8 (a pointer to an array slice of u8). Not all such compounds are valid. In particular, [10]T and []T are only valid if the type T is valid and has a size that is known at compile time. The type []T does not have a compile-time known size, hence compound types such as [10][]u8 and [][]i32 are invalid. ",
     "url": "/penne/errors.html#error-code-e350",
     
     "relUrl": "/errors.html#error-code-e350"
-  },"15": {
+  },"22": {
     "doc": "Error Code Reference",
     "title": "Error code E351",
     "content": "A type that cannot be returned is used as a return type. Example of erroneous code . fn foo() -&gt; [1000]i32; . [E351] Error: Invalid return type ╭─[&lt;source&gt;:1:22] │ 1 │ fn foo() -&gt; [1000]i32; · ────┬──── · ╰────── The type `[1000]i32` is not allowed as a return value. ───╯ . Explanation . Not all valid types can be used as a return type. In particular structs, arrays and array slices cannot be returned. ",
     "url": "/penne/errors.html#error-code-e351",
     
     "relUrl": "/errors.html#error-code-e351"
-  },"16": {
+  },"23": {
     "doc": "Error Code Reference",
     "title": "Error code E352",
     "content": "A type that cannot be assigned is used to declare a variable. Example of erroneous code . fn main() { var x: void; } . [E352] Error: Invalid variable type ╭─[&lt;source&gt;:3:10] │ 3 │ var x: void; · ┬ · ╰── A value of type `void` cannot be assigned to a variable. ───╯ . ",
     "url": "/penne/errors.html#error-code-e352",
     
     "relUrl": "/errors.html#error-code-e352"
-  },"17": {
+  },"24": {
     "doc": "Error Code Reference",
     "title": "Error code E353",
     "content": "A type that cannot be a constant is used to declare a constant. Example of erroneous code . const X: []i32 = [10, 20, 30]; . [E353] Error: Invalid constant type ╭─[&lt;source&gt;:1:8] │ 1 │ const X: []i32 = [10, 20, 30]; · ┬ · ╰── A value of type `[:]i32` cannot be assigned to a constant. ───╯ . To fix this, add an explicit size to the array type. const X: [3]i32 = [10, 20, 30]; . ",
     "url": "/penne/errors.html#error-code-e353",
     
     "relUrl": "/errors.html#error-code-e353"
-  },"18": {
+  },"25": {
     "doc": "Error Code Reference",
     "title": "Error code E354",
     "content": "A type that cannot be used as a parameter is used to declare a parameter. Example of erroneous code . fn foo(x: void); . [E354] Error: Invalid parameter type ╭─[&lt;source&gt;:1:9] │ 1 │ fn foo(x: void); · ┬ · ╰── The type `void` is not allowed as a parameter. ───╯ . ",
     "url": "/penne/errors.html#error-code-e354",
     
     "relUrl": "/errors.html#error-code-e354"
-  },"19": {
+  },"26": {
     "doc": "Error Code Reference",
     "title": "Error code E356",
     "content": "A type that cannot be part of a struct is used to declare a struct member, or a type that cannot be part of a word is used to declare a word member. Example of erroneous code . word64 Foo { x: &amp;i32, } . [E356] Error: Invalid member type ╭─[&lt;source&gt;:3:6] │ 3 │ x: &amp;i32, · ┬ · ╰── The type `&amp;i32` is not allowed as a member of a word. ───╯ . Explanation . The members of word can be fixed size integers, bool or other words. ",
     "url": "/penne/errors.html#error-code-e356",
     
     "relUrl": "/errors.html#error-code-e356"
-  },"20": {
+  },"27": {
     "doc": "Error Code Reference",
     "title": "Error code E358",
     "content": "A type that is not part of the external ABI is used in a function marked extern. Example of erroneous code . extern fn foo(x: u128); . [E358] Error: Invalid external type ╭─[&lt;source&gt;:1:22] │ 1 │ extern fn foo(x: u128); · ───┬── ───┬── · │ ╰──── The type `u128` is not allowed in external declarations. · │ · ╰─────────────────── Declaration marked external here. ───╯ . Explanation . For a detailed list of the types that allowed in extern, see the documentation about the external ABI. ",
     "url": "/penne/errors.html#error-code-e358",
     
     "relUrl": "/errors.html#error-code-e358"
-  },"21": {
+  },"28": {
     "doc": "Error Code Reference",
     "title": "Error code E360",
     "content": "A constant expression contains an unsupported operation. Example of erroneous code . const A: i32 = 200; const X: &amp;i32 = &amp;A; . [E360] Error: Unsupported expression in constant expression ╭─[&lt;source&gt;:2:18] │ 2 │ const X: &amp;i32 = &amp;A; · ┬ · ╰── This expression is not supported in a constant expression. ───╯ . Explanation . The value assigned to a constant must be evaluated at compile time. In addition to literals and other constants, constant expressions may use basic arithmetic, bitwise operations and primitive casts. ",
     "url": "/penne/errors.html#error-code-e360",
     
     "relUrl": "/errors.html#error-code-e360"
-  },"22": {
+  },"29": {
     "doc": "Error Code Reference",
     "title": "Error code E361",
     "content": "A constant expression contains a function call. Example of erroneous code . fn calculate_value() -&gt; i32; const A: i32 = calculate_value(); . [E361] Error: Function in constant expression ╭─[&lt;source&gt;:2:31] │ 2 │ const A: i32 = calculate_value(); · ───────┬─────── · ╰───────── Function calls cannot occur in a constant expression. ───╯ . Explanation . Function calls are not allowed in constant expressions because their return value is not known at compile time. ",
     "url": "/penne/errors.html#error-code-e361",
     
     "relUrl": "/errors.html#error-code-e361"
-  },"23": {
+  },"30": {
     "doc": "Error Code Reference",
     "title": "Error code E380",
     "content": "The declared size of a word does not match the total size of its members. Example of erroneous code . word64 Xyz { x: i32, y: i32, z: i32, } . [E380] Error: Conflicting type sizes ╭─[&lt;source&gt;:1:11] │ 1 │ word64 Xyz · ─┬─ · ╰─── The size of this structure is 96 bits. · │ · ╰─── The structure is declared with `word64` and therefore has a maximum size of 64 bits. ───╯ . One way to fix this is to use a larger word size and add padding. word128 Xyz { x: i32, y: i32, z: i32, _padding: i32, } . Alternatively a struct can be used, which has no size restrictions. struct Xyz { x: i32, y: i32, z: i32, } . Explanation . Words are declared with a keyword that also specifies the size of the word in bits. For example, a word32 could consist of a single i32 member, or two u16 members, or a word16, a word8 and an i8. ",
     "url": "/penne/errors.html#error-code-e380",
     
     "relUrl": "/errors.html#error-code-e380"
-  },"24": {
+  },"31": {
     "doc": "Error Code Reference",
     "title": "Error code E400",
     "content": "A goto statement uses a label that is not defined or not in scope. Example of erroneous code . fn main() -&gt; i32 { goto inner; var i = 1; { var x = 10; { inner: var y = 20; i = y; } i = x; } return: i } . [E400] Error: Undefined label ╭─[&lt;source&gt;:3:15] │ 3 │ goto inner; · ──┬── · ╰──── Reference to undefined label 'inner'. ───╯ . Explanation . See the documentation on label scopes and goto. ",
     "url": "/penne/errors.html#error-code-e400",
     
     "relUrl": "/errors.html#error-code-e400"
-  },"25": {
+  },"32": {
     "doc": "Error Code Reference",
     "title": "Error code E401",
     "content": "A function call refers to a function that has not been declared. Example of erroneous code . fn foo() { bar(); } . [E401] Error: Undefined reference ╭─[&lt;source&gt;:3:8] │ 3 │ bar(); · ─┬─ · ╰─── Reference to undefined function named 'bar'. ───╯ . Functions that are resolved at link time must be predeclared. fn bar(); fn foo() { bar(); } . ",
     "url": "/penne/errors.html#error-code-e401",
     
     "relUrl": "/errors.html#error-code-e401"
-  },"26": {
+  },"33": {
     "doc": "Error Code Reference",
     "title": "Error code E402",
     "content": "An expression refers to a variable, parameter or constant that has not been declared or that is not in scope. Example of erroneous code . fn foo() { return: x } . [E402] Error: Undefined reference ╭─[&lt;source&gt;:3:14] │ 3 │ return: x · ┬ · ╰── There is no variable, parameter or constant named 'x' in this scope. ───╯ . ",
     "url": "/penne/errors.html#error-code-e402",
     
     "relUrl": "/errors.html#error-code-e402"
-  },"27": {
+  },"34": {
     "doc": "Error Code Reference",
     "title": "Error code E405",
     "content": "An identifier is used as a type, but no struct or word with that name has been declared. Example of erroneous code . fn foo() -&gt; UndeclaredStruct; . [E405] Error: Undefined reference ╭─[&lt;source&gt;:1:29] │ 1 │ fn foo() -&gt; UndeclaredStruct; · ────────┬─────── · ╰───────── Reference to undefined struct or word named 'UndeclaredStruct'. ───╯ . ",
     "url": "/penne/errors.html#error-code-e405",
     
     "relUrl": "/errors.html#error-code-e405"
-  },"28": {
+  },"35": {
     "doc": "Error Code Reference",
     "title": "Error code E406",
     "content": "A structure literal or dereference refers to a member that is not part of that structure’s declaration. Example of erroneous code . struct Digest { buffer: [1024]u8, len: usize, } fn foo() { var digest = Digest { length: 0usize, }; var buffer = &amp;digest.buffre; } . [E406] Error: Undefined member ╭─[&lt;source&gt;:10:15] │ 1 │ struct Digest · ───┬── · ╰──── The structure 'Digest' is defined here. · 10 │ length: 0usize, · ───┬── · ╰──── No member 'length' exists for structure 'Digest'. ────╯ [E406] Error: Undefined member ╭─[&lt;source&gt;:12:32] │ 1 │ struct Digest · ───┬── · ╰──── The structure 'Digest' is defined here. · 12 │ var buffer = &amp;digest.buffre; · ───┬── · ╰──── No member 'buffre' exists for structure 'Digest'. ────╯ . ",
     "url": "/penne/errors.html#error-code-e406",
     
     "relUrl": "/errors.html#error-code-e406"
-  },"29": {
+  },"36": {
     "doc": "Error Code Reference",
     "title": "Error code E413",
     "content": "The definition of a constant depends on its own value. Example of erroneous code . const X: i32 = Y + 1; const Y: i32 = X + 1; . [E413] Error: Cyclical definition ╭─[&lt;source&gt;:2:8] │ 2 │ const Y: i32 = X + 1; · ┬ · ╰── The definition of constant 'Y' depends on itself. ───╯ . ",
     "url": "/penne/errors.html#error-code-e413",
     
     "relUrl": "/errors.html#error-code-e413"
-  },"30": {
+  },"37": {
     "doc": "Error Code Reference",
     "title": "Error code E415",
     "content": "A structure is embedded into one of its own members. Example of erroneous code . struct Buffer { data: [1024]u8, metadata: Metadata, } struct Metadata { debug_code: i32, message: Buffer, } . [E415] Error: Cyclical definition ╭─[&lt;source&gt;:7:16] │ 7 │ struct Metadata · ────┬─── · ╰───── Cannot determine size of structure 'Metadata' that contains itself. · 10 │ message: Buffer, · ───┬─── · ╰───── This member contains 'Metadata'. ────╯ . ",
     "url": "/penne/errors.html#error-code-e415",
     
     "relUrl": "/errors.html#error-code-e415"
-  },"31": {
+  },"38": {
     "doc": "Error Code Reference",
     "title": "Error code E420",
     "content": "Two labels with the same name are present in the same scope. Example of erroneous code . fn main() { next: next: } . [E420] Error: Duplicate label ╭─[&lt;source&gt;:4:10] │ 3 │ next: · ──┬── · ╰──── Previously defined here. 4 │ next: · ──┬── · ╰──── The label 'next' is already defined in this scope. ───╯ . ",
     "url": "/penne/errors.html#error-code-e420",
     
     "relUrl": "/errors.html#error-code-e420"
-  },"32": {
+  },"39": {
     "doc": "Error Code Reference",
     "title": "Error code E421",
     "content": "Two functions with the same name are declared. Example of erroneous code . fn foo(x: i32); fn foo(x: i64); . [E421] Error: Duplicate function ╭─[&lt;source&gt;:3:7] │ 1 │ fn foo(x: i32); · ─┬─ · ╰─── Previously defined here. · 3 │ fn foo(x: i64); · ─┬─ · ╰─── A function named 'foo' is already defined. ───╯ . ",
     "url": "/penne/errors.html#error-code-e421",
     
     "relUrl": "/errors.html#error-code-e421"
-  },"33": {
+  },"40": {
     "doc": "Error Code Reference",
     "title": "Error code E422",
     "content": "A variable is declared with the same name as another variable, parameter or constant in scope. Example of erroneous code . fn foo(x: i32) -&gt; i32 { var x = 0; return: x } . [E422] Error: Duplicate variable ╭─[&lt;source&gt;:3:10] │ 1 │ fn foo(x: i32) -&gt; i32 · ┬ · ╰── Previously defined here. · 3 │ var x = 0; · ┬ · ╰── A variable named 'x' is already defined in this scope. ───╯ . ",
     "url": "/penne/errors.html#error-code-e422",
     
     "relUrl": "/errors.html#error-code-e422"
-  },"34": {
+  },"41": {
     "doc": "Error Code Reference",
     "title": "Error code E423",
     "content": "Two constants with the same name are declared. Example of erroneous code . const X: i32 = 200; const Y: i32 = 250; const X: i32 = 300; . [E423] Error: Duplicate constant ╭─[&lt;source&gt;:3:8] │ 1 │ const X: i32 = 200; · ┬ · ╰── Previously defined here. · 3 │ const X: i32 = 300; · ┬ · ╰── The constant 'X' is already defined. ───╯ . ",
     "url": "/penne/errors.html#error-code-e423",
     
     "relUrl": "/errors.html#error-code-e423"
-  },"35": {
+  },"42": {
     "doc": "Error Code Reference",
     "title": "Error code E424",
     "content": "A parameter is declared with the same name as another parameter or constant in scope. Example of erroneous code . fn draw_rectangle(x: i32, y: i32, w: i32, w: i32); . [E424] Error: Duplicate parameter ╭─[&lt;source&gt;:1:44] │ 1 │ fn draw_rectangle(x: i32, y: i32, w: i32, w: i32); · ┬ ┬ · ╰────────── Previously defined here. · │ · ╰── A parameter named 'w' is already defined for this function. ───╯ . ",
     "url": "/penne/errors.html#error-code-e424",
     
     "relUrl": "/errors.html#error-code-e424"
-  },"36": {
+  },"43": {
     "doc": "Error Code Reference",
     "title": "Error code E425",
     "content": "Two structures with the same name are declared. Example of erroneous code . struct Position { x: i32, y: i32, z: i32, } word16 Position { row: i8, col: i8, } . [E425] Error: Duplicate structure ╭─[&lt;source&gt;:8:16] │ 1 │ struct Position · ────┬─── · ╰───── Previously defined here. · 8 │ word16 Position · ────┬─── · ╰───── A struct or word named 'Position' is already defined. ───╯ . ",
     "url": "/penne/errors.html#error-code-e425",
     
     "relUrl": "/errors.html#error-code-e425"
-  },"37": {
+  },"44": {
     "doc": "Error Code Reference",
     "title": "Error code E426",
     "content": "A structure is declared with two members of the same name. Example of erroneous code . struct ItemCollection { items: [1024]u64, items: usize, } . [E426] Error: Duplicate member ╭─[&lt;source&gt;:4:10] │ 3 │ items: [1024]u64, · ──┬── · ╰──── Previously defined here. 4 │ items: usize, · ──┬── · ╰──── A member named 'items' is already defined in this structure. ───╯ . ",
     "url": "/penne/errors.html#error-code-e426",
     
     "relUrl": "/errors.html#error-code-e426"
-  },"38": {
+  },"45": {
     "doc": "Error Code Reference",
     "title": "Error code E470",
     "content": "An import declaration could not be resolved. Example of erroneous code . import \"nice_functionality.pn\"; . [E470] Error: Unresolved import ╭─[&lt;source&gt;:1:7] │ 1 │ import &quot;nice_functionality.pn&quot;; · ───┬── · ╰──── Reference to unknown file 'nice_functionality.pn'. ───╯ . Explanation . The Penne compiler does not search for additional files on its own. In order to include a source file in the compilation process, add it as an extra argument after the main entry point. $ penne build src/main.pn src/nice_functionality.pn . ",
     "url": "/penne/errors.html#error-code-e470",
     
     "relUrl": "/errors.html#error-code-e470"
-  },"39": {
+  },"46": {
     "doc": "Error Code Reference",
     "title": "Error code E482",
     "content": "A goto statement jumps past a variable declaration to a label, but this variable is used afterwards. This results in a variable that is declared in some branches, but not others, which is unsound. Example of erroneous code . fn main(input: i32) -&gt; i32 { var result = 0; if input == 1 goto next; var a = 20; var b = 5; result = result + a + b; next: result = result + a; return: result } . [E482] Error: Variable declaration may be skipped ╭─[&lt;source&gt;:10:24] │ 5 │ goto next; · ──┬─ · ╰─── A jump from this `goto` statement to 'next'... 6 │ var a = 20; · ┬ · ╰── ...may skip the declaration of the variable 'a'. · 9 │ next: · ──┬── · ╰──── After this label, the existence of 'a' is dubious. 10 │ result = result + a; · ┬ · ╰── The variable is referenced here. ────╯ . To fix this, move the variable declaration in front of the offending goto statement. fn main(input: i32) -&gt; i32 { var result = 0; var a = 20; if input == 1 goto next; var b = 5; result = result + a + b; next: result = result + a; return: result } . ",
     "url": "/penne/errors.html#error-code-e482",
     
     "relUrl": "/errors.html#error-code-e482"
-  },"40": {
+  },"47": {
+    "doc": "Error Code Reference",
+    "title": "Error code E800",
+    "content": "A loop statement is not the final statement of the block in which it appears. Example of erroneous code . fn main() -&gt; i32 { var result; var i: i32 = 0; { var y = 3000 + i; i = i + 1; if i == 10 goto exit_loop; loop; exit_loop: result = y; } result = result * 2; return: result } . [E800] Error: Misplaced loop statement ╭─[&lt;source&gt;:10:13] │ 5 │ ╭─▶ { ⋮ ⋮ 10 │ │ loop; · │ ──┬─ · │ ╰─── This is not the final statement... ⋮ ⋮ 13 │ ├─▶ } · │ · ╰─────────── ...of this block. · · Note: The `loop` statement must always be the final statement of a block. ────╯ . A loop statement may only appear as the final statement in a block. The code needs to be restructured. fn main() -&gt; i32 { var result; var i: i32 = 0; { var y = 3000 + i; i = i + 1; if i == 10 { result = y; goto exit_loop; } loop; } exit_loop: result = result * 2; return: result } . ",
+    "url": "/penne/errors.html#error-code-e800",
+    
+    "relUrl": "/errors.html#error-code-e800"
+  },"48": {
+    "doc": "Error Code Reference",
+    "title": "Error code E801",
+    "content": "A loop statement appears on its own in the body of a function. Example of erroneous code . fn read_from_client(buffer: &amp;[]u8, exact_size: usize); fn handle_message_from_client(buffer: []u8, message_size: usize); fn listen_to_client() { var header_buffer: [1]u8; var message_buffer: [256]u8; read_from_client(&amp;header_buffer, 1); var header: u8 = header_buffer[0]; var message_size: usize = header as usize; read_from_client(&amp;message_buffer, message_size); handle_message_from_client(message_buffer, message_size); loop; } . [E801] Error: Misplaced loop statement ╭─[&lt;source&gt;:13:9] │ 13 │ loop; · ──┬─ · ╰─── This is not allowed here. · · Note: The `loop` statement must always be the final statement of a block. ────╯ . To fix this, wrap the looping statements in a block. fn read_from_client(buffer: &amp;[]u8, exact_size: usize); fn handle_message_from_client(buffer: []u8, message_size: usize); fn listen_to_client() { var header_buffer: [1]u8; var message_buffer: [256]u8; { read_from_client(&amp;header_buffer, 1); var header: u8 = header_buffer[0]; var message_size: usize = header as usize; read_from_client(&amp;message_buffer, message_size); handle_message_from_client(message_buffer, message_size); loop; } } . ",
+    "url": "/penne/errors.html#error-code-e801",
+    
+    "relUrl": "/errors.html#error-code-e801"
+  },"49": {
+    "doc": "Error Code Reference",
+    "title": "Error code E840",
+    "content": "Missing braces around a conditional branch. Example of erroneous code . fn main(x: i32) -&gt; i32 { var result = 1; if x == 0 result = 10; return: result } . [E840] Error: Missing braces ╭─[&lt;source&gt;:5:15] │ 5 │ result = 10; · ───┬── · ╰──── Add braces around this statement. · · Note: Braces around conditional branches can only be omitted for `goto` statements. ───╯ . To fix this, add braces around the statement (or statements) that belong to that branch. fn main(x: i32) -&gt; i32 { var result = 1; if x == 0 { result = 10; } return: result } . ",
+    "url": "/penne/errors.html#error-code-e840",
+    
+    "relUrl": "/errors.html#error-code-e840"
+  },"50": {
     "doc": "Error Code Reference",
     "title": "Error code L1800",
     "content": "A loop statement appears on its own in the branch of an if statement. Example of erroneous code . fn main() -&gt; i32 { var x = 33; var i = 1; { x = x * i; i = i + 1; if i != 10 { loop; } } x = x + 1; return: x } . [L1800] Warning: Conditional infinite loop ╭─[&lt;source&gt;:10:17] │ 8 │ if i != 10 · ───┬─── · ╰───── If this condition is met... 9 │ ╭─▶ { 10 │ │ loop; · │ ──┬─ · │ ╰─── ...this loop statement will cause an infinite loop... 11 │ ├─▶ } · │ · ╰─────────────── ...because it belongs to this block. · · Note: Perhaps use `goto` instead to jump to a `loop` elsewhere. To surpress this warning, add a label. ────╯ . Explanation . The branches of an if statement must be either goto statements or block statements. Therefore the following code is not valid: . if i != 10 loop; . One might attempt to solve this by wrapping the loop statement in braces: . if i != 10 { loop; } . However this usually does not have the intended effect. Instead of looping back into whatever block contains the if statement, the branch is its own block containing only a loop statement. Because a loop statement causes execution to continue with the first statement of the block it is contained in, entering this block immediately creates an inescapable infinite loop. If that is intended, this lint can be suppresed by adding a harmless second statement to the block, such as an unused label. if i != 10 { this_is_an_infinite_loop: loop; } . If the intention is to create a conditional loop, such as in the erroneous example above, it is usually better to invert the condition and use a goto statement. fn main() -&gt; i32 { var x = 33; var i = 1; { x = x * i; i = i + 1; if i == 10 goto end; loop; } end: x = x + 1; return: x } . ",
     "url": "/penne/errors.html#error-code-l1800",
     
     "relUrl": "/errors.html#error-code-l1800"
-  },"41": {
+  },"51": {
     "doc": "Error Code Reference",
     "title": "Error Code Reference",
     "content": " ",
     "url": "/penne/errors.html",
     
     "relUrl": "/errors.html"
-  },"42": {
+  },"52": {
     "doc": "Language Features",
     "title": "Language Features",
     "content": "An overview of the more unique language features of Penne: . Scoped goto statements . In Penne, goto is a local forward-only jump. This is achieved by giving labels a reverse scope: similar to how variables cannot be referenced before they are declared, labels cannot be jumped to after they are declared. fn foo() -&gt; i32 { var x = 0; { // The scope of the label `end` ends here. goto end; x = 10; // This line is not executed. end: // The scope of the label `end` starts here. } x = x + 1; return: x } . Like variables, label scopes extend into inner blocks. Thus, a goto statement can jump out any number of nested blocks. fn foo() { var i = 1; { var x = 10; { var y = 20; i = 20; // Valid because the variable `i` is in scope here. goto end; // Valid because the label `end` is in scope here. } i = x; // This line is not executed. } end: } . In order to keep goto statements sound and easy to understand, a goto statement cannot jump into an inner block. fn foo() { goto inner; // Invalid, the label `inner` is not in scope here. var i = 1; { var x = 10; { // The scope of the label `inner` ends here. inner: // The scope of the label `inner` starts here. var y = 20; i = y; } i = x; } } . This compiler tells you that it cannot find the label in scope. [E400] Error: Undefined label ╭─[tests/samples/invalid/jump_to_inner.pn:3:12] │ 3 │ goto inner; // Invalid, the label `inner` is not in scope here. · ──┬── · ╰──── Reference to undefined label 'inner'. ───╯ . Similarly, labels that have at least one in-bound goto statement automatically prune the scope of variables declared higher up in the same block. This prevents goto statements from jumping over the declaration of a variable into code that references that variable. // ... fn overlapping(input: i32) -&gt; i32 { var result = 200; if input == 0 goto return; if input == 1 goto next; var a = 20; result = result + a; if input == 2 goto return; next: var b = 10; result = result + a + b; return: result } . In input were to equal 1, the declaration of the variable a would be skipped, which would leave the expression result + a + b undefined. The compiler refuses the compile this code. [E482] Error: Variable declaration may be skipped ╭─[tests/samples/invalid/conditional_declaration.pn:32:21] │ 25 │ goto next; · ──┬─ · ╰─── A jump from this `goto` statement to 'next'... 26 │ var a = 20; · ┬ · ╰── ...may skip the declaration of the variable 'a'. · 30 │ next: · ──┬── · ╰──── After this label, the existence of 'a' is dubious. · 32 │ result = result + a + b; · ┬ · ╰── The variable is referenced here. ────╯ . Scoped loop statements . The only way to jump back is with the loop statement. fn foo() -&gt; i32 { var x = 0; { x = x + 1; loop; } return: x // This line is never reached. } . In order to keep backward jumps isolated and easy to find, loop can only appears as the last statement in a block. Views . Function arguments other than pointers (see below), primitives and words are passed as a view. For arrays this means an array view (or “slice”) is created and passed into the function. Array views remember the length of their array, which can be accessed with the length operation |x|. fn foo() { var data: [4]i32 = [1, 2, 3, 4]; var total = sum(data); } fn sum(x: []i32) -&gt; i32 { var total = 0; var i = 0; { if i == |x| goto return; total = total + x[i]; i = i + 1; loop; } return: total } . Reference pointers . Views allow you to pass a large value by reference, but they only give immutable access. For mutable access, a pointer is needed. They can be created by taking the address of a value. Unlike in most other languages, reference pointers in Penne automatically dereference to their base type, which is any type that isn’t a reference pointer. var x: i32 = 17; var a: &amp;i32 = &amp;x; var y: i32 = a; a = 30; // Now x == 30 and y == 17. To change which value a reference pointer points to, you need to explicitly modify the address. var x: i32 = 17; var y: i32 = 30; var z: i32 = 88; var a: &amp;i32 = &amp;x; &amp;a = &amp;y; // Now a points to y instead of x. var b: &amp;i32 = &amp;z; &amp;a = &amp;b; // Now a and b both point to z. Reference pointers allow a function to modify its arguments, but require the caller to explicitly pass in an address. fn foo() { var data: [4]i32 = [1, 2, 3, 4]; set_to_zero(&amp;data); } fn set_to_zero(x: &amp;[]i32) { var i = 0; { if i == |x| goto end; x[i] = 0; i = i + 1; loop; } end: } . Structs and words . Like arrays, structural types declared with the struct keyword are implicitly passed as a view and cannot be used as the return value of a function. Fixed size structures, declared with word8, word16, word32, word64 or word128, are passed by value. Imports . The import keyword is used to import all function signatures, structures and constants marked pub from a source file into the destination file. Imports are themselves not public and hence are not re-imported. Interoperability with C . Functions marked extern use the C ABI, which means it is possible (though not necessarily safe) to call them from C code compiled by LLVM. Conversely, declaring a function header such as . extern fn foo(buffer: []u8, length: usize); . allows you to call a C function from Penne code. Interacting with other programming languages that utilize or support the C ABI, such as C++, Rust, Zig or WebAssembly, is also possible. Only array views, pointers and the primitive types i8, i16, i32, i64, u8, u16, u32, u64 and usize are allowed in the signature of an extern function. Array views in extern functions correspond to (const) pointers in C, do not have a length (|x|) and must not be null. In a future version of Penne, pointers will also be assumed to be non-null and an “optional” type must be used to mark nullable pointers. Structures and constants can also be declared extern, but as of v0.3.0 this has no effect. ",
     "url": "/penne/features.html",
     
     "relUrl": "/features.html"
-  },"43": {
+  },"53": {
     "doc": "Home",
     "title": "The Penne Programming Language",
     "content": "Penne is an esoteric programming language that imagines a world where, instead of being ostracized for leading to so-called “spaghetti code”, the humble goto statement became the dominant method of control flow, surpassing for loops and switch statements, and ultimately obviating the need for the invention of RAII and object-oriented programming in general. By applying modern sensibilities to the use of the goto statement instead of banishing it altogether, Penne seeks to bring about a rennaissance of pasta-oriented programming. ",
     "url": "/penne/#the-penne-programming-language",
     
     "relUrl": "/#the-penne-programming-language"
-  },"44": {
+  },"54": {
     "doc": "Home",
     "title": "A quick taste",
     "content": "Penne’s general aesthetic is inspired by modern programming languages (in particular Rust), with the notable exception of labels and the goto statement, which are (at least syntactically) taken from C, and the loop statement. // Calculate the number of Collatz steps needed to reach 1. // The Collatz conjecture states that this function always terminates. fn determine_collatz_number(start: i32) -&gt; i32 { var x = start; var steps = 0; { if x == 1 goto return; do_collatz_step(&amp;x); steps = steps + 1; loop; } return: steps } // If x is even, divide it by 2. Otherwise calculate 3 * x + 1. // Do this without division or modulo operators (for demonstrative purposes). fn do_collatz_step(x: &amp;i32) { var y = x; { if y == 0 { if y + y == x { x = y; goto end; } y = y + 1; loop; } else if y == 1 { x = 3 * x + 1; goto end; } y = y - 2; loop; } end: } . ",
     "url": "/penne/#a-quick-taste",
     
     "relUrl": "/#a-quick-taste"
-  },"45": {
+  },"55": {
     "doc": "Home",
     "title": "Language features",
     "content": "Penne is characterized by: . | scoped goto statements; | automatically dereferencing pointers; | type inference; | interoperability with C. | . See Language Features for a detailed explanation. Non-features . Penne is an esoteric language, not a general purpose or systems programming language. Certain modern features that you or I may think essential for a good programming language in 2023 to have, are omitted. This is either because including them would contradict the premise of Penne (see above) or to simplify its implementation. As such, the following are decidedly not features of Penne: . | classes; | generics; | iterators; | support for pointers larger than 64 bits; | a string type guaranteed to be UTF-8; | memory safety of any kind. | . ",
     "url": "/penne/#language-features",
     
     "relUrl": "/#language-features"
-  },"46": {
+  },"56": {
     "doc": "Home",
     "title": "Home",
     "content": " ",
     "url": "/penne/",
     
     "relUrl": "/"
-  },"47": {
+  },"57": {
     "doc": "Syntax Overview",
     "title": "Syntax Overview",
     "content": "The following codesample displays a broad range of syntax. /// Example doc-style comment. const COLOR: u32 = 0xfb4934ff; const DATA_HEIGHT: u32 = 3; const DATA: [3]u8 = [ 0b11000011, 0b10000001, 0b00100100, ]; fn determine_collatz_number(start: i32) -&gt; i32 { var x = start; var steps = 0; { if x == 1 goto return; do_collatz_step(&amp;x); steps = steps + 1; loop; } return: steps } fn do_collatz_step(x: &amp;i32) { var y = x; { if y == 0 { if y + y == x { x = y; goto end; } y = y + 1; loop; } else if y == 1 { x = 3 * x + 1; goto end; } y = y - 2; loop; } end: } fn solve_all_our_problems() { // Left as an exercise for the reader. } fn do_nothing() { nothing: } word64 Position { x: i32, y: i32, } fn sum_of_position(pos: Position) -&gt; i32 { return: pos.x + pos.y } struct FourPositions { positions: [4]Position, } pub extern fn something_with_pointers(u: &amp;&amp;i32) { var i: i32 = 17; var x: &amp;i32 = &amp;i; var a: &amp;&amp;i32 = &amp;&amp;x; &amp;&amp;a = &amp;&amp;u; var text = \"Save up to \\u{20a0}50 or \\xA350 or more!\\0\"; } fn something_with_casting() { var a: bool = true; var data: []i16 = [80, 20]; var result = a as u8 + |data| as u8; } fn main() -&gt; i32 { var from = Position { x: 10, y: 10 }; var four_positions = FourPositions { positions: [ from, Position { x: 0, y: 0 }, Position { x: from.x, y: 0 }, Position { x: 0, y: from.y }, ], }; return: 0 } . ",
