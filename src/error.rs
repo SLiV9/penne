@@ -712,7 +712,10 @@ impl Error
 
 	#[cfg_attr(coverage, no_coverage)]
 	#[cfg(not(tarpaulin_include))]
-	pub fn report(&self) -> Report<(String, std::ops::Range<usize>)>
+	pub fn build_report(
+		&self,
+		ariadne_config: ariadne::Config,
+	) -> Report<(String, std::ops::Range<usize>)>
 	{
 		let location = self.location();
 		let code = self.code();
@@ -725,6 +728,7 @@ impl Error
 		};
 		let report =
 			Report::build(kind, &location.source_filename, location.span.end)
+				.with_config(ariadne_config)
 				.with_code(format!("{}{}", letter, code));
 		let report = write(report, self);
 		report.finish()

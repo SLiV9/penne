@@ -12,22 +12,73 @@ use crate::lexer;
 use crate::rebuilder;
 use crate::resolved;
 
+use serde::Deserialize;
 use std::io::Write;
-use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+use termcolor::{Color, ColorSpec, StandardStream, WriteColor};
+
+#[derive(Debug, Default, Deserialize, clap::Args)]
+#[serde(default, deny_unknown_fields)]
+pub struct Options
+{
+	/// Show a lot of intermediate output
+	#[clap(short, long)]
+	verbose: bool,
+
+	/// When to use ANSI colors in error messages and intermediate output
+	#[clap(hide(true), long, value_name("WHEN"))]
+	#[clap(value_enum, default_value_t=ColorChoice::Auto)]
+	color: ColorChoice,
+}
+
+#[derive(Debug, Default, Clone, Copy, Deserialize, clap::ValueEnum)]
+pub enum ColorChoice
+{
+	#[default]
+	Auto,
+	Always,
+	Never,
+}
+
+impl From<ColorChoice> for termcolor::ColorChoice
+{
+	fn from(choice: ColorChoice) -> termcolor::ColorChoice
+	{
+		match choice
+		{
+			ColorChoice::Auto => termcolor::ColorChoice::Auto,
+			ColorChoice::Always => termcolor::ColorChoice::Always,
+			ColorChoice::Never => termcolor::ColorChoice::Never,
+		}
+	}
+}
 
 pub struct StdOut
 {
 	stdout: StandardStream,
 	is_verbose: bool,
+	ariadne_config: ariadne::Config,
 }
 
 impl StdOut
 {
-	pub fn new(is_verbose: bool) -> StdOut
+	pub fn new(options: Options) -> StdOut
 	{
+		let stdout = StandardStream::stdout(options.color.into());
+		let is_verbose = options.verbose;
+		let with_color = match options.color
+		{
+			ColorChoice::Auto => stdout.supports_color(),
+			ColorChoice::Always => true,
+			ColorChoice::Never => false,
+		};
+		let charset = ariadne::CharSet::Unicode;
+		let ariadne_config = ariadne::Config::default()
+			.with_color(with_color)
+			.with_char_set(charset);
 		StdOut {
-			stdout: StandardStream::stdout(ColorChoice::Auto),
+			stdout,
 			is_verbose,
+			ariadne_config,
 		}
 	}
 
@@ -220,7 +271,8 @@ impl StdOut
 		for error in errors
 		{
 			writeln!(self.stdout)?;
-			error.report().eprint(&mut source_cache)?;
+			let report = error.build_report(self.ariadne_config);
+			report.eprint(&mut source_cache)?;
 		}
 		writeln!(self.stdout)?;
 		Ok(())

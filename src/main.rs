@@ -81,13 +81,12 @@ struct BuildArgs
 	#[clap(long)]
 	out_dir: Option<std::path::PathBuf>,
 
-	/// Show a lot of intermediate output
-	#[clap(short, long)]
-	verbose: bool,
-
 	/// Set target to 'wasm32-unknown-wasi'
 	#[clap(short, long)]
 	wasm: bool,
+
+	#[clap(flatten)]
+	stdout_options: penne::stdout::Options,
 }
 
 #[derive(Debug, Default, Deserialize, clap::Args)]
@@ -111,9 +110,8 @@ struct RunArgs
 	#[clap(long)]
 	out_dir: Option<std::path::PathBuf>,
 
-	/// Show a lot of intermediate output
-	#[clap(short, long)]
-	verbose: bool,
+	#[clap(flatten)]
+	stdout_options: penne::stdout::Options,
 }
 
 #[derive(Debug, Default, Deserialize, clap::Args)]
@@ -128,13 +126,12 @@ struct EmitArgs
 	#[clap(long)]
 	out_dir: Option<std::path::PathBuf>,
 
-	/// Show a lot of intermediate output
-	#[clap(short, long)]
-	verbose: bool,
-
 	/// Set target to 'wasm32-unknown-wasi'
 	#[clap(short, long)]
 	wasm: bool,
+
+	#[clap(flatten)]
+	stdout_options: penne::stdout::Options,
 }
 
 fn main() -> Result<(), anyhow::Error>
@@ -142,7 +139,7 @@ fn main() -> Result<(), anyhow::Error>
 	let result = do_main();
 	if result.is_err()
 	{
-		let mut stdout = penne::stdout::StdOut::new(false);
+		let mut stdout = penne::stdout::StdOut::new(Default::default());
 		stdout.prepare_for_errors()?;
 	}
 	result
@@ -151,7 +148,7 @@ fn main() -> Result<(), anyhow::Error>
 struct MainArgs
 {
 	out_dir: Option<std::path::PathBuf>,
-	verbose: bool,
+	stdout_options: penne::stdout::Options,
 	filepaths: Vec<std::path::PathBuf>,
 	is_lli: bool,
 	skip_backend: bool,
@@ -204,7 +201,7 @@ impl TryFrom<Cli> for MainArgs
 				let wasm = args.wasm || config.wasm;
 				Ok(MainArgs {
 					out_dir: args.out_dir,
-					verbose: args.verbose,
+					stdout_options: args.stdout_options,
 					filepaths: args.filepaths,
 					is_lli: false,
 					skip_backend: false,
@@ -224,7 +221,7 @@ impl TryFrom<Cli> for MainArgs
 					get_backend(args.backend, "PENNE_LLI", None, "lli")?;
 				Ok(MainArgs {
 					out_dir: args.out_dir,
-					verbose: args.verbose,
+					stdout_options: args.stdout_options,
 					filepaths: args.filepaths,
 					is_lli: true,
 					skip_backend: false,
@@ -240,7 +237,7 @@ impl TryFrom<Cli> for MainArgs
 				build: _,
 			} => Ok(MainArgs {
 				out_dir: args.out_dir,
-				verbose: args.verbose,
+				stdout_options: args.stdout_options,
 				filepaths: args.filepaths,
 				is_lli: true,
 				skip_backend: true,
@@ -259,7 +256,7 @@ fn do_main() -> Result<(), anyhow::Error>
 	let args = Cli::parse().try_into()?;
 	let MainArgs {
 		out_dir,
-		verbose,
+		stdout_options,
 		filepaths,
 		is_lli,
 		skip_backend,
@@ -308,7 +305,7 @@ fn do_main() -> Result<(), anyhow::Error>
 		None => out_dir,
 	};
 
-	let mut stdout = penne::stdout::StdOut::new(verbose);
+	let mut stdout = penne::stdout::StdOut::new(stdout_options);
 
 	let mut sources = Vec::new();
 	let mut modules = Vec::new();
