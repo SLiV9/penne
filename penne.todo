@@ -79,6 +79,7 @@ Functionality:
 		☐	fopen(), fclose()
 		☐	memcpy(), memset()
 			☐	wasm4 basic-drawing.md code sample versimplen
+			☐	Write fix examples in error code reference for E531 through E533
 		☐	transmute() implemented met bitcast (geen struct size checks)
 			☐	wasm4 saving-data.md code sample versimpelen
 	☐	Compile-time string and byte-array inclusion from file
@@ -142,6 +143,11 @@ Usability:
 		☐	Better "duplicate variable" error text for parameters and members
 		☐	Better "conflicting types" error text for assigning to arrays
 			Because it will call 0i32 an expression of type []i32, for instance.
+	  ☐	Better error 502 because "type previously determined here" does not make sense
+	  ☐	Better error when using ; instead of , in struct definition (mention ,)
+	  ☐	Better error 538, show the correct ampersand level
+	  ☐ Use "array view" instead of "(array) slice" consistently
+	  ☐	Fix location of |data|
 	☐	Debug symbols in the resulting IR/executable
 	☐	Add helpful note when trying to jump backwards
 		☐	Similarly, add note when referencing variable declared later
@@ -157,6 +163,7 @@ Performance:
 Documentation:
 	✔ Move tests from lib.rs to *tests/* @done (2022-10-04 16:44)
 	☐	Reference of all current and unstable language features
+		☐	Document weird ampersand syntax
 	☐	Changelog.md
 	✔	Tags for crates.io @done (23-02-16 17:29)
 	✔	High def logo @done (23-02-16 17:28)
@@ -165,6 +172,9 @@ Development:
 	☐	Improve test coverage
 		☐	Is E163 unreachable?
 		☐	Is E332 unreachable?
+		☐	Is E580 unreachable?
+		☐	Isn't it better to consume E582 into other errors if possible?
+		☐	Are E583 and E584 unreachable?
 
 Theory:
 	☐	Prove Turing completeness

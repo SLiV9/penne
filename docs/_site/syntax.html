@@ -9,7 +9,7 @@
     <span class="mi">0b00100100</span>,
 ];
 
-<span class="kd">fn</span> <span class="nf">determine_collatz_number</span>(start: <span class="kt">i32</span>) -&gt; <span class="kt">i32</span>
+<span class="kd">fn</span> <span class="nf">determine_collatz_number</span>(<span class="nl">start:</span> <span class="kt">i32</span>) -&gt; <span class="kt">i32</span>
 {
     <span class="kp">var</span> <span class="nv">x</span> = start;
     <span class="kp">var</span> <span class="nv">steps</span> = <span class="mi">0</span>;
@@ -23,7 +23,7 @@
     <span class="nl">return:</span> steps
 }
 
-<span class="kd">fn</span> <span class="nf">do_collatz_step</span>(x: &amp;<span class="kt">i32</span>)
+<span class="kd">fn</span> <span class="nf">do_collatz_step</span>(<span class="nl">x:</span> &amp;<span class="kt">i32</span>)
 {
     <span class="kp">var</span> <span class="nv">y</span> = x;
     {
@@ -64,7 +64,7 @@
     y: <span class="kt">i32</span>,
 }
 
-<span class="kd">fn</span> <span class="nf">sum_of_position</span>(pos: Position) -&gt; <span class="kt">i32</span>
+<span class="kd">fn</span> <span class="nf">sum_of_position</span>(<span class="nl">pos:</span> Position) -&gt; <span class="kt">i32</span>
 {
     <span class="nl">return:</span> pos.x + pos.y
 }
@@ -74,7 +74,7 @@
     positions: [<span class="mi">4</span>]Position,
 }
 
-<span class="kp">pub</span> <span class="kp">extern</span> <span class="kd">fn</span> <span class="nf">something_with_pointers</span>(u: &amp;&amp;<span class="kt">i32</span>)
+<span class="kp">pub</span> <span class="kp">extern</span> <span class="kd">fn</span> <span class="nf">something_with_pointers</span>(<span class="nl">u:</span> &amp;&amp;<span class="kt">i32</span>)
 {
     <span class="kp">var</span> <span class="nv">i</span>: <span class="kt">i32</span> = <span class="mi">17</span>;
     <span class="kp">var</span> <span class="nv">x</span>: &amp;<span class="kt">i32</span> = &amp;i;

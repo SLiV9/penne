@@ -461,7 +461,7 @@ fn foo()
 
 ### Explanation
 
-In addition to primitive types such as `i32` or `bool`, compound types can be created such as `[10]i32` (an array of `i32` of length 10), `&bool` (a pointer to a `bool`) or `&[]u8` (a pointer to an array slice of `u8`). Not all such compounds are valid.
+In addition to primitive types such as `i32` or `bool`, compound types can be created such as `[10]i32` (an array of `i32` of length 10), `&bool` (a pointer to a `bool`) or `&[]u8` (a pointer to an array view of `u8`). Not all such compounds are valid.
 
 In particular, `[10]T` and `[]T` are only valid if the type `T` is valid and has a size that is known at compile time. The type `[]T` does not have a compile-time known size, hence compound types such as `[10][]u8` and `[][]i32` are invalid.
 
@@ -478,7 +478,7 @@ fn foo() -> [1000]i32;
 ### Explanation
 
 Not all valid types can be used as a return type.
-In particular structs, arrays and array slices cannot be returned.
+In particular structs, arrays and array views cannot be returned.
 
 ## Error code E352
 
@@ -902,6 +902,351 @@ fn main(input: i32) -> i32
     next:
     result = result + a;
     return: result
+}
+```
+
+## Error code E500
+
+Type inference failed because of conflicting type assertions.
+
+### Example of erroneous code
+
+```penne
+const X: i32 = true;
+```
+
+## Error code E501
+
+The array index operation is used on a value that is not an array.
+
+### Example of erroneous code
+
+```penne
+fn main()
+{
+    var a: i32 = 10;
+    var b: i32 = a[0];
+}
+```
+
+## Error code E502
+
+The array length operation is used on a value that is not an array.
+
+### Example of erroneous code
+
+```penne
+fn main()
+{
+    var a: i32 = 10;
+    var b: usize = |a|;
+}
+```
+
+## Error code E503
+
+The array index operation is used with an index of type other than `usize`.
+
+### Example of erroneous code
+
+```penne
+fn main()
+{
+    var a = [10, 20, 30];
+    var i: i8 = 2;
+    var b: i32 = a[i];
+}
+```
+
+## Error code E504
+
+An assignment occurs between two different types.
+
+### Example of erroneous code
+
+```penne
+fn main()
+{
+    var a: i32 = 100;
+    a = false;
+}
+```
+
+## Error code E505
+
+The member access operation is used on a value that is not a structure.
+
+### Example of erroneous code
+
+```penne
+fn main()
+{
+    var a: i32 = 100;
+    var b = a.first;
+}
+```
+
+## Error code E510
+
+A function is called with too few arguments.
+
+### Example of erroneous code
+
+```penne
+fn foo(x: i32, y: i32);
+
+fn main()
+{
+    foo(100);
+}
+```
+
+## Error code E511
+
+A function is called with too many arguments.
+
+### Example of erroneous code
+
+```penne
+fn foo(x: i32, y: i32);
+
+fn main()
+{
+    foo(100, 200, 300);
+}
+```
+
+## Error code E512
+
+A function is called with an argument of the wrong type.
+
+### Example of erroneous code
+
+```penne
+fn foo(x: i32, y: i32);
+
+fn main()
+{
+    foo(100, true);
+}
+```
+
+## Error code E513
+
+A function is called with an argument of type `T` when the corresponding parameter is type `&T`.
+
+### Example of erroneous code
+
+```penne
+fn read_into_buffer(buffer: &[]u8);
+
+fn main()
+{
+    var databuffer: [1024]u8;
+    read_into_buffer(databuffer);
+}
+```
+
+## Error code E530
+
+A constant or parameter of a non-pointer type is mutated, or a variable of a non-mutable type is mutated.
+
+### Example of erroneous code
+
+```penne
+fn main(x: i32)
+{
+    x = 10;
+}
+```
+
+A reference pointer can be used to create mutable function parameters.
+
+```penne
+fn main(x: &i32)
+{
+    x = 10;
+}
+```
+
+## Error code E531
+
+An array is used in its entirety in an assignment.
+
+### Example of erroneous code
+
+```penne
+const DATA: [10]i32 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+fn main()
+{
+    var data = DATA;
+}
+```
+
+## Error code E532
+
+An array view is used in its entirety in an assignment.
+
+### Example of erroneous code
+
+```penne
+fn main(data: []i32)
+{
+    var copy_of_data = data;
+}
+```
+
+## Error code E533
+
+A struct is used in its entirety in an assignment.
+
+### Example of erroneous code
+
+```penne
+struct DataBuffer
+{
+    buffer: [1024]u8,
+}
+
+fn main(data: DataBuffer)
+{
+    var copy_of_data = data;
+}
+```
+
+## Error code E538
+
+The address of a temporary value is taken
+
+### Example of erroneous code
+
+```penne
+fn main()
+{
+    var a: i32 = 100;
+    var x: &&i32 = &&a;
+}
+```
+
+## Error code E550
+
+An operator is used that is not valid for the type of its operand(s).
+
+### Example of erroneous code
+
+```penne
+fn main()
+{
+    var a: u16 = 20;
+    var b = -a;
+}
+```
+
+## Error code E551
+
+The types of the left and right operand of a binary operator do not match.
+
+### Example of erroneous code
+
+```penne
+fn main(data: []u8)
+{
+    var a: i32 = 10;
+    var b: i32 = |data| + a;
+}
+```
+
+If the operands are primitives types, you can use primitive casting to do the conversion.
+
+```penne
+fn main(data: []u8)
+{
+    var a: i32 = 10;
+    var b: i32 = |data| as i32 + a;
+}
+```
+
+## Error code E552
+
+A primitive cast is attempted between incompatible types.
+
+### Example of erroneous code
+
+```penne
+fn main()
+{
+    var a: i32 = 1;
+    var b = a as bool;
+}
+```
+
+The only way to get a bool from another type is using conditionals.
+
+```penne
+fn main()
+{
+    var a: i32 = 1;
+    var b: bool;
+    if a == 0
+    {
+        b = false;
+    }
+    else
+    {
+        b = true;
+    }
+}
+```
+
+## Error code E581
+
+The compiler failed to infer the type of a variable declaration.
+
+### Example of erroneous code
+
+```penne
+fn main()
+{
+    var a = 1;
+}
+```
+
+If the compiler cannot infer the type of a variable declaration, an explicit type must be added.
+
+```penne
+fn main()
+{
+    var a: i64 = 1;
+}
+```
+
+## Error code E582
+
+The compiler failed to infer the type of an integer literal without type suffix.
+
+### Example of erroneous code
+
+```penne
+fn foo()
+{
+    return: 500
+}
+```
+
+To fix this specific error, add an integer suffix.
+
+```penne
+    return: 500i32
+```
+
+However this error is usually accompanied by a different error, such as E331.
+Adding an explicit type elsewhere is usually enough to fix both errors.
+
+```penne
+fn foo() -> i32
+{
+    return: 500
 }
 ```
 

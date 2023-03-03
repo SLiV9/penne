@@ -48,6 +48,7 @@ Jekyll::Hooks.register :site, :pre_render do |site|
 			mixin :comments
 			mixin :values
 			mixin :declarations
+			mixin :labels_in_sample
 			mixin :main
 			mixin :whitespace
 			mixin :fallback
@@ -158,6 +159,11 @@ Jekyll::Hooks.register :site, :pre_render do |site|
 			mixin :main
 			mixin :whitespace
 			mixin :fallback
+		end
+
+		state :labels_in_sample do
+			rule %r/\b(#{Penne.keywords.join('|')})(?=:)/, Keyword
+			rule %r/\b#{Penne.identifier}:/, Name::Label
 		end
 
 		state :structural do
