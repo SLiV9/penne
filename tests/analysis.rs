@@ -152,7 +152,7 @@ fn fail_to_analyze_var_in_naked_branch()
 #[test]
 fn fail_to_analyze_missing_address()
 {
-	compile_to_fail(&[513], "tests/samples/invalid/missing_address.pn");
+	compile_to_fail(&[513, 513], "tests/samples/invalid/missing_address.pn");
 }
 
 #[test]
@@ -168,7 +168,7 @@ fn fail_to_analyze_missing_address_variable()
 fn fail_to_analyze_pointer_to_temporary_pointer()
 {
 	compile_to_fail(
-		&[538],
+		&[538, 538],
 		"tests/samples/invalid/pointer_to_temporary_pointer.pn",
 	);
 }

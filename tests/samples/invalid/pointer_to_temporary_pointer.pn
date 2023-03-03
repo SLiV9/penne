@@ -2,4 +2,9 @@ fn main()
 {
 	var a: u8 = 10;
 	var x: &&u8 = &&a;
+
+	var b: &u8 = &a;
+	var c: &&u8 = &&b;
+	var d: &&&u8 = &&&c;
+	var y: &&&&&&&u8 = &&&&&&&d;
 }

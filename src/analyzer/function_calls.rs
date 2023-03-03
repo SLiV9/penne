@@ -133,20 +133,20 @@ fn can_hint_missing_address(
 	parameter_type: &ValueType,
 ) -> bool
 {
-	match parameter_type
+	match argument
 	{
-		ValueType::Pointer { deref_type }
-			if deref_type.as_ref() == argument_type =>
+		Expression::Deref {
+			reference: _,
+			deref_type: _,
+		} => match parameter_type
 		{
-			match argument
+			ValueType::Pointer { deref_type }
+				if deref_type.as_ref() == argument_type =>
 			{
-				Expression::Deref {
-					reference: _,
-					deref_type: _,
-				} => true,
-				_ => false,
+				true
 			}
-		}
+			_ => argument_type.can_coerce_address_into(parameter_type),
+		},
 		_ => false,
 	}
 }
