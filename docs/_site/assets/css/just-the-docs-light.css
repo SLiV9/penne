@@ -1,5 +1,5 @@
 @charset "UTF-8";
-@import url("https://fonts.googleapis.com/css?family=Source+Code+Pro:wght@400,600,700&text=╭─│·┬─╰──╯&font-display=swap");
+@import url("https://fonts.googleapis.com/css?family=Source+Code+Pro:wght@400,700&text=╭─│·┬─╰──╯⋮├─▶&font-display=swap");
 .highlight .c {
   color: #586e75; }
 
@@ -6558,9 +6558,22 @@ a.skip-to-main:active {
 div.opaque {
   background-color: #fff; }
 
+@font-face {
+  font-family: 'Iosevka Fixed Web';
+  font-display: swap;
+  font-weight: 400;
+  font-stretch: normal;
+  font-style: normal;
+  src: url("../fonts/iosevka-fixed-regular-stripped.woff") format("woff"); }
+@font-face {
+  font-family: 'Iosevka Fixed Web';
+  font-display: swap;
+  font-weight: 700;
+  font-stretch: normal;
+  font-style: normal;
+  src: url("../fonts/iosevka-fixed-bold-stripped.woff") format("woff"); }
 .terminal-output {
-  font-family: 'Source Code Pro', monospace;
-  font-size: 0.8em;
+  font-family: 'Iosevka Fixed Web', 'Source Code Pro', monospace;
   line-height: 1.3;
   color: #232221;
   background-color: #ffffff;
@@ -6579,13 +6592,13 @@ div.opaque {
     color: #67615c; }
   .terminal-output .f1 {
     color: #cb2f2c;
-    font-weight: 600; }
+    font-weight: bold; }
   .terminal-output .f3 {
     color: #ff924f;
-    font-weight: 600; }
+    font-weight: bold; }
   .terminal-output .f5 {
     color: #ac59ae;
-    font-weight: 600; }
+    font-weight: bold; }
   .terminal-output .f6 {
     color: #167c9d;
-    font-weight: 600; }
+    font-weight: bold; }
