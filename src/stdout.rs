@@ -28,6 +28,11 @@ pub struct Options
 	#[clap(hide(true), long, value_name("WHEN"))]
 	#[clap(value_enum, default_value_t=ColorChoice::Auto)]
 	color: ColorChoice,
+
+	/// Which character set to use to draw the arrows in error messages
+	#[clap(long, value_name("CHARSET"))]
+	#[clap(value_enum, default_value_t=CharSet::Unicode)]
+	arrows: CharSet,
 }
 
 #[derive(Debug, Default, Clone, Copy, Deserialize, clap::ValueEnum)]
@@ -52,6 +57,26 @@ impl From<ColorChoice> for termcolor::ColorChoice
 	}
 }
 
+#[derive(Debug, Default, Clone, Copy, Deserialize, clap::ValueEnum)]
+pub enum CharSet
+{
+	#[default]
+	Unicode,
+	Ascii,
+}
+
+impl From<CharSet> for ariadne::CharSet
+{
+	fn from(choice: CharSet) -> ariadne::CharSet
+	{
+		match choice
+		{
+			CharSet::Unicode => ariadne::CharSet::Unicode,
+			CharSet::Ascii => ariadne::CharSet::Ascii,
+		}
+	}
+}
+
 pub struct StdOut
 {
 	stdout: StandardStream,
@@ -71,10 +96,9 @@ impl StdOut
 			ColorChoice::Always => true,
 			ColorChoice::Never => false,
 		};
-		let charset = ariadne::CharSet::Unicode;
 		let ariadne_config = ariadne::Config::default()
 			.with_color(with_color)
-			.with_char_set(charset);
+			.with_char_set(options.arrows.into());
 		StdOut {
 			stdout,
 			is_verbose,

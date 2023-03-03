@@ -153,7 +153,9 @@ Usability:
 		☐	Similarly, add note when referencing variable declared later
 		☐	Add note when referencing variable from an inner scope
 	✔	Allow goto to skip var declaration if short-lived (skip_shortlived_var.pn) @done (2023-01-09 17:57)
-	☐	Add options to disable color and unicode symbols in errors
+	✔	Add options to disable color and unicode symbols in errors @done (2023-03-03 17:10)
+		☐	Update ariadne when fixed and remove hide(true)
+		☐	Disable red in final error message when --color=never
 	☐	Disallow implicit pointer types for variables (`let x = &a;`) again
 		☐	tests/samples/unresolved/implicit_pointer_type.pn
 
