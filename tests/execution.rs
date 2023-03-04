@@ -437,6 +437,25 @@ fn execute_infer_variable_type_from_param() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_pointer_stability_variable() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation(
+		"tests/samples/valid/pointer_stability_variable.pn",
+	)?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn execute_pointer_stability_struct() -> Result<(), anyhow::Error>
+{
+	let result =
+		execute_calculation("tests/samples/valid/pointer_stability_struct.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_identifier_starting_with_keyword() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation(
@@ -455,6 +474,16 @@ fn execute_import_position_and_line() -> Result<(), anyhow::Error>
 		"tests/samples/valid/line.pn",
 	])?;
 	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn fail_to_execute_pointer_escape_ub() -> Result<(), anyhow::Error>
+{
+	let result =
+		execute_calculation("tests/samples/invalid/pointer_escape_ub.pn")?;
+	// This test is not entirely portable or precise, but it works.
+	assert_ne!(result, 123);
 	Ok(())
 }
 

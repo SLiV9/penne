@@ -207,6 +207,12 @@ fn fail_to_analyze_pointer_to_const()
 }
 
 #[test]
+fn fail_to_analyze_pointer_into_view()
+{
+	compile_to_fail(&[530], "tests/samples/invalid/pointer_into_view.pn");
+}
+
+#[test]
 fn fail_to_analyze_assign_to_view_parameter()
 {
 	compile_to_fail(

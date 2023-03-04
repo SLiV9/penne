@@ -159,6 +159,7 @@ Usability:
 		☐	Update ariadne when fixed and remove hide(true)
 		☐	Disable red in final error message when --color=never
 	☐	Disallow implicit pointer types for variables (`let x = &a;`) again
+		In fact it is currently treating x as i32, which leads to subtle bugs.
 		☐	tests/samples/unresolved/implicit_pointer_type.pn
 
 Performance:

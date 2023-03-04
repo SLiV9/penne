@@ -20,7 +20,7 @@ fn get(param: &i32) -> i32
 fn baz() -> i32
 {
 	var a: &i32 = 0x7F00;
-	var x: &i32 = &a;
-	var result = get(x);
+	var x = &a;
+	var result = get(&x);
 	return: result
 }
