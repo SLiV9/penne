@@ -172,7 +172,7 @@ Documentation:
 
 Development:
 	☐	Improve test coverage
-		☐	Is E163 unreachable?
+		✔	Is E163 unreachable? @done (2023-03-04 17:25)
 		☐	Is E332 unreachable?
 		☐	Is E580 unreachable?
 		☐	Isn't it better to consume E582 into other errors if possible?

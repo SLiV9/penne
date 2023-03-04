@@ -104,7 +104,6 @@ pub enum Error
 	InvalidEscapeSequence,
 	UnexpectedTrailingBackslash,
 	MissingClosingQuote,
-	InvalidMixedString,
 }
 
 #[derive(Debug, Clone, PartialEq)]

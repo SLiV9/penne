@@ -513,7 +513,6 @@ impl Error
 				lexer::Error::MissingClosingQuote => 160,
 				lexer::Error::UnexpectedTrailingBackslash => 161,
 				lexer::Error::InvalidEscapeSequence => 162,
-				lexer::Error::InvalidMixedString => 163,
 			},
 			Error::UnexpectedToken { .. } => 300,
 			Error::UnexpectedSemicolonAfterIdentifier { .. } => 301,
@@ -739,6 +738,8 @@ const PRIMARY: ariadne::Color = ariadne::Color::Yellow;
 const SECONDARY: ariadne::Color = ariadne::Color::Cyan;
 const TERTIARY: ariadne::Color = ariadne::Color::Magenta;
 
+#[cfg_attr(coverage, no_coverage)]
+#[cfg(not(tarpaulin_include))]
 fn write(
 	report: ariadne::ReportBuilder<(String, std::ops::Range<usize>)>,
 	error: &Error,
@@ -895,23 +896,6 @@ fn write(
 			.with_note(
 				"To continue a string across multiple lines, close it and \
 				 then reopen it on the next line.",
-			),
-
-		Error::Lexical {
-			error: lexer::Error::InvalidMixedString,
-			expectation,
-			location,
-		} => report
-			.with_message("Invalid mixed string")
-			.with_label(
-				location
-					.label()
-					.with_message(expectation)
-					.with_color(PRIMARY),
-			)
-			.with_note(
-				"String literals cannot contain both ASCII control characters \
-				 and non-ASCII characters.",
 			),
 
 		Error::UnexpectedToken {
