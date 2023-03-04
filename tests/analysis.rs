@@ -168,10 +168,19 @@ fn fail_to_analyze_missing_address()
 }
 
 #[test]
+fn fail_to_analyze_missing_address_get_from_pointer()
+{
+	compile_to_fail(
+		&[513],
+		"tests/samples/invalid/missing_address_get_from_pointer.pn",
+	);
+}
+
+#[test]
 fn fail_to_analyze_missing_address_variable()
 {
 	compile_to_fail(
-		&[504],
+		&[504, 504],
 		"tests/samples/invalid/missing_address_variable.pn",
 	);
 }

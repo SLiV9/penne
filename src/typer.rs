@@ -2191,8 +2191,12 @@ impl Reference
 			{
 				self.autoderef(ref_type, y, typer)
 			}
-			(Some(Ok(def)), None, Some(Ok(ref_type))) =>
+			(Some(Ok(def)), _, Some(Ok(ref_type))) =>
 			{
+				// If we have a contextual_type but known_type cannot autoderef
+				// into it, do an autoderef while ignoring the contextual type.
+				// We might get a type error during analysis or resolution,
+				// but we do not want an E500 Conflicting Types here.
 				self.autoderef(ref_type, def, typer)
 			}
 			(Some(Ok(def)), _, _) =>
