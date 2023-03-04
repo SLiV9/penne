@@ -292,32 +292,10 @@ impl Analyzable for Statement
 				let value = value.analyze(analyzer);
 				let reference = reference.analyze(analyzer);
 
-				let mut needs_outer_mutability = true;
-				for step in reference.steps.iter()
-				{
-					match step
-					{
-						ReferenceStep::Element { .. } => (),
-						ReferenceStep::Member { .. } => (),
-						ReferenceStep::Autodeslice { offset } => match offset
-						{
-							DesliceOffset::ArrayByView => (),
-							DesliceOffset::ArrayByPointer =>
-							{
-								needs_outer_mutability = false;
-							}
-							DesliceOffset::Length => (),
-						},
-						ReferenceStep::Autoderef =>
-						{
-							needs_outer_mutability = false;
-						}
-						ReferenceStep::Autoview => (),
-					}
-				}
-
-				match analyzer
-					.use_variable(&reference.base, needs_outer_mutability)
+				match analyzer.use_variable(
+					&reference.base,
+					needs_outer_mutability(&reference),
+				)
 				{
 					Ok(()) => Statement::Assignment {
 						reference,
@@ -522,7 +500,7 @@ impl Analyzable for Expression
 				let is_addressed = match reference.address_depth
 				{
 					0 => false,
-					1 => true,
+					1 => needs_outer_mutability(&reference),
 					_ =>
 					{
 						match &reference.base
@@ -632,4 +610,31 @@ impl Analyzable for Reference
 			location: self.location,
 		}
 	}
+}
+
+fn needs_outer_mutability(reference: &Reference) -> bool
+{
+	for step in reference.steps.iter()
+	{
+		match step
+		{
+			ReferenceStep::Element { .. } => (),
+			ReferenceStep::Member { .. } => (),
+			ReferenceStep::Autodeslice { offset } => match offset
+			{
+				DesliceOffset::ArrayByView => (),
+				DesliceOffset::ArrayByPointer =>
+				{
+					return false;
+				}
+				DesliceOffset::Length => (),
+			},
+			ReferenceStep::Autoderef =>
+			{
+				return false;
+			}
+			ReferenceStep::Autoview => (),
+		}
+	}
+	true
 }

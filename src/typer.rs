@@ -2602,6 +2602,7 @@ fn build_type_of_ref1(
 ) -> ValueType
 {
 	let mut full_type = base_type;
+	let mut is_indirect = false;
 
 	for step in steps.iter().rev()
 	{
@@ -2612,11 +2613,13 @@ fn build_type_of_ref1(
 				full_type = ValueType::Arraylike {
 					element_type: Box::new(full_type),
 				};
+				is_indirect = true;
 			}
 			ReferenceStep::Member { .. } =>
 			{
 				full_type =
 					ValueType::UnresolvedStructOrWord { identifier: None };
+				is_indirect = true;
 			}
 			ReferenceStep::Autoderef =>
 			{
@@ -2633,15 +2636,18 @@ fn build_type_of_ref1(
 			ReferenceStep::Autodeslice { offset: _ } => (),
 		}
 	}
-	for _i in 0..address_depth
+	if !is_indirect
 	{
-		match full_type
+		for _i in 0..address_depth
 		{
-			ValueType::Pointer { deref_type } =>
+			match full_type
 			{
-				full_type = *deref_type;
+				ValueType::Pointer { deref_type } =>
+				{
+					full_type = *deref_type;
+				}
+				_ => break,
 			}
-			_ => break,
 		}
 	}
 	full_type
