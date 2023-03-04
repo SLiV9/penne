@@ -59,7 +59,10 @@ fn fail_to_analyze_index_type_mismatch()
 #[test]
 fn fail_to_analyze_argument_type_mismatch()
 {
-	compile_to_fail(&[512], "tests/samples/invalid/argument_type_mismatch.pn");
+	compile_to_fail(
+		&[512, 512],
+		"tests/samples/invalid/argument_type_mismatch.pn",
+	);
 }
 
 #[test]

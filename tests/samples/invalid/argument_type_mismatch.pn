@@ -1,12 +1,13 @@
 
 fn foo(x: i32) -> i32
 {
-	return:
-	x
+	return: x
 }
 
 fn main() -> i32
 {
-	return:
-	foo(true)
+	var x = foo(true);
+	var a = true;
+	var y = foo(a);
+	return: x + y
 }

@@ -408,6 +408,35 @@ fn execute_i32_to_le_bytes() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_get_from_pointer() -> Result<(), anyhow::Error>
+{
+	let result =
+		execute_calculation("tests/samples/valid/get_from_pointer.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn execute_infer_integer_type_from_param() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation(
+		"tests/samples/valid/infer_integer_type_from_param.pn",
+	)?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn execute_infer_variable_type_from_param() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation(
+		"tests/samples/valid/infer_variable_type_from_param.pn",
+	)?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_identifier_starting_with_keyword() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation(
