@@ -1,0 +1,16 @@
+struct Test
+{
+	a: Foo,
+	b: Bar,
+	c: Foo,
+}
+
+struct Foo
+{
+	value: i32,
+}
+
+struct Bar
+{
+	value: i32,
+}

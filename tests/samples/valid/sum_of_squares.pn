@@ -1,0 +1,19 @@
+import "position.pn";
+
+const ORIGIN: Position = Position { x: 0, y: 0 };
+
+fn squared_manhattan_distance(from: Position, to: Position) -> i32
+{
+	var dx = to.x - from.x;
+	var dy = to.y - from.y;
+	return: dx * dx + dy * dy
+}
+
+fn euclidean_distance(from: Position, to: Position) -> i32;
+
+pub fn sum_of_squares(x: i32, y: i32) -> i32
+{
+	var pos = Position { x, y };
+	var result = squared_manhattan_distance(ORIGIN, pos);
+	return: result
+}

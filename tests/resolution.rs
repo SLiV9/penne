@@ -90,6 +90,27 @@ fn allow_sketch_of_listen_to_client()
 	allow_to_compile("examples/listen_to_client.pn")
 }
 
+#[test]
+fn investigate_nominal_typing()
+{
+	let declarations = match compile("tests/samples/valid/nominal_typing.pn")
+	{
+		Ok(declarations) => declarations,
+		#[allow(unreachable_code)]
+		Err(errors) => match errors.panic() {},
+	};
+	let members = match declarations.into_iter().next()
+	{
+		Some(Declaration::Structure { members, .. }) => members,
+		_ => panic!("broken test"),
+	};
+	assert_eq!(members.len(), 3);
+	let member_types: Vec<value_type::ValueType<resolved::Identifier>> =
+		members.into_iter().map(|m| m.value_type).collect();
+	assert_ne!(member_types[0], member_types[1]);
+	assert_eq!(member_types[0], member_types[2]);
+}
+
 fn compile_to_fail(codes: &[u16], filename: &str)
 {
 	match compile(filename)

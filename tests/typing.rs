@@ -199,6 +199,12 @@ fn fail_to_type_view_as_member()
 }
 
 #[test]
+fn fail_to_type_void_as_parameter()
+{
+	compile_to_fail(&[354], "tests/samples/invalid/void_as_parameter.pn")
+}
+
+#[test]
 fn fail_to_type_word_size_exceeded()
 {
 	compile_to_fail(&[380, 380], "tests/samples/invalid/word_size_exceeded.pn")

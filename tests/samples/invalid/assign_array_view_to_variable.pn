@@ -1,0 +1,5 @@
+
+fn main(data: []i32)
+{
+	var copy_of_data = data;
+}

@@ -81,6 +81,15 @@ fn fail_to_analyze_assign_array_to_array()
 }
 
 #[test]
+fn fail_to_analyze_assign_array_view_to_variable()
+{
+	compile_to_fail(
+		&[532, 352],
+		"tests/samples/invalid/assign_array_view_to_variable.pn",
+	);
+}
+
+#[test]
 fn fail_to_analyze_assign_struct_to_struct()
 {
 	compile_to_fail(&[533], "tests/samples/invalid/assign_struct_to_struct.pn");

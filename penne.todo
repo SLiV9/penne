@@ -66,12 +66,12 @@ Functionality:
 	✘	Explicit mutable parameters @cancelled (2022-09-03 16:04)
 	☐	Modules
 		✘	pragma once @cancelled (2023-01-05 19:05)
-		  ✘	Prevent circular imports @cancelled (2023-01-05 19:05)
+			✘	Prevent circular imports @cancelled (2023-01-05 19:05)
 		✔	Public vs private @done (2023-01-05 19:05)
 			☐	Think about pub (extern) const (not) being static
 		☐	Namespacing
-	  ☐	Use and pub use
-	  	☐	Deduplicate symbols that are pub used in two different imports
+		☐	Use and pub use
+			☐	Deduplicate symbols that are pub used in two different imports
 	☐	Heap allocation
 	☐	stdlib
 		☐	panic()
@@ -82,6 +82,8 @@ Functionality:
 			☐	Write fix examples in error code reference for E531 through E533
 		☐	transmute() implemented met bitcast (geen struct size checks)
 			☐	wasm4 saving-data.md code sample versimpelen
+		☐	Move main infra to library so it can be tested
+			☐ Add test for import_sum_of_squares.pn
 	☐	Compile-time string and byte-array inclusion from file
 
 Syntactic sugar:
@@ -97,11 +99,11 @@ Syntactic sugar:
 		var y = bar(),
 		if x == y
 		{
-		  ...
+			...
 		}
 		else if x == -y
 		{
-		  ...
+			...
 		}
 		// x and y are not in scope here
 		(Or perhaps "with" instead of "var"?)
@@ -143,11 +145,11 @@ Usability:
 		☐	Better "duplicate variable" error text for parameters and members
 		☐	Better "conflicting types" error text for assigning to arrays
 			Because it will call 0i32 an expression of type []i32, for instance.
-	  ☐	Better error 502 because "type previously determined here" does not make sense
-	  ☐	Better error when using ; instead of , in struct definition (mention ,)
-	  ☐	Better error 538, show the correct ampersand level
-	  ☐ Use "array view" instead of "(array) slice" consistently
-	  ☐	Fix location of |data|
+		☐	Better error 502 because "type previously determined here" does not make sense
+		☐	Better error when using ; instead of , in struct definition (mention ,)
+		☐	Better error 538, show the correct ampersand level
+		☐ Use "array view" instead of "(array) slice" consistently
+		☐	Fix location of |data|
 	☐	Debug symbols in the resulting IR/executable
 	☐	Add helpful note when trying to jump backwards
 		☐	Similarly, add note when referencing variable declared later
@@ -173,8 +175,9 @@ Documentation:
 Development:
 	☐	Improve test coverage
 		✔	Is E163 unreachable? @done (2023-03-04 17:25)
-		☐	Is E332 unreachable?
-		☐	Is E580 unreachable?
+		✔	Is E332 unreachable? @done (2023-03-04 18:35)
+		✔	Is E580 unreachable? @done (2023-03-04 18:35)
+		☐	Think about a better way to solve "ambiguous" errors (E332 and E580)
 		☐	Isn't it better to consume E582 into other errors if possible?
 		☐	Are E583 and E584 unreachable?
 

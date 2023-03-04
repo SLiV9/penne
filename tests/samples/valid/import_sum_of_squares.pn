@@ -1,0 +1,7 @@
+import "sum_of_squares.pn";
+
+fn main() -> i32
+{
+	var result = sum_of_squares(2, 14);
+	return: result
+}
