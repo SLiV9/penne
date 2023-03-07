@@ -462,6 +462,11 @@ pub enum Error
 	{
 		location: Location
 	},
+	AmbiguousTypeOfPointerDeclaration
+	{
+		suggested_type: ValueType,
+		location: Location,
+	},
 	AmbiguousTypeOfNakedIntegerLiteral
 	{
 		suggested_type: ValueType,
@@ -596,6 +601,7 @@ impl Error
 			Error::AmbiguousTypeOfNakedIntegerLiteral { .. } => 582,
 			Error::AmbiguousTypeOfArrayLiteral { .. } => 583,
 			Error::AmbiguousTypeOfStringLiteral { .. } => 584,
+			Error::AmbiguousTypeOfPointerDeclaration { .. } => 585,
 			Error::NonFinalLoopStatement { .. } => 800,
 			Error::MisplacedLoopStatement { .. } => 801,
 			Error::MissingBraces { .. } => 840,
@@ -709,6 +715,10 @@ impl Error
 			} => &location_of_operand,
 			Error::AmbiguousType { location, .. } => &location,
 			Error::AmbiguousTypeOfDeclaration { location, .. } => &location,
+			Error::AmbiguousTypeOfPointerDeclaration { location, .. } =>
+			{
+				&location
+			}
 			Error::AmbiguousTypeOfNakedIntegerLiteral { location, .. } =>
 			{
 				&location
@@ -1014,7 +1024,7 @@ fn write(
 				.label()
 				.with_message(format!(
 					"The type {} is invalid.",
-					show_type(value_type).fg(PRIMARY)
+					show_type(value_type, PRIMARY)
 				))
 				.with_color(PRIMARY),
 		),
@@ -1027,7 +1037,7 @@ fn write(
 				.label()
 				.with_message(format!(
 					"A value of type {} cannot be assigned to a variable.",
-					show_type(value_type).fg(PRIMARY)
+					show_type(value_type, PRIMARY)
 				))
 				.with_color(PRIMARY),
 		),
@@ -1040,7 +1050,7 @@ fn write(
 				.label()
 				.with_message(format!(
 					"The type {} is not allowed as a parameter.",
-					show_type(value_type).fg(PRIMARY)
+					show_type(value_type, PRIMARY)
 				))
 				.with_color(PRIMARY),
 		),
@@ -1053,7 +1063,7 @@ fn write(
 				.label()
 				.with_message(format!(
 					"The type {} is not allowed as a return value.",
-					show_type(value_type).fg(PRIMARY)
+					show_type(value_type, PRIMARY)
 				))
 				.with_color(PRIMARY),
 		),
@@ -1067,7 +1077,7 @@ fn write(
 				.label()
 				.with_message(format!(
 					"The type {} is not allowed as a member of a struct.",
-					show_type(value_type).fg(PRIMARY),
+					show_type(value_type, PRIMARY),
 				))
 				.with_color(PRIMARY),
 		),
@@ -1081,7 +1091,7 @@ fn write(
 				.label()
 				.with_message(format!(
 					"The type {} is not allowed as a member of a word.",
-					show_type(value_type).fg(PRIMARY),
+					show_type(value_type, PRIMARY),
 				))
 				.with_color(PRIMARY),
 		),
@@ -1094,7 +1104,7 @@ fn write(
 				.label()
 				.with_message(format!(
 					"A value of type {} cannot be assigned to a constant.",
-					show_type(value_type).fg(PRIMARY)
+					show_type(value_type, PRIMARY)
 				))
 				.with_color(PRIMARY),
 		),
@@ -1110,7 +1120,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"The type {} is not allowed in external declarations.",
-						show_type(value_type).fg(PRIMARY)
+						show_type(value_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1162,7 +1172,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Value of type {} returned here.",
-						show_type(inferred_type).fg(PRIMARY)
+						show_type(inferred_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1208,7 +1218,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Expected {} based on this declaration.",
-						show_type(declared_type).fg(SECONDARY)
+						show_type(declared_type, SECONDARY)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1225,7 +1235,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Value of type {} returned here.",
-						show_type(inferred_type).fg(PRIMARY)
+						show_type(inferred_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1234,7 +1244,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Expected {} based on this declaration.",
-						show_type(declared_type).fg(SECONDARY)
+						show_type(declared_type, SECONDARY)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1256,7 +1266,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Expected {} based on this declaration.",
-						show_type(declared_type).fg(SECONDARY)
+						show_type(declared_type, SECONDARY)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1583,7 +1593,7 @@ fn write(
 					.with_message(format!(
 						"'{}' has type {}.",
 						name.fg(PRIMARY),
-						show_type(current_type).fg(PRIMARY)
+						show_type(current_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1592,7 +1602,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Previously determined to be {}.",
-						show_type(previous_type).fg(SECONDARY)
+						show_type(previous_type, SECONDARY)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1610,7 +1620,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Cannot assign this expression of type {}.",
-						show_type(current_type).fg(PRIMARY)
+						show_type(current_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1620,7 +1630,7 @@ fn write(
 					.with_message(format!(
 						"'{}' has type {}.",
 						name.fg(SECONDARY),
-						show_type(previous_type).fg(SECONDARY)
+						show_type(previous_type, SECONDARY)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1644,7 +1654,7 @@ fn write(
 					.with_message(format!(
 						"'{}' has type {}.",
 						name.fg(SECONDARY),
-						show_type(previous_type).fg(SECONDARY)
+						show_type(previous_type, SECONDARY)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1665,7 +1675,7 @@ fn write(
 					.with_order(1)
 					.with_message(format!(
 						"Cannot assign this expression of type {}.",
-						show_type(assigned_type).fg(PRIMARY)
+						show_type(assigned_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1675,7 +1685,7 @@ fn write(
 					.with_order(2)
 					.with_message(format!(
 						"The assignee has type {}.",
-						show_type(assignee_type).fg(SECONDARY)
+						show_type(assignee_type, SECONDARY)
 					))
 					.with_color(SECONDARY),
 			)
@@ -1685,7 +1695,7 @@ fn write(
 					.with_message(format!(
 						"'{}' has type {}.",
 						name.fg(TERTIARY),
-						show_type(declared_type).fg(TERTIARY)
+						show_type(declared_type, TERTIARY)
 					))
 					.with_color(TERTIARY),
 			),
@@ -1703,7 +1713,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Argument has type {}.",
-						show_type(argument_type).fg(PRIMARY)
+						show_type(argument_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1713,7 +1723,7 @@ fn write(
 					.with_message(format!(
 						"Parameter '{}' has type {}.",
 						parameter_name.fg(SECONDARY),
-						show_type(parameter_type).fg(SECONDARY)
+						show_type(parameter_type, SECONDARY)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1731,7 +1741,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Argument has type {}.",
-						show_type(argument_type).fg(PRIMARY)
+						show_type(argument_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1751,7 +1761,7 @@ fn write(
 					.with_message(format!(
 						"Parameter '{}' has type {}.",
 						parameter_name.fg(SECONDARY),
-						show_type(parameter_type).fg(SECONDARY)
+						show_type(parameter_type, SECONDARY)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1765,8 +1775,8 @@ fn write(
 				.label()
 				.with_message(format!(
 					"Argument has type {}, expected {}.",
-					show_type(argument_type).fg(PRIMARY),
-					show_type(index_type).fg(TERTIARY)
+					show_type(argument_type, PRIMARY),
+					show_type(index_type, TERTIARY)
 				))
 				.with_color(PRIMARY),
 		),
@@ -1782,7 +1792,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Cannot index into value of non-array type {}.",
-						show_type(current_type).fg(PRIMARY)
+						show_type(current_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1804,7 +1814,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Cannot take length of value of non-array type {}.",
-						show_type(current_type).fg(PRIMARY)
+						show_type(current_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1826,7 +1836,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Cannot access member of non-structure type {}.",
-						show_type(current_type).fg(PRIMARY)
+						show_type(current_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1961,7 +1971,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"This reference has type {}.",
-						show_type(type_of_unaddressed).fg(SECONDARY),
+						show_type(type_of_unaddressed, SECONDARY),
 					))
 					.with_color(SECONDARY),
 			),
@@ -2081,6 +2091,28 @@ fn write(
 			)
 			.with_note("Consider adding a type to this declaration."),
 
+		Error::AmbiguousTypeOfPointerDeclaration {
+			location,
+			suggested_type,
+		} => report
+			.with_message("Ambiguous type")
+			.with_label(
+				location
+					.label()
+					.with_message("Failed to infer type of variable.")
+					.with_color(PRIMARY),
+			)
+			.with_label(
+				location
+					.label_after_end()
+					.with_message(format!(
+						"Consider adding {} here.",
+						show_colon_and_type(suggested_type, SECONDARY)
+					))
+					.with_color(SECONDARY),
+			)
+			.with_note("Pointer variables require an explicit type."),
+
 		Error::AmbiguousTypeOfNakedIntegerLiteral {
 			suggested_type,
 			location,
@@ -2097,7 +2129,7 @@ fn write(
 					.label_after_end()
 					.with_message(format!(
 						"Consider adding a type suffix like {}.",
-						show_type(suggested_type).fg(SECONDARY)
+						show_type(suggested_type, SECONDARY)
 					))
 					.with_color(SECONDARY),
 			),
@@ -2137,7 +2169,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"This has type {}.",
-						show_type(type_of_left).fg(PRIMARY)
+						show_type(type_of_left, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -2146,7 +2178,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"This has type {}.",
-						show_type(type_of_right).fg(SECONDARY)
+						show_type(type_of_right, SECONDARY)
 					))
 					.with_color(SECONDARY),
 			)
@@ -2171,7 +2203,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"This has type {}.",
-						show_type(value_type).fg(PRIMARY)
+						show_type(value_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -2200,7 +2232,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"This has type {}.",
-						show_type(value_type).fg(PRIMARY)
+						show_type(value_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -2209,8 +2241,8 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Cannot cast {} into {}.",
-						show_type(value_type).fg(PRIMARY),
-						show_type(coerced_type).fg(SECONDARY),
+						show_type(value_type, PRIMARY),
+						show_type(coerced_type, SECONDARY),
 					))
 					.with_color(SECONDARY),
 			)
@@ -2287,7 +2319,7 @@ fn note_for_possible_casts(
 	{
 		format!(
 			"Can cast {} into {}.",
-			show_type(value_type).fg(PRIMARY),
+			show_type(value_type, PRIMARY),
 			show_possible_types(possible_coerced_types, SECONDARY),
 		)
 	}
@@ -2295,10 +2327,10 @@ fn note_for_possible_casts(
 	{
 		format!(
 			"Can cast {} into {}, or {} into {}.",
-			show_type(value_type).fg(PRIMARY),
+			show_type(value_type, PRIMARY),
 			show_possible_types(possible_coerced_types, SECONDARY),
 			show_possible_types(possible_value_types, PRIMARY),
-			show_type(coerced_type).fg(SECONDARY),
+			show_type(coerced_type, SECONDARY),
 		)
 	}
 }
@@ -2316,7 +2348,7 @@ fn show_possible_types(
 		{
 			OperandValueType::ValueType(value_type) =>
 			{
-				format!("{}", show_type(value_type).fg(color))
+				format!("{}", show_type(value_type, color))
 			}
 			OperandValueType::Pointer => format!("{}", "`&_`".fg(color)),
 		})
@@ -2331,9 +2363,21 @@ fn show_possible_types(
 
 #[cfg_attr(coverage, no_coverage)]
 #[cfg(not(tarpaulin_include))]
-fn show_type(value_type: &ValueType) -> String
+fn show_colon_and_type(value_type: &ValueType, color: ariadne::Color)
+	-> String
 {
-	format!("`{}`", show_type_inner(value_type))
+	format!(
+		"`{}{}`",
+		": ".fg(color),
+		show_type_inner(value_type).fg(color)
+	)
+}
+
+#[cfg_attr(coverage, no_coverage)]
+#[cfg(not(tarpaulin_include))]
+fn show_type(value_type: &ValueType, color: ariadne::Color) -> String
+{
+	format!("`{}`", show_type_inner(value_type).fg(color))
 }
 
 #[cfg_attr(coverage, no_coverage)]

@@ -143,9 +143,9 @@ Usability:
 		✘	Better error recovery for unmatched parentheses @cancelled (2023-01-07 20:08)
 		☐	Prevent duplicate "reference to undefined struct" errors?
 		☐	Better "duplicate variable" error text for parameters and members
-		☐	Better "conflicting types" error text for assigning to arrays
+		☐	Better "conflicting types" error text for assigning to arrays or pointers
 			Because it will call 0i32 an expression of type []i32, for instance.
-		☐	Better error 502 because "type previously determined here" does not make sense
+		☐	Avoid misleading error text in E507 if both address and type are wrong
 		☐	Better error when using ; instead of , in struct definition (mention ,)
 	☐	Debug symbols in the resulting IR/executable
 	☐	Add helpful note when trying to jump backwards
@@ -155,10 +155,6 @@ Usability:
 	✔	Add options to disable color and unicode symbols in errors @done (2023-03-03 17:10)
 		☐	Update ariadne when fixed and remove hide(true)
 		☐	Disable red in final error message when --color=never
-	✔	Disallow implicit pointer types for variables (`let x = &a;`) again @done (2023-03-04 22:55)
-		In fact it is currently treating x as i32, which leads to subtle bugs.
-		✔	tests/samples/unresolved/implicit_pointer_type.pn @done (2023-03-04 22:55)
-		☐	Better error code (E585?)
 
 Performance:
 	☐	Add parameter attributes such as nonnull and readonly

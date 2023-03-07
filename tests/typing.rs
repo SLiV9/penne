@@ -51,7 +51,10 @@ fn compile_to_fail(codes: &[u16], filename: &str)
 #[test]
 fn fail_to_type_assignment_type_mismatch()
 {
-	compile_to_fail(&[504], "tests/samples/invalid/assignment_type_mismatch.pn")
+	compile_to_fail(
+		&[504, 504, 504, 504],
+		"tests/samples/invalid/assignment_type_mismatch.pn",
+	)
 }
 
 #[test]
@@ -60,6 +63,15 @@ fn fail_to_type_member_assignment_type_mismatch()
 	compile_to_fail(
 		&[504, 504, 504, 507, 507, 504, 504, 507],
 		"tests/samples/invalid/member_assignment_type_mismatch.pn",
+	)
+}
+
+#[test]
+fn fail_to_type_assignment_address_and_type_mismatch()
+{
+	compile_to_fail(
+		&[507],
+		"tests/samples/invalid/assignment_address_and_type_mismatch.pn",
 	)
 }
 
@@ -133,8 +145,17 @@ fn fail_to_type_missing_mandatory_type()
 fn fail_to_type_implicit_pointer_type()
 {
 	compile_to_fail(
-		&[581, 581, 581],
+		&[585, 585, 585],
 		"tests/samples/invalid/implicit_pointer_type.pn",
+	)
+}
+
+#[test]
+fn fail_to_type_implicit_uninitialized_pointer_type()
+{
+	compile_to_fail(
+		&[585],
+		"tests/samples/invalid/implicit_uninitialized_pointer_type.pn",
 	)
 }
 

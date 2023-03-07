@@ -2,5 +2,11 @@ fn main() -> i32
 {
 	var x: i32 = 0;
 	x = true;
+	var data = [true, false];
+	data[1] = 23;
+	var u: &i32 = &x;
+	u = true;
+	var b = false;
+	&u = &b;
 	return: x
 }

@@ -1307,7 +1307,7 @@ impl Analyzable for Statement
 				let value = value.analyze(typer);
 				typer.contextual_type = None;
 				let value_type = value.value_type();
-				let value_type = infer_for_declaration(value_type);
+				let value_type = infer_for_declaration(value_type, &name);
 				let recoverable_error =
 					typer.put_symbol(&name, value_type.clone());
 				let value_type = match recoverable_error
@@ -1352,7 +1352,7 @@ impl Analyzable for Statement
 			} =>
 			{
 				let value_type = typer.get_symbol(&name.inferred());
-				let value_type = infer_for_declaration(value_type);
+				let value_type = infer_for_declaration(value_type, &name);
 				Statement::Declaration {
 					name,
 					value: None,
@@ -2833,11 +2833,17 @@ fn build_type_of_ref1(
 
 fn infer_for_declaration(
 	value_type: Option<Poisonable<ValueType>>,
+	identifier: &Identifier,
 ) -> Option<Poisonable<ValueType>>
 {
 	match value_type
 	{
-		Some(Ok(ValueType::Pointer { .. })) => None,
+		Some(Ok(t @ ValueType::Pointer { .. })) => Some(Err(Poison::Error(
+			Error::AmbiguousTypeOfPointerDeclaration {
+				suggested_type: t,
+				location: identifier.location.clone(),
+			},
+		))),
 		Some(Ok(x)) => Some(Ok(x)),
 		Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
 		None => None,
