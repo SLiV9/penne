@@ -334,6 +334,23 @@ pub enum Error
 		location: Location,
 		previous: Location,
 	},
+	ExcessAddressInAssignment
+	{
+		name: String,
+		previous_type: ValueType,
+		location: Location,
+		previous: Location,
+	},
+	MismatchedAddressInAssignment
+	{
+		name: String,
+		assigned_type: ValueType,
+		assignee_type: ValueType,
+		declared_type: ValueType,
+		location: Location,
+		location_of_assignee: Location,
+		location_of_declaration: Location,
+	},
 	ArgumentTypeMismatch
 	{
 		parameter_name: String,
@@ -412,7 +429,8 @@ pub enum Error
 	AddressOfTemporaryAddress
 	{
 		location: Location,
-		location_of_declaration: Location,
+		location_of_unaddressed: Location,
+		type_of_unaddressed: ValueType,
 	},
 	MissingBraces
 	{
@@ -559,6 +577,8 @@ impl Error
 			Error::IndexTypeMismatch { .. } => 503,
 			Error::ConflictingTypesInAssignment { .. } => 504,
 			Error::NotAStructure { .. } => 505,
+			Error::ExcessAddressInAssignment { .. } => 506,
+			Error::MismatchedAddressInAssignment { .. } => 507,
 			Error::TooFewArguments { .. } => 510,
 			Error::TooManyArguments { .. } => 511,
 			Error::ArgumentTypeMismatch { .. } => 512,
@@ -666,6 +686,8 @@ impl Error
 			Error::NotAnArrayWithLength { location, .. } => &location,
 			Error::IndexTypeMismatch { location, .. } => &location,
 			Error::ConflictingTypesInAssignment { location, .. } => &location,
+			Error::ExcessAddressInAssignment { location, .. } => &location,
+			Error::MismatchedAddressInAssignment { location, .. } => &location,
 			Error::NotAStructure { location, .. } => &location,
 			Error::TooFewArguments { location, .. } => &location,
 			Error::TooManyArguments { location, .. } => &location,
@@ -1587,7 +1609,7 @@ fn write(
 				location
 					.label()
 					.with_message(format!(
-						"Cannot assign it this expression of type {}.",
+						"Cannot assign this expression of type {}.",
 						show_type(current_type).fg(PRIMARY)
 					))
 					.with_color(PRIMARY),
@@ -1601,6 +1623,71 @@ fn write(
 						show_type(previous_type).fg(SECONDARY)
 					))
 					.with_color(SECONDARY),
+			),
+
+		Error::ExcessAddressInAssignment {
+			name,
+			previous_type,
+			location,
+			previous,
+		} => report
+			.with_message("Conflicting types")
+			.with_label(
+				location
+					.label()
+					.with_message("Cannot assign to immutable address.")
+					.with_color(PRIMARY),
+			)
+			.with_label(
+				previous
+					.label()
+					.with_message(format!(
+						"'{}' has type {}.",
+						name.fg(SECONDARY),
+						show_type(previous_type).fg(SECONDARY)
+					))
+					.with_color(SECONDARY),
+			),
+
+		Error::MismatchedAddressInAssignment {
+			name,
+			assigned_type,
+			assignee_type,
+			declared_type,
+			location,
+			location_of_assignee,
+			location_of_declaration,
+		} => report
+			.with_message("Conflicting types")
+			.with_label(
+				location
+					.label()
+					.with_order(1)
+					.with_message(format!(
+						"Cannot assign this expression of type {}.",
+						show_type(assigned_type).fg(PRIMARY)
+					))
+					.with_color(PRIMARY),
+			)
+			.with_label(
+				location_of_assignee
+					.label()
+					.with_order(2)
+					.with_message(format!(
+						"The assignee has type {}.",
+						show_type(assignee_type).fg(SECONDARY)
+					))
+					.with_color(SECONDARY),
+			)
+			.with_label(
+				location_of_declaration
+					.label()
+					.with_message(format!(
+						"'{}' has type {}.",
+						name.fg(TERTIARY),
+						show_type(declared_type).fg(TERTIARY)
+					))
+					.with_color(TERTIARY),
 			),
 
 		Error::ArgumentTypeMismatch {
@@ -1859,7 +1946,8 @@ fn write(
 
 		Error::AddressOfTemporaryAddress {
 			location,
-			location_of_declaration,
+			location_of_unaddressed,
+			type_of_unaddressed,
 		} => report
 			.with_message("Address of temporary address")
 			.with_label(
@@ -1869,11 +1957,11 @@ fn write(
 					.with_color(PRIMARY),
 			)
 			.with_label(
-				location_of_declaration
+				location_of_unaddressed
 					.label()
 					.with_message(format!(
-						"This value is not of type {}.",
-						"`&&_`".fg(SECONDARY)
+						"This reference has type {}.",
+						show_type(type_of_unaddressed).fg(SECONDARY),
 					))
 					.with_color(SECONDARY),
 			),

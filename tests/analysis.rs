@@ -186,6 +186,15 @@ fn fail_to_analyze_missing_address_variable()
 }
 
 #[test]
+fn fail_to_analyze_excess_address()
+{
+	compile_to_fail(
+		&[504, 504, 504, 504],
+		"tests/samples/invalid/excess_address.pn",
+	)
+}
+
+#[test]
 fn fail_to_analyze_pointer_to_temporary_pointer()
 {
 	compile_to_fail(

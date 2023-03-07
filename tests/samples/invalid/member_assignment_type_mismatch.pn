@@ -28,5 +28,6 @@ fn main() -> i32
 	&foo.head = &from;
 	var bar: &Foo = &foo;
 	&bar = &from;
+	bar.head = &line;
 	return: 400
 }

@@ -212,6 +212,22 @@ impl Typer
 		}
 	}
 
+	fn get_valid_declaration(
+		&self,
+		name: &Identifier,
+	) -> Option<(ValueType, Location)>
+	{
+		match self.symbols.get(&name.resolution_id)
+		{
+			Some(symbol) =>
+			{
+				let previous_type = symbol.value_type.clone().ok()?;
+				Some((previous_type, symbol.identifier.location.clone()))
+			}
+			None => None,
+		}
+	}
+
 	fn get_type_of_base(
 		&self,
 		base: &Poisonable<Identifier>,
@@ -350,8 +366,12 @@ impl Typer
 				ReferenceStep::Autoview => (),
 			}
 		}
-		for _i in 0..reference.address_depth
+		for i in 0..reference.address_depth
 		{
+			if i == 0 && x.is_slice_pointer()
+			{
+				continue;
+			}
 			x = ValueType::Pointer {
 				deref_type: Box::new(x),
 			};
@@ -1883,7 +1903,6 @@ fn analyze_assignment_steps(
 	typer: &mut Typer,
 	base_type: ValueType,
 	previous_steps: Vec<ReferenceStep>,
-	value_type: &Option<Poisonable<ValueType>>,
 	address_depth: u8,
 ) -> (Vec<ReferenceStep>, u8)
 {
@@ -2020,28 +2039,25 @@ fn analyze_assignment_steps(
 		};
 		steps.push(step);
 	}
-	for _i in 0..MAX_AUTODEREF_DEPTH
+	let ad = address_depth as usize;
+	let pd = current_type.pointer_depth();
+	if ad <= pd
 	{
-		match value_type
+		for _i in ad..pd
 		{
-			Some(Ok(vt)) if vt == &current_type =>
-			{
-				return (steps, 0);
-			}
-			_ => (),
+			let step = ReferenceStep::Autoderef;
+			steps.push(step);
 		}
-		match current_type
-		{
-			ValueType::Pointer { deref_type } =>
-			{
-				let step = ReferenceStep::Autoderef;
-				steps.push(step);
-				current_type = *deref_type;
-			}
-			_ => break,
-		}
+		(steps, 0)
 	}
-	(steps, address_depth)
+	else
+	{
+		// This is an error, but the easiest way to convey this error is to
+		// take an address for a value that is not a pointer.
+		let excess = ad - pd;
+		let address_depth = excess.try_into().unwrap_or(MAX_ADDRESS_DEPTH);
+		(steps, address_depth)
+	}
 }
 
 impl Reference
@@ -2083,37 +2099,85 @@ impl Reference
 					steps,
 					address_depth: self.address_depth,
 					location: self.location,
+					location_of_unaddressed: self.location_of_unaddressed,
 				}
 			}
 		};
 
 		let base_type = typer.get_symbol(base);
 
-		let (steps, address_depth) = match base_type
+		let (steps, excess_addresses) = match base_type
 		{
 			Some(Ok(base_type)) => analyze_assignment_steps(
 				typer,
 				base_type,
 				steps,
-				&value_type,
 				self.address_depth,
 			),
-			Some(Err(_poison)) => (steps, self.address_depth),
-			None => (steps, self.address_depth),
+			Some(Err(_poison)) => (steps, 0),
+			None => (steps, 0),
 		};
 
 		let member = steps.iter().rev().find_map(|step| step.get_member());
-		let member_error = match member
+		let symbol = member.as_ref().unwrap_or(base);
+		let declaration = typer.get_valid_declaration(symbol);
+		let address_error = match (declaration, &value_type, assignment_value)
 		{
-			Some(member) => typer.put_symbol(&member, value_type.clone()),
-			None => Ok(()),
+			(Some((previous_type, previous)), _, _) if excess_addresses > 0 =>
+			{
+				Some(Error::ExcessAddressInAssignment {
+					name: base.name.clone(),
+					previous_type,
+					location: self.location.clone(),
+					previous,
+				})
+			}
+			(Some((dt, previous)), Some(Ok(vt)), Some(assignment_value))
+				if self.address_depth as usize != vt.pointer_depth() =>
+			{
+				let mut assignee_type = vt.clone().fully_dereferenced();
+				for _i in 0..self.address_depth
+				{
+					assignee_type = ValueType::Pointer {
+						deref_type: Box::new(assignee_type),
+					};
+				}
+				Some(Error::MismatchedAddressInAssignment {
+					name: base.name.clone(),
+					assigned_type: vt.clone(),
+					assignee_type,
+					declared_type: dt,
+					location: assignment_value.location().clone(),
+					location_of_assignee: self.location.clone(),
+					location_of_declaration: previous,
+				})
+			}
+			_ => None,
 		};
+		if let Some(error) = address_error
+		{
+			return Reference {
+				base: Err(Poison::Error(error)),
+				steps,
+				address_depth: excess_addresses,
+				location: self.location,
+				location_of_unaddressed: self.location_of_unaddressed,
+			};
+		}
 
-		let full_type =
-			build_type_of_reference(value_type, &steps, address_depth);
+		let member = member.map(|member| (member, value_type.clone()));
+
+		let full_type = build_type_of_reference(value_type, &steps, false);
 		let assignment_error = match typer.put_symbol(base, full_type)
 		{
-			Ok(()) => member_error,
+			Ok(()) => match member
+			{
+				Some((member, value_type)) =>
+				{
+					typer.put_symbol(&member, value_type)
+				}
+				None => Ok(()),
+			},
 			Err(error) => Err(error),
 		};
 		let base = match (assignment_error, assignment_value)
@@ -2145,8 +2209,9 @@ impl Reference
 		Reference {
 			base,
 			steps,
-			address_depth,
+			address_depth: 0,
 			location: self.location,
+			location_of_unaddressed: self.location_of_unaddressed,
 		}
 	}
 
@@ -2178,17 +2243,14 @@ impl Reference
 		{
 			(Some(Ok(x)), Some(Ok(y)), Some(Ok(ref_type))) if x == y =>
 			{
+				// If known_type is what we expect, do an autoderef.
 				self.autoderef(ref_type, y, typer)
-			}
-			(Some(Ok(x)), Some(Ok(y)), None) if x == y =>
-			{
-				let base_type = Some(Ok(x));
-				let deref_type = Some(Ok(y));
-				self.simple_deref(base_type, deref_type, typer)
 			}
 			(Some(Ok(x)), Some(Ok(y)), Some(Ok(ref_type)))
 				if x.can_autoderef_into(&y) =>
 			{
+				// If known_type can autoderef into contextual_type, do an
+				// autoderef with contextual_type as the target.
 				self.autoderef(ref_type, y, typer)
 			}
 			(Some(Ok(def)), _, Some(Ok(ref_type))) =>
@@ -2199,43 +2261,54 @@ impl Reference
 				// but we do not want an E500 Conflicting Types here.
 				self.autoderef(ref_type, def, typer)
 			}
-			(Some(Ok(def)), _, _) =>
-			{
-				let base_type = Some(Ok(def));
-				let deref_type = base_type.clone();
-				self.simple_deref(base_type, deref_type, typer)
-			}
+			(Some(Ok(_)), _, Some(Err(_))) => unreachable!(),
+			(Some(Ok(_)), _, None) => unreachable!(),
 			(Some(Err(base_type_poison)), _, _) =>
 			{
 				// Keep the error.
 				let poison = base_type_poison;
 				Expression::Poison(poison)
 			}
-			(None, Some(Ok(ValueType::SlicePointer { element_type })), _) =>
+			(None, Some(Ok(ValueType::SlicePointer { element_type })), _)
+				if self.address_depth == 1 =>
 			{
-				// We cannot do a normal simple deref because SlicePointer
-				// is not a concretization of array.
-				let base_type = Some(Ok(ValueType::Pointer {
-					deref_type: Box::new(ValueType::Arraylike {
-						element_type: element_type.clone(),
-					}),
-				}));
-				let deref_type =
-					Some(Ok(ValueType::SlicePointer { element_type }));
-				self.simple_deref(base_type, deref_type, typer)
+				// As a special case, taking the address of a variable and then
+				// passing that as a slice pointer argument is used to infer
+				// that that variable is an array of some type.
+				self.slice_pointer_deref(*element_type, typer)
 			}
-			(None, deref_type, _) =>
+			(None, Some(Ok(ValueType::Pointer { deref_type })), _)
+				if self.address_depth == 1 =>
 			{
-				let base_type = deref_type.clone();
-				self.simple_deref(base_type, deref_type, typer)
+				// If this is a simple deref, we can use the contextual type
+				// information to infer the type of this reference.
+				// We assume that &x is the address of a non-pointer type,
+				// because pointer variables have to have explicit types.
+				self.simple_pointer_deref(*deref_type, typer)
+			}
+			(None, Some(deref_type), _) if self.address_depth == 0 =>
+			{
+				// If this is a simple deref, we can use the contextual type
+				// information to infer the type of this reference.
+				self.simple_deref(deref_type, typer)
+			}
+			(None, _, _) =>
+			{
+				// We cannot perform a simple deref because it is not simple,
+				// but we also do not have enough type information to perform
+				// an autoderef. Keep the Deref untyped. Either a second pass
+				// will fix this, or it resolves into an AmbiguousType error.
+				Expression::Deref {
+					reference: self,
+					deref_type: None,
+				}
 			}
 		}
 	}
 
-	fn simple_deref(
+	fn slice_pointer_deref(
 		self,
-		base_type: Option<Poisonable<ValueType>>,
-		deref_type: Option<Poisonable<ValueType>>,
+		element_type: ValueType,
 		typer: &mut Typer,
 	) -> Expression
 	{
@@ -2245,20 +2318,73 @@ impl Reference
 			Err(_poison) => unreachable!(),
 		};
 
-		let full_type =
-			build_type_of_reference(base_type, &self.steps, self.address_depth);
+		let deref_type = Some(Ok(ValueType::Pointer {
+			deref_type: Box::new(ValueType::Arraylike {
+				element_type: Box::new(element_type),
+			}),
+		}));
+		let is_concrete = self.steps.iter().all(|step| step.is_concrete());
+		let base_type = deref_type.clone();
+		let full_type = build_type_of_reference(base_type, &self.steps, true);
 		match typer.put_symbol(base, full_type)
 		{
-			Ok(()) =>
-			{
-				let is_concrete =
-					self.steps.iter().all(|step| step.is_concrete());
-				let deref_type = deref_type.filter(|_| is_concrete);
-				Expression::Deref {
-					reference: self,
-					deref_type,
-				}
-			}
+			Ok(()) => Expression::Deref {
+				reference: self,
+				deref_type: deref_type.filter(|_| is_concrete),
+			},
+			Err(error) => Expression::Poison(Poison::Error(error)),
+		}
+	}
+
+	fn simple_pointer_deref(
+		self,
+		pointee_type: ValueType,
+		typer: &mut Typer,
+	) -> Expression
+	{
+		let base = match &self.base
+		{
+			Ok(base) => base,
+			Err(_poison) => unreachable!(),
+		};
+
+		let deref_type = Some(Ok(ValueType::Pointer {
+			deref_type: Box::new(pointee_type),
+		}));
+		let is_concrete = self.steps.iter().all(|step| step.is_concrete());
+		let base_type = deref_type.clone();
+		let full_type = build_type_of_reference(base_type, &self.steps, true);
+		match typer.put_symbol(base, full_type)
+		{
+			Ok(()) => Expression::Deref {
+				reference: self,
+				deref_type: deref_type.filter(|_| is_concrete),
+			},
+			Err(error) => Expression::Poison(Poison::Error(error)),
+		}
+	}
+
+	fn simple_deref(
+		self,
+		deref_type: Poisonable<ValueType>,
+		typer: &mut Typer,
+	) -> Expression
+	{
+		let base = match &self.base
+		{
+			Ok(base) => base,
+			Err(_poison) => unreachable!(),
+		};
+
+		let is_concrete = self.steps.iter().all(|step| step.is_concrete());
+		let base_type = Some(deref_type.clone());
+		let full_type = build_type_of_reference(base_type, &self.steps, false);
+		match typer.put_symbol(base, full_type)
+		{
+			Ok(()) => Expression::Deref {
+				reference: self,
+				deref_type: Some(deref_type).filter(|_| is_concrete),
+			},
 			Err(error) => Expression::Poison(Poison::Error(error)),
 		}
 	}
@@ -2279,46 +2405,19 @@ impl Reference
 		let mut available_steps = self.steps.into_iter().peekable();
 		let mut taken_steps = Vec::new();
 		let mut current_type = known_ref_type;
-		let mut coercion = None;
-		let mut take_address = false;
 
 		for _i in 0..MAX_AUTODEREF_DEPTH
 		{
-			match (current_type, &target_type, available_steps.peek())
+			match (current_type, available_steps.peek())
 			{
-				(ct, tt, None) if &ct == tt =>
+				(ct, None) =>
 				{
-					break;
-				}
-				(ct, tt, None) if ct.can_coerce_into(tt) =>
-				{
-					coercion = Some((ct, tt.clone()));
-					break;
-				}
-				(ct, ValueType::Pointer { deref_type }, None)
-					if &ct == deref_type.as_ref()
-						&& self.address_depth > 0
-						&& !take_address =>
-				{
-					take_address = true;
-					break;
-				}
-				(ct, tt, None)
-					if ct.can_coerce_address_into(tt)
-						&& self.address_depth > 0
-						&& !take_address =>
-				{
-					take_address = true;
-					current_type = ValueType::Pointer {
-						deref_type: Box::new(ct),
-					};
-					coercion = Some((current_type, target_type.clone()));
+					current_type = ct;
 					break;
 				}
 
 				(
 					ValueType::Pointer { deref_type },
-					_,
 					Some(ReferenceStep::Element {
 						argument,
 						is_endless,
@@ -2345,7 +2444,6 @@ impl Reference
 
 				(
 					ValueType::View { deref_type },
-					_,
 					Some(ReferenceStep::Element {
 						argument,
 						is_endless,
@@ -2370,13 +2468,13 @@ impl Reference
 					}
 				},
 
-				(ValueType::Pointer { deref_type }, _, _) =>
+				(ValueType::Pointer { deref_type }, _) =>
 				{
 					let step = ReferenceStep::Autoderef;
 					taken_steps.push(step);
 					current_type = *deref_type;
 				}
-				(ValueType::View { deref_type }, _, _) =>
+				(ValueType::View { deref_type }, _) =>
 				{
 					let step = ReferenceStep::Autoview;
 					taken_steps.push(step);
@@ -2388,7 +2486,6 @@ impl Reference
 						element_type,
 						length: _,
 					},
-					_,
 					Some(ReferenceStep::Element {
 						argument,
 						is_endless: _,
@@ -2406,7 +2503,6 @@ impl Reference
 
 				(
 					ValueType::EndlessArray { element_type },
-					_,
 					Some(ReferenceStep::Element {
 						argument,
 						is_endless: _,
@@ -2424,7 +2520,6 @@ impl Reference
 
 				(
 					ValueType::Slice { element_type },
-					_,
 					Some(ReferenceStep::Element {
 						argument,
 						is_endless: _,
@@ -2446,7 +2541,6 @@ impl Reference
 				}
 				(
 					ValueType::SlicePointer { element_type },
-					_,
 					Some(ReferenceStep::Element {
 						argument,
 						is_endless: _,
@@ -2469,7 +2563,6 @@ impl Reference
 
 				(
 					ValueType::Arraylike { element_type },
-					_,
 					Some(ReferenceStep::Element {
 						argument,
 						is_endless: _,
@@ -2487,12 +2580,10 @@ impl Reference
 
 				(
 					ValueType::Struct { .. },
-					_,
 					Some(ReferenceStep::Member { member, offset }),
 				)
 				| (
 					ValueType::Word { .. },
-					_,
 					Some(ReferenceStep::Member { member, offset }),
 				) =>
 				{
@@ -2511,50 +2602,115 @@ impl Reference
 					current_type = member_type;
 				}
 
-				(_, _, None) if self.address_depth >= 2 =>
+				(ct, Some(step)) =>
 				{
-					// This is invalid, but we want a proper error, not an
-					// autoderef failure, so just skip the autoderef.
-					let expr = Expression::Deref {
-						reference: Reference {
-							base: self.base,
-							steps: taken_steps,
-							address_depth: self.address_depth,
-							location: self.location,
-						},
-						deref_type: Some(Ok(target_type)),
-					};
-					return expr;
+					// The get_type_of_reference() at the top of
+					// analyze_deref_expression() should have errored out.
+					panic!(
+						"failed to autoderef {}, current type: {:?}, \
+						 available step: {:?}, target type: {:?}",
+						self.location.format(),
+						ct,
+						step,
+						target_type,
+					);
 				}
-
-				(ct, tt, step) => panic!(
-					"failed to autoderef {}, target type: {:?}, current type: \
-					 {:?}, available step: {:?}, ad: {:?}, taken address: {:?}",
-					self.location.format(),
-					tt,
-					ct,
-					step,
-					self.address_depth,
-					take_address
-				),
 			}
 		}
 
-		let address_depth = if take_address { 1 } else { 0 };
-		let (deref_type, coerced_type) = match coercion
+		let take_address;
+		let coerced_type;
+		if self.address_depth == 0 && &current_type == &target_type
 		{
-			Some((x, y)) => (Some(Ok(x)), Some(y)),
-			None => (Some(Ok(target_type)), None),
-		};
+			take_address = false;
+			coerced_type = None;
+		}
+		else if self.address_depth == 0
+			&& current_type.can_coerce_into(&target_type)
+		{
+			take_address = false;
+			coerced_type = Some(target_type.clone());
+		}
+		else if self.address_depth == 1
+			&& current_type.is_slice_pointer()
+			&& &current_type == &target_type
+		{
+			take_address = false;
+			coerced_type = None;
+		}
+		else if self.address_depth > 0
+			&& Some(&current_type) == target_type.get_pointee_type().as_ref()
+		{
+			take_address = true;
+			current_type = ValueType::Pointer {
+				deref_type: Box::new(current_type),
+			};
+			coerced_type = None;
+		}
+		else if self.address_depth > 0
+			&& current_type.can_coerce_address_into(&target_type)
+		{
+			take_address = true;
+			current_type = ValueType::Pointer {
+				deref_type: Box::new(current_type),
+			};
+			coerced_type = Some(target_type.clone());
+		}
+		else
+		{
+			// The autoderef has failed, but we want to be careful about when
+			// we issue an error, because we might currently be in a dry run.
+			let pd = current_type.pointer_depth();
+			if self.address_depth as usize >= 2 + pd
+			{
+				let type_of_unaddressed = current_type;
+				let error = Error::AddressOfTemporaryAddress {
+					location: self.location,
+					location_of_unaddressed: self.location_of_unaddressed,
+					type_of_unaddressed,
+				};
+				return Expression::Poison(Poison::Error(error));
+			}
+			else if self.address_depth as usize == 1 + pd
+			{
+				take_address = true;
+				current_type = ValueType::Pointer {
+					deref_type: Box::new(current_type),
+				};
+			}
+			else
+			{
+				take_address = false;
+				current_type = current_type.fully_dereferenced();
+				for _i in 0..self.address_depth
+				{
+					current_type = ValueType::Pointer {
+						deref_type: Box::new(current_type),
+					};
+				}
+				for _i in (self.address_depth as usize)..pd
+				{
+					let step = ReferenceStep::Autoderef;
+					taken_steps.push(step);
+				}
+			}
+			// The autoderef has failed but only because it does not match the
+			// target type. To keep this repeatable, finish the autoderef.
+			coerced_type = None;
+		}
+
+		let address_depth = if take_address { 1 } else { 0 };
+		let deref_type = Some(Ok(current_type));
 		let base_type = deref_type.clone();
 		let full_type =
-			build_type_of_reference(base_type, &taken_steps, address_depth);
+			build_type_of_reference(base_type, &taken_steps, take_address);
 		let expr = Expression::Deref {
 			reference: Reference {
 				base: Ok(base.clone()),
 				steps: taken_steps,
 				address_depth,
 				location: self.location,
+				location_of_unaddressed: self.location_of_unaddressed,
 			},
 			deref_type,
 		};
@@ -2580,14 +2736,14 @@ impl Reference
 fn build_type_of_reference(
 	base_type: Option<Poisonable<ValueType>>,
 	steps: &[ReferenceStep],
-	address_depth: u8,
+	took_address: bool,
 ) -> Option<Poisonable<ValueType>>
 {
 	match base_type
 	{
 		Some(Ok(base_type)) =>
 		{
-			let full_type = build_type_of_ref1(base_type, steps, address_depth);
+			let full_type = build_type_of_ref1(base_type, steps, took_address);
 			Some(Ok(full_type))
 		}
 		Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
@@ -2598,7 +2754,7 @@ fn build_type_of_reference(
 fn build_type_of_ref1(
 	base_type: ValueType,
 	steps: &[ReferenceStep],
-	address_depth: u8,
+	took_address: bool,
 ) -> ValueType
 {
 	let mut full_type = base_type;
@@ -2636,18 +2792,15 @@ fn build_type_of_ref1(
 			ReferenceStep::Autodeslice { offset: _ } => (),
 		}
 	}
-	if !is_indirect
+	if took_address && !is_indirect
 	{
-		for _i in 0..address_depth
+		match full_type
 		{
-			match full_type
+			ValueType::Pointer { deref_type } =>
 			{
-				ValueType::Pointer { deref_type } =>
-				{
-					full_type = *deref_type;
-				}
-				_ => break,
+				full_type = *deref_type;
 			}
+			_ => (),
 		}
 	}
 	full_type

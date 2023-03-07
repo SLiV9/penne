@@ -1761,6 +1761,7 @@ fn parse_body_of_structural(
 				steps: Vec::new(),
 				address_depth: 0,
 				location: name.location.clone(),
+				location_of_unaddressed: name.location.clone(),
 			};
 			Expression::Deref {
 				reference,
@@ -1798,6 +1799,7 @@ fn parse_addressed_reference(
 		steps,
 		address_depth,
 		location: _,
+		location_of_unaddressed,
 	} = parse_reference(tokens)?;
 	if address_depth + 1 > MAX_ADDRESS_DEPTH
 	{
@@ -1809,7 +1811,8 @@ fn parse_addressed_reference(
 		base,
 		steps,
 		address_depth: address_depth + 1,
-		location,
+		location: location.combined_with(&tokens.last_location),
+		location_of_unaddressed,
 	};
 	Ok(reference)
 }
@@ -1839,7 +1842,8 @@ fn parse_reference(tokens: &mut Tokens) -> Result<Reference, Error>
 				base: reference.base,
 				steps: reference.steps,
 				address_depth,
-				location,
+				location: location.combined_with(&tokens.last_location),
+				location_of_unaddressed: reference.location_of_unaddressed,
 			})
 		}
 		Token::Identifier(name) =>
@@ -1900,10 +1904,12 @@ fn parse_rest_of_reference(
 			return Err(Error::MaximumParseDepthExceeded { location });
 		}
 	}
+	let location_of_unaddressed = location.clone();
 	Ok(Reference {
 		base: Ok(base),
 		steps,
 		address_depth: 0,
 		location,
+		location_of_unaddressed,
 	})
 }

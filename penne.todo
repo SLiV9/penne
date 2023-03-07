@@ -147,7 +147,8 @@ Usability:
 			Because it will call 0i32 an expression of type []i32, for instance.
 		☐	Better error 502 because "type previously determined here" does not make sense
 		☐	Better error when using ; instead of , in struct definition (mention ,)
-		☐	Better error 538, show the correct ampersand level
+		✔	Better error 538, show the correct ampersand level @done (2023-03-06 16:23)
+		☐	Better error 504, show the correct ampersand level
 		☐ Use "array view" instead of "(array) slice" consistently
 		☐	Fix location of |data|
 	☐	Debug symbols in the resulting IR/executable
@@ -158,9 +159,10 @@ Usability:
 	✔	Add options to disable color and unicode symbols in errors @done (2023-03-03 17:10)
 		☐	Update ariadne when fixed and remove hide(true)
 		☐	Disable red in final error message when --color=never
-	☐	Disallow implicit pointer types for variables (`let x = &a;`) again
+	✔	Disallow implicit pointer types for variables (`let x = &a;`) again @done (2023-03-04 22:55)
 		In fact it is currently treating x as i32, which leads to subtle bugs.
-		☐	tests/samples/unresolved/implicit_pointer_type.pn
+		✔	tests/samples/unresolved/implicit_pointer_type.pn @done (2023-03-04 22:55)
+		☐	Better error code (E585?)
 
 Performance:
 	☐	Add parameter attributes such as nonnull and readonly
@@ -170,7 +172,8 @@ Documentation:
 	☐	Reference of all current and unstable language features
 		☐	Document weird ampersand syntax
 	☐	Changelog.md
-	✔	Tags for crates.io @done (23-02-16 17:29)
+	☐	Tags for crates.io
+	☐	Replace "total lines" github shield with "cloc src/"
 	✔	High def logo @done (23-02-16 17:28)
 
 Development:
@@ -181,6 +184,7 @@ Development:
 		☐	Think about a better way to solve "ambiguous" errors (E332 and E580)
 		☐	Isn't it better to consume E582 into other errors if possible?
 		☐	Are E583 and E584 unreachable?
+		☐	Take another look at uncovered lines in complicated match statements, because it can and did reveal impossible cases
 
 Theory:
 	☐	Prove Turing completeness

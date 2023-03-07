@@ -466,6 +466,7 @@ pub struct Reference
 	pub steps: Vec<ReferenceStep>,
 	pub address_depth: u8,
 	pub location: Location,
+	pub location_of_unaddressed: Location,
 }
 
 impl Reference

@@ -675,4 +675,31 @@ where
 			_ => self.clone(),
 		}
 	}
+
+	pub fn pointer_depth(&self) -> usize
+	{
+		self.add_pointer_depth(0)
+	}
+
+	fn add_pointer_depth(&self, total: usize) -> usize
+	{
+		match self
+		{
+			ValueType::Pointer { deref_type } =>
+			{
+				deref_type.add_pointer_depth(total + 1)
+			}
+			ValueType::SlicePointer { element_type: _ } => total + 1,
+			_ => total,
+		}
+	}
+
+	pub fn is_slice_pointer(&self) -> bool
+	{
+		match self
+		{
+			ValueType::SlicePointer { element_type: _ } => true,
+			_ => false,
+		}
+	}
 }

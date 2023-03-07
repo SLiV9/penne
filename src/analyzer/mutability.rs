@@ -497,37 +497,8 @@ impl Analyzable for Expression
 				deref_type,
 			} =>
 			{
-				let is_addressed = match reference.address_depth
-				{
-					0 => false,
-					1 => needs_outer_mutability(&reference),
-					_ =>
-					{
-						match &reference.base
-						{
-							Ok(base) =>
-							{
-								let location = reference.location.clone();
-								let location_of_declaration =
-									base.location.clone();
-								return Expression::Poison(Poison::Error(
-									Error::AddressOfTemporaryAddress {
-										location,
-										location_of_declaration,
-									},
-								));
-							}
-							Err(_poison) =>
-							{
-								// The reference will already throw an error.
-								return Expression::Deref {
-									reference,
-									deref_type,
-								};
-							}
-						}
-					}
-				};
+				let is_addressed = reference.address_depth > 0
+					&& needs_outer_mutability(&reference);
 				let reference = reference.analyze(analyzer);
 				match analyzer.use_variable(&reference.base, is_addressed)
 				{
@@ -608,6 +579,7 @@ impl Analyzable for Reference
 			steps,
 			address_depth: self.address_depth,
 			location: self.location,
+			location_of_unaddressed: self.location_of_unaddressed,
 		}
 	}
 }
