@@ -162,7 +162,6 @@ Performance:
 Documentation:
 	✔ Move tests from lib.rs to *tests/* @done (2022-10-04 16:44)
 	☐	Reference of all current and unstable language features
-		☐	Document weird ampersand syntax
 	☐	Changelog.md
 	☐	Tags for crates.io
 	☐	Replace "total lines" github shield with "cloc src/"
