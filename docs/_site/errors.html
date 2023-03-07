@@ -202,7 +202,7 @@
  <span class="ef246">  ·</span> 
  <span class="ef246">3 │</span> <span class="ef249">    return: </span><span class="f3">true</span>
  <span class="ef246">  ·</span>             <span class="f3">──┬─</span>  
- <span class="ef246">  ·</span>               <span class="f3">╰───</span> Value of type <span class="f3">`bool`</span> returned here.
+ <span class="ef246">  ·</span>               <span class="f3">╰───</span> Value of type `<span class="f3">bool</span>` returned here.
 <span class="ef246">───╯</span></pre><p>To fix this, add an explicit return type.</p> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>() -&gt; <span class="kt">bool</span>
 {
     <span class="nl">return:</span> <span class="kc">true</span>
@@ -219,7 +219,7 @@
  <span class="ef246">  ·</span>             <span class="f3">─┬─</span><span class="f6">│</span> 
  <span class="ef246">  ·</span>              <span class="f3">╰───</span> Failed to infer type of integer literal.
  <span class="ef246">  ·</span>                <span class="f6">│</span> 
- <span class="ef246">  ·</span>                <span class="f6">╰─</span> Consider adding a type suffix like <span class="f6">`i32`</span>.
+ <span class="ef246">  ·</span>                <span class="f6">╰─</span> Consider adding a type suffix like `<span class="f6">i32</span>`.
 <span class="ef246">───╯</span>
 <span class="f1">[E331] Error:</span> Missing return type
    <span class="ef246">╭─[</span>&lt;source&gt;:3:16<span class="ef246">]</span>
@@ -245,11 +245,11 @@
    <span class="ef246">│</span>
  <span class="ef246">1 │</span> <span class="ef249">fn </span><span class="f6">main</span><span class="ef249">() -&gt; bool</span>
  <span class="ef246">  ·</span>    <span class="f6">──┬─</span>  
- <span class="ef246">  ·</span>      <span class="f6">╰───</span> Expected <span class="f6">`bool`</span> based on this declaration.
+ <span class="ef246">  ·</span>      <span class="f6">╰───</span> Expected `<span class="f6">bool</span>` based on this declaration.
  <span class="ef246">  ·</span> 
  <span class="ef246">3 │</span> <span class="ef249">    return: </span><span class="f3">50</span>
  <span class="ef246">  ·</span>             <span class="f3">─┬</span>  
- <span class="ef246">  ·</span>              <span class="f3">╰──</span> Value of type <span class="f3">`i32`</span> returned here.
+ <span class="ef246">  ·</span>              <span class="f3">╰──</span> Value of type `<span class="f3">i32</span>` returned here.
 <span class="ef246">───╯</span></pre><h2 id="error-code-e334"> <a href="#error-code-e334" class="anchor-heading" aria-labelledby="error-code-e334"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E334 </h2> <p>A function with a return type is missing its return value.</p> <h3 id="example-of-erroneous-code-16"> <a href="#example-of-erroneous-code-16" class="anchor-heading" aria-labelledby="example-of-erroneous-code-16"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>() -&gt; <span class="kt">bool</span>
 {
     <span class="kp">var</span> <span class="nv">result</span> = <span class="kc">true</span>;
@@ -260,7 +260,7 @@
    <span class="ef246">│</span>
  <span class="ef246">1 │</span> <span class="ef249">fn </span><span class="f6">main</span><span class="ef249">() -&gt; bool</span>
  <span class="ef246">  ·</span>    <span class="f6">──┬─</span>  
- <span class="ef246">  ·</span>      <span class="f6">╰───</span> Expected <span class="f6">`bool`</span> based on this declaration.
+ <span class="ef246">  ·</span>      <span class="f6">╰───</span> Expected `<span class="f6">bool</span>` based on this declaration.
  <span class="ef246">  ·</span> 
  <span class="ef246">4 │</span> <span class="f3">}</span>
  <span class="ef246">  ·</span> <span class="f3">┬</span>  
@@ -345,7 +345,7 @@
    <span class="ef246">│</span>
  <span class="ef246">3 │</span> <span class="ef249">    var x: </span><span class="f3">[][]i32</span><span class="ef249">;</span>
  <span class="ef246">  ·</span>            <span class="f3">───┬───</span>  
- <span class="ef246">  ·</span>               <span class="f3">╰─────</span> The type <span class="f3">`[][]i32`</span> is invalid.
+ <span class="ef246">  ·</span>               <span class="f3">╰─────</span> The type `<span class="f3">[][]i32</span>` is invalid.
 <span class="ef246">───╯</span></pre><h3 id="explanation-7"> <a href="#explanation-7" class="anchor-heading" aria-labelledby="explanation-7"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>In addition to primitive types such as <code class="language-plaintext highlighter-rouge">i32</code> or <code class="language-plaintext highlighter-rouge">bool</code>, compound types can be created such as <code class="language-plaintext highlighter-rouge">[10]i32</code> (an array of <code class="language-plaintext highlighter-rouge">i32</code> of length 10), <code class="language-plaintext highlighter-rouge">&amp;bool</code> (a pointer to a <code class="language-plaintext highlighter-rouge">bool</code>) or <code class="language-plaintext highlighter-rouge">&amp;[]u8</code> (a pointer to an array view of <code class="language-plaintext highlighter-rouge">u8</code>). Not all such compounds are valid.</p> <p>In particular, <code class="language-plaintext highlighter-rouge">[10]T</code> and <code class="language-plaintext highlighter-rouge">[]T</code> are only valid if the type <code class="language-plaintext highlighter-rouge">T</code> is valid and has a size that is known at compile time. The type <code class="language-plaintext highlighter-rouge">[]T</code> does not have a compile-time known size, hence compound types such as <code class="language-plaintext highlighter-rouge">[10][]u8</code> and <code class="language-plaintext highlighter-rouge">[][]i32</code> are invalid.</p> <h2 id="error-code-e351"> <a href="#error-code-e351" class="anchor-heading" aria-labelledby="error-code-e351"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E351 </h2> <p>A type that cannot be returned is used as a return type.</p> <h3 id="example-of-erroneous-code-22"> <a href="#example-of-erroneous-code-22" class="anchor-heading" aria-labelledby="example-of-erroneous-code-22"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>() -&gt; [<span class="mi">1000</span>]<span class="kt">i32</span>;
 </code></pre></div></div><pre class="terminal-output f9 b9">
 <span class="f1">[E351] Error:</span> Invalid return type
@@ -353,7 +353,7 @@
    <span class="ef246">│</span>
  <span class="ef246">1 │</span> <span class="ef249">fn foo() -&gt; </span><span class="f3">[1000]i32</span><span class="ef249">;</span>
  <span class="ef246">  ·</span>             <span class="f3">────┬────</span>  
- <span class="ef246">  ·</span>                 <span class="f3">╰──────</span> The type <span class="f3">`[1000]i32`</span> is not allowed as a return value.
+ <span class="ef246">  ·</span>                 <span class="f3">╰──────</span> The type `<span class="f3">[1000]i32</span>` is not allowed as a return value.
 <span class="ef246">───╯</span></pre><h3 id="explanation-8"> <a href="#explanation-8" class="anchor-heading" aria-labelledby="explanation-8"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>Not all valid types can be used as a return type. In particular structs, arrays and array views cannot be returned.</p> <h2 id="error-code-e352"> <a href="#error-code-e352" class="anchor-heading" aria-labelledby="error-code-e352"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E352 </h2> <p>A type that cannot be assigned is used to declare a variable.</p> <h3 id="example-of-erroneous-code-23"> <a href="#example-of-erroneous-code-23" class="anchor-heading" aria-labelledby="example-of-erroneous-code-23"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
 {
     <span class="kp">var</span> <span class="nv">x</span>: <span class="kt">void</span>;
@@ -364,7 +364,7 @@
    <span class="ef246">│</span>
  <span class="ef246">3 │</span> <span class="ef249">    var </span><span class="f3">x</span><span class="ef249">: void;</span>
  <span class="ef246">  ·</span>         <span class="f3">┬</span>  
- <span class="ef246">  ·</span>         <span class="f3">╰──</span> A value of type <span class="f3">`void`</span> cannot be assigned to a variable.
+ <span class="ef246">  ·</span>         <span class="f3">╰──</span> A value of type `<span class="f3">void</span>` cannot be assigned to a variable.
 <span class="ef246">───╯</span></pre><h2 id="error-code-e353"> <a href="#error-code-e353" class="anchor-heading" aria-labelledby="error-code-e353"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E353 </h2> <p>A type that cannot be a constant is used to declare a constant.</p> <h3 id="example-of-erroneous-code-24"> <a href="#example-of-erroneous-code-24" class="anchor-heading" aria-labelledby="example-of-erroneous-code-24"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="no">X</span>: []<span class="kt">i32</span> = [<span class="mi">10</span>, <span class="mi">20</span>, <span class="mi">30</span>];
 </code></pre></div></div><pre class="terminal-output f9 b9">
 <span class="f1">[E353] Error:</span> Invalid constant type
@@ -372,7 +372,7 @@
    <span class="ef246">│</span>
  <span class="ef246">1 │</span> <span class="ef249">const </span><span class="f3">X</span><span class="ef249">: []i32 = [10, 20, 30];</span>
  <span class="ef246">  ·</span>       <span class="f3">┬</span>  
- <span class="ef246">  ·</span>       <span class="f3">╰──</span> A value of type <span class="f3">`[:]i32`</span> cannot be assigned to a constant.
+ <span class="ef246">  ·</span>       <span class="f3">╰──</span> A value of type `<span class="f3">[:]i32</span>` cannot be assigned to a constant.
 <span class="ef246">───╯</span></pre><p>To fix this, add an explicit size to the array type.</p> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="no">X</span>: [<span class="mi">3</span>]<span class="kt">i32</span> = [<span class="mi">10</span>, <span class="mi">20</span>, <span class="mi">30</span>];
 </code></pre></div></div> <h2 id="error-code-e354"> <a href="#error-code-e354" class="anchor-heading" aria-labelledby="error-code-e354"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E354 </h2> <p>A type that cannot be used as a parameter is used to declare a parameter.</p> <h3 id="example-of-erroneous-code-25"> <a href="#example-of-erroneous-code-25" class="anchor-heading" aria-labelledby="example-of-erroneous-code-25"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>(<span class="nl">x:</span> <span class="kt">void</span>);
 </code></pre></div></div><pre class="terminal-output f9 b9">
@@ -381,7 +381,7 @@
    <span class="ef246">│</span>
  <span class="ef246">1 │</span> <span class="ef249">fn foo(</span><span class="f3">x</span><span class="ef249">: void);</span>
  <span class="ef246">  ·</span>        <span class="f3">┬</span>  
- <span class="ef246">  ·</span>        <span class="f3">╰──</span> The type <span class="f3">`void`</span> is not allowed as a parameter.
+ <span class="ef246">  ·</span>        <span class="f3">╰──</span> The type `<span class="f3">void</span>` is not allowed as a parameter.
 <span class="ef246">───╯</span></pre><h2 id="error-code-e356"> <a href="#error-code-e356" class="anchor-heading" aria-labelledby="error-code-e356"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E356 </h2> <p>A type that cannot be part of a struct is used to declare a struct member, or a type that cannot be part of a word is used to declare a word member.</p> <h3 id="example-of-erroneous-code-26"> <a href="#example-of-erroneous-code-26" class="anchor-heading" aria-labelledby="example-of-erroneous-code-26"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">word64</span> <span class="nc">Foo</span>
 {
     x: &amp;<span class="kt">i32</span>,
@@ -392,7 +392,7 @@
    <span class="ef246">│</span>
  <span class="ef246">3 │</span> <span class="ef249">    </span><span class="f3">x</span><span class="ef249">: &amp;i32,</span>
  <span class="ef246">  ·</span>     <span class="f3">┬</span>  
- <span class="ef246">  ·</span>     <span class="f3">╰──</span> The type <span class="f3">`&amp;i32`</span> is not allowed as a member of a word.
+ <span class="ef246">  ·</span>     <span class="f3">╰──</span> The type `<span class="f3">&amp;i32</span>` is not allowed as a member of a word.
 <span class="ef246">───╯</span></pre><h3 id="explanation-9"> <a href="#explanation-9" class="anchor-heading" aria-labelledby="explanation-9"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>The members of word can be fixed size integers, <code class="language-plaintext highlighter-rouge">bool</code> or other words.</p> <h2 id="error-code-e358"> <a href="#error-code-e358" class="anchor-heading" aria-labelledby="error-code-e358"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E358 </h2> <p>A type that is not part of the external ABI is used in a function marked <code class="language-plaintext highlighter-rouge">extern</code>.</p> <h3 id="example-of-erroneous-code-27"> <a href="#example-of-erroneous-code-27" class="anchor-heading" aria-labelledby="example-of-erroneous-code-27"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kp">extern</span> <span class="kd">fn</span> <span class="nf">foo</span>(<span class="nl">x:</span> <span class="kt">u128</span>);
 </code></pre></div></div><pre class="terminal-output f9 b9">
 <span class="f1">[E358] Error:</span> Invalid external type
@@ -400,18 +400,18 @@
    <span class="ef246">│</span>
  <span class="ef246">1 │</span> <span class="f6">extern</span><span class="ef249"> fn foo(x</span><span class="f3">: u128</span><span class="ef249">);</span>
  <span class="ef246">  ·</span> <span class="f6">───┬──</span>         <span class="f3">───┬──</span>  
- <span class="ef246">  ·</span>    <span class="f6">│</span>              <span class="f3">╰────</span> The type <span class="f3">`u128`</span> is not allowed in external declarations.
+ <span class="ef246">  ·</span>    <span class="f6">│</span>              <span class="f3">╰────</span> The type `<span class="f3">u128</span>` is not allowed in external declarations.
  <span class="ef246">  ·</span>    <span class="f6">│</span>                   
  <span class="ef246">  ·</span>    <span class="f6">╰───────────────────</span> Declaration marked external here.
 <span class="ef246">───╯</span></pre><h3 id="explanation-10"> <a href="#explanation-10" class="anchor-heading" aria-labelledby="explanation-10"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>For a detailed list of the types that allowed in <code class="language-plaintext highlighter-rouge">extern</code>, see the documentation about the <a href="features.html#interoperability-with-c">external ABI</a>.</p> <h2 id="error-code-e360"> <a href="#error-code-e360" class="anchor-heading" aria-labelledby="error-code-e360"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E360 </h2> <p>A constant expression contains an unsupported operation.</p> <h3 id="example-of-erroneous-code-28"> <a href="#example-of-erroneous-code-28" class="anchor-heading" aria-labelledby="example-of-erroneous-code-28"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="no">A</span>: <span class="kt">i32</span> = <span class="mi">200</span>;
 <span class="kd">const</span> <span class="no">X</span>: &amp;<span class="kt">i32</span> = &amp;A;
 </code></pre></div></div><pre class="terminal-output f9 b9">
 <span class="f1">[E360] Error:</span> Unsupported expression in constant expression
-   <span class="ef246">╭─[</span>&lt;source&gt;:2:18<span class="ef246">]</span>
+   <span class="ef246">╭─[</span>&lt;source&gt;:2:19<span class="ef246">]</span>
    <span class="ef246">│</span>
- <span class="ef246">2 │</span> <span class="ef249">const X: &amp;i32 = </span><span class="f3">&amp;</span><span class="ef249">A;</span>
- <span class="ef246">  ·</span>                 <span class="f3">┬</span>  
- <span class="ef246">  ·</span>                 <span class="f3">╰──</span> This expression is not supported in a constant expression.
+ <span class="ef246">2 │</span> <span class="ef249">const X: &amp;i32 = </span><span class="f3">&amp;A</span><span class="ef249">;</span>
+ <span class="ef246">  ·</span>                 <span class="f3">─┬</span>  
+ <span class="ef246">  ·</span>                  <span class="f3">╰──</span> This expression is not supported in a constant expression.
 <span class="ef246">───╯</span></pre><h3 id="explanation-11"> <a href="#explanation-11" class="anchor-heading" aria-labelledby="explanation-11"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Explanation </h3> <p>The value assigned to a constant must be evaluated at compile time. In addition to literals and other constants, constant expressions may use basic arithmetic, bitwise operations and primitive casts.</p> <h2 id="error-code-e361"> <a href="#error-code-e361" class="anchor-heading" aria-labelledby="error-code-e361"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E361 </h2> <p>A constant expression contains a function call.</p> <h3 id="example-of-erroneous-code-29"> <a href="#example-of-erroneous-code-29" class="anchor-heading" aria-labelledby="example-of-erroneous-code-29"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">calculate_value</span>() -&gt; <span class="kt">i32</span>;
 <span class="kd">const</span> <span class="no">A</span>: <span class="kt">i32</span> = calculate_value();
 </code></pre></div></div><pre class="terminal-output f9 b9">
@@ -737,9 +737,9 @@
    <span class="ef246">│</span>
  <span class="ef246">1 │</span> <span class="ef249">const </span><span class="f3">X</span><span class="ef249">: i32 = true;</span>
  <span class="ef246">  ·</span>       <span class="f3">┬</span>  
- <span class="ef246">  ·</span>       <span class="f3">╰──</span> '<span class="f3">X</span>' has type <span class="f3">`bool`</span>.
+ <span class="ef246">  ·</span>       <span class="f3">╰──</span> '<span class="f3">X</span>' has type `<span class="f3">bool</span>`.
  <span class="ef246">  ·</span>       <span class="f6">│</span>  
- <span class="ef246">  ·</span>       <span class="f6">╰──</span> Previously determined to be <span class="f6">`i32`</span>.
+ <span class="ef246">  ·</span>       <span class="f6">╰──</span> Previously determined to be `<span class="f6">i32</span>`.
 <span class="ef246">───╯</span></pre><h2 id="error-code-e501"> <a href="#error-code-e501" class="anchor-heading" aria-labelledby="error-code-e501"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E501 </h2> <p>The array index operation is used on a value that is not an array.</p> <h3 id="example-of-erroneous-code-48"> <a href="#example-of-erroneous-code-48" class="anchor-heading" aria-labelledby="example-of-erroneous-code-48"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
 {
     <span class="kp">var</span> <span class="nv">a</span>: <span class="kt">i32</span> = <span class="mi">10</span>;
@@ -754,7 +754,7 @@
  <span class="ef246">  ·</span>         <span class="f6">╰──</span> Type previously determined here.
  <span class="ef246">4 │</span> <span class="ef249">    var b: i32 = </span><span class="f3">a[0]</span><span class="ef249">;</span>
  <span class="ef246">  ·</span>                  <span class="f3">──┬─</span>  
- <span class="ef246">  ·</span>                    <span class="f3">╰───</span> Cannot index into value of non-array type <span class="f3">`i32`</span>.
+ <span class="ef246">  ·</span>                    <span class="f3">╰───</span> Cannot index into value of non-array type `<span class="f3">i32</span>`.
 <span class="ef246">───╯</span></pre><h2 id="error-code-e502"> <a href="#error-code-e502" class="anchor-heading" aria-labelledby="error-code-e502"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E502 </h2> <p>The array length operation is used on a value that is not an array.</p> <h3 id="example-of-erroneous-code-49"> <a href="#example-of-erroneous-code-49" class="anchor-heading" aria-labelledby="example-of-erroneous-code-49"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
 {
     <span class="kp">var</span> <span class="nv">a</span>: <span class="kt">i32</span> = <span class="mi">10</span>;
@@ -762,13 +762,14 @@
 }
 </code></pre></div></div><pre class="terminal-output f9 b9">
 <span class="f1">[E502] Error:</span> Conflicting types
-   <span class="ef246">╭─[</span>&lt;source&gt;:4:22<span class="ef246">]</span>
+   <span class="ef246">╭─[</span>&lt;source&gt;:4:23<span class="ef246">]</span>
    <span class="ef246">│</span>
- <span class="ef246">4 │</span> <span class="ef249">    var b: usize = |</span><span class="f3">a</span><span class="ef249">|;</span>
- <span class="ef246">  ·</span>                     <span class="f3">┬</span>  
- <span class="ef246">  ·</span>                     <span class="f3">╰──</span> Cannot take length of value of non-array type <span class="f3">`i32`</span>.
- <span class="ef246">  ·</span>                     <span class="f6">│</span>  
- <span class="ef246">  ·</span>                     <span class="f6">╰──</span> Type previously determined here.
+ <span class="ef246">3 │</span> <span class="ef249">    var </span><span class="f6">a</span><span class="ef249">: i32 = 10;</span>
+ <span class="ef246">  ·</span>         <span class="f6">┬</span>  
+ <span class="ef246">  ·</span>         <span class="f6">╰──</span> Type previously determined here.
+ <span class="ef246">4 │</span> <span class="ef249">    var b: usize = </span><span class="f3">|a|</span><span class="ef249">;</span>
+ <span class="ef246">  ·</span>                    <span class="f3">─┬─</span>  
+ <span class="ef246">  ·</span>                     <span class="f3">╰───</span> Cannot take length of value of non-array type `<span class="f3">i32</span>`.
 <span class="ef246">───╯</span></pre><h2 id="error-code-e503"> <a href="#error-code-e503" class="anchor-heading" aria-labelledby="error-code-e503"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E503 </h2> <p>The array index operation is used with an index of type other than <code class="language-plaintext highlighter-rouge">usize</code>.</p> <h3 id="example-of-erroneous-code-50"> <a href="#example-of-erroneous-code-50" class="anchor-heading" aria-labelledby="example-of-erroneous-code-50"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
 {
     <span class="kp">var</span> <span class="nv">a</span> = [<span class="mi">10</span>, <span class="mi">20</span>, <span class="mi">30</span>];
@@ -781,7 +782,7 @@
    <span class="ef246">│</span>
  <span class="ef246">5 │</span> <span class="ef249">    var b: i32 = a[</span><span class="f3">i</span><span class="ef249">];</span>
  <span class="ef246">  ·</span>                    <span class="f3">┬</span>  
- <span class="ef246">  ·</span>                    <span class="f3">╰──</span> Argument has type <span class="f3">`i8`</span>, expected <span class="f5">`usize`</span>.
+ <span class="ef246">  ·</span>                    <span class="f3">╰──</span> Argument has type `<span class="f3">i8</span>`, expected `<span class="f5">usize</span>`.
 <span class="ef246">───╯</span></pre><h2 id="error-code-e504"> <a href="#error-code-e504" class="anchor-heading" aria-labelledby="error-code-e504"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E504 </h2> <p>An assignment occurs between two different types.</p> <h3 id="example-of-erroneous-code-51"> <a href="#example-of-erroneous-code-51" class="anchor-heading" aria-labelledby="example-of-erroneous-code-51"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
 {
     <span class="kp">var</span> <span class="nv">a</span>: <span class="kt">i32</span> = <span class="mi">100</span>;
@@ -793,10 +794,10 @@
    <span class="ef246">│</span>
  <span class="ef246">3 │</span> <span class="ef249">    var </span><span class="f6">a</span><span class="ef249">: i32 = 100;</span>
  <span class="ef246">  ·</span>         <span class="f6">┬</span>  
- <span class="ef246">  ·</span>         <span class="f6">╰──</span> '<span class="f6">a</span>' has type <span class="f6">`i32`</span>.
+ <span class="ef246">  ·</span>         <span class="f6">╰──</span> '<span class="f6">a</span>' has type `<span class="f6">i32</span>`.
  <span class="ef246">4 │</span> <span class="ef249">    a = </span><span class="f3">false</span><span class="ef249">;</span>
  <span class="ef246">  ·</span>         <span class="f3">──┬──</span>  
- <span class="ef246">  ·</span>           <span class="f3">╰────</span> Cannot assign it this expression of type <span class="f3">`bool`</span>.
+ <span class="ef246">  ·</span>           <span class="f3">╰────</span> Cannot assign this expression of type `<span class="f3">bool</span>`.
 <span class="ef246">───╯</span></pre><h2 id="error-code-e505"> <a href="#error-code-e505" class="anchor-heading" aria-labelledby="error-code-e505"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E505 </h2> <p>The member access operation is used on a value that is not a structure.</p> <h3 id="example-of-erroneous-code-52"> <a href="#example-of-erroneous-code-52" class="anchor-heading" aria-labelledby="example-of-erroneous-code-52"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
 {
     <span class="kp">var</span> <span class="nv">a</span>: <span class="kt">i32</span> = <span class="mi">100</span>;
@@ -811,8 +812,57 @@
  <span class="ef246">  ·</span>         <span class="f6">╰──</span> Type previously determined here.
  <span class="ef246">4 │</span> <span class="ef249">    var b = </span><span class="f3">a.first</span><span class="ef249">;</span>
  <span class="ef246">  ·</span>             <span class="f3">───┬───</span>  
- <span class="ef246">  ·</span>                <span class="f3">╰─────</span> Cannot access member of non-structure type <span class="f3">`i32`</span>.
-<span class="ef246">───╯</span></pre><h2 id="error-code-e510"> <a href="#error-code-e510" class="anchor-heading" aria-labelledby="error-code-e510"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E510 </h2> <p>A function is called with too few arguments.</p> <h3 id="example-of-erroneous-code-53"> <a href="#example-of-erroneous-code-53" class="anchor-heading" aria-labelledby="example-of-erroneous-code-53"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>(<span class="nl">x:</span> <span class="kt">i32</span>, <span class="nl">y:</span> <span class="kt">i32</span>);
+ <span class="ef246">  ·</span>                <span class="f3">╰─────</span> Cannot access member of non-structure type `<span class="f3">i32</span>`.
+<span class="ef246">───╯</span></pre><h2 id="error-code-e506"> <a href="#error-code-e506" class="anchor-heading" aria-labelledby="error-code-e506"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E506 </h2> <p>An assignment tries to change an address that is not part of a pointer.</p> <h3 id="example-of-erroneous-code-53"> <a href="#example-of-erroneous-code-53" class="anchor-heading" aria-labelledby="example-of-erroneous-code-53"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
+{
+    <span class="kp">var</span> <span class="nv">a</span>: <span class="kt">i32</span> = <span class="mi">5</span>;
+    <span class="kp">var</span> <span class="nv">b</span>: <span class="kt">i32</span> = <span class="mi">10</span>;
+    &amp;b = &amp;a;
+}
+</code></pre></div></div><pre class="terminal-output f9 b9">
+<span class="f1">[E506] Error:</span> Conflicting types
+   <span class="ef246">╭─[</span>&lt;source&gt;:5:7<span class="ef246">]</span>
+   <span class="ef246">│</span>
+ <span class="ef246">4 │</span> <span class="ef249">    var </span><span class="f6">b</span><span class="ef249">: i32 = 10;</span>
+ <span class="ef246">  ·</span>         <span class="f6">┬</span>  
+ <span class="ef246">  ·</span>         <span class="f6">╰──</span> '<span class="f6">b</span>' has type `<span class="f6">i32</span>`.
+ <span class="ef246">5 │</span> <span class="ef249">    </span><span class="f3">&amp;b</span><span class="ef249"> = &amp;a;</span>
+ <span class="ef246">  ·</span>     <span class="f3">─┬</span>  
+ <span class="ef246">  ·</span>      <span class="f3">╰──</span> Cannot assign to immutable address.
+<span class="ef246">───╯</span></pre><h2 id="error-code-e507"> <a href="#error-code-e507" class="anchor-heading" aria-labelledby="error-code-e507"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E507 </h2> <p>An assignment occurs between types of different levels of pointer indirection.</p> <p>When assigning to pointer variables, make sure the number of address markers (<code class="language-plaintext highlighter-rouge">&amp;</code>) on either side of the assignment is the same. To change the address assigned to a pointer variable, use <code class="language-plaintext highlighter-rouge">&amp;</code>. To change the value that that pointer points to, omit <code class="language-plaintext highlighter-rouge">&amp;</code>.</p> <h3 id="example-of-erroneous-code-54"> <a href="#example-of-erroneous-code-54" class="anchor-heading" aria-labelledby="example-of-erroneous-code-54"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
+{
+    <span class="kp">var</span> <span class="nv">a</span>: <span class="kt">i32</span> = <span class="mi">5</span>;
+    <span class="kp">var</span> <span class="nv">b</span>: <span class="kt">i32</span> = <span class="mi">10</span>;
+    <span class="kp">var</span> <span class="nv">x</span>: &amp;<span class="kt">i32</span> = &amp;a;
+    x = &amp;b;
+}
+</code></pre></div></div><pre class="terminal-output f9 b9">
+<span class="f1">[E507] Error:</span> Conflicting types
+   <span class="ef246">╭─[</span>&lt;source&gt;:6:11<span class="ef246">]</span>
+   <span class="ef246">│</span>
+ <span class="ef246">5 │</span> <span class="ef249">    var </span><span class="f5">x</span><span class="ef249">: &amp;i32 = &amp;a;</span>
+ <span class="ef246">  ·</span>         <span class="f5">┬</span>  
+ <span class="ef246">  ·</span>         <span class="f5">╰──</span> '<span class="f5">x</span>' has type `<span class="f5">&amp;i32</span>`.
+ <span class="ef246">6 │</span> <span class="ef249">    </span><span class="f6">x</span><span class="ef249"> = </span><span class="f3">&amp;b</span><span class="ef249">;</span>
+ <span class="ef246">  ·</span>     <span class="f6">┬</span>   <span class="f3">─┬</span>  
+ <span class="ef246">  ·</span>     <span class="f6">│</span>    <span class="f3">╰──</span> Cannot assign this expression of type `<span class="f3">&amp;i32</span>`.
+ <span class="ef246">  ·</span>     <span class="f6">│</span>       
+ <span class="ef246">  ·</span>     <span class="f6">╰───────</span> The assignee has type `<span class="f6">i32</span>`.
+<span class="ef246">───╯</span></pre><p>To change the address assigned to <code class="language-plaintext highlighter-rouge">x</code>, use <code class="language-plaintext highlighter-rouge">&amp;x</code>:</p> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
+{
+    <span class="kp">var</span> <span class="nv">a</span>: <span class="kt">i32</span> = <span class="mi">5</span>;
+    <span class="kp">var</span> <span class="nv">b</span>: <span class="kt">i32</span> = <span class="mi">10</span>;
+    <span class="kp">var</span> <span class="nv">x</span>: &amp;<span class="kt">i32</span> = &amp;a;
+    &amp;x = &amp;b;
+}
+</code></pre></div></div> <p>To instead change the value that <code class="language-plaintext highlighter-rouge">x</code> points to, which is the value stored in <code class="language-plaintext highlighter-rouge">a</code>, omit the <code class="language-plaintext highlighter-rouge">&amp;</code>:</p> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
+{
+    <span class="kp">var</span> <span class="nv">a</span>: <span class="kt">i32</span> = <span class="mi">5</span>;
+    <span class="kp">var</span> <span class="nv">b</span>: <span class="kt">i32</span> = <span class="mi">10</span>;
+    <span class="kp">var</span> <span class="nv">x</span>: &amp;<span class="kt">i32</span> = &amp;a;
+    x = b;
+}
+</code></pre></div></div> <h2 id="error-code-e510"> <a href="#error-code-e510" class="anchor-heading" aria-labelledby="error-code-e510"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E510 </h2> <p>A function is called with too few arguments.</p> <h3 id="example-of-erroneous-code-55"> <a href="#example-of-erroneous-code-55" class="anchor-heading" aria-labelledby="example-of-erroneous-code-55"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>(<span class="nl">x:</span> <span class="kt">i32</span>, <span class="nl">y:</span> <span class="kt">i32</span>);
 
 <span class="kd">fn</span> <span class="nf">main</span>()
 {
@@ -829,7 +879,7 @@
  <span class="ef246">5 │</span> <span class="ef249">    </span><span class="f3">foo</span><span class="ef249">(100);</span>
  <span class="ef246">  ·</span>     <span class="f3">─┬─</span>  
  <span class="ef246">  ·</span>      <span class="f3">╰───</span> Too few arguments in function call.
-<span class="ef246">───╯</span></pre><h2 id="error-code-e511"> <a href="#error-code-e511" class="anchor-heading" aria-labelledby="error-code-e511"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E511 </h2> <p>A function is called with too many arguments.</p> <h3 id="example-of-erroneous-code-54"> <a href="#example-of-erroneous-code-54" class="anchor-heading" aria-labelledby="example-of-erroneous-code-54"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>(<span class="nl">x:</span> <span class="kt">i32</span>, <span class="nl">y:</span> <span class="kt">i32</span>);
+<span class="ef246">───╯</span></pre><h2 id="error-code-e511"> <a href="#error-code-e511" class="anchor-heading" aria-labelledby="error-code-e511"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E511 </h2> <p>A function is called with too many arguments.</p> <h3 id="example-of-erroneous-code-56"> <a href="#example-of-erroneous-code-56" class="anchor-heading" aria-labelledby="example-of-erroneous-code-56"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>(<span class="nl">x:</span> <span class="kt">i32</span>, <span class="nl">y:</span> <span class="kt">i32</span>);
 
 <span class="kd">fn</span> <span class="nf">main</span>()
 {
@@ -846,7 +896,7 @@
  <span class="ef246">5 │</span> <span class="ef249">    </span><span class="f3">foo</span><span class="ef249">(100, 200, 300);</span>
  <span class="ef246">  ·</span>     <span class="f3">─┬─</span>  
  <span class="ef246">  ·</span>      <span class="f3">╰───</span> Too many arguments in function call.
-<span class="ef246">───╯</span></pre><h2 id="error-code-e512"> <a href="#error-code-e512" class="anchor-heading" aria-labelledby="error-code-e512"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E512 </h2> <p>A function is called with an argument of the wrong type.</p> <h3 id="example-of-erroneous-code-55"> <a href="#example-of-erroneous-code-55" class="anchor-heading" aria-labelledby="example-of-erroneous-code-55"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>(<span class="nl">x:</span> <span class="kt">i32</span>, <span class="nl">y:</span> <span class="kt">i32</span>);
+<span class="ef246">───╯</span></pre><h2 id="error-code-e512"> <a href="#error-code-e512" class="anchor-heading" aria-labelledby="error-code-e512"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E512 </h2> <p>A function is called with an argument of the wrong type.</p> <h3 id="example-of-erroneous-code-57"> <a href="#example-of-erroneous-code-57" class="anchor-heading" aria-labelledby="example-of-erroneous-code-57"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>(<span class="nl">x:</span> <span class="kt">i32</span>, <span class="nl">y:</span> <span class="kt">i32</span>);
 
 <span class="kd">fn</span> <span class="nf">main</span>()
 {
@@ -858,12 +908,12 @@
    <span class="ef246">│</span>
  <span class="ef246">1 │</span> <span class="ef249">fn foo(x: i32, </span><span class="f6">y</span><span class="ef249">: i32);</span>
  <span class="ef246">  ·</span>                <span class="f6">┬</span>  
- <span class="ef246">  ·</span>                <span class="f6">╰──</span> Parameter '<span class="f6">y</span>' has type <span class="f6">`i32`</span>.
+ <span class="ef246">  ·</span>                <span class="f6">╰──</span> Parameter '<span class="f6">y</span>' has type `<span class="f6">i32</span>`.
  <span class="ef246">  ·</span> 
  <span class="ef246">5 │</span> <span class="ef249">    foo(100, </span><span class="f3">true</span><span class="ef249">);</span>
  <span class="ef246">  ·</span>              <span class="f3">──┬─</span>  
- <span class="ef246">  ·</span>                <span class="f3">╰───</span> Argument has type <span class="f3">`bool`</span>.
-<span class="ef246">───╯</span></pre><h2 id="error-code-e513"> <a href="#error-code-e513" class="anchor-heading" aria-labelledby="error-code-e513"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E513 </h2> <p>A function is called with an argument of type <code class="language-plaintext highlighter-rouge">T</code> when the corresponding parameter is type <code class="language-plaintext highlighter-rouge">&amp;T</code>.</p> <h3 id="example-of-erroneous-code-56"> <a href="#example-of-erroneous-code-56" class="anchor-heading" aria-labelledby="example-of-erroneous-code-56"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">read_into_buffer</span>(<span class="nl">buffer:</span> &amp;[]<span class="kt">u8</span>);
+ <span class="ef246">  ·</span>                <span class="f3">╰───</span> Argument has type `<span class="f3">bool</span>`.
+<span class="ef246">───╯</span></pre><h2 id="error-code-e513"> <a href="#error-code-e513" class="anchor-heading" aria-labelledby="error-code-e513"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E513 </h2> <p>A function is called with an argument of type <code class="language-plaintext highlighter-rouge">T</code> when the corresponding parameter is type <code class="language-plaintext highlighter-rouge">&amp;T</code>.</p> <h3 id="example-of-erroneous-code-58"> <a href="#example-of-erroneous-code-58" class="anchor-heading" aria-labelledby="example-of-erroneous-code-58"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">read_into_buffer</span>(<span class="nl">buffer:</span> &amp;[]<span class="kt">u8</span>);
 
 <span class="kd">fn</span> <span class="nf">main</span>()
 {
@@ -871,17 +921,19 @@
     read_into_buffer(databuffer);
 }
 </code></pre></div></div><pre class="terminal-output f9 b9">
-<span class="f1">[E512] Error:</span> Mismatched types
+<span class="f1">[E513] Error:</span> Mismatched types
    <span class="ef246">╭─[</span>&lt;source&gt;:6:32<span class="ef246">]</span>
    <span class="ef246">│</span>
  <span class="ef246">1 │</span> <span class="ef249">fn read_into_buffer(</span><span class="f6">buffer</span><span class="ef249">: &amp;[]u8);</span>
  <span class="ef246">  ·</span>                     <span class="f6">───┬──</span>  
- <span class="ef246">  ·</span>                        <span class="f6">╰────</span> Parameter '<span class="f6">buffer</span>' has type <span class="f6">`&amp;[:]u8`</span>.
+ <span class="ef246">  ·</span>                        <span class="f6">╰────</span> Parameter '<span class="f6">buffer</span>' has type `<span class="f6">&amp;[:]u8</span>`.
  <span class="ef246">  ·</span> 
  <span class="ef246">6 │</span> <span class="ef249">    read_into_buffer(</span><span class="f3">databuffer</span><span class="ef249">);</span>
- <span class="ef246">  ·</span>                      <span class="f3">─────┬────</span>  
- <span class="ef246">  ·</span>                           <span class="f3">╰──────</span> Argument has type <span class="f3">`[1024]u8`</span>.
-<span class="ef246">───╯</span></pre><h2 id="error-code-e530"> <a href="#error-code-e530" class="anchor-heading" aria-labelledby="error-code-e530"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E530 </h2> <p>A constant or parameter of a non-pointer type is mutated, or a variable of a non-mutable type is mutated.</p> <h3 id="example-of-erroneous-code-57"> <a href="#example-of-erroneous-code-57" class="anchor-heading" aria-labelledby="example-of-erroneous-code-57"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>(<span class="nl">x:</span> <span class="kt">i32</span>)
+ <span class="ef246">  ·</span>                      <span class="f5">┬</span><span class="f3">────┬────</span>  
+ <span class="ef246">  ·</span>                      <span class="f5">│</span>    <span class="f3">╰──────</span> Argument has type `<span class="f3">[1024]u8</span>`.
+ <span class="ef246">  ·</span>                      <span class="f5">│</span>           
+ <span class="ef246">  ·</span>                      <span class="f5">╰───────────</span> Add <span class="f5">`&amp;`</span> here to pass by reference pointer.
+<span class="ef246">───╯</span></pre><h2 id="error-code-e530"> <a href="#error-code-e530" class="anchor-heading" aria-labelledby="error-code-e530"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E530 </h2> <p>A constant or parameter of a non-pointer type is mutated, or a variable of a non-mutable type is mutated.</p> <h3 id="example-of-erroneous-code-59"> <a href="#example-of-erroneous-code-59" class="anchor-heading" aria-labelledby="example-of-erroneous-code-59"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>(<span class="nl">x:</span> <span class="kt">i32</span>)
 {
     x = <span class="mi">10</span>;
 }
@@ -900,7 +952,7 @@
 {
     x = <span class="mi">10</span>;
 }
-</code></pre></div></div> <h2 id="error-code-e531"> <a href="#error-code-e531" class="anchor-heading" aria-labelledby="error-code-e531"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E531 </h2> <p>An array is used in its entirety in an assignment.</p> <h3 id="example-of-erroneous-code-58"> <a href="#example-of-erroneous-code-58" class="anchor-heading" aria-labelledby="example-of-erroneous-code-58"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="no">DATA</span>: [<span class="mi">10</span>]<span class="kt">i32</span> = [<span class="mi">0</span>, <span class="mi">1</span>, <span class="mi">2</span>, <span class="mi">3</span>, <span class="mi">4</span>, <span class="mi">5</span>, <span class="mi">6</span>, <span class="mi">7</span>, <span class="mi">8</span>, <span class="mi">9</span>];
+</code></pre></div></div> <h2 id="error-code-e531"> <a href="#error-code-e531" class="anchor-heading" aria-labelledby="error-code-e531"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E531 </h2> <p>An array is used in its entirety in an assignment.</p> <h3 id="example-of-erroneous-code-60"> <a href="#example-of-erroneous-code-60" class="anchor-heading" aria-labelledby="example-of-erroneous-code-60"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="no">DATA</span>: [<span class="mi">10</span>]<span class="kt">i32</span> = [<span class="mi">0</span>, <span class="mi">1</span>, <span class="mi">2</span>, <span class="mi">3</span>, <span class="mi">4</span>, <span class="mi">5</span>, <span class="mi">6</span>, <span class="mi">7</span>, <span class="mi">8</span>, <span class="mi">9</span>];
 
 <span class="kd">fn</span> <span class="nf">main</span>()
 {
@@ -913,25 +965,25 @@
  <span class="ef246">5 │</span> <span class="ef249">    var data = </span><span class="f3">DATA</span><span class="ef249">;</span>
  <span class="ef246">  ·</span>                <span class="f3">──┬─</span>  
  <span class="ef246">  ·</span>                  <span class="f3">╰───</span> Cannot copy this array.
-<span class="ef246">───╯</span></pre><h2 id="error-code-e532"> <a href="#error-code-e532" class="anchor-heading" aria-labelledby="error-code-e532"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E532 </h2> <p>An array view is used in its entirety in an assignment.</p> <h3 id="example-of-erroneous-code-59"> <a href="#example-of-erroneous-code-59" class="anchor-heading" aria-labelledby="example-of-erroneous-code-59"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>(<span class="nl">data:</span> []<span class="kt">i32</span>)
+<span class="ef246">───╯</span></pre><h2 id="error-code-e532"> <a href="#error-code-e532" class="anchor-heading" aria-labelledby="error-code-e532"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E532 </h2> <p>An array view is used in its entirety in an assignment.</p> <h3 id="example-of-erroneous-code-61"> <a href="#example-of-erroneous-code-61" class="anchor-heading" aria-labelledby="example-of-erroneous-code-61"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>(<span class="nl">data:</span> []<span class="kt">i32</span>)
 {
     <span class="kp">var</span> <span class="nv">copy_of_data</span> = data;
 }
 </code></pre></div></div><pre class="terminal-output f9 b9">
-<span class="f1">[E532] Error:</span> Cannot copy slice
+<span class="f1">[E532] Error:</span> Cannot copy array view
    <span class="ef246">╭─[</span>&lt;source&gt;:3:28<span class="ef246">]</span>
    <span class="ef246">│</span>
  <span class="ef246">3 │</span> <span class="ef249">    var copy_of_data = </span><span class="f3">data</span><span class="ef249">;</span>
  <span class="ef246">  ·</span>                        <span class="f3">──┬─</span>  
- <span class="ef246">  ·</span>                          <span class="f3">╰───</span> Cannot copy this slice.
+ <span class="ef246">  ·</span>                          <span class="f3">╰───</span> Cannot copy this array view.
 <span class="ef246">───╯</span>
 <span class="f1">[E352] Error:</span> Invalid variable type
    <span class="ef246">╭─[</span>&lt;source&gt;:3:21<span class="ef246">]</span>
    <span class="ef246">│</span>
  <span class="ef246">3 │</span> <span class="ef249">    var </span><span class="f3">copy_of_data</span><span class="ef249"> = data;</span>
  <span class="ef246">  ·</span>         <span class="f3">──────┬─────</span>  
- <span class="ef246">  ·</span>               <span class="f3">╰───────</span> A value of type <span class="f3">`[:]i32`</span> cannot be assigned to a variable.
-<span class="ef246">───╯</span></pre><h2 id="error-code-e533"> <a href="#error-code-e533" class="anchor-heading" aria-labelledby="error-code-e533"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E533 </h2> <p>A struct is used in its entirety in an assignment.</p> <h3 id="example-of-erroneous-code-60"> <a href="#example-of-erroneous-code-60" class="anchor-heading" aria-labelledby="example-of-erroneous-code-60"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">struct</span> <span class="nc">DataBuffer</span>
+ <span class="ef246">  ·</span>               <span class="f3">╰───────</span> A value of type `<span class="f3">[:]i32</span>` cannot be assigned to a variable.
+<span class="ef246">───╯</span></pre><h2 id="error-code-e533"> <a href="#error-code-e533" class="anchor-heading" aria-labelledby="error-code-e533"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E533 </h2> <p>A struct is used in its entirety in an assignment.</p> <h3 id="example-of-erroneous-code-62"> <a href="#example-of-erroneous-code-62" class="anchor-heading" aria-labelledby="example-of-erroneous-code-62"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">struct</span> <span class="nc">DataBuffer</span>
 {
     buffer: [<span class="mi">1024</span>]<span class="kt">u8</span>,
 }
@@ -941,27 +993,31 @@
     <span class="kp">var</span> <span class="nv">copy_of_data</span> = data;
 }
 </code></pre></div></div><pre class="terminal-output f9 b9">
-<span class="f1">[E533] Error:</span> Cannot copy struct
+<span class="f1">[E500] Error:</span> Conflicting types
    <span class="ef246">╭─[</span>&lt;source&gt;:8:28<span class="ef246">]</span>
    <span class="ef246">│</span>
+ <span class="ef246">6 │</span> <span class="ef249">fn main(</span><span class="f6">data</span><span class="ef249">: DataBuffer)</span>
+ <span class="ef246">  ·</span>         <span class="f6">──┬─</span>  
+ <span class="ef246">  ·</span>           <span class="f6">╰───</span> Previously determined to be `<span class="f6">(DataBuffer)</span>`.
+ <span class="ef246">  ·</span> 
  <span class="ef246">8 │</span> <span class="ef249">    var copy_of_data = </span><span class="f3">data</span><span class="ef249">;</span>
  <span class="ef246">  ·</span>                        <span class="f3">──┬─</span>  
- <span class="ef246">  ·</span>                          <span class="f3">╰───</span> Cannot copy this struct.
-<span class="ef246">───╯</span></pre><h2 id="error-code-e538"> <a href="#error-code-e538" class="anchor-heading" aria-labelledby="error-code-e538"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E538 </h2> <p>The address of a temporary value is taken</p> <h3 id="example-of-erroneous-code-61"> <a href="#example-of-erroneous-code-61" class="anchor-heading" aria-labelledby="example-of-erroneous-code-61"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
+ <span class="ef246">  ·</span>                          <span class="f3">╰───</span> '<span class="f3">data</span>' has type `<span class="f3">DataBuffer</span>`.
+<span class="ef246">───╯</span></pre><h2 id="error-code-e538"> <a href="#error-code-e538" class="anchor-heading" aria-labelledby="error-code-e538"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E538 </h2> <p>The address of a temporary value is taken</p> <h3 id="example-of-erroneous-code-63"> <a href="#example-of-erroneous-code-63" class="anchor-heading" aria-labelledby="example-of-erroneous-code-63"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
 {
     <span class="kp">var</span> <span class="nv">a</span>: <span class="kt">i32</span> = <span class="mi">100</span>;
     <span class="kp">var</span> <span class="nv">x</span>: &amp;&amp;<span class="kt">i32</span> = &amp;&amp;a;
 }
 </code></pre></div></div><pre class="terminal-output f9 b9">
 <span class="f1">[E538] Error:</span> Address of temporary address
-   <span class="ef246">╭─[</span>&lt;source&gt;:4:21<span class="ef246">]</span>
+   <span class="ef246">╭─[</span>&lt;source&gt;:4:23<span class="ef246">]</span>
    <span class="ef246">│</span>
- <span class="ef246">4 │</span> <span class="ef249">    var x: &amp;&amp;i32 = </span><span class="f3">&amp;</span><span class="ef249">&amp;</span><span class="f6">a</span><span class="ef249">;</span>
- <span class="ef246">  ·</span>                    <span class="f3">┬</span> <span class="f6">┬</span>  
- <span class="ef246">  ·</span>                    <span class="f3">╰────</span> Cannot take address of temporary address.
+ <span class="ef246">4 │</span> <span class="ef249">    var x: &amp;&amp;i32 = </span><span class="f3">&amp;&amp;</span><span class="f6">a</span><span class="ef249">;</span>
+ <span class="ef246">  ·</span>                    <span class="f3">─┬</span><span class="f6">┬</span>  
+ <span class="ef246">  ·</span>                     <span class="f3">╰───</span> Cannot take address of temporary address.
  <span class="ef246">  ·</span>                      <span class="f6">│</span>  
- <span class="ef246">  ·</span>                      <span class="f6">╰──</span> This value is not of type <span class="f6">`&amp;&amp;_`</span>.
-<span class="ef246">───╯</span></pre><h2 id="error-code-e550"> <a href="#error-code-e550" class="anchor-heading" aria-labelledby="error-code-e550"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E550 </h2> <p>An operator is used that is not valid for the type of its operand(s).</p> <h3 id="example-of-erroneous-code-62"> <a href="#example-of-erroneous-code-62" class="anchor-heading" aria-labelledby="example-of-erroneous-code-62"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
+ <span class="ef246">  ·</span>                      <span class="f6">╰──</span> This reference has type `<span class="f6">i32</span>`.
+<span class="ef246">───╯</span></pre><h2 id="error-code-e550"> <a href="#error-code-e550" class="anchor-heading" aria-labelledby="error-code-e550"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E550 </h2> <p>An operator is used that is not valid for the type of its operand(s).</p> <h3 id="example-of-erroneous-code-64"> <a href="#example-of-erroneous-code-64" class="anchor-heading" aria-labelledby="example-of-erroneous-code-64"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
 {
     <span class="kp">var</span> <span class="nv">a</span>: <span class="kt">u16</span> = <span class="mi">20</span>;
     <span class="kp">var</span> <span class="nv">b</span> = -a;
@@ -972,10 +1028,10 @@
    <span class="ef246">│</span>
  <span class="ef246">4 │</span> <span class="ef249">    var b = </span><span class="f6">-</span><span class="f3">a</span><span class="ef249">;</span>
  <span class="ef246">  ·</span>             <span class="f6">┬</span><span class="f3">┬</span>  
- <span class="ef246">  ·</span>             <span class="f6">│</span><span class="f3">╰──</span> This has type <span class="f3">`u16`</span>.
+ <span class="ef246">  ·</span>             <span class="f6">│</span><span class="f3">╰──</span> This has type `<span class="f3">u16</span>`.
  <span class="ef246">  ·</span>             <span class="f6">│</span>   
- <span class="ef246">  ·</span>             <span class="f6">╰───</span> Expected one of <span class="f6">`i8`</span>, <span class="f6">`i16`</span>, <span class="f6">`i32`</span>, <span class="f6">`i64`</span>, <span class="f6">`i128`</span>.
-<span class="ef246">───╯</span></pre><h2 id="error-code-e551"> <a href="#error-code-e551" class="anchor-heading" aria-labelledby="error-code-e551"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E551 </h2> <p>The types of the left and right operand of a binary operator do not match.</p> <h3 id="example-of-erroneous-code-63"> <a href="#example-of-erroneous-code-63" class="anchor-heading" aria-labelledby="example-of-erroneous-code-63"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>(<span class="nl">data:</span> []<span class="kt">u8</span>)
+ <span class="ef246">  ·</span>             <span class="f6">╰───</span> Expected one of `<span class="f6">i8</span>`, `<span class="f6">i16</span>`, `<span class="f6">i32</span>`, `<span class="f6">i64</span>`, `<span class="f6">i128</span>`.
+<span class="ef246">───╯</span></pre><h2 id="error-code-e551"> <a href="#error-code-e551" class="anchor-heading" aria-labelledby="error-code-e551"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E551 </h2> <p>The types of the left and right operand of a binary operator do not match.</p> <h3 id="example-of-erroneous-code-65"> <a href="#example-of-erroneous-code-65" class="anchor-heading" aria-labelledby="example-of-erroneous-code-65"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>(<span class="nl">data:</span> []<span class="kt">u8</span>)
 {
     <span class="kp">var</span> <span class="nv">a</span>: <span class="kt">i32</span> = <span class="mi">10</span>;
     <span class="kp">var</span> <span class="nv">b</span>: <span class="kt">i32</span> = |data| + a;
@@ -984,28 +1040,28 @@
 <span class="f1">[E551] Error:</span> Mismatched operand types
    <span class="ef246">╭─[</span>&lt;source&gt;:4:26<span class="ef246">]</span>
    <span class="ef246">│</span>
- <span class="ef246">4 │</span> <span class="ef249">    var b: i32 = |</span><span class="f3">data</span><span class="ef249">| </span><span class="f5">+</span><span class="ef249"> </span><span class="f6">a</span><span class="ef249">;</span>
- <span class="ef246">  ·</span>                   <span class="f3">──┬─</span>  <span class="f5">┬</span> <span class="f6">┬</span>  
- <span class="ef246">  ·</span>                     <span class="f3">╰────────</span> This has type <span class="f3">`usize`</span>.
+ <span class="ef246">4 │</span> <span class="ef249">    var b: i32 = </span><span class="f3">|data|</span><span class="ef249"> </span><span class="f5">+</span><span class="ef249"> </span><span class="f6">a</span><span class="ef249">;</span>
+ <span class="ef246">  ·</span>                  <span class="f3">───┬──</span> <span class="f5">┬</span> <span class="f6">┬</span>  
+ <span class="ef246">  ·</span>                     <span class="f3">╰────────</span> This has type `<span class="f3">usize</span>`.
  <span class="ef246">  ·</span>                         <span class="f5">│</span> <span class="f6">│</span>  
  <span class="ef246">  ·</span>                         <span class="f5">╰────</span> This operator expects operands with equal types.
  <span class="ef246">  ·</span>                           <span class="f6">│</span>  
- <span class="ef246">  ·</span>                           <span class="f6">╰──</span> This has type <span class="f6">`i32`</span>.
+ <span class="ef246">  ·</span>                           <span class="f6">╰──</span> This has type `<span class="f6">i32</span>`.
 <span class="ef246">───╯</span>
 <span class="f1">[E504] Error:</span> Conflicting types
    <span class="ef246">╭─[</span>&lt;source&gt;:4:28<span class="ef246">]</span>
    <span class="ef246">│</span>
- <span class="ef246">4 │</span> <span class="ef249">    var </span><span class="f6">b</span><span class="ef249">: i32 = |</span><span class="f3">data| + a</span><span class="ef249">;</span>
- <span class="ef246">  ·</span>         <span class="f6">┬</span>         <span class="f3">────┬────</span>  
- <span class="ef246">  ·</span>         <span class="f6">╰────────────────────</span> '<span class="f6">b</span>' has type <span class="f6">`i32`</span>.
+ <span class="ef246">4 │</span> <span class="ef249">    var </span><span class="f6">b</span><span class="ef249">: i32 = </span><span class="f3">|data| + a</span><span class="ef249">;</span>
+ <span class="ef246">  ·</span>         <span class="f6">┬</span>        <span class="f3">─────┬────</span>  
+ <span class="ef246">  ·</span>         <span class="f6">╰────────────────────</span> '<span class="f6">b</span>' has type `<span class="f6">i32</span>`.
  <span class="ef246">  ·</span>                       <span class="f3">│</span>      
- <span class="ef246">  ·</span>                       <span class="f3">╰──────</span> Cannot assign it this expression of type <span class="f3">`usize`</span>.
+ <span class="ef246">  ·</span>                       <span class="f3">╰──────</span> Cannot assign this expression of type `<span class="f3">usize</span>`.
 <span class="ef246">───╯</span></pre><p>If the operands are primitives types, you can use primitive casting to do the conversion.</p> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>(<span class="nl">data:</span> []<span class="kt">u8</span>)
 {
     <span class="kp">var</span> <span class="nv">a</span>: <span class="kt">i32</span> = <span class="mi">10</span>;
     <span class="kp">var</span> <span class="nv">b</span>: <span class="kt">i32</span> = |data| <span class="ow">as</span> <span class="kt">i32</span> + a;
 }
-</code></pre></div></div> <h2 id="error-code-e552"> <a href="#error-code-e552" class="anchor-heading" aria-labelledby="error-code-e552"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E552 </h2> <p>A primitive cast is attempted between incompatible types.</p> <h3 id="example-of-erroneous-code-64"> <a href="#example-of-erroneous-code-64" class="anchor-heading" aria-labelledby="example-of-erroneous-code-64"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
+</code></pre></div></div> <h2 id="error-code-e552"> <a href="#error-code-e552" class="anchor-heading" aria-labelledby="error-code-e552"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E552 </h2> <p>A primitive cast is attempted between incompatible types.</p> <h3 id="example-of-erroneous-code-66"> <a href="#example-of-erroneous-code-66" class="anchor-heading" aria-labelledby="example-of-erroneous-code-66"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
 {
     <span class="kp">var</span> <span class="nv">a</span>: <span class="kt">i32</span> = <span class="mi">1</span>;
     <span class="kp">var</span> <span class="nv">b</span> = a <span class="ow">as</span> <span class="kt">bool</span>;
@@ -1016,11 +1072,11 @@
    <span class="ef246">│</span>
  <span class="ef246">4 │</span> <span class="ef249">    var b = </span><span class="f3">a</span><span class="ef249"> as </span><span class="f6">bool</span><span class="ef249">;</span>
  <span class="ef246">  ·</span>             <span class="f3">┬</span>    <span class="f6">──┬─</span>  
- <span class="ef246">  ·</span>             <span class="f3">╰──────────</span> This has type <span class="f3">`i32`</span>.
+ <span class="ef246">  ·</span>             <span class="f3">╰──────────</span> This has type `<span class="f3">i32</span>`.
  <span class="ef246">  ·</span>                    <span class="f6">│</span>   
- <span class="ef246">  ·</span>                    <span class="f6">╰───</span> Cannot cast <span class="f3">`i32`</span> into <span class="f6">`bool`</span>.
+ <span class="ef246">  ·</span>                    <span class="f6">╰───</span> Cannot cast `<span class="f3">i32</span>` into `<span class="f6">bool</span>`.
  <span class="ef246">  ·</span> 
- <span class="ef246">  ·</span> <span class="ef115">Note</span>: Can cast <span class="f3">`i32`</span> into one of <span class="f6">`i8`</span>, <span class="f6">`i16`</span>, <span class="f6">`i64`</span>, <span class="f6">`i128`</span>, <span class="f6">`u8`</span>, <span class="f6">`u16`</span>, <span class="f6">`u32`</span>, <span class="f6">`u64`</span>, <span class="f6">`u128`</span>, <span class="f6">`usize`</span>.
+ <span class="ef246">  ·</span> <span class="ef115">Note</span>: Can cast `<span class="f3">i32</span>` into one of `<span class="f6">i8</span>`, `<span class="f6">i16</span>`, `<span class="f6">i64</span>`, `<span class="f6">i128</span>`, `<span class="f6">u8</span>`, `<span class="f6">u16</span>`, `<span class="f6">u32</span>`, `<span class="f6">u64</span>`, `<span class="f6">u128</span>`, `<span class="f6">usize</span>`.
 <span class="ef246">───╯</span></pre><p>The only way to get a bool from another type is using conditionals.</p> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
 {
     <span class="kp">var</span> <span class="nv">a</span>: <span class="kt">i32</span> = <span class="mi">1</span>;
@@ -1034,7 +1090,7 @@
         b = <span class="kc">true</span>;
     }
 }
-</code></pre></div></div> <h2 id="error-code-e581"> <a href="#error-code-e581" class="anchor-heading" aria-labelledby="error-code-e581"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E581 </h2> <p>The compiler failed to infer the type of a variable declaration.</p> <h3 id="example-of-erroneous-code-65"> <a href="#example-of-erroneous-code-65" class="anchor-heading" aria-labelledby="example-of-erroneous-code-65"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
+</code></pre></div></div> <h2 id="error-code-e581"> <a href="#error-code-e581" class="anchor-heading" aria-labelledby="error-code-e581"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E581 </h2> <p>The compiler failed to infer the type of a variable declaration.</p> <h3 id="example-of-erroneous-code-67"> <a href="#example-of-erroneous-code-67" class="anchor-heading" aria-labelledby="example-of-erroneous-code-67"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
 {
     <span class="kp">var</span> <span class="nv">a</span> = <span class="mi">1</span>;
 }
@@ -1051,7 +1107,7 @@
 {
     <span class="kp">var</span> <span class="nv">a</span>: <span class="kt">i64</span> = <span class="mi">1</span>;
 }
-</code></pre></div></div> <h2 id="error-code-e582"> <a href="#error-code-e582" class="anchor-heading" aria-labelledby="error-code-e582"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E582 </h2> <p>The compiler failed to infer the type of an integer literal without type suffix.</p> <h3 id="example-of-erroneous-code-66"> <a href="#example-of-erroneous-code-66" class="anchor-heading" aria-labelledby="example-of-erroneous-code-66"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>()
+</code></pre></div></div> <h2 id="error-code-e582"> <a href="#error-code-e582" class="anchor-heading" aria-labelledby="error-code-e582"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E582 </h2> <p>The compiler failed to infer the type of an integer literal without type suffix.</p> <h3 id="example-of-erroneous-code-68"> <a href="#example-of-erroneous-code-68" class="anchor-heading" aria-labelledby="example-of-erroneous-code-68"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">foo</span>()
 {
     <span class="nl">return:</span> <span class="mi">500</span>
 }
@@ -1063,7 +1119,7 @@
  <span class="ef246">  ·</span>             <span class="f3">─┬─</span><span class="f6">│</span> 
  <span class="ef246">  ·</span>              <span class="f3">╰───</span> Failed to infer type of integer literal.
  <span class="ef246">  ·</span>                <span class="f6">│</span> 
- <span class="ef246">  ·</span>                <span class="f6">╰─</span> Consider adding a type suffix like <span class="f6">`i32`</span>.
+ <span class="ef246">  ·</span>                <span class="f6">╰─</span> Consider adding a type suffix like `<span class="f6">i32</span>`.
 <span class="ef246">───╯</span>
 <span class="f1">[E331] Error:</span> Missing return type
    <span class="ef246">╭─[</span>&lt;source&gt;:3:16<span class="ef246">]</span>
@@ -1080,7 +1136,28 @@
 {
     <span class="nl">return:</span> <span class="mi">500</span>
 }
-</code></pre></div></div> <h2 id="error-code-e800"> <a href="#error-code-e800" class="anchor-heading" aria-labelledby="error-code-e800"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E800 </h2> <p>A <code class="language-plaintext highlighter-rouge">loop</code> statement is not the final statement of the block in which it appears.</p> <h3 id="example-of-erroneous-code-67"> <a href="#example-of-erroneous-code-67" class="anchor-heading" aria-labelledby="example-of-erroneous-code-67"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>() -&gt; <span class="kt">i32</span>
+</code></pre></div></div> <h2 id="error-code-e585"> <a href="#error-code-e585" class="anchor-heading" aria-labelledby="error-code-e585"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E585 </h2> <p>The compiler refused to infer the type of a variable declaration because it is a pointer type.</p> <h3 id="example-of-erroneous-code-69"> <a href="#example-of-erroneous-code-69" class="anchor-heading" aria-labelledby="example-of-erroneous-code-69"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
+{
+    <span class="kp">var</span> <span class="nv">a</span>: <span class="kt">i32</span> = <span class="mi">20</span>;
+    <span class="kp">var</span> <span class="nv">x</span> = &amp;a;
+}
+</code></pre></div></div><pre class="terminal-output f9 b9">
+<span class="f1">[E585] Error:</span> Ambiguous type
+   <span class="ef246">╭─[</span>&lt;source&gt;:4:10<span class="ef246">]</span>
+   <span class="ef246">│</span>
+ <span class="ef246">4 │</span> <span class="ef249">    var </span><span class="f3">x</span><span class="ef249"> = &amp;a;</span>
+ <span class="ef246">  ·</span>         <span class="f3">┬</span><span class="f6">│</span> 
+ <span class="ef246">  ·</span>         <span class="f3">╰──</span> Failed to infer type of variable.
+ <span class="ef246">  ·</span>          <span class="f6">│</span> 
+ <span class="ef246">  ·</span>          <span class="f6">╰─</span> Consider adding `<span class="f6">: &amp;i32</span>` here.
+ <span class="ef246">  ·</span> 
+ <span class="ef246">  ·</span> <span class="ef115">Note</span>: Pointer variables require an explicit type.
+<span class="ef246">───╯</span></pre><p>Variables used to store pointers must have an explicit type.</p> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>()
+{
+    <span class="kp">var</span> <span class="nv">a</span>: <span class="kt">i32</span> = <span class="mi">20</span>;
+    <span class="kp">var</span> <span class="nv">x</span>: &amp;<span class="kt">i32</span> = &amp;a;
+}
+</code></pre></div></div> <h2 id="error-code-e800"> <a href="#error-code-e800" class="anchor-heading" aria-labelledby="error-code-e800"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E800 </h2> <p>A <code class="language-plaintext highlighter-rouge">loop</code> statement is not the final statement of the block in which it appears.</p> <h3 id="example-of-erroneous-code-70"> <a href="#example-of-erroneous-code-70" class="anchor-heading" aria-labelledby="example-of-erroneous-code-70"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>() -&gt; <span class="kt">i32</span>
 {
     <span class="kp">var</span> <span class="nv">result</span>;
     <span class="kp">var</span> <span class="nv">i</span>: <span class="kt">i32</span> = <span class="mi">0</span>;
@@ -1129,7 +1206,7 @@
     result = result * <span class="mi">2</span>;
     <span class="nl">return:</span> result
 }
-</code></pre></div></div> <h2 id="error-code-e801"> <a href="#error-code-e801" class="anchor-heading" aria-labelledby="error-code-e801"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E801 </h2> <p>A <code class="language-plaintext highlighter-rouge">loop</code> statement appears on its own in the body of a function.</p> <h3 id="example-of-erroneous-code-68"> <a href="#example-of-erroneous-code-68" class="anchor-heading" aria-labelledby="example-of-erroneous-code-68"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">read_from_client</span>(<span class="nl">buffer:</span> &amp;[]<span class="kt">u8</span>, <span class="nl">exact_size:</span> <span class="kt">usize</span>);
+</code></pre></div></div> <h2 id="error-code-e801"> <a href="#error-code-e801" class="anchor-heading" aria-labelledby="error-code-e801"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E801 </h2> <p>A <code class="language-plaintext highlighter-rouge">loop</code> statement appears on its own in the body of a function.</p> <h3 id="example-of-erroneous-code-71"> <a href="#example-of-erroneous-code-71" class="anchor-heading" aria-labelledby="example-of-erroneous-code-71"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">read_from_client</span>(<span class="nl">buffer:</span> &amp;[]<span class="kt">u8</span>, <span class="nl">exact_size:</span> <span class="kt">usize</span>);
 <span class="kd">fn</span> <span class="nf">handle_message_from_client</span>(<span class="nl">buffer:</span> []<span class="kt">u8</span>, <span class="nl">message_size:</span> <span class="kt">usize</span>);
 
 <span class="kd">fn</span> <span class="nf">listen_to_client</span>()
@@ -1168,7 +1245,7 @@
         <span class="k">loop</span>;
     }
 }
-</code></pre></div></div> <h2 id="error-code-e840"> <a href="#error-code-e840" class="anchor-heading" aria-labelledby="error-code-e840"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E840 </h2> <p>Missing braces around a conditional branch.</p> <h3 id="example-of-erroneous-code-69"> <a href="#example-of-erroneous-code-69" class="anchor-heading" aria-labelledby="example-of-erroneous-code-69"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>(<span class="nl">x:</span> <span class="kt">i32</span>) -&gt; <span class="kt">i32</span>
+</code></pre></div></div> <h2 id="error-code-e840"> <a href="#error-code-e840" class="anchor-heading" aria-labelledby="error-code-e840"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code E840 </h2> <p>Missing braces around a conditional branch.</p> <h3 id="example-of-erroneous-code-72"> <a href="#example-of-erroneous-code-72" class="anchor-heading" aria-labelledby="example-of-erroneous-code-72"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>(<span class="nl">x:</span> <span class="kt">i32</span>) -&gt; <span class="kt">i32</span>
 {
     <span class="kp">var</span> <span class="nv">result</span> = <span class="mi">1</span>;
     <span class="k">if</span> x == <span class="mi">0</span>
@@ -1193,7 +1270,7 @@
     }
     <span class="nl">return:</span> result
 }
-</code></pre></div></div> <h2 id="error-code-l1800"> <a href="#error-code-l1800" class="anchor-heading" aria-labelledby="error-code-l1800"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code L1800 </h2> <p>A <code class="language-plaintext highlighter-rouge">loop</code> statement appears on its own in the branch of an <code class="language-plaintext highlighter-rouge">if</code> statement.</p> <h3 id="example-of-erroneous-code-70"> <a href="#example-of-erroneous-code-70" class="anchor-heading" aria-labelledby="example-of-erroneous-code-70"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>() -&gt; <span class="kt">i32</span>
+</code></pre></div></div> <h2 id="error-code-l1800"> <a href="#error-code-l1800" class="anchor-heading" aria-labelledby="error-code-l1800"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Error code L1800 </h2> <p>A <code class="language-plaintext highlighter-rouge">loop</code> statement appears on its own in the branch of an <code class="language-plaintext highlighter-rouge">if</code> statement.</p> <h3 id="example-of-erroneous-code-73"> <a href="#example-of-erroneous-code-73" class="anchor-heading" aria-labelledby="example-of-erroneous-code-73"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Example of erroneous code </h3> <div class="language-penne highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">fn</span> <span class="nf">main</span>() -&gt; <span class="kt">i32</span>
 {
     <span class="kp">var</span> <span class="nv">x</span> = <span class="mi">33</span>;
     <span class="kp">var</span> <span class="nv">i</span> = <span class="mi">1</span>;

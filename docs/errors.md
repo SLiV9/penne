@@ -986,6 +986,63 @@ fn main()
 }
 ```
 
+## Error code E506
+
+An assignment tries to change an address that is not part of a pointer.
+
+### Example of erroneous code
+
+```penne
+fn main()
+{
+    var a: i32 = 5;
+    var b: i32 = 10;
+    &b = &a;
+}
+```
+
+## Error code E507
+
+An assignment occurs between types of different levels of pointer indirection.
+
+When assigning to pointer variables, make sure the number of address markers (`&`) on either side of the assignment is the same. To change the address assigned to a pointer variable, use `&`. To change the value that that pointer points to, omit `&`.
+
+### Example of erroneous code
+
+```penne
+fn main()
+{
+    var a: i32 = 5;
+    var b: i32 = 10;
+    var x: &i32 = &a;
+    x = &b;
+}
+```
+
+To change the address assigned to `x`, use `&x`:
+
+```penne
+fn main()
+{
+    var a: i32 = 5;
+    var b: i32 = 10;
+    var x: &i32 = &a;
+    &x = &b;
+}
+```
+
+To instead change the value that `x` points to, which is the value stored in `a`, omit the `&`:
+
+```penne
+fn main()
+{
+    var a: i32 = 5;
+    var b: i32 = 10;
+    var x: &i32 = &a;
+    x = b;
+}
+```
+
 ## Error code E510
 
 A function is called with too few arguments.
@@ -1247,6 +1304,30 @@ Adding an explicit type elsewhere is usually enough to fix both errors.
 fn foo() -> i32
 {
     return: 500
+}
+```
+
+## Error code E585
+
+The compiler refused to infer the type of a variable declaration because it is a pointer type.
+
+### Example of erroneous code
+
+```penne
+fn main()
+{
+    var a: i32 = 20;
+    var x = &a;
+}
+```
+
+Variables used to store pointers must have an explicit type.
+
+```penne
+fn main()
+{
+    var a: i32 = 20;
+    var x: &i32 = &a;
 }
 ```
 

@@ -197,7 +197,7 @@
   },"28": {
     "doc": "Error Code Reference",
     "title": "Error code E360",
-    "content": "A constant expression contains an unsupported operation. Example of erroneous code . const A: i32 = 200; const X: &amp;i32 = &amp;A; . [E360] Error: Unsupported expression in constant expression ╭─[&lt;source&gt;:2:18] │ 2 │ const X: &amp;i32 = &amp;A; · ┬ · ╰── This expression is not supported in a constant expression. ───╯ . Explanation . The value assigned to a constant must be evaluated at compile time. In addition to literals and other constants, constant expressions may use basic arithmetic, bitwise operations and primitive casts. ",
+    "content": "A constant expression contains an unsupported operation. Example of erroneous code . const A: i32 = 200; const X: &amp;i32 = &amp;A; . [E360] Error: Unsupported expression in constant expression ╭─[&lt;source&gt;:2:19] │ 2 │ const X: &amp;i32 = &amp;A; · ─┬ · ╰── This expression is not supported in a constant expression. ───╯ . Explanation . The value assigned to a constant must be evaluated at compile time. In addition to literals and other constants, constant expressions may use basic arithmetic, bitwise operations and primitive casts. ",
     "url": "/penne/errors.html#error-code-e360",
     
     "relUrl": "/errors.html#error-code-e360"
@@ -344,7 +344,7 @@
   },"49": {
     "doc": "Error Code Reference",
     "title": "Error code E502",
-    "content": "The array length operation is used on a value that is not an array. Example of erroneous code . fn main() { var a: i32 = 10; var b: usize = |a|; } . [E502] Error: Conflicting types ╭─[&lt;source&gt;:4:22] │ 4 │ var b: usize = |a|; · ┬ · ╰── Cannot take length of value of non-array type `i32`. · │ · ╰── Type previously determined here. ───╯ . ",
+    "content": "The array length operation is used on a value that is not an array. Example of erroneous code . fn main() { var a: i32 = 10; var b: usize = |a|; } . [E502] Error: Conflicting types ╭─[&lt;source&gt;:4:23] │ 3 │ var a: i32 = 10; · ┬ · ╰── Type previously determined here. 4 │ var b: usize = |a|; · ─┬─ · ╰─── Cannot take length of value of non-array type `i32`. ───╯ . ",
     "url": "/penne/errors.html#error-code-e502",
     
     "relUrl": "/errors.html#error-code-e502"
@@ -358,7 +358,7 @@
   },"51": {
     "doc": "Error Code Reference",
     "title": "Error code E504",
-    "content": "An assignment occurs between two different types. Example of erroneous code . fn main() { var a: i32 = 100; a = false; } . [E504] Error: Conflicting types ╭─[&lt;source&gt;:4:14] │ 3 │ var a: i32 = 100; · ┬ · ╰── 'a' has type `i32`. 4 │ a = false; · ──┬── · ╰──── Cannot assign it this expression of type `bool`. ───╯ . ",
+    "content": "An assignment occurs between two different types. Example of erroneous code . fn main() { var a: i32 = 100; a = false; } . [E504] Error: Conflicting types ╭─[&lt;source&gt;:4:14] │ 3 │ var a: i32 = 100; · ┬ · ╰── 'a' has type `i32`. 4 │ a = false; · ──┬── · ╰──── Cannot assign this expression of type `bool`. ───╯ . ",
     "url": "/penne/errors.html#error-code-e504",
     
     "relUrl": "/errors.html#error-code-e504"
@@ -371,173 +371,194 @@
     "relUrl": "/errors.html#error-code-e505"
   },"53": {
     "doc": "Error Code Reference",
+    "title": "Error code E506",
+    "content": "An assignment tries to change an address that is not part of a pointer. Example of erroneous code . fn main() { var a: i32 = 5; var b: i32 = 10; &amp;b = &amp;a; } . [E506] Error: Conflicting types ╭─[&lt;source&gt;:5:7] │ 4 │ var b: i32 = 10; · ┬ · ╰── 'b' has type `i32`. 5 │ &amp;b = &amp;a; · ─┬ · ╰── Cannot assign to immutable address. ───╯ . ",
+    "url": "/penne/errors.html#error-code-e506",
+    
+    "relUrl": "/errors.html#error-code-e506"
+  },"54": {
+    "doc": "Error Code Reference",
+    "title": "Error code E507",
+    "content": "An assignment occurs between types of different levels of pointer indirection. When assigning to pointer variables, make sure the number of address markers (&amp;) on either side of the assignment is the same. To change the address assigned to a pointer variable, use &amp;. To change the value that that pointer points to, omit &amp;. Example of erroneous code . fn main() { var a: i32 = 5; var b: i32 = 10; var x: &amp;i32 = &amp;a; x = &amp;b; } . [E507] Error: Conflicting types ╭─[&lt;source&gt;:6:11] │ 5 │ var x: &amp;i32 = &amp;a; · ┬ · ╰── 'x' has type `&amp;i32`. 6 │ x = &amp;b; · ┬ ─┬ · │ ╰── Cannot assign this expression of type `&amp;i32`. · │ · ╰─────── The assignee has type `i32`. ───╯ . To change the address assigned to x, use &amp;x: . fn main() { var a: i32 = 5; var b: i32 = 10; var x: &amp;i32 = &amp;a; &amp;x = &amp;b; } . To instead change the value that x points to, which is the value stored in a, omit the &amp;: . fn main() { var a: i32 = 5; var b: i32 = 10; var x: &amp;i32 = &amp;a; x = b; } . ",
+    "url": "/penne/errors.html#error-code-e507",
+    
+    "relUrl": "/errors.html#error-code-e507"
+  },"55": {
+    "doc": "Error Code Reference",
     "title": "Error code E510",
     "content": "A function is called with too few arguments. Example of erroneous code . fn foo(x: i32, y: i32); fn main() { foo(100); } . [E510] Error: Too few arguments ╭─[&lt;source&gt;:5:8] │ 1 │ fn foo(x: i32, y: i32); · ─┬─ · ╰─── Function declared here. · 5 │ foo(100); · ─┬─ · ╰─── Too few arguments in function call. ───╯ . ",
     "url": "/penne/errors.html#error-code-e510",
     
     "relUrl": "/errors.html#error-code-e510"
-  },"54": {
+  },"56": {
     "doc": "Error Code Reference",
     "title": "Error code E511",
     "content": "A function is called with too many arguments. Example of erroneous code . fn foo(x: i32, y: i32); fn main() { foo(100, 200, 300); } . [E511] Error: Too many arguments ╭─[&lt;source&gt;:5:8] │ 1 │ fn foo(x: i32, y: i32); · ─┬─ · ╰─── Function declared here. · 5 │ foo(100, 200, 300); · ─┬─ · ╰─── Too many arguments in function call. ───╯ . ",
     "url": "/penne/errors.html#error-code-e511",
     
     "relUrl": "/errors.html#error-code-e511"
-  },"55": {
+  },"57": {
     "doc": "Error Code Reference",
     "title": "Error code E512",
     "content": "A function is called with an argument of the wrong type. Example of erroneous code . fn foo(x: i32, y: i32); fn main() { foo(100, true); } . [E512] Error: Mismatched types ╭─[&lt;source&gt;:5:18] │ 1 │ fn foo(x: i32, y: i32); · ┬ · ╰── Parameter 'y' has type `i32`. · 5 │ foo(100, true); · ──┬─ · ╰─── Argument has type `bool`. ───╯ . ",
     "url": "/penne/errors.html#error-code-e512",
     
     "relUrl": "/errors.html#error-code-e512"
-  },"56": {
+  },"58": {
     "doc": "Error Code Reference",
     "title": "Error code E513",
-    "content": "A function is called with an argument of type T when the corresponding parameter is type &amp;T. Example of erroneous code . fn read_into_buffer(buffer: &amp;[]u8); fn main() { var databuffer: [1024]u8; read_into_buffer(databuffer); } . [E512] Error: Mismatched types ╭─[&lt;source&gt;:6:32] │ 1 │ fn read_into_buffer(buffer: &amp;[]u8); · ───┬── · ╰──── Parameter 'buffer' has type `&amp;[:]u8`. · 6 │ read_into_buffer(databuffer); · ─────┬──── · ╰────── Argument has type `[1024]u8`. ───╯ . ",
+    "content": "A function is called with an argument of type T when the corresponding parameter is type &amp;T. Example of erroneous code . fn read_into_buffer(buffer: &amp;[]u8); fn main() { var databuffer: [1024]u8; read_into_buffer(databuffer); } . [E513] Error: Mismatched types ╭─[&lt;source&gt;:6:32] │ 1 │ fn read_into_buffer(buffer: &amp;[]u8); · ───┬── · ╰──── Parameter 'buffer' has type `&amp;[:]u8`. · 6 │ read_into_buffer(databuffer); · ┬────┬──── · │ ╰────── Argument has type `[1024]u8`. · │ · ╰─────────── Add `&amp;` here to pass by reference pointer. ───╯ . ",
     "url": "/penne/errors.html#error-code-e513",
     
     "relUrl": "/errors.html#error-code-e513"
-  },"57": {
+  },"59": {
     "doc": "Error Code Reference",
     "title": "Error code E530",
     "content": "A constant or parameter of a non-pointer type is mutated, or a variable of a non-mutable type is mutated. Example of erroneous code . fn main(x: i32) { x = 10; } . [E530] Error: Illegal mutation ╭─[&lt;source&gt;:3:6] │ 1 │ fn main(x: i32) · ┬ · ╰── This value is not mutable. · 3 │ x = 10; · ┬ · ╰── Cannot mutate this value. ───╯ . A reference pointer can be used to create mutable function parameters. fn main(x: &amp;i32) { x = 10; } . ",
     "url": "/penne/errors.html#error-code-e530",
     
     "relUrl": "/errors.html#error-code-e530"
-  },"58": {
+  },"60": {
     "doc": "Error Code Reference",
     "title": "Error code E531",
     "content": "An array is used in its entirety in an assignment. Example of erroneous code . const DATA: [10]i32 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]; fn main() { var data = DATA; } . [E531] Error: Cannot copy array ╭─[&lt;source&gt;:5:20] │ 5 │ var data = DATA; · ──┬─ · ╰─── Cannot copy this array. ───╯ . ",
     "url": "/penne/errors.html#error-code-e531",
     
     "relUrl": "/errors.html#error-code-e531"
-  },"59": {
+  },"61": {
     "doc": "Error Code Reference",
     "title": "Error code E532",
-    "content": "An array view is used in its entirety in an assignment. Example of erroneous code . fn main(data: []i32) { var copy_of_data = data; } . [E532] Error: Cannot copy slice ╭─[&lt;source&gt;:3:28] │ 3 │ var copy_of_data = data; · ──┬─ · ╰─── Cannot copy this slice. ───╯ [E352] Error: Invalid variable type ╭─[&lt;source&gt;:3:21] │ 3 │ var copy_of_data = data; · ──────┬───── · ╰─────── A value of type `[:]i32` cannot be assigned to a variable. ───╯ . ",
+    "content": "An array view is used in its entirety in an assignment. Example of erroneous code . fn main(data: []i32) { var copy_of_data = data; } . [E532] Error: Cannot copy array view ╭─[&lt;source&gt;:3:28] │ 3 │ var copy_of_data = data; · ──┬─ · ╰─── Cannot copy this array view. ───╯ [E352] Error: Invalid variable type ╭─[&lt;source&gt;:3:21] │ 3 │ var copy_of_data = data; · ──────┬───── · ╰─────── A value of type `[:]i32` cannot be assigned to a variable. ───╯ . ",
     "url": "/penne/errors.html#error-code-e532",
     
     "relUrl": "/errors.html#error-code-e532"
-  },"60": {
+  },"62": {
     "doc": "Error Code Reference",
     "title": "Error code E533",
-    "content": "A struct is used in its entirety in an assignment. Example of erroneous code . struct DataBuffer { buffer: [1024]u8, } fn main(data: DataBuffer) { var copy_of_data = data; } . [E533] Error: Cannot copy struct ╭─[&lt;source&gt;:8:28] │ 8 │ var copy_of_data = data; · ──┬─ · ╰─── Cannot copy this struct. ───╯ . ",
+    "content": "A struct is used in its entirety in an assignment. Example of erroneous code . struct DataBuffer { buffer: [1024]u8, } fn main(data: DataBuffer) { var copy_of_data = data; } . [E500] Error: Conflicting types ╭─[&lt;source&gt;:8:28] │ 6 │ fn main(data: DataBuffer) · ──┬─ · ╰─── Previously determined to be `(DataBuffer)`. · 8 │ var copy_of_data = data; · ──┬─ · ╰─── 'data' has type `DataBuffer`. ───╯ . ",
     "url": "/penne/errors.html#error-code-e533",
     
     "relUrl": "/errors.html#error-code-e533"
-  },"61": {
+  },"63": {
     "doc": "Error Code Reference",
     "title": "Error code E538",
-    "content": "The address of a temporary value is taken . Example of erroneous code . fn main() { var a: i32 = 100; var x: &amp;&amp;i32 = &amp;&amp;a; } . [E538] Error: Address of temporary address ╭─[&lt;source&gt;:4:21] │ 4 │ var x: &amp;&amp;i32 = &amp;&amp;a; · ┬ ┬ · ╰──── Cannot take address of temporary address. · │ · ╰── This value is not of type `&amp;&amp;_`. ───╯ . ",
+    "content": "The address of a temporary value is taken . Example of erroneous code . fn main() { var a: i32 = 100; var x: &amp;&amp;i32 = &amp;&amp;a; } . [E538] Error: Address of temporary address ╭─[&lt;source&gt;:4:23] │ 4 │ var x: &amp;&amp;i32 = &amp;&amp;a; · ─┬┬ · ╰─── Cannot take address of temporary address. · │ · ╰── This reference has type `i32`. ───╯ . ",
     "url": "/penne/errors.html#error-code-e538",
     
     "relUrl": "/errors.html#error-code-e538"
-  },"62": {
+  },"64": {
     "doc": "Error Code Reference",
     "title": "Error code E550",
     "content": "An operator is used that is not valid for the type of its operand(s). Example of erroneous code . fn main() { var a: u16 = 20; var b = -a; } . [E550] Error: Invalid operand type ╭─[&lt;source&gt;:4:14] │ 4 │ var b = -a; · ┬┬ · │╰── This has type `u16`. · │ · ╰─── Expected one of `i8`, `i16`, `i32`, `i64`, `i128`. ───╯ . ",
     "url": "/penne/errors.html#error-code-e550",
     
     "relUrl": "/errors.html#error-code-e550"
-  },"63": {
+  },"65": {
     "doc": "Error Code Reference",
     "title": "Error code E551",
-    "content": "The types of the left and right operand of a binary operator do not match. Example of erroneous code . fn main(data: []u8) { var a: i32 = 10; var b: i32 = |data| + a; } . [E551] Error: Mismatched operand types ╭─[&lt;source&gt;:4:26] │ 4 │ var b: i32 = |data| + a; · ──┬─ ┬ ┬ · ╰──────── This has type `usize`. · │ │ · ╰──── This operator expects operands with equal types. · │ · ╰── This has type `i32`. ───╯ [E504] Error: Conflicting types ╭─[&lt;source&gt;:4:28] │ 4 │ var b: i32 = |data| + a; · ┬ ────┬──── · ╰──────────────────── 'b' has type `i32`. · │ · ╰────── Cannot assign it this expression of type `usize`. ───╯ . If the operands are primitives types, you can use primitive casting to do the conversion. fn main(data: []u8) { var a: i32 = 10; var b: i32 = |data| as i32 + a; } . ",
+    "content": "The types of the left and right operand of a binary operator do not match. Example of erroneous code . fn main(data: []u8) { var a: i32 = 10; var b: i32 = |data| + a; } . [E551] Error: Mismatched operand types ╭─[&lt;source&gt;:4:26] │ 4 │ var b: i32 = |data| + a; · ───┬── ┬ ┬ · ╰──────── This has type `usize`. · │ │ · ╰──── This operator expects operands with equal types. · │ · ╰── This has type `i32`. ───╯ [E504] Error: Conflicting types ╭─[&lt;source&gt;:4:28] │ 4 │ var b: i32 = |data| + a; · ┬ ─────┬──── · ╰──────────────────── 'b' has type `i32`. · │ · ╰────── Cannot assign this expression of type `usize`. ───╯ . If the operands are primitives types, you can use primitive casting to do the conversion. fn main(data: []u8) { var a: i32 = 10; var b: i32 = |data| as i32 + a; } . ",
     "url": "/penne/errors.html#error-code-e551",
     
     "relUrl": "/errors.html#error-code-e551"
-  },"64": {
+  },"66": {
     "doc": "Error Code Reference",
     "title": "Error code E552",
     "content": "A primitive cast is attempted between incompatible types. Example of erroneous code . fn main() { var a: i32 = 1; var b = a as bool; } . [E552] Error: Invalid primitive cast ╭─[&lt;source&gt;:4:14] │ 4 │ var b = a as bool; · ┬ ──┬─ · ╰────────── This has type `i32`. · │ · ╰─── Cannot cast `i32` into `bool`. · · Note: Can cast `i32` into one of `i8`, `i16`, `i64`, `i128`, `u8`, `u16`, `u32`, `u64`, `u128`, `usize`. ───╯ . The only way to get a bool from another type is using conditionals. fn main() { var a: i32 = 1; var b: bool; if a == 0 { b = false; } else { b = true; } } . ",
     "url": "/penne/errors.html#error-code-e552",
     
     "relUrl": "/errors.html#error-code-e552"
-  },"65": {
+  },"67": {
     "doc": "Error Code Reference",
     "title": "Error code E581",
     "content": "The compiler failed to infer the type of a variable declaration. Example of erroneous code . fn main() { var a = 1; } . [E581] Error: Ambiguous type ╭─[&lt;source&gt;:3:8] │ 3 │ var a = 1; · ─┬─ · ╰─── Failed to infer type of variable. · · Note: Consider adding a type to this declaration. ───╯ . If the compiler cannot infer the type of a variable declaration, an explicit type must be added. fn main() { var a: i64 = 1; } . ",
     "url": "/penne/errors.html#error-code-e581",
     
     "relUrl": "/errors.html#error-code-e581"
-  },"66": {
+  },"68": {
     "doc": "Error Code Reference",
     "title": "Error code E582",
     "content": "The compiler failed to infer the type of an integer literal without type suffix. Example of erroneous code . fn foo() { return: 500 } . [E582] Error: Ambiguous type ╭─[&lt;source&gt;:3:16] │ 3 │ return: 500 · ─┬─│ · ╰─── Failed to infer type of integer literal. · │ · ╰─ Consider adding a type suffix like `i32`. ───╯ [E331] Error: Missing return type ╭─[&lt;source&gt;:3:16] │ 1 │ fn foo() · ─┬─ · ╰─── Function declared here. · 3 │ return: 500 · ─┬─ · ╰─── Value of indiscernible type returned here. ───╯ . To fix this specific error, add an integer suffix. return: 500i32 . However this error is usually accompanied by a different error, such as E331. Adding an explicit type elsewhere is usually enough to fix both errors. fn foo() -&gt; i32 { return: 500 } . ",
     "url": "/penne/errors.html#error-code-e582",
     
     "relUrl": "/errors.html#error-code-e582"
-  },"67": {
+  },"69": {
+    "doc": "Error Code Reference",
+    "title": "Error code E585",
+    "content": "The compiler refused to infer the type of a variable declaration because it is a pointer type. Example of erroneous code . fn main() { var a: i32 = 20; var x = &amp;a; } . [E585] Error: Ambiguous type ╭─[&lt;source&gt;:4:10] │ 4 │ var x = &amp;a; · ┬│ · ╰── Failed to infer type of variable. · │ · ╰─ Consider adding `: &amp;i32` here. · · Note: Pointer variables require an explicit type. ───╯ . Variables used to store pointers must have an explicit type. fn main() { var a: i32 = 20; var x: &amp;i32 = &amp;a; } . ",
+    "url": "/penne/errors.html#error-code-e585",
+    
+    "relUrl": "/errors.html#error-code-e585"
+  },"70": {
     "doc": "Error Code Reference",
     "title": "Error code E800",
     "content": "A loop statement is not the final statement of the block in which it appears. Example of erroneous code . fn main() -&gt; i32 { var result; var i: i32 = 0; { var y = 3000 + i; i = i + 1; if i == 10 goto exit_loop; loop; exit_loop: result = y; } result = result * 2; return: result } . [E800] Error: Misplaced loop statement ╭─[&lt;source&gt;:10:13] │ 5 │ ╭─▶ { ⋮ ⋮ 10 │ │ loop; · │ ──┬─ · │ ╰─── This is not the final statement... ⋮ ⋮ 13 │ ├─▶ } · │ · ╰─────────── ...of this block. · · Note: The `loop` statement must always be the final statement of a block. ────╯ . A loop statement may only appear as the final statement in a block. The code needs to be restructured. fn main() -&gt; i32 { var result; var i: i32 = 0; { var y = 3000 + i; i = i + 1; if i == 10 { result = y; goto exit_loop; } loop; } exit_loop: result = result * 2; return: result } . ",
     "url": "/penne/errors.html#error-code-e800",
     
     "relUrl": "/errors.html#error-code-e800"
-  },"68": {
+  },"71": {
     "doc": "Error Code Reference",
     "title": "Error code E801",
     "content": "A loop statement appears on its own in the body of a function. Example of erroneous code . fn read_from_client(buffer: &amp;[]u8, exact_size: usize); fn handle_message_from_client(buffer: []u8, message_size: usize); fn listen_to_client() { var header_buffer: [1]u8; var message_buffer: [256]u8; read_from_client(&amp;header_buffer, 1); var header: u8 = header_buffer[0]; var message_size: usize = header as usize; read_from_client(&amp;message_buffer, message_size); handle_message_from_client(message_buffer, message_size); loop; } . [E801] Error: Misplaced loop statement ╭─[&lt;source&gt;:13:9] │ 13 │ loop; · ──┬─ · ╰─── This is not allowed here. · · Note: The `loop` statement must always be the final statement of a block. ────╯ . To fix this, wrap the looping statements in a block. fn read_from_client(buffer: &amp;[]u8, exact_size: usize); fn handle_message_from_client(buffer: []u8, message_size: usize); fn listen_to_client() { var header_buffer: [1]u8; var message_buffer: [256]u8; { read_from_client(&amp;header_buffer, 1); var header: u8 = header_buffer[0]; var message_size: usize = header as usize; read_from_client(&amp;message_buffer, message_size); handle_message_from_client(message_buffer, message_size); loop; } } . ",
     "url": "/penne/errors.html#error-code-e801",
     
     "relUrl": "/errors.html#error-code-e801"
-  },"69": {
+  },"72": {
     "doc": "Error Code Reference",
     "title": "Error code E840",
     "content": "Missing braces around a conditional branch. Example of erroneous code . fn main(x: i32) -&gt; i32 { var result = 1; if x == 0 result = 10; return: result } . [E840] Error: Missing braces ╭─[&lt;source&gt;:5:15] │ 5 │ result = 10; · ───┬── · ╰──── Add braces around this statement. · · Note: Braces around conditional branches can only be omitted for `goto` statements. ───╯ . To fix this, add braces around the statement (or statements) that belong to that branch. fn main(x: i32) -&gt; i32 { var result = 1; if x == 0 { result = 10; } return: result } . ",
     "url": "/penne/errors.html#error-code-e840",
     
     "relUrl": "/errors.html#error-code-e840"
-  },"70": {
+  },"73": {
     "doc": "Error Code Reference",
     "title": "Error code L1800",
     "content": "A loop statement appears on its own in the branch of an if statement. Example of erroneous code . fn main() -&gt; i32 { var x = 33; var i = 1; { x = x * i; i = i + 1; if i != 10 { loop; } } x = x + 1; return: x } . [L1800] Warning: Conditional infinite loop ╭─[&lt;source&gt;:10:17] │ 8 │ if i != 10 · ───┬─── · ╰───── If this condition is met... 9 │ ╭─▶ { 10 │ │ loop; · │ ──┬─ · │ ╰─── ...this loop statement will cause an infinite loop... 11 │ ├─▶ } · │ · ╰─────────────── ...because it belongs to this block. · · Note: Perhaps use `goto` instead to jump to a `loop` elsewhere. To surpress this warning, add a label. ────╯ . Explanation . The branches of an if statement must be either goto statements or block statements. Therefore the following code is not valid: . if i != 10 loop; . One might attempt to solve this by wrapping the loop statement in braces: . if i != 10 { loop; } . However this usually does not have the intended effect. Instead of looping back into whatever block contains the if statement, the branch is its own block containing only a loop statement. Because a loop statement causes execution to continue with the first statement of the block it is contained in, entering this block immediately creates an inescapable infinite loop. If that is intended, this lint can be suppresed by adding a harmless second statement to the block, such as an unused label. if i != 10 { this_is_an_infinite_loop: loop; } . If the intention is to create a conditional loop, such as in the erroneous example above, it is usually better to invert the condition and use a goto statement. fn main() -&gt; i32 { var x = 33; var i = 1; { x = x * i; i = i + 1; if i == 10 goto end; loop; } end: x = x + 1; return: x } . ",
     "url": "/penne/errors.html#error-code-l1800",
     
     "relUrl": "/errors.html#error-code-l1800"
-  },"71": {
+  },"74": {
     "doc": "Error Code Reference",
     "title": "Error Code Reference",
     "content": " ",
     "url": "/penne/errors.html",
     
     "relUrl": "/errors.html"
-  },"72": {
+  },"75": {
     "doc": "Language Features",
     "title": "Language Features",
     "content": "An overview of the more unique language features of Penne: . Scoped goto statements . In Penne, goto is a local forward-only jump. This is achieved by giving labels a reverse scope: similar to how variables cannot be referenced before they are declared, labels cannot be jumped to after they are declared. fn foo() -&gt; i32 { var x = 0; { // The scope of the label `end` ends here. goto end; x = 10; // This line is not executed. end: // The scope of the label `end` starts here. } x = x + 1; return: x } . Like variables, label scopes extend into inner blocks. Thus, a goto statement can jump out any number of nested blocks. fn foo() { var i = 1; { var x = 10; { var y = 20; i = 20; // Valid because the variable `i` is in scope here. goto end; // Valid because the label `end` is in scope here. } i = x; // This line is not executed. } end: } . In order to keep goto statements sound and easy to understand, a goto statement cannot jump into an inner block. fn foo() { goto inner; // Invalid, the label `inner` is not in scope here. var i = 1; { var x = 10; { // The scope of the label `inner` ends here. inner: // The scope of the label `inner` starts here. var y = 20; i = y; } i = x; } } . This compiler tells you that it cannot find the label in scope. [E400] Error: Undefined label ╭─[tests/samples/invalid/jump_to_inner.pn:3:12] │ 3 │ goto inner; // Invalid, the label `inner` is not in scope here. · ──┬── · ╰──── Reference to undefined label 'inner'. ───╯ . Similarly, labels that have at least one in-bound goto statement automatically prune the scope of variables declared higher up in the same block. This prevents goto statements from jumping over the declaration of a variable into code that references that variable. // ... fn overlapping(input: i32) -&gt; i32 { var result = 200; if input == 0 goto return; if input == 1 goto next; var a = 20; result = result + a; if input == 2 goto return; next: var b = 10; result = result + a + b; return: result } . In input were to equal 1, the declaration of the variable a would be skipped, which would leave the expression result + a + b undefined. The compiler refuses the compile this code. [E482] Error: Variable declaration may be skipped ╭─[tests/samples/invalid/conditional_declaration.pn:32:21] │ 25 │ goto next; · ──┬─ · ╰─── A jump from this `goto` statement to 'next'... 26 │ var a = 20; · ┬ · ╰── ...may skip the declaration of the variable 'a'. · 30 │ next: · ──┬── · ╰──── After this label, the existence of 'a' is dubious. · 32 │ result = result + a + b; · ┬ · ╰── The variable is referenced here. ────╯ . Scoped loop statements . The only way to jump back is with the loop statement. fn foo() -&gt; i32 { var x = 0; { x = x + 1; loop; } return: x // This line is never reached. } . In order to keep backward jumps isolated and easy to find, loop can only appears as the last statement in a block. Views . Function arguments other than pointers (see below), primitives and words are passed as a view. For arrays this means an array view (or “slice”) is created and passed into the function. Array views remember the length of their array, which can be accessed with the length operation |x|. fn foo() { var data: [4]i32 = [1, 2, 3, 4]; var total = sum(data); } fn sum(x: []i32) -&gt; i32 { var total = 0; var i = 0; { if i == |x| goto return; total = total + x[i]; i = i + 1; loop; } return: total } . Reference pointers . Views allow you to pass a large value by reference, but they only give immutable access. For mutable access, a pointer is needed. They can be created by taking the address of a value. Unlike in most other languages, reference pointers in Penne automatically dereference to their base type, which is any type that isn’t a reference pointer. var x: i32 = 17; var a: &amp;i32 = &amp;x; var y: i32 = a; a = 30; // Now x == 30 and y == 17. To change which value a reference pointer points to, you need to explicitly modify the address. var x: i32 = 17; var y: i32 = 30; var z: i32 = 88; var a: &amp;i32 = &amp;x; &amp;a = &amp;y; // Now a points to y instead of x. var b: &amp;i32 = &amp;z; &amp;a = &amp;b; // Now a and b both point to z. Reference pointers allow a function to modify its arguments, but require the caller to explicitly pass in an address. fn foo() { var data: [4]i32 = [1, 2, 3, 4]; set_to_zero(&amp;data); } fn set_to_zero(x: &amp;[]i32) { var i = 0; { if i == |x| goto end; x[i] = 0; i = i + 1; loop; } end: } . Structs and words . Like arrays, structural types declared with the struct keyword are implicitly passed as a view and cannot be used as the return value of a function. Fixed size structures, declared with word8, word16, word32, word64 or word128, are passed by value. Imports . The import keyword is used to import all function signatures, structures and constants marked pub from a source file into the destination file. Imports are themselves not public and hence are not re-imported. Interoperability with C . Functions marked extern use the C ABI, which means it is possible (though not necessarily safe) to call them from C code compiled by LLVM. Conversely, declaring a function header such as . extern fn foo(buffer: []u8, length: usize); . allows you to call a C function from Penne code. Interacting with other programming languages that utilize or support the C ABI, such as C++, Rust, Zig or WebAssembly, is also possible. Only array views, pointers and the primitive types i8, i16, i32, i64, u8, u16, u32, u64 and usize are allowed in the signature of an extern function. Array views in extern functions correspond to (const) pointers in C, do not have a length (|x|) and must not be null. In a future version of Penne, pointers will also be assumed to be non-null and an “optional” type must be used to mark nullable pointers. Structures and constants can also be declared extern, but as of v0.3.0 this has no effect. ",
     "url": "/penne/features.html",
     
     "relUrl": "/features.html"
-  },"73": {
+  },"76": {
     "doc": "Home",
     "title": "The Penne Programming Language",
     "content": "Penne is an esoteric programming language that imagines a world where, instead of being ostracized for leading to so-called “spaghetti code”, the humble goto statement became the dominant method of control flow, surpassing for loops and switch statements, and ultimately obviating the need for the invention of RAII and object-oriented programming in general. By applying modern sensibilities to the use of the goto statement instead of banishing it altogether, Penne seeks to bring about a rennaissance of pasta-oriented programming. ",
     "url": "/penne/#the-penne-programming-language",
     
     "relUrl": "/#the-penne-programming-language"
-  },"74": {
+  },"77": {
     "doc": "Home",
     "title": "A quick taste",
     "content": "Penne’s general aesthetic is inspired by modern programming languages (in particular Rust), with the notable exception of labels and the goto statement, which are (at least syntactically) taken from C, and the loop statement. // Calculate the number of Collatz steps needed to reach 1. // The Collatz conjecture states that this function always terminates. fn determine_collatz_number(start: i32) -&gt; i32 { var x = start; var steps = 0; { if x == 1 goto return; do_collatz_step(&amp;x); steps = steps + 1; loop; } return: steps } // If x is even, divide it by 2. Otherwise calculate 3 * x + 1. // Do this without division or modulo operators (for demonstrative purposes). fn do_collatz_step(x: &amp;i32) { var y = x; { if y == 0 { if y + y == x { x = y; goto end; } y = y + 1; loop; } else if y == 1 { x = 3 * x + 1; goto end; } y = y - 2; loop; } end: } . ",
     "url": "/penne/#a-quick-taste",
     
     "relUrl": "/#a-quick-taste"
-  },"75": {
+  },"78": {
     "doc": "Home",
     "title": "Language features",
     "content": "Penne is characterized by: . | scoped goto statements; | automatically dereferencing pointers; | type inference; | interoperability with C. | . See Language Features for a detailed explanation. Non-features . Penne is an esoteric language, not a general purpose or systems programming language. Certain modern features that you or I may think essential for a good programming language in 2023 to have, are omitted. This is either because including them would contradict the premise of Penne (see above) or to simplify its implementation. As such, the following are decidedly not features of Penne: . | classes; | generics; | iterators; | support for pointers larger than 64 bits; | a string type guaranteed to be UTF-8; | memory safety of any kind. | . ",
     "url": "/penne/#language-features",
     
     "relUrl": "/#language-features"
-  },"76": {
+  },"79": {
     "doc": "Home",
     "title": "Home",
     "content": " ",
     "url": "/penne/",
     
     "relUrl": "/"
-  },"77": {
+  },"80": {
     "doc": "Syntax Overview",
     "title": "Syntax Overview",
     "content": "The following codesample displays a broad range of syntax. /// Example doc-style comment. const COLOR: u32 = 0xfb4934ff; const DATA_HEIGHT: u32 = 3; const DATA: [3]u8 = [ 0b11000011, 0b10000001, 0b00100100, ]; fn determine_collatz_number(start: i32) -&gt; i32 { var x = start; var steps = 0; { if x == 1 goto return; do_collatz_step(&amp;x); steps = steps + 1; loop; } return: steps } fn do_collatz_step(x: &amp;i32) { var y = x; { if y == 0 { if y + y == x { x = y; goto end; } y = y + 1; loop; } else if y == 1 { x = 3 * x + 1; goto end; } y = y - 2; loop; } end: } fn solve_all_our_problems() { // Left as an exercise for the reader. } fn do_nothing() { nothing: } word64 Position { x: i32, y: i32, } fn sum_of_position(pos: Position) -&gt; i32 { return: pos.x + pos.y } struct FourPositions { positions: [4]Position, } pub extern fn something_with_pointers(u: &amp;&amp;i32) { var i: i32 = 17; var x: &amp;i32 = &amp;i; var a: &amp;&amp;i32 = &amp;&amp;x; &amp;&amp;a = &amp;&amp;u; var text = \"Save up to \\u{20a0}50 or \\xA350 or more!\\0\"; } fn something_with_casting() { var a: bool = true; var data: []i16 = [80, 20]; var result = a as u8 + |data| as u8; } fn main() -&gt; i32 { var from = Position { x: 10, y: 10 }; var four_positions = FourPositions { positions: [ from, Position { x: 0, y: 0 }, Position { x: from.x, y: 0 }, Position { x: 0, y: from.y }, ], }; return: 0 } . ",
