@@ -1908,10 +1908,10 @@ fn write(
 
 		Error::CannotCopySlice { location } =>
 		{
-			report.with_message("Cannot copy slice").with_label(
+			report.with_message("Cannot copy array view").with_label(
 				location
 					.label()
-					.with_message("Cannot copy this slice.")
+					.with_message("Cannot copy this array view.")
 					.with_color(PRIMARY),
 			)
 		}

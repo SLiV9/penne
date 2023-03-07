@@ -1720,7 +1720,10 @@ impl Analyzable for Expression
 				}
 				Err(poison) => Expression::Poison(poison),
 			},
-			Expression::LengthOfArray { mut reference } =>
+			Expression::LengthOfArray {
+				mut reference,
+				location,
+			} =>
 			{
 				let base_type = typer.get_type_of_base(&reference.base);
 				let array_type = typer.get_type_of_reference(&mut reference);
@@ -1730,7 +1733,10 @@ impl Analyzable for Expression
 					{
 						let reference = reference
 							.analyze_length(base_type, array_type, typer);
-						Expression::LengthOfArray { reference }
+						Expression::LengthOfArray {
+							reference,
+							location,
+						}
 					}
 					Some(Ok(ValueType::Slice { .. }))
 					| Some(Ok(ValueType::SlicePointer { .. })) =>
@@ -1741,30 +1747,49 @@ impl Analyzable for Expression
 							offset: DesliceOffset::Length,
 						};
 						reference.steps.push(autostep);
+						reference.location = location;
 						Expression::Deref {
 							reference,
 							deref_type: Some(Ok(ValueType::Usize)),
 						}
 					}
-					Some(Ok(current_type)) =>
+					Some(Ok(current_type)) => match &reference.base
 					{
-						// TODO determine location of declaration?
-						let previous = reference.location.clone();
-						let error = Error::NotAnArrayWithLength {
-							current_type,
-							location: reference.location.clone(),
-							previous,
-						};
-						Expression::Poison(Poison::Error(error))
-					}
-					Some(Err(_poison)) =>
-					{
-						Expression::LengthOfArray { reference }
-					}
-					None => Expression::LengthOfArray { reference },
+						Ok(base) =>
+						{
+							let member = reference
+								.steps
+								.iter()
+								.rev()
+								.find_map(|step| step.get_member());
+							let symbol = member.as_ref().unwrap_or(&base);
+							let previous = typer
+								.get_valid_declaration(symbol)
+								.map(|(_vt, loc)| loc)
+								.unwrap_or_else(|| reference.location.clone());
+							let error = Error::NotAnArrayWithLength {
+								current_type,
+								location,
+								previous,
+							};
+							Expression::Poison(Poison::Error(error))
+						}
+						Err(_poison) => Expression::LengthOfArray {
+							reference,
+							location,
+						},
+					},
+					Some(Err(_poison)) => Expression::LengthOfArray {
+						reference,
+						location,
+					},
+					None => Expression::LengthOfArray {
+						reference,
+						location,
+					},
 				}
 			}
-			Expression::SizeOfStructure { name } =>
+			Expression::SizeOfStructure { name, location } =>
 			{
 				let unresolved_type = ValueType::UnresolvedStructOrWord {
 					identifier: Some(name.clone()),
@@ -1774,11 +1799,11 @@ impl Analyzable for Expression
 				{
 					Ok(ValueType::Struct { .. }) =>
 					{
-						Expression::SizeOfStructure { name }
+						Expression::SizeOfStructure { name, location }
 					}
 					Ok(ValueType::Word { .. }) =>
 					{
-						Expression::SizeOfStructure { name }
+						Expression::SizeOfStructure { name, location }
 					}
 					Ok(_other) => unreachable!(),
 					Err(poison) => Expression::Poison(poison),

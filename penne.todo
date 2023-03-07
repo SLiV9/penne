@@ -147,10 +147,6 @@ Usability:
 			Because it will call 0i32 an expression of type []i32, for instance.
 		☐	Better error 502 because "type previously determined here" does not make sense
 		☐	Better error when using ; instead of , in struct definition (mention ,)
-		✔	Better error 538, show the correct ampersand level @done (2023-03-06 16:23)
-		☐	Better error 504, show the correct ampersand level
-		☐ Use "array view" instead of "(array) slice" consistently
-		☐	Fix location of |data|
 	☐	Debug symbols in the resulting IR/executable
 	☐	Add helpful note when trying to jump backwards
 		☐	Similarly, add note when referencing variable declared later

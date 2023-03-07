@@ -622,18 +622,22 @@ impl Analyzable for Expression
 					location_of_type,
 				}
 			}
-			Expression::LengthOfArray { reference } =>
+			Expression::LengthOfArray {
+				reference,
+				location,
+			} =>
 			{
 				if analyzer.is_const_evaluated
 				{
-					let error = Error::UnsupportedInConstContext {
-						location: reference.location,
-					};
+					let error = Error::UnsupportedInConstContext { location };
 					return Expression::Poison(Poison::Error(error));
 				}
 
 				let reference = reference.analyze(analyzer);
-				Expression::LengthOfArray { reference }
+				Expression::LengthOfArray {
+					reference,
+					location,
+				}
 			}
 			Expression::SizeOfStructure { .. } => self,
 			Expression::FunctionCall {

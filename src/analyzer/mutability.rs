@@ -509,12 +509,18 @@ impl Analyzable for Expression
 					Err(error) => Expression::Poison(Poison::Error(error)),
 				}
 			}
-			Expression::LengthOfArray { reference } =>
+			Expression::LengthOfArray {
+				reference,
+				location,
+			} =>
 			{
 				let reference = reference.analyze(analyzer);
 				match analyzer.use_variable(&reference.base, false)
 				{
-					Ok(()) => Expression::LengthOfArray { reference },
+					Ok(()) => Expression::LengthOfArray {
+						reference,
+						location,
+					},
 					Err(error) => Expression::Poison(Poison::Error(error)),
 				}
 			}

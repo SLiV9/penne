@@ -1409,16 +1409,22 @@ impl Analyzable for Expression
 				}
 				Err(poison) => Expression::Poison(poison),
 			},
-			Expression::LengthOfArray { reference } =>
+			Expression::LengthOfArray {
+				reference,
+				location,
+			} =>
 			{
 				let reference = reference.analyze(analyzer);
-				Expression::LengthOfArray { reference }
+				Expression::LengthOfArray {
+					reference,
+					location,
+				}
 			}
-			Expression::SizeOfStructure { name } =>
+			Expression::SizeOfStructure { name, location } =>
 			{
 				match analyzer.use_struct(name)
 				{
-					Ok(name) => Expression::SizeOfStructure { name },
+					Ok(name) => Expression::SizeOfStructure { name, location },
 					Err(poison) => Expression::Poison(poison),
 				}
 			}

@@ -717,11 +717,14 @@ impl Rebuildable for Expression
 				expression.rebuild(indentation)?,
 				coerced_type.rebuild(indentation)?,
 			)),
-			Expression::LengthOfArray { reference } => Ok(format!(
+			Expression::LengthOfArray {
+				reference,
+				location: _,
+			} => Ok(format!(
 				"|{}|",
 				reference.rebuild(&indentation.increased())?
 			)),
-			Expression::SizeOfStructure { name } =>
+			Expression::SizeOfStructure { name, location: _ } =>
 			{
 				Ok(format!("|:{}|", identify(name)))
 			}

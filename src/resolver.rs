@@ -695,13 +695,13 @@ impl Resolvable for Expression
 					coerced_type,
 				})
 			}
-			Expression::LengthOfArray { reference } =>
-			{
-				Ok(resolved::Expression::LengthOfArray {
-					reference: reference.resolve()?,
-				})
-			}
-			Expression::SizeOfStructure { name } =>
+			Expression::LengthOfArray {
+				reference,
+				location: _,
+			} => Ok(resolved::Expression::LengthOfArray {
+				reference: reference.resolve()?,
+			}),
+			Expression::SizeOfStructure { name, location: _ } =>
 			{
 				let name = name.resolve()?;
 				Ok(resolved::Expression::SizeOfStructure { name })

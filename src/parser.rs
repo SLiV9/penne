@@ -1373,18 +1373,25 @@ fn parse_unary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 	{
 		Some(Token::PipeForType) =>
 		{
+			let start = tokens.start_location_span();
 			tokens.pop_front();
 			let name = extract_identifier("expected structure name", tokens)?;
 			consume(Token::Pipe, "expected pipe", tokens)?;
-			let expression = Expression::SizeOfStructure { name };
+			let location = tokens.location_of_span(start);
+			let expression = Expression::SizeOfStructure { name, location };
 			Ok(expression)
 		}
 		Some(Token::Pipe) =>
 		{
+			let start = tokens.start_location_span();
 			tokens.pop_front();
 			let reference = parse_reference(tokens)?;
 			consume(Token::Pipe, "expected pipe", tokens)?;
-			let expression = Expression::LengthOfArray { reference };
+			let location = tokens.location_of_span(start);
+			let expression = Expression::LengthOfArray {
+				reference,
+				location,
+			};
 			Ok(expression)
 		}
 		Some(Token::Exclamation) =>
