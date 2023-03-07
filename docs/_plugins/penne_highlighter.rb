@@ -88,7 +88,8 @@ Jekyll::Hooks.register :site, :pre_render do |site|
 		state :fallback do
 			rule %r/[a-zA-Z][_a-zA-Z0-9]*/, Text
 			rule %r/_[_a-zA-Z0-9]+/, Text
-			rule %r/[!#%&()*+,\-.\/:;<=>?@\[\]^_`{|}~]+/, Text
+			rule %r/(==|!=|>=|<=|<<|>>|->)/, Text
+			rule %r/[!#%&()*+,\-.\/:;<=>?@\[\]^_`{|}~]/, Text
 		end
 
 		state :comments do
@@ -144,10 +145,28 @@ Jekyll::Hooks.register :site, :pre_render do |site|
 
 		state :function_identifier do
 			rule %r/\b(#{Penne.keywords.join('|')})\b/, Keyword, :pop!
-			rule %r/\b#{Penne.identifier}\b/, Name::Function, :pop!
+			rule %r/\b#{Penne.identifier}\b/ do
+				token Name::Function
+				pop!
+				push :function_signature
+			end
 			mixin :comments
 			mixin :whitespace
 			rule %r/[^\w]+/, Error, :pop!
+		end
+
+		state :function_signature do
+			rule %r/;/, Text, :pop!
+			rule %r/\{/ do
+				token Text
+				pop!
+				push :block_body
+			end
+			mixin :comments
+			mixin :values
+			mixin :main
+			mixin :whitespace
+			mixin :fallback
 		end
 
 		state :block_body do

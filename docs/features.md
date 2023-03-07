@@ -64,7 +64,7 @@ fn foo()
 }
 ```
 
-This compiler tells you that it cannot find the label in scope.
+The compiler tells you that it cannot find the label in scope.
 
 <pre class="terminal-output f9 b9">
 <span class="bold"><span class="f1"><span class="f1">[E400] Error:</span></span></span> Undefined label
@@ -76,7 +76,7 @@ This compiler tells you that it cannot find the label in scope.
 <span class="ef246">───╯</span>
 </pre>
 
-Similarly, labels that have at least one in-bound `goto` statement automatically *prune* the scope of variables declared higher up in the same block. This prevents `goto` statements from jumping over the declaration of a variable into code that references that variable.
+Similarly, labels that have at least one in-bound `goto` statement automatically prune the scope of variables declared higher up in the same block. This prevents `goto` statements from jumping over the declaration of a variable into code that references that variable.
 
 ```penne
 // ...
@@ -144,7 +144,7 @@ In order to keep backward jumps isolated and easy to find, `loop` can only appea
 
 ### Views
 
-Function arguments other than pointers (see below), primitives and words are passed as a view. For arrays this means an array view (or "slice") is created and passed into the function. Array views remember the length of their array, which can be accessed with the length operation `|x|`.
+Function arguments other than pointers, primitives and words are passed as a view. For arrays this means an array view (or "slice") is created and passed into the function. Array views remember the length of their array, which can be accessed with the length operation `|x|`.
 
 ```penne
 fn foo()
@@ -170,28 +170,55 @@ fn sum(x: []i32) -> i32
 
 ### Reference pointers
 
-Views allow you to pass a large value by reference, but they only give immutable access. For mutable access, a pointer is needed. They can be created by taking the address of a value. Unlike in most other languages, reference pointers in Penne automatically dereference to their base type, which is any type that isn't a reference pointer.
+Views allow you to pass a large value by reference, but they only give immutable access. For mutable access, a pointer is needed. Pointers can be created by taking the address of a variable using `&`.
 
 ```penne
     var x: i32 = 17;
     var a: &i32 = &x;
-    var y: i32 = a;
+    // `a` points to the value stored in the variable `x`.
+```
+
+Unlike in most other languages, reference pointers in Penne automatically dereference to their base type, which is any type that isn't a reference pointer.
+
+```penne
+    // Despite the variable being a pointer, the expression `a` has type `i32`.
+    var y: i32 = a + 10;
+    // y == 27.
+```
+
+You can get the address of a pointer by preceding the variable name with `&`.
+
+```penne
+    var b: &i32 = &a;
+    // `a` and `b` both point to the same thing (the value stored in `x`).
+```
+
+Pointers can point to other pointers, but no matter the level of indirection, a pointer always dereferences to its base type by default.
+
+```penne
+    var p: &&i32 = &&a;
+    // `p` points to the pointer stored in `a`.
+    var q: &&&i32 = &&&p;
+    // `q` points to the second order pointer stored in `p`.
+    var z: i32 = 2 * q;
+    // z == 34.
+```
+
+Pointer dereferencing also takes place when a pointer variable appears on the left hand side of an assignment.
+
+```penne
     a = 30;
-    // Now x == 30 and y == 17.
+    // x == 30.
 ```
 
 To change which value a reference pointer points to, you need to explicitly modify the address.
 
 ```penne
-    var x: i32 = 17;
-    var y: i32 = 30;
     var z: i32 = 88;
-    var a: &i32 = &x;
-    &a = &y;
-    // Now a points to y instead of x.
-    var b: &i32 = &z;
-    &a = &b;
-    // Now a and b both point to z.
+    &a = &z;
+    // Now `a` points to `z` instead of to `x`.
+    &b = &a;
+    // Now `a` and `b` both point to `z`.
 ```
 
 Reference pointers allow a function to modify its arguments, but require the caller to explicitly pass in an address.
@@ -219,7 +246,47 @@ fn set_to_zero(x: &[]i32)
 
 ### Structs and words
 
-Like arrays, structural types declared with the `struct` keyword are implicitly passed as a view and cannot be used as the return value of a function. Fixed size structures, declared with `word8`, `word16`, `word32`, `word64` or `word128`, are passed by value.
+Structural types can be declared with the `struct` keyword.
+
+```penne
+struct Digest
+{
+    buffer: [1024]u8,
+    len: usize,
+}
+```
+
+Like arrays, parameters of a type declared with `struct` are implicitly passed as a view. Structs cannot be used as the return value of a function, but reference pointers allow mutation.
+
+```penne
+fn verify_checksum(source: []u8, checksum: Digest) -> bool
+{
+    var digest = Digest {
+        length: 0usize,
+    };
+    calculate_digest(source, &digest);
+    var result = are_digests_equal(digest, checksum);
+    return: result
+}
+
+fn calculate_digest(source: []u8, digest: &Digest);
+fn are_digests_equal(left: Digest, right: Digest) -> bool;
+```
+
+Fixed size structures, declared with `word8`, `word16`, `word32`, `word64` or `word128`, are passed by value.
+
+```penne
+word64 Position
+{
+    x: i32,
+    y: i32,
+}
+
+fn sum_of_position(pos: Position) -> i32
+{
+    return: pos.x + pos.y
+}
+```
 
 ### Imports
 
