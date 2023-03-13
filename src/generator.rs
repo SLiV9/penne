@@ -883,10 +883,6 @@ impl Generatable for Expression
 					unsafe {
 						LLVMBuildShl(llvm.builder, left, right, name.as_ptr())
 					},
-					BinaryOp::ShiftRight if is_signed =>
-					unsafe {
-						LLVMBuildAShr(llvm.builder, left, right, name.as_ptr())
-					},
 					BinaryOp::ShiftRight =>
 					unsafe {
 						LLVMBuildLShr(llvm.builder, left, right, name.as_ptr())
@@ -1967,24 +1963,12 @@ fn generate_cast(
 			};
 			Ok(result)
 		}
-		(vt, ValueType::Bool) if vt.is_integral() =>
-		{
-			let dest_type = coerced_type.generate(llvm)?;
-			let tmpname = CString::new("")?;
-			let result = unsafe {
-				LLVMBuildTruncOrBitCast(
-					llvm.builder,
-					value,
-					dest_type,
-					tmpname.as_ptr(),
-				)
-			};
-			Ok(result)
-		}
-		(_, _) => unimplemented!(),
+		(_, _) => unreachable!(),
 	}
 }
 
+#[cfg_attr(coverage, no_coverage)]
+#[cfg(not(tarpaulin_include))]
 #[allow(unused)]
 fn debug_print_value_and_type(name: &str, value: LLVMValueRef)
 {

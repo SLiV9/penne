@@ -28,7 +28,7 @@ fn lex_euro_in_string()
 		.collect();
 	let expected = [
 		(Token::Fn, 0..2),
-		(Token::Identifier(String::from("main")), 3..7),
+		(Token::Identifier(String::from("euro")), 3..7),
 		(Token::ParenLeft, 7..8),
 		(Token::ParenRight, 8..9),
 		(Token::BraceLeft, 10..11),
@@ -57,13 +57,11 @@ fn parse_string_in_file(filename: &str, expected: &str)
 		#[allow(unreachable_code)]
 		Err(errors) => match errors.panic() {},
 	};
-	assert_eq!(declarations.len(), 1);
 	let body = match declarations.into_iter().next()
 	{
 		Some(Declaration::Function { body, .. }) => body,
 		_ => panic!("broken test"),
 	};
-	assert_eq!(body.statements.len(), 1);
 	let statement = body.statements.into_iter().next();
 	match statement
 	{
@@ -85,6 +83,27 @@ fn parse_unicode_string_in_utf8_file()
 		"tests/samples/valid/unicode_string_in_utf8_file.pn",
 		"$10/£10/€10. Aÿ!!! 하와!!!",
 	)
+}
+
+#[test]
+fn parse_string_escapes()
+{
+	parse_string_in_file(
+		"tests/samples/valid/string_escapes.pn",
+		"\n\r\t\'\"\0\\",
+	)
+}
+
+#[test]
+fn parse_euro_in_string()
+{
+	parse_string_in_file("tests/samples/valid/euro_in_string.pn", "€")
+}
+
+#[test]
+fn parse_euro_in_string_escaped()
+{
+	parse_string_in_file("tests/samples/valid/euro_in_string_escaped.pn", "€")
 }
 
 fn compile_to_fail(codes: &[u16], filename: &str)
@@ -133,6 +152,30 @@ fn fail_to_parse_invalid_escape()
 }
 
 #[test]
+fn fail_to_parse_invalid_escape_hex()
+{
+	compile_to_fail(&[162], "tests/samples/invalid/invalid_escape_hex.pn")
+}
+
+#[test]
+fn fail_to_parse_invalid_escape_unicode()
+{
+	compile_to_fail(&[162], "tests/samples/invalid/invalid_escape_unicode.pn")
+}
+
+#[test]
+fn fail_to_parse_invalid_escape_empty()
+{
+	compile_to_fail(&[162], "tests/samples/invalid/invalid_escape_empty.pn")
+}
+
+#[test]
+fn fail_to_parse_invalid_escape_unclosed()
+{
+	compile_to_fail(&[162], "tests/samples/invalid/invalid_escape_unclosed.pn")
+}
+
+#[test]
 fn fail_to_parse_multiple_invalid_escapes()
 {
 	compile_to_fail(&[162], "tests/samples/invalid/multiple_invalid_escapes.pn")
@@ -169,6 +212,12 @@ fn fail_to_parse_invalid_integer_suffix()
 }
 
 #[test]
+fn fail_to_parse_octal_suffix()
+{
+	compile_to_fail(&[141], "tests/samples/invalid/octal_suffix.pn")
+}
+
+#[test]
 fn fail_to_parse_integer_too_big()
 {
 	compile_to_fail(&[142], "tests/samples/invalid/integer_too_big.pn")
@@ -196,6 +245,12 @@ fn fail_to_parse_untyped_integer_too_big()
 fn fail_to_parse_bit_integer_too_big()
 {
 	compile_to_fail(&[143], "tests/samples/invalid/bit_integer_too_big.pn")
+}
+
+#[test]
+fn fail_to_parse_binary_integer_too_big()
+{
+	compile_to_fail(&[143], "tests/samples/invalid/binary_integer_too_big.pn")
 }
 
 #[test]

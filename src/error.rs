@@ -17,7 +17,7 @@ use crate::value_type;
 pub type OperandValueType = value_type::OperandValueType<Identifier>;
 pub type ValueType = value_type::ValueType<Identifier>;
 
-use ariadne::{Fmt, Report, ReportKind};
+use ariadne::{Fmt, Label, Report, ReportKind};
 
 #[derive(Debug)]
 pub struct Errors
@@ -2437,5 +2437,33 @@ fn show_type_inner(value_type: &ValueType) -> String
 		{
 			format!("({})", show_type_inner(deref_type))
 		}
+	}
+}
+
+#[cfg_attr(coverage, no_coverage)]
+#[cfg(not(tarpaulin_include))]
+impl Location
+{
+	fn label(&self) -> Label<(String, std::ops::Range<usize>)>
+	{
+		Label::new((self.source_filename.to_string(), self.span.clone()))
+	}
+
+	fn label_before_start(&self) -> Label<(String, std::ops::Range<usize>)>
+	{
+		let location = Location {
+			span: self.span.start..self.span.start,
+			..self.clone()
+		};
+		location.label()
+	}
+
+	fn label_after_end(&self) -> Label<(String, std::ops::Range<usize>)>
+	{
+		let location = Location {
+			span: self.span.end..self.span.end,
+			..self.clone()
+		};
+		location.label()
 	}
 }

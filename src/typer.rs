@@ -2632,12 +2632,9 @@ impl Reference
 					// The get_type_of_reference() at the top of
 					// analyze_deref_expression() should have errored out.
 					panic!(
-						"failed to autoderef {}, current type: {:?}, \
-						 available step: {:?}, target type: {:?}",
-						self.location.format(),
-						ct,
-						step,
-						target_type,
+						"failed to autoderef, current type: {:?}, available \
+						 step: {:?}, target type: {:?}",
+						ct, step, target_type,
 					);
 				}
 			}

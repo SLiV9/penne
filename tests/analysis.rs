@@ -150,7 +150,7 @@ fn fail_to_analyze_skip_declaration()
 fn fail_to_analyze_conditional_declaration()
 {
 	compile_to_fail(
-		&[482, 482],
+		&[482, 482, 482],
 		"tests/samples/invalid/conditional_declaration.pn",
 	);
 }

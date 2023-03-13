@@ -67,6 +67,14 @@ fn execute_bitwise_expression() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_comparisons() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation("examples/comparisons.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_scoped_variables() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation("examples/scoped_variables.pn")?;
@@ -460,6 +468,16 @@ fn execute_identifier_starting_with_keyword() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation(
 		"tests/samples/valid/identifier_starting_with_keyword.pn",
+	)?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn execute_unused_forward_declaration() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation(
+		"tests/samples/valid/unused_forward_declaration.pn",
 	)?;
 	assert_eq!(result, 200);
 	Ok(())

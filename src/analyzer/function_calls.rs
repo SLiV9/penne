@@ -348,13 +348,7 @@ impl Analyzable for Statement
 			}
 			Statement::MethodCall { name, arguments } =>
 			{
-				if analyzer.is_const_evaluated
-				{
-					let error = Error::FunctionInConstContext {
-						location: name.location,
-					};
-					return Statement::Poison(Poison::Error(error));
-				}
+				debug_assert!(!analyzer.is_const_evaluated);
 
 				let recoverable_error =
 					analyzer.use_function(&name, &arguments);

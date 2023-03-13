@@ -49,6 +49,12 @@ fn allow_empty_file_with_newline()
 }
 
 #[test]
+fn allow_empty_function()
+{
+	allow_to_compile("tests/samples/valid/empty_function.pn")
+}
+
+#[test]
 fn allow_use_of_untyped_array_in_wasm4_memset()
 {
 	allow_to_compile("tests/samples/valid/wasm4_memset_without_parentheses.pn")
@@ -88,6 +94,12 @@ fn allow_skip_shortlived_var()
 fn allow_sketch_of_listen_to_client()
 {
 	allow_to_compile("examples/listen_to_client.pn")
+}
+
+#[test]
+fn allow_multiline_strings()
+{
+	allow_to_compile("examples/strings.pn")
 }
 
 #[test]

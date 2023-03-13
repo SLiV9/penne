@@ -1,0 +1,4 @@
+fn foo()
+{
+	var x = "Is \x1 a valid escape?";
+}
