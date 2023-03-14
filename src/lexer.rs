@@ -24,7 +24,6 @@ pub enum Token
 	Ampersand,
 	Caret,
 	Exclamation,
-	DebugDollar,
 	Plus,
 	Minus,
 	Times,
@@ -720,7 +719,6 @@ fn lex_line(
 				}
 				Ok(Token::StringLiteral { bytes })
 			}
-			'$' => Ok(Token::DebugDollar),
 			' ' | '\t' =>
 			{
 				source_offset_start = source_offset_end;

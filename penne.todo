@@ -178,7 +178,7 @@ Development:
 		☐	Isn't it better to consume E582 into other errors if possible?
 		☐	Are E583 and E584 unreachable?
 		☐	Take another look at uncovered lines in complicated match statements, because it can and did reveal impossible cases
-			☐	Continue from lib.rs
+			☐	Continue with rebuilder.rs
 		☐	Think about whether variables (declared with var) can ever be immutable due to their type, because variables currently cannot be slices and views
 			☐	Remove `let is_mutable = match value_type` in mutability.rs
 		☐	Rethink necessity of is_immediate_parameter in generate_storage_address()

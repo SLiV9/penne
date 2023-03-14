@@ -1,0 +1,9 @@
+word8 Foo
+{
+	i8 x,
+}
+
+word8 Bar
+{
+	Foo foo,
+}

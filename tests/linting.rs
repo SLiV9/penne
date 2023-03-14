@@ -59,3 +59,15 @@ fn trigger_multiple_lints()
 {
 	lint_to_fail(&[1800, 1800], "tests/samples/valid/multiple_lints.pn");
 }
+
+fn lint_to_nothing(filename: &str)
+{
+	let lints = lint(filename);
+	assert!(lints.is_empty(), "unexpected {:?}", lints);
+}
+
+#[test]
+fn no_false_positive_lints()
+{
+	lint_to_nothing("examples/collatz.pn")
+}

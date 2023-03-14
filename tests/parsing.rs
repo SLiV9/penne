@@ -119,13 +119,28 @@ fn compile_to_fail(codes: &[u16], filename: &str)
 }
 
 #[test]
-fn fail_to_lex_unexpected_end_of_file()
+fn fail_to_parse_unexpected_end_of_file()
 {
 	compile_to_fail(&[100], "tests/samples/invalid/unexpected_end_of_file.pn")
 }
 
 #[test]
-fn fail_to_lex_empty_file()
+fn fail_to_parse_unexpected_end_of_import()
+{
+	compile_to_fail(&[100], "tests/samples/invalid/unexpected_end_of_import.pn")
+}
+
+#[test]
+fn fail_to_parse_unexpected_end_of_declaration()
+{
+	compile_to_fail(
+		&[100],
+		"tests/samples/invalid/unexpected_end_of_declaration.pn",
+	)
+}
+
+#[test]
+fn fail_to_parse_empty_file()
 {
 	compile_to_fail(&[101], "tests/samples/invalid/empty_file.pn")
 }
@@ -134,6 +149,24 @@ fn fail_to_lex_empty_file()
 fn fail_to_parse_invalid_character()
 {
 	compile_to_fail(&[110], "tests/samples/invalid/invalid_character.pn")
+}
+
+#[test]
+fn fail_to_parse_invalid_character_in_identifier()
+{
+	compile_to_fail(
+		&[110],
+		"tests/samples/invalid/invalid_character_in_identifier.pn",
+	)
+}
+
+#[test]
+fn fail_to_parse_invalid_character_at_top_level()
+{
+	compile_to_fail(
+		&[110],
+		"tests/samples/invalid/invalid_character_at_top_level.pn",
+	)
 }
 
 #[test]
@@ -194,6 +227,24 @@ fn fail_to_parse_invalid_trailing_slash_in_string()
 fn fail_to_parse_missing_closing_quote()
 {
 	compile_to_fail(&[160], "tests/samples/invalid/missing_closing_quote.pn")
+}
+
+#[test]
+fn fail_to_parse_missing_quotes_after_import()
+{
+	compile_to_fail(
+		&[300],
+		"tests/samples/invalid/missing_quotes_after_import.pn",
+	)
+}
+
+#[test]
+fn fail_to_parse_invalid_unicode_in_import()
+{
+	compile_to_fail(
+		&[300],
+		"tests/samples/invalid/invalid_unicode_in_import.pn",
+	)
 }
 
 #[test]
@@ -338,6 +389,12 @@ fn fail_to_parse_reserved_keyword_as_declaration_identifier()
 }
 
 #[test]
+fn fail_to_parse_negative_array_length()
+{
+	compile_to_fail(&[300], "tests/samples/invalid/negative_array_length.pn")
+}
+
+#[test]
 fn fail_to_parse_assign_to_array_slice_length()
 {
 	compile_to_fail(
@@ -352,5 +409,44 @@ fn fail_to_parse_address_of_literal()
 	compile_to_fail(
 		&[300, 300, 300],
 		"tests/samples/invalid/address_of_literal.pn",
+	)
+}
+
+#[test]
+fn fail_to_parse_type_before_member()
+{
+	compile_to_fail(&[300, 300], "tests/samples/invalid/type_before_member.pn")
+}
+
+#[test]
+fn fail_to_parse_expression_as_type()
+{
+	compile_to_fail(&[300], "tests/samples/invalid/expression_as_type.pn")
+}
+
+#[test]
+fn fail_to_parse_bool_directly_as_condition()
+{
+	compile_to_fail(
+		&[300],
+		"tests/samples/invalid/bool_directly_as_condition.pn",
+	)
+}
+
+#[test]
+fn fail_to_parse_bitwise_binary_expression()
+{
+	compile_to_fail(
+		&[300],
+		"tests/samples/invalid/bitwise_binary_expression.pn",
+	)
+}
+
+#[test]
+fn fail_to_parse_bitshift_binary_expression()
+{
+	compile_to_fail(
+		&[300],
+		"tests/samples/invalid/bitshift_binary_expression.pn",
 	)
 }

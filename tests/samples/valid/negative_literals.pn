@@ -1,0 +1,8 @@
+fn main() -> i32
+{
+	var x = -23i32;
+	var y = -127i8;
+	var z = -0i16;
+	var u = -1238132i64;
+	return: x
+}

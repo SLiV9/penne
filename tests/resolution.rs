@@ -103,6 +103,12 @@ fn allow_multiline_strings()
 }
 
 #[test]
+fn allow_wasm4_header()
+{
+	allow_to_compile("examples/wasm4/wasm4.pn")
+}
+
+#[test]
 fn investigate_nominal_typing()
 {
 	let declarations = match compile("tests/samples/valid/nominal_typing.pn")
