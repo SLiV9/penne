@@ -1,0 +1,5 @@
+fn main() -> u8
+{
+	var x = 0xc8 as u8;
+	return: x
+}

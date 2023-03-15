@@ -573,13 +573,20 @@ impl Resolvable for Expression
 				value_type: value_type.resolve()?,
 			}),
 			Expression::BitIntegerLiteral {
-				value: _,
+				value,
 				value_type: None,
-				location,
-			} => Err(Error::AmbiguousTypeOfNakedIntegerLiteral {
-				suggested_type: ValueType::Uint64,
-				location,
-			})?,
+				location: _,
+			} =>
+			{
+				// Naked bit integer literals are implicitly u64. If type
+				// inference neither has an error elsewhere nor inferred a type
+				// for this literal, turn it into u64. This occurs of instance
+				// in the expression `0xC8 as u8` which should just resolve.
+				Ok(resolved::Expression::BitIntegerLiteral {
+					value,
+					value_type: resolved::ValueType::Uint64,
+				})
+			}
 			Expression::ArrayLiteral {
 				array:
 					Array {

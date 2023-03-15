@@ -40,9 +40,9 @@ Functionality:
 		✔	Think about natural stack alignment @done (2022-12-24 19:44)
 		✔	Think about isize @done (2022-12-24 18:51)
 		✔	Think about difference between usize and upointer @done (2022-12-24 18:51)
-		☐	Allow integer type suffixes for 0x123 and 0b101
+		✘	Allow integer type suffixes for 0x123 and 0b101 @cancelled (2023-03-15 22:48)
 			Only u8 through u64, and becomes Token::Uint64, not Token::BitInteger
-			☐	Or make sure they default to u64 and do not cause E582
+			✔	Or make sure they default to u64 and do not cause E582 @done (2023-03-15 22:48)
 	☐	Strong enums
 	☐	Optional
 		☐	Niches for pointers and enums
