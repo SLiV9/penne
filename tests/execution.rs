@@ -67,16 +67,6 @@ fn execute_bitwise_expression() -> Result<(), anyhow::Error>
 }
 
 #[test]
-fn execute_bit_integer_without_suffix() -> Result<(), anyhow::Error>
-{
-	let result = execute_calculation(
-		"tests/samples/valid/bit_integer_without_suffix.pn",
-	)?;
-	assert_eq!(result, 200);
-	Ok(())
-}
-
-#[test]
 fn execute_comparisons() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation("examples/comparisons.pn")?;

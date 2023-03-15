@@ -293,3 +293,9 @@ fn fail_to_type_non_abi_in_extern()
 {
 	compile_to_fail(&[358, 358], "tests/samples/invalid/non_abi_in_extern.pn")
 }
+
+#[test]
+fn fail_to_type_ambiguous_bit_integer()
+{
+	compile_to_fail(&[582], "tests/samples/invalid/ambiguous_bit_integer.pn")
+}
