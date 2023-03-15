@@ -73,14 +73,7 @@ where
 				}
 				(Ok(_), Err(errors)) => Err(errors),
 				(Err(errors), Ok(_)) => Err(errors),
-				(
-					Err(Errors { mut errors }),
-					Err(Errors { errors: mut more }),
-				) =>
-				{
-					errors.append(&mut more);
-					Err(Errors { errors })
-				}
+				(Err(errors), Err(more)) => Err(errors.combined_with(more)),
 			},
 		)
 	}

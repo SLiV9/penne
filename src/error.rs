@@ -84,6 +84,13 @@ impl Errors
 	{
 		self.errors.iter().map(|x| x.code()).collect()
 	}
+
+	pub fn combined_with(self, mut other: Errors) -> Errors
+	{
+		let Errors { mut errors } = self;
+		errors.append(&mut other.errors);
+		Errors { errors }
+	}
 }
 
 pub enum Never {}

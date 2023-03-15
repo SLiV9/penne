@@ -175,10 +175,10 @@ Development:
 		✔	Is E332 unreachable? @done (2023-03-04 18:35)
 		✔	Is E580 unreachable? @done (2023-03-04 18:35)
 		☐	Think about a better way to solve "ambiguous" errors (E332 and E580)
-		☐	Isn't it better to consume E582 into other errors if possible?
+			☐	Separate typed AST at the end of typing stage?
+		✘	Isn't it better to consume E582 into other errors if possible? @cancelled (2023-03-15 22:15)
 		☐	Are E583 and E584 unreachable?
-		☐	Take another look at uncovered lines in complicated match statements, because it can and did reveal impossible cases
-			☐	Continue with rebuilder.rs
+		✔	Take another look at uncovered lines in complicated match statements, because it can and did reveal impossible cases @done (2023-03-15 22:24)
 		☐	Think about whether variables (declared with var) can ever be immutable due to their type, because variables currently cannot be slices and views
 			☐	Remove `let is_mutable = match value_type` in mutability.rs
 		☐	Rethink necessity of is_immediate_parameter in generate_storage_address()
