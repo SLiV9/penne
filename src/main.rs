@@ -513,7 +513,8 @@ fn do_main() -> Result<(), anyhow::Error>
 		let status = cmd.wait()?;
 		if is_lli
 		{
-			let exitcode = status.code().context("no exitcode")?;
+			let exitcode =
+				status.code().ok_or_else(|| error_from_status(status))?;
 			stdout.output(exitcode)?;
 		}
 		else
@@ -566,6 +567,28 @@ fn get_exe_extension() -> &'static str
 	else
 	{
 		std::env::consts::ARCH
+	}
+}
+
+fn error_from_status(status: std::process::ExitStatus) -> anyhow::Error
+{
+	let signal = if cfg!(unix)
+	{
+		use std::os::unix::process::ExitStatusExt;
+		status.signal()
+	}
+	else
+	{
+		None
+	};
+
+	if signal == Some(libc::SIGSEGV)
+	{
+		anyhow!("segmentation fault")
+	}
+	else
+	{
+		anyhow!("no exitcode")
 	}
 }
 

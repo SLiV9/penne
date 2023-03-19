@@ -333,6 +333,7 @@ dependencies = [
  "clap",
  "enumset",
  "include_dir",
+ "libc",
  "llvm-sys",
  "pretty_assertions",
  "serde",
