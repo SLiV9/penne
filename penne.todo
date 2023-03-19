@@ -80,6 +80,9 @@ Functionality:
 	☐	Heap allocation
 	☐	stdlib
 		☐	Get lli to run import_core.pn
+			LLVM ERROR: Tried to execute an unknown external function: is_control_char
+			The second argument to lli is passed to main(), not loaded...
+			So calling LLVMLinkModules2 was not overcomplicating things.
 		☐	panic()
 		☐	print()
 		☐	fopen(), fclose()
@@ -175,6 +178,7 @@ Documentation:
 	✔	High def logo @done (23-02-16 17:28)
 
 Development:
+	☐ Refactor the main flow to have a Generator with a single LLVM Context, so we can call LLVMLinkModules2, and also so that we can call the generator inside typer.rs for arraywithnamedlength
 	☐	Improve test coverage
 		✔	Is E163 unreachable? @done (2023-03-04 17:25)
 		✔	Is E332 unreachable? @done (2023-03-04 18:35)
