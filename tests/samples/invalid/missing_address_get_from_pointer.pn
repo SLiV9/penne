@@ -1,0 +1,13 @@
+
+fn get(param: &i32) -> i32
+{
+	return: param
+}
+
+fn main() -> i32
+{
+	var a = 200;
+	var x: &i32 = &a;
+	var result = get(x);
+	return: result
+}

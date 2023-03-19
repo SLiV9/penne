@@ -51,15 +51,45 @@ fn compile_to_fail(codes: &[u16], filename: &str)
 #[test]
 fn fail_to_type_assignment_type_mismatch()
 {
-	compile_to_fail(&[504], "tests/samples/invalid/assignment_type_mismatch.pn")
+	compile_to_fail(
+		&[504, 504, 504, 504],
+		"tests/samples/invalid/assignment_type_mismatch.pn",
+	)
 }
 
 #[test]
 fn fail_to_type_member_assignment_type_mismatch()
 {
 	compile_to_fail(
-		&[504, 504, 504, 504, 504, 504, 504],
+		&[504, 504, 504, 507, 507, 504, 504, 507],
 		"tests/samples/invalid/member_assignment_type_mismatch.pn",
+	)
+}
+
+#[test]
+fn fail_to_type_assignment_address_and_type_mismatch()
+{
+	compile_to_fail(
+		&[507],
+		"tests/samples/invalid/assignment_address_and_type_mismatch.pn",
+	)
+}
+
+#[test]
+fn fail_to_type_assignment_address_mismatch()
+{
+	compile_to_fail(
+		&[507, 507, 507, 507, 507, 507, 507, 507, 507, 507],
+		"tests/samples/invalid/assignment_address_mismatch.pn",
+	)
+}
+
+#[test]
+fn fail_to_type_assignment_excess_address()
+{
+	compile_to_fail(
+		&[506, 506, 506, 506],
+		"tests/samples/invalid/assignment_excess_address.pn",
 	)
 }
 
@@ -108,6 +138,24 @@ fn fail_to_type_missing_mandatory_type()
 	compile_to_fail(
 		&[343, 344, 346],
 		"tests/samples/invalid/missing_mandatory_type.pn",
+	)
+}
+
+#[test]
+fn fail_to_type_implicit_pointer_type()
+{
+	compile_to_fail(
+		&[585, 585, 585],
+		"tests/samples/invalid/implicit_pointer_type.pn",
+	)
+}
+
+#[test]
+fn fail_to_type_implicit_uninitialized_pointer_type()
+{
+	compile_to_fail(
+		&[585],
+		"tests/samples/invalid/implicit_uninitialized_pointer_type.pn",
 	)
 }
 
@@ -199,6 +247,12 @@ fn fail_to_type_view_as_member()
 }
 
 #[test]
+fn fail_to_type_void_as_parameter()
+{
+	compile_to_fail(&[354], "tests/samples/invalid/void_as_parameter.pn")
+}
+
+#[test]
 fn fail_to_type_word_size_exceeded()
 {
 	compile_to_fail(&[380, 380], "tests/samples/invalid/word_size_exceeded.pn")
@@ -238,4 +292,10 @@ fn fail_to_type_word_casting()
 fn fail_to_type_non_abi_in_extern()
 {
 	compile_to_fail(&[358, 358], "tests/samples/invalid/non_abi_in_extern.pn")
+}
+
+#[test]
+fn fail_to_type_ambiguous_bit_integer()
+{
+	compile_to_fail(&[582], "tests/samples/invalid/ambiguous_bit_integer.pn")
 }

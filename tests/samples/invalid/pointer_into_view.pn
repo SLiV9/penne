@@ -1,0 +1,17 @@
+struct FooContainer
+{
+	foo: i32,
+}
+
+fn get_mutable_pointer(immutable: FooContainer) -> &i32
+{
+	return: &immutable.foo
+}
+
+fn main() -> i32
+{
+	var immutable = FooContainer { foo: 30 };
+	var mutable: &i32 = get_mutable_pointer(immutable);
+	mutable = 277;
+	return: immutable.foo
+}

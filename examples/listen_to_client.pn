@@ -1,0 +1,16 @@
+fn read_from_client(buffer: &[]u8, exact_size: usize);
+fn handle_message_from_client(buffer: []u8, message_size: usize);
+
+fn listen_to_client()
+{
+	var header_buffer: [1]u8;
+	var message_buffer: [256]u8;
+	{
+		read_from_client(&header_buffer, 1);
+		var header: u8 = header_buffer[0];
+		var message_size: usize = header as usize;
+		read_from_client(&message_buffer, message_size);
+		handle_message_from_client(message_buffer, message_size);
+		loop;
+	}
+}

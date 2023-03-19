@@ -315,10 +315,12 @@ pub enum Expression
 	LengthOfArray
 	{
 		reference: Reference,
+		location: Location,
 	},
 	SizeOfStructure
 	{
 		name: Identifier,
+		location: Location,
 	},
 	FunctionCall
 	{
@@ -347,8 +349,8 @@ impl Expression
 			Expression::Deref { reference, .. } => &reference.location,
 			Expression::Autocoerce { expression, .. } => expression.location(),
 			Expression::PrimitiveCast { location, .. } => location,
-			Expression::LengthOfArray { reference, .. } => &reference.location,
-			Expression::SizeOfStructure { name, .. } => &name.location,
+			Expression::LengthOfArray { location, .. } => &location,
+			Expression::SizeOfStructure { location, .. } => &location,
 			Expression::FunctionCall { name, .. } => &name.location,
 			Expression::Poison(Poison::Error { .. }) => unreachable!(),
 			Expression::Poison(Poison::Poisoned) => unreachable!(),
@@ -466,6 +468,7 @@ pub struct Reference
 	pub steps: Vec<ReferenceStep>,
 	pub address_depth: u8,
 	pub location: Location,
+	pub location_of_unaddressed: Location,
 }
 
 impl Reference

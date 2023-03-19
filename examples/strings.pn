@@ -5,7 +5,7 @@ fn main()
 {
 	var ascii_string = "Save up to $50 or more!";
 	var c_string = "Save up to $50 or more!\0";
-	var utf8_string = "Save up to \u{20a0}50 or more!";
+	var utf8_string = "Save up to \u{20ac}50 or more!";
 	var utf8_string_in_utf8_file = "Save up to €50 or more!";
 	var iso8859_string = "Save up to \xA350 or more!";
 

@@ -1,0 +1,23 @@
+fn foo() -> i32
+{
+	var a: i32 = 200;
+	var b: i32 = &a;
+	return: b
+}
+
+fn bar() -> i32
+{
+	var a: i32 = 200;
+	var x: &i32 = &a;
+	var b: i32 = &x;
+	return: b
+}
+
+fn baz() -> i32
+{
+	var a: i32 = 200;
+	var x: &i32 = &a;
+	var y: &i32 = &&x;
+	var b: i32 = &y;
+	return: b
+}

@@ -67,6 +67,14 @@ fn execute_bitwise_expression() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_comparisons() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation("examples/comparisons.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_scoped_variables() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation("examples/scoped_variables.pn")?;
@@ -408,10 +416,68 @@ fn execute_i32_to_le_bytes() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_get_from_pointer() -> Result<(), anyhow::Error>
+{
+	let result =
+		execute_calculation("tests/samples/valid/get_from_pointer.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn execute_infer_integer_type_from_param() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation(
+		"tests/samples/valid/infer_integer_type_from_param.pn",
+	)?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn execute_infer_variable_type_from_param() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation(
+		"tests/samples/valid/infer_variable_type_from_param.pn",
+	)?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn execute_pointer_stability_variable() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation(
+		"tests/samples/valid/pointer_stability_variable.pn",
+	)?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn execute_pointer_stability_struct() -> Result<(), anyhow::Error>
+{
+	let result =
+		execute_calculation("tests/samples/valid/pointer_stability_struct.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_identifier_starting_with_keyword() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation(
 		"tests/samples/valid/identifier_starting_with_keyword.pn",
+	)?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn execute_unused_forward_declaration() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation(
+		"tests/samples/valid/unused_forward_declaration.pn",
 	)?;
 	assert_eq!(result, 200);
 	Ok(())
@@ -426,6 +492,16 @@ fn execute_import_position_and_line() -> Result<(), anyhow::Error>
 		"tests/samples/valid/line.pn",
 	])?;
 	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn fail_to_execute_pointer_escape_ub() -> Result<(), anyhow::Error>
+{
+	let result =
+		execute_calculation("tests/samples/invalid/pointer_escape_ub.pn")?;
+	// This test is not entirely portable or precise, but it works.
+	assert_ne!(result, 123);
 	Ok(())
 }
 

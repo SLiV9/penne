@@ -1,0 +1,56 @@
+fn main() -> i32
+{
+	var result;
+
+	var ff: u64 = 0xFF;
+	if ff == 0xF0 ^ 0x0F
+	{
+		result = 200;
+	}
+	else
+	{
+		goto assertion_failed;
+	}
+
+	var x: i8 = 5;
+
+	if 10i8 == x * 3
+		goto assertion_failed;
+	if 10i16 != 2 + 8
+		goto assertion_failed;
+	if 10i32 >= 11
+		goto assertion_failed;
+	if 10u32 >= 11
+		goto assertion_failed;
+	if 10i32 <= 12 - 3
+		goto assertion_failed;
+	if 10u32 <= 9
+		goto assertion_failed;
+	if 10i64 > 111 % 100
+		goto assertion_failed;
+	if 10u64 > 22 / 2
+		goto assertion_failed;
+	if -10i128 < -(11)
+		goto assertion_failed;
+	if 10u128 < 10 + 10 % 10
+		goto assertion_failed;
+	if true as i32 != 1
+		goto assertion_failed;
+
+	var a: i64 = 5;
+	var b: i64 = 6;
+	var c: i128 = 7;
+	if &a == &b
+		goto assertion_failed;
+	if &c == 0x0
+		goto assertion_failed;
+
+	var array = [a, b];
+	if |array| != 2
+		goto assertion_failed;
+
+	goto return;
+	assertion_failed:
+	result = 400;
+	return: result
+}

@@ -73,14 +73,7 @@ where
 				}
 				(Ok(_), Err(errors)) => Err(errors),
 				(Err(errors), Ok(_)) => Err(errors),
-				(
-					Err(Errors { mut errors }),
-					Err(Errors { errors: mut more }),
-				) =>
-				{
-					errors.append(&mut more);
-					Err(Errors { errors })
-				}
+				(Err(errors), Err(more)) => Err(errors.combined_with(more)),
 			},
 		)
 	}
@@ -699,13 +692,13 @@ impl Resolvable for Expression
 					coerced_type,
 				})
 			}
-			Expression::LengthOfArray { reference } =>
-			{
-				Ok(resolved::Expression::LengthOfArray {
-					reference: reference.resolve()?,
-				})
-			}
-			Expression::SizeOfStructure { name } =>
+			Expression::LengthOfArray {
+				reference,
+				location: _,
+			} => Ok(resolved::Expression::LengthOfArray {
+				reference: reference.resolve()?,
+			}),
+			Expression::SizeOfStructure { name, location: _ } =>
 			{
 				let name = name.resolve()?;
 				Ok(resolved::Expression::SizeOfStructure { name })

@@ -17,7 +17,7 @@ use crate::value_type;
 pub type OperandValueType = value_type::OperandValueType<Identifier>;
 pub type ValueType = value_type::ValueType<Identifier>;
 
-use ariadne::{Fmt, Report, ReportKind};
+use ariadne::{Fmt, Label, Report, ReportKind};
 
 #[derive(Debug)]
 pub struct Errors
@@ -83,6 +83,13 @@ impl Errors
 	pub fn codes(&self) -> Vec<u16>
 	{
 		self.errors.iter().map(|x| x.code()).collect()
+	}
+
+	pub fn combined_with(self, mut other: Errors) -> Errors
+	{
+		let Errors { mut errors } = self;
+		errors.append(&mut other.errors);
+		Errors { errors }
 	}
 }
 
@@ -335,6 +342,23 @@ pub enum Error
 		location: Location,
 		previous: Location,
 	},
+	ExcessAddressInAssignment
+	{
+		name: String,
+		previous_type: ValueType,
+		location: Location,
+		previous: Location,
+	},
+	MismatchedAddressInAssignment
+	{
+		name: String,
+		assigned_type: ValueType,
+		assignee_type: ValueType,
+		declared_type: ValueType,
+		location: Location,
+		location_of_assignee: Location,
+		location_of_declaration: Location,
+	},
 	ArgumentTypeMismatch
 	{
 		parameter_name: String,
@@ -413,7 +437,8 @@ pub enum Error
 	AddressOfTemporaryAddress
 	{
 		location: Location,
-		location_of_declaration: Location,
+		location_of_unaddressed: Location,
+		type_of_unaddressed: ValueType,
 	},
 	MissingBraces
 	{
@@ -444,6 +469,11 @@ pub enum Error
 	AmbiguousTypeOfDeclaration
 	{
 		location: Location
+	},
+	AmbiguousTypeOfPointerDeclaration
+	{
+		suggested_type: ValueType,
+		location: Location,
 	},
 	AmbiguousTypeOfNakedIntegerLiteral
 	{
@@ -503,42 +533,18 @@ impl Error
 		match self
 		{
 			Error::UnexpectedEndOfFile { .. } => 100,
-			Error::Lexical {
-				error: lexer::Error::UnexpectedCharacter,
-				..
-			} => 110,
-			Error::Lexical {
-				error: lexer::Error::InvalidIntegerLiteral(..),
-				..
-			} => 140,
-			Error::Lexical {
-				error: lexer::Error::InvalidIntegerTypeSuffix,
-				..
-			} => 141,
-			Error::Lexical {
-				error: lexer::Error::InvalidNakedIntegerLiteral,
-				..
-			} => 142,
-			Error::Lexical {
-				error: lexer::Error::InvalidBitIntegerLiteral,
-				..
-			} => 143,
-			Error::Lexical {
-				error: lexer::Error::MissingClosingQuote,
-				..
-			} => 160,
-			Error::Lexical {
-				error: lexer::Error::UnexpectedTrailingBackslash,
-				..
-			} => 161,
-			Error::Lexical {
-				error: lexer::Error::InvalidEscapeSequence,
-				..
-			} => 162,
-			Error::Lexical {
-				error: lexer::Error::InvalidMixedString,
-				..
-			} => 163,
+			Error::Lexical { error, .. } => match error
+			{
+				lexer::Error::UnexpectedZeroByteFile => 101,
+				lexer::Error::UnexpectedCharacter => 110,
+				lexer::Error::InvalidIntegerLiteral(..) => 140,
+				lexer::Error::InvalidIntegerTypeSuffix => 141,
+				lexer::Error::InvalidNakedIntegerLiteral => 142,
+				lexer::Error::InvalidBitIntegerLiteral => 143,
+				lexer::Error::MissingClosingQuote => 160,
+				lexer::Error::UnexpectedTrailingBackslash => 161,
+				lexer::Error::InvalidEscapeSequence => 162,
+			},
 			Error::UnexpectedToken { .. } => 300,
 			Error::UnexpectedSemicolonAfterIdentifier { .. } => 301,
 			Error::UnexpectedSemicolonAfterReturnValue { .. } => 302,
@@ -584,6 +590,8 @@ impl Error
 			Error::IndexTypeMismatch { .. } => 503,
 			Error::ConflictingTypesInAssignment { .. } => 504,
 			Error::NotAStructure { .. } => 505,
+			Error::ExcessAddressInAssignment { .. } => 506,
+			Error::MismatchedAddressInAssignment { .. } => 507,
 			Error::TooFewArguments { .. } => 510,
 			Error::TooManyArguments { .. } => 511,
 			Error::ArgumentTypeMismatch { .. } => 512,
@@ -601,6 +609,7 @@ impl Error
 			Error::AmbiguousTypeOfNakedIntegerLiteral { .. } => 582,
 			Error::AmbiguousTypeOfArrayLiteral { .. } => 583,
 			Error::AmbiguousTypeOfStringLiteral { .. } => 584,
+			Error::AmbiguousTypeOfPointerDeclaration { .. } => 585,
 			Error::NonFinalLoopStatement { .. } => 800,
 			Error::MisplacedLoopStatement { .. } => 801,
 			Error::MissingBraces { .. } => 840,
@@ -691,6 +700,8 @@ impl Error
 			Error::NotAnArrayWithLength { location, .. } => &location,
 			Error::IndexTypeMismatch { location, .. } => &location,
 			Error::ConflictingTypesInAssignment { location, .. } => &location,
+			Error::ExcessAddressInAssignment { location, .. } => &location,
+			Error::MismatchedAddressInAssignment { location, .. } => &location,
 			Error::NotAStructure { location, .. } => &location,
 			Error::TooFewArguments { location, .. } => &location,
 			Error::TooManyArguments { location, .. } => &location,
@@ -712,6 +723,10 @@ impl Error
 			} => &location_of_operand,
 			Error::AmbiguousType { location, .. } => &location,
 			Error::AmbiguousTypeOfDeclaration { location, .. } => &location,
+			Error::AmbiguousTypeOfPointerDeclaration { location, .. } =>
+			{
+				&location
+			}
 			Error::AmbiguousTypeOfNakedIntegerLiteral { location, .. } =>
 			{
 				&location
@@ -736,7 +751,10 @@ impl Error
 
 	#[cfg_attr(coverage, no_coverage)]
 	#[cfg(not(tarpaulin_include))]
-	pub fn report(&self) -> Report<(String, std::ops::Range<usize>)>
+	pub fn build_report(
+		&self,
+		ariadne_config: ariadne::Config,
+	) -> Report<(String, std::ops::Range<usize>)>
 	{
 		let location = self.location();
 		let code = self.code();
@@ -749,6 +767,7 @@ impl Error
 		};
 		let report =
 			Report::build(kind, &location.source_filename, location.span.end)
+				.with_config(ariadne_config)
 				.with_code(format!("{}{}", letter, code));
 		let report = write(report, self);
 		report.finish()
@@ -759,6 +778,8 @@ const PRIMARY: ariadne::Color = ariadne::Color::Yellow;
 const SECONDARY: ariadne::Color = ariadne::Color::Cyan;
 const TERTIARY: ariadne::Color = ariadne::Color::Magenta;
 
+#[cfg_attr(coverage, no_coverage)]
+#[cfg(not(tarpaulin_include))]
 fn write(
 	report: ariadne::ReportBuilder<(String, std::ops::Range<usize>)>,
 	error: &Error,
@@ -785,6 +806,20 @@ fn write(
 					.with_order(2)
 					.with_color(SECONDARY),
 			),
+
+		Error::Lexical {
+			error: lexer::Error::UnexpectedZeroByteFile,
+			expectation,
+			location,
+		} => report
+			.with_message("Unexpected end of file")
+			.with_label(
+				location
+					.label()
+					.with_message(expectation)
+					.with_color(PRIMARY),
+			)
+			.with_note("Provided file contains zero bytes of data."),
 
 		Error::Lexical {
 			error: lexer::Error::UnexpectedCharacter,
@@ -903,23 +938,6 @@ fn write(
 				 then reopen it on the next line.",
 			),
 
-		Error::Lexical {
-			error: lexer::Error::InvalidMixedString,
-			expectation,
-			location,
-		} => report
-			.with_message("Invalid mixed string")
-			.with_label(
-				location
-					.label()
-					.with_message(expectation)
-					.with_color(PRIMARY),
-			)
-			.with_note(
-				"String literals cannot contain both ASCII control characters \
-				 and non-ASCII characters.",
-			),
-
 		Error::UnexpectedToken {
 			expectation,
 			location,
@@ -1014,7 +1032,7 @@ fn write(
 				.label()
 				.with_message(format!(
 					"The type {} is invalid.",
-					show_type(value_type).fg(PRIMARY)
+					show_type(value_type, PRIMARY)
 				))
 				.with_color(PRIMARY),
 		),
@@ -1027,7 +1045,7 @@ fn write(
 				.label()
 				.with_message(format!(
 					"A value of type {} cannot be assigned to a variable.",
-					show_type(value_type).fg(PRIMARY)
+					show_type(value_type, PRIMARY)
 				))
 				.with_color(PRIMARY),
 		),
@@ -1040,7 +1058,7 @@ fn write(
 				.label()
 				.with_message(format!(
 					"The type {} is not allowed as a parameter.",
-					show_type(value_type).fg(PRIMARY)
+					show_type(value_type, PRIMARY)
 				))
 				.with_color(PRIMARY),
 		),
@@ -1053,7 +1071,7 @@ fn write(
 				.label()
 				.with_message(format!(
 					"The type {} is not allowed as a return value.",
-					show_type(value_type).fg(PRIMARY)
+					show_type(value_type, PRIMARY)
 				))
 				.with_color(PRIMARY),
 		),
@@ -1067,7 +1085,7 @@ fn write(
 				.label()
 				.with_message(format!(
 					"The type {} is not allowed as a member of a struct.",
-					show_type(value_type).fg(PRIMARY),
+					show_type(value_type, PRIMARY),
 				))
 				.with_color(PRIMARY),
 		),
@@ -1081,7 +1099,7 @@ fn write(
 				.label()
 				.with_message(format!(
 					"The type {} is not allowed as a member of a word.",
-					show_type(value_type).fg(PRIMARY),
+					show_type(value_type, PRIMARY),
 				))
 				.with_color(PRIMARY),
 		),
@@ -1094,7 +1112,7 @@ fn write(
 				.label()
 				.with_message(format!(
 					"A value of type {} cannot be assigned to a constant.",
-					show_type(value_type).fg(PRIMARY)
+					show_type(value_type, PRIMARY)
 				))
 				.with_color(PRIMARY),
 		),
@@ -1110,7 +1128,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"The type {} is not allowed in external declarations.",
-						show_type(value_type).fg(PRIMARY)
+						show_type(value_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1162,7 +1180,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Value of type {} returned here.",
-						show_type(inferred_type).fg(PRIMARY)
+						show_type(inferred_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1208,7 +1226,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Expected {} based on this declaration.",
-						show_type(declared_type).fg(SECONDARY)
+						show_type(declared_type, SECONDARY)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1225,7 +1243,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Value of type {} returned here.",
-						show_type(inferred_type).fg(PRIMARY)
+						show_type(inferred_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1234,7 +1252,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Expected {} based on this declaration.",
-						show_type(declared_type).fg(SECONDARY)
+						show_type(declared_type, SECONDARY)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1256,7 +1274,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Expected {} based on this declaration.",
-						show_type(declared_type).fg(SECONDARY)
+						show_type(declared_type, SECONDARY)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1602,7 +1620,7 @@ fn write(
 					.with_message(format!(
 						"'{}' has type {}.",
 						name.fg(PRIMARY),
-						show_type(current_type).fg(PRIMARY)
+						show_type(current_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1611,7 +1629,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Previously determined to be {}.",
-						show_type(previous_type).fg(SECONDARY)
+						show_type(previous_type, SECONDARY)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1628,8 +1646,8 @@ fn write(
 				location
 					.label()
 					.with_message(format!(
-						"Cannot assign it this expression of type {}.",
-						show_type(current_type).fg(PRIMARY)
+						"Cannot assign this expression of type {}.",
+						show_type(current_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1639,9 +1657,74 @@ fn write(
 					.with_message(format!(
 						"'{}' has type {}.",
 						name.fg(SECONDARY),
-						show_type(previous_type).fg(SECONDARY)
+						show_type(previous_type, SECONDARY)
 					))
 					.with_color(SECONDARY),
+			),
+
+		Error::ExcessAddressInAssignment {
+			name,
+			previous_type,
+			location,
+			previous,
+		} => report
+			.with_message("Conflicting types")
+			.with_label(
+				location
+					.label()
+					.with_message("Cannot assign to immutable address.")
+					.with_color(PRIMARY),
+			)
+			.with_label(
+				previous
+					.label()
+					.with_message(format!(
+						"'{}' has type {}.",
+						name.fg(SECONDARY),
+						show_type(previous_type, SECONDARY)
+					))
+					.with_color(SECONDARY),
+			),
+
+		Error::MismatchedAddressInAssignment {
+			name,
+			assigned_type,
+			assignee_type,
+			declared_type,
+			location,
+			location_of_assignee,
+			location_of_declaration,
+		} => report
+			.with_message("Conflicting types")
+			.with_label(
+				location
+					.label()
+					.with_order(1)
+					.with_message(format!(
+						"Cannot assign this expression of type {}.",
+						show_type(assigned_type, PRIMARY)
+					))
+					.with_color(PRIMARY),
+			)
+			.with_label(
+				location_of_assignee
+					.label()
+					.with_order(2)
+					.with_message(format!(
+						"The assignee has type {}.",
+						show_type(assignee_type, SECONDARY)
+					))
+					.with_color(SECONDARY),
+			)
+			.with_label(
+				location_of_declaration
+					.label()
+					.with_message(format!(
+						"'{}' has type {}.",
+						name.fg(TERTIARY),
+						show_type(declared_type, TERTIARY)
+					))
+					.with_color(TERTIARY),
 			),
 
 		Error::ArgumentTypeMismatch {
@@ -1657,7 +1740,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Argument has type {}.",
-						show_type(argument_type).fg(PRIMARY)
+						show_type(argument_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1667,7 +1750,7 @@ fn write(
 					.with_message(format!(
 						"Parameter '{}' has type {}.",
 						parameter_name.fg(SECONDARY),
-						show_type(parameter_type).fg(SECONDARY)
+						show_type(parameter_type, SECONDARY)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1685,7 +1768,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Argument has type {}.",
-						show_type(argument_type).fg(PRIMARY)
+						show_type(argument_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1705,7 +1788,7 @@ fn write(
 					.with_message(format!(
 						"Parameter '{}' has type {}.",
 						parameter_name.fg(SECONDARY),
-						show_type(parameter_type).fg(SECONDARY)
+						show_type(parameter_type, SECONDARY)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1719,8 +1802,8 @@ fn write(
 				.label()
 				.with_message(format!(
 					"Argument has type {}, expected {}.",
-					show_type(argument_type).fg(PRIMARY),
-					show_type(index_type).fg(TERTIARY)
+					show_type(argument_type, PRIMARY),
+					show_type(index_type, TERTIARY)
 				))
 				.with_color(PRIMARY),
 		),
@@ -1736,7 +1819,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Cannot index into value of non-array type {}.",
-						show_type(current_type).fg(PRIMARY)
+						show_type(current_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1758,7 +1841,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Cannot take length of value of non-array type {}.",
-						show_type(current_type).fg(PRIMARY)
+						show_type(current_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1780,7 +1863,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Cannot access member of non-structure type {}.",
-						show_type(current_type).fg(PRIMARY)
+						show_type(current_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1862,10 +1945,10 @@ fn write(
 
 		Error::CannotCopySlice { location } =>
 		{
-			report.with_message("Cannot copy slice").with_label(
+			report.with_message("Cannot copy array view").with_label(
 				location
 					.label()
-					.with_message("Cannot copy this slice.")
+					.with_message("Cannot copy this array view.")
 					.with_color(PRIMARY),
 			)
 		}
@@ -1900,7 +1983,8 @@ fn write(
 
 		Error::AddressOfTemporaryAddress {
 			location,
-			location_of_declaration,
+			location_of_unaddressed,
+			type_of_unaddressed,
 		} => report
 			.with_message("Address of temporary address")
 			.with_label(
@@ -1910,11 +1994,11 @@ fn write(
 					.with_color(PRIMARY),
 			)
 			.with_label(
-				location_of_declaration
+				location_of_unaddressed
 					.label()
 					.with_message(format!(
-						"This value is not of type {}.",
-						"`&&_`".fg(SECONDARY)
+						"This reference has type {}.",
+						show_type(type_of_unaddressed, SECONDARY),
 					))
 					.with_color(SECONDARY),
 			),
@@ -2034,6 +2118,28 @@ fn write(
 			)
 			.with_note("Consider adding a type to this declaration."),
 
+		Error::AmbiguousTypeOfPointerDeclaration {
+			location,
+			suggested_type,
+		} => report
+			.with_message("Ambiguous type")
+			.with_label(
+				location
+					.label()
+					.with_message("Failed to infer type of variable.")
+					.with_color(PRIMARY),
+			)
+			.with_label(
+				location
+					.label_after_end()
+					.with_message(format!(
+						"Consider adding {} here.",
+						show_colon_and_type(suggested_type, SECONDARY)
+					))
+					.with_color(SECONDARY),
+			)
+			.with_note("Pointer variables require an explicit type."),
+
 		Error::AmbiguousTypeOfNakedIntegerLiteral {
 			suggested_type,
 			location,
@@ -2050,7 +2156,7 @@ fn write(
 					.label_after_end()
 					.with_message(format!(
 						"Consider adding a type suffix like {}.",
-						show_type(suggested_type).fg(SECONDARY)
+						show_type(suggested_type, SECONDARY)
 					))
 					.with_color(SECONDARY),
 			),
@@ -2090,7 +2196,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"This has type {}.",
-						show_type(type_of_left).fg(PRIMARY)
+						show_type(type_of_left, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -2099,7 +2205,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"This has type {}.",
-						show_type(type_of_right).fg(SECONDARY)
+						show_type(type_of_right, SECONDARY)
 					))
 					.with_color(SECONDARY),
 			)
@@ -2124,7 +2230,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"This has type {}.",
-						show_type(value_type).fg(PRIMARY)
+						show_type(value_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -2153,7 +2259,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"This has type {}.",
-						show_type(value_type).fg(PRIMARY)
+						show_type(value_type, PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -2162,8 +2268,8 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Cannot cast {} into {}.",
-						show_type(value_type).fg(PRIMARY),
-						show_type(coerced_type).fg(SECONDARY),
+						show_type(value_type, PRIMARY),
+						show_type(coerced_type, SECONDARY),
 					))
 					.with_color(SECONDARY),
 			)
@@ -2240,7 +2346,7 @@ fn note_for_possible_casts(
 	{
 		format!(
 			"Can cast {} into {}.",
-			show_type(value_type).fg(PRIMARY),
+			show_type(value_type, PRIMARY),
 			show_possible_types(possible_coerced_types, SECONDARY),
 		)
 	}
@@ -2248,10 +2354,10 @@ fn note_for_possible_casts(
 	{
 		format!(
 			"Can cast {} into {}, or {} into {}.",
-			show_type(value_type).fg(PRIMARY),
+			show_type(value_type, PRIMARY),
 			show_possible_types(possible_coerced_types, SECONDARY),
 			show_possible_types(possible_value_types, PRIMARY),
-			show_type(coerced_type).fg(SECONDARY),
+			show_type(coerced_type, SECONDARY),
 		)
 	}
 }
@@ -2269,7 +2375,7 @@ fn show_possible_types(
 		{
 			OperandValueType::ValueType(value_type) =>
 			{
-				format!("{}", show_type(value_type).fg(color))
+				format!("{}", show_type(value_type, color))
 			}
 			OperandValueType::Pointer => format!("{}", "`&_`".fg(color)),
 		})
@@ -2284,9 +2390,21 @@ fn show_possible_types(
 
 #[cfg_attr(coverage, no_coverage)]
 #[cfg(not(tarpaulin_include))]
-fn show_type(value_type: &ValueType) -> String
+fn show_colon_and_type(value_type: &ValueType, color: ariadne::Color)
+	-> String
 {
-	format!("`{}`", show_type_inner(value_type))
+	format!(
+		"`{}{}`",
+		": ".fg(color),
+		show_type_inner(value_type).fg(color)
+	)
+}
+
+#[cfg_attr(coverage, no_coverage)]
+#[cfg(not(tarpaulin_include))]
+fn show_type(value_type: &ValueType, color: ariadne::Color) -> String
+{
+	format!("`{}`", show_type_inner(value_type).fg(color))
 }
 
 #[cfg_attr(coverage, no_coverage)]
@@ -2346,5 +2464,33 @@ fn show_type_inner(value_type: &ValueType) -> String
 		{
 			format!("({})", show_type_inner(deref_type))
 		}
+	}
+}
+
+#[cfg_attr(coverage, no_coverage)]
+#[cfg(not(tarpaulin_include))]
+impl Location
+{
+	fn label(&self) -> Label<(String, std::ops::Range<usize>)>
+	{
+		Label::new((self.source_filename.to_string(), self.span.clone()))
+	}
+
+	fn label_before_start(&self) -> Label<(String, std::ops::Range<usize>)>
+	{
+		let location = Location {
+			span: self.span.start..self.span.start,
+			..self.clone()
+		};
+		location.label()
+	}
+
+	fn label_after_end(&self) -> Label<(String, std::ops::Range<usize>)>
+	{
+		let location = Location {
+			span: self.span.end..self.span.end,
+			..self.clone()
+		};
+		location.label()
 	}
 }

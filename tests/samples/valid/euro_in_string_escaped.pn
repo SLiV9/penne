@@ -1,0 +1,4 @@
+fn euro()
+{
+	var x = "\u{20ac}";
+}

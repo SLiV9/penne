@@ -22,7 +22,7 @@ Functionality:
 		✔	In extern functions, use pointers instead of slice structs @done (2022-09-08 12:09)
 	✔	String literals @done (2022-12-01 16:31)
 	✔	Byte string literals @done (2022-09-22 15:22)
-		☐	ASCII character literals
+		☐	ASCII character literals ('a', '\n', '\0')
 	✔	FFI @done (2022-09-22 15:22)
 		✔	extern C fn(); @done (2022-09-05 18:38)
 		✔	pub extern C fn() {...} @done (2022-09-05 16:51)
@@ -42,6 +42,9 @@ Functionality:
 		✔	Think about natural stack alignment @done (2022-12-24 19:44)
 		✔	Think about isize @done (2022-12-24 18:51)
 		✔	Think about difference between usize and upointer @done (2022-12-24 18:51)
+		☐	Allow integer type suffixes for 0x123 and 0b101
+			Only u8 through u64, and becomes Token::Uint64, not Token::BitInteger
+			☐	Or make sure they default to u64 and do not cause E582
 	☐	Strong enums
 	☐	Optional
 		☐	Niches for pointers and enums
@@ -62,18 +65,18 @@ Functionality:
 		✔	Think about repr(C) and (disallowing) cast between word/struct/u128 @done (2022-12-15 18:16)
 			All structs and words are repr(C). There are no casts except transmute().
 		✘	Reorder non-extern words and structs to shrink their size @cancelled (2022-12-15 20:50)
-		☐	Allow (only) extern struct and words in externalize_type()
+		☐	Allow extern struct and words in externalize_type()
 			☐	Think about explicit view translated to "const T* const"
 	✘	Vec and String @cancelled (2022-12-01 15:57)
 	✘	Explicit mutable parameters @cancelled (2022-09-03 16:04)
 	☐	Modules
 		✘	pragma once @cancelled (2023-01-05 19:05)
-		  ✘	Prevent circular imports @cancelled (2023-01-05 19:05)
+			✘	Prevent circular imports @cancelled (2023-01-05 19:05)
 		✔	Public vs private @done (2023-01-05 19:05)
 			☐	Think about pub (extern) const (not) being static
 		☐	Namespacing
-	  ☐	Use and pub use
-	  	☐	Deduplicate symbols that are pub used in two different imports
+		☐	Use and pub use
+			☐	Deduplicate symbols that are pub used in two different imports
 	☐	Heap allocation
 	☐	stdlib
 		☐	Get lli to run import_core.pn
@@ -82,8 +85,11 @@ Functionality:
 		☐	fopen(), fclose()
 		☐	memcpy(), memset()
 			☐	wasm4 basic-drawing.md code sample versimplen
+			☐	Write fix examples in error code reference for E531 through E533
 		☐	transmute() implemented met bitcast (geen struct size checks)
 			☐	wasm4 saving-data.md code sample versimpelen
+		☐	Move main infra to library so it can be tested
+			☐ Add test for import_sum_of_squares.pn
 	☐	Compile-time string and byte-array inclusion from file
 
 Syntactic sugar:
@@ -99,11 +105,11 @@ Syntactic sugar:
 		var y = bar(),
 		if x == y
 		{
-		  ...
+			...
 		}
 		else if x == -y
 		{
-		  ...
+			...
 		}
 		// x and y are not in scope here
 		(Or perhaps "with" instead of "var"?)
@@ -126,7 +132,7 @@ Linting errors:
 	☐	Functions with side effects in if-statement conditions
 	✘	Var declaration with undefined value in some/all branches @cancelled (2023-01-25 12:55)
 		The general case is halting problem, and bespoke analysis is out of scope.
-	☐	Undefined members
+	☐	Undefined members in structure initialization
 	✘	Non-extern function without body @cancelled (2023-02-04 18:01)
 		Imported functions are non-pub non-extern but have external linkage.
 		✘	Add external linkage to fix the import_core lli issue? @cancelled (2023-02-04 18:00)
@@ -135,30 +141,27 @@ Linting errors:
 		☐	Suspicious dangling pointer (or is this out of scope for this lang?)
 	☐	Private struct used in public declaration
 	☐	Discarding the result of a function (but only if error-like?)
-	☐	Missing members in structure initialization
 	☐	Using "\x80" in the same string as "\u{80}" or "€"
 
 Usability:
 	✔	Error recovery @done (2022-10-09 22:24)
 		☐	Better error recovery when an opening brace is consumed
-			☐	Experiment with structural pre-parsing phase
+			☐	Experiment with structural pre-parsing phase?
 		✘	Better error recovery for unmatched parentheses @cancelled (2023-01-07 20:08)
 		☐	Prevent duplicate "reference to undefined struct" errors?
 		☐	Better "duplicate variable" error text for parameters and members
-		☐	Better "conflicting types" error text for assigning to arrays
+		☐	Better "conflicting types" error text for assigning to arrays or pointers
 			Because it will call 0i32 an expression of type []i32, for instance.
-	✔	Switch to custom error printed with ariadne @done (2022-10-09 22:24)
+		☐	Avoid misleading error text in E507 if both address and type are wrong
+		☐	Better error when using ; instead of , in struct definition (mention ,)
 	☐	Debug symbols in the resulting IR/executable
 	☐	Add helpful note when trying to jump backwards
 		☐	Similarly, add note when referencing variable declared later
 		☐	Add note when referencing variable from an inner scope
-	✔	Error codes @done (2022-10-10 14:23)
-	✔ Match expected error codes in tests @done (2022-10-10 14:23)
-	☐	Generate error index by formatting literate-style samples with ansi2html
-	✔	Color default terminal output differently from LLVM errors @done (2022-09-07 15:22)
 	✔	Allow goto to skip var declaration if short-lived (skip_shortlived_var.pn) @done (2023-01-09 17:57)
-	☐	Add options to disable color and unicode symbols in errors
-	☐	Prevent crash if number of structures exceeded
+	✔	Add options to disable color and unicode symbols in errors @done (2023-03-03 17:10)
+		☐	Update ariadne when fixed and remove hide(true)
+		☐	Disable red in final error message when --color=never
 
 Performance:
 	☐	Add parameter attributes such as nonnull and readonly
@@ -168,13 +171,21 @@ Documentation:
 	☐	Reference of all current and unstable language features
 	☐	Changelog.md
 	☐	Tags for crates.io
-	☐	High def logo
+	☐	Replace "total lines" github shield with "cloc src/"
+	✔	High def logo @done (23-02-16 17:28)
 
 Development:
 	☐	Improve test coverage
-
-Theory:
-	☐	Prove Turing completeness
-		☐	Implement translation from 2-register Minsky machine to Penne code
-			☐	Using goto enum with fallthrough
-				☐	But for "match"-like goto enum I do not want fallthrough...
+		✔	Is E163 unreachable? @done (2023-03-04 17:25)
+		✔	Is E332 unreachable? @done (2023-03-04 18:35)
+		✔	Is E580 unreachable? @done (2023-03-04 18:35)
+		☐	Think about a better way to solve "ambiguous" errors (E332 and E580)
+			☐	Separate typed AST at the end of typing stage?
+		✘	Isn't it better to consume E582 into other errors if possible? @cancelled (2023-03-15 22:15)
+		☐	Are E583 and E584 unreachable?
+		✔	Take another look at uncovered lines in complicated match statements, because it can and did reveal impossible cases @done (2023-03-15 22:24)
+		☐	Think about whether variables (declared with var) can ever be immutable due to their type, because variables currently cannot be slices and views
+			☐	Remove `let is_mutable = match value_type` in mutability.rs
+		☐	Rethink necessity of is_immediate_parameter in generate_storage_address()
+		☐	Add tests that fully cover generate_autocoerce()
+			☐	Remove need for unimplemented!() somehow?

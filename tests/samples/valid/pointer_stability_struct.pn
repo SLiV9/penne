@@ -1,0 +1,44 @@
+struct Stable
+{
+	horse: i32,
+}
+
+fn approach1(stable: &Stable) -> &i32
+{
+	return: &stable.horse
+}
+
+fn approach2(stable: &Stable) -> &i32
+{
+	var pointer_on_stack: &i32 = &stable.horse;
+	return: &pointer_on_stack
+}
+
+fn approach3(stable: &Stable) -> &i32
+{
+	var filler: u64 = 0xa113bf;
+	var pointer_on_stack: &i32 = &stable.horse;
+	return: &pointer_on_stack
+}
+
+fn clobber()
+{
+	var filler1: u64 = 0xFFFFFFFFFFFFFFFF;
+	var filler2: u64 = 0xFFFFFFFFFFFFFFFF;
+	var filler3: u64 = 0xFFFFFFFFFFFFFFFF;
+	var filler4: u64 = 0xFFFFFFFFFFFFFFFF;
+}
+
+fn main() -> i32
+{
+	var stable = Stable { horse: 0 };
+	var x1: &i32 = approach1(&stable);
+	var x2: &i32 = approach2(&stable);
+	var x3: &i32 = approach3(&stable);
+	clobber();
+	stable.horse = 5;
+	var a1: i32 = x1;
+	var a2: i32 = x2;
+	var a3: i32 = x3;
+	return: 185 + a1 + a2 + a3
+}

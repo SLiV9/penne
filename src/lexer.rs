@@ -6,8 +6,6 @@
 
 //! The lexer cuts each line of source code into a sequence of tokens.
 
-use ariadne::Label;
-
 use crate::common::*;
 
 #[derive(Debug, PartialEq)]
@@ -26,7 +24,6 @@ pub enum Token
 	Ampersand,
 	Caret,
 	Exclamation,
-	DebugDollar,
 	Plus,
 	Minus,
 	Times,
@@ -95,6 +92,7 @@ pub enum Token
 #[derive(Debug, Clone)]
 pub enum Error
 {
+	UnexpectedZeroByteFile,
 	UnexpectedCharacter,
 	InvalidIntegerLiteral(std::num::ParseIntError),
 	InvalidNakedIntegerLiteral,
@@ -103,7 +101,6 @@ pub enum Error
 	InvalidEscapeSequence,
 	UnexpectedTrailingBackslash,
 	MissingClosingQuote,
-	InvalidMixedString,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -117,38 +114,6 @@ pub struct Location
 
 impl Location
 {
-	pub fn format(&self) -> String
-	{
-		format!(
-			"at {}:{}:{}",
-			self.source_filename, self.line_number, self.line_offset
-		)
-	}
-
-	pub fn label(&self) -> Label<(String, std::ops::Range<usize>)>
-	{
-		Label::new((self.source_filename.to_string(), self.span.clone()))
-	}
-
-	pub fn label_before_start(&self)
-		-> Label<(String, std::ops::Range<usize>)>
-	{
-		let location = Location {
-			span: self.span.start..self.span.start,
-			..self.clone()
-		};
-		location.label()
-	}
-
-	pub fn label_after_end(&self) -> Label<(String, std::ops::Range<usize>)>
-	{
-		let location = Location {
-			span: self.span.end..self.span.end,
-			..self.clone()
-		};
-		location.label()
-	}
-
 	pub fn combined_with(self, other: &Location) -> Location
 	{
 		Location {
@@ -175,6 +140,19 @@ pub fn lex(source: &str, source_filename: &str) -> Vec<LexedToken>
 		// Syntax should remain such that each line can be lexed independently.
 		lex_line(line, source_filename, offset, 1 + i, &mut tokens);
 		offset += line.chars().count() + 1;
+	}
+	if source.len() == 0
+	{
+		let placeholder = LexedToken {
+			result: Err(Error::UnexpectedZeroByteFile),
+			location: Location {
+				source_filename: source_filename.to_string(),
+				span: 0..0,
+				line_number: 1,
+				line_offset: 1,
+			},
+		};
+		tokens.push(placeholder);
 	}
 	tokens
 }
@@ -292,7 +270,7 @@ fn lex_line(
 			{
 				Some((_, '/')) =>
 				{
-					break;
+					return;
 				}
 				_ => Ok(Token::Divide),
 			},
@@ -552,7 +530,6 @@ fn lex_line(
 							Some((_, '0')) => bytes.push(b'\0'),
 							Some((_, 'x')) =>
 							{
-								let mut byte = None;
 								let mut digits = String::new();
 								while let Some(&(_, y)) = iter.peek()
 								{
@@ -561,29 +538,22 @@ fn lex_line(
 										digits.push(y);
 										iter.next();
 										source_offset_end += 1;
+
+										if digits.len() == 2
+										{
+											let byte =
+												u8::from_str_radix(&digits, 16)
+													.unwrap();
+											bytes.push(byte);
+											break;
+										}
 									}
 									else
 									{
 										break;
 									}
-
-									if digits.len() < 2
-									{
-										continue;
-									}
-
-									byte = match u8::from_str_radix(&digits, 16)
-									{
-										Ok(v) => Some(v),
-										Err(_error) => None,
-									};
-									break;
 								}
-								if let Some(byte) = byte
-								{
-									bytes.push(byte);
-								}
-								else
+								if digits.len() < 2
 								{
 									let error = Error::InvalidEscapeSequence;
 									let warning = LexedToken {
@@ -606,6 +576,7 @@ fn lex_line(
 									iter.next();
 									source_offset_end += 1;
 
+									let mut is_closed = false;
 									let mut literal = String::new();
 									while let Some(&(_, y)) = iter.peek()
 									{
@@ -615,10 +586,21 @@ fn lex_line(
 											iter.next();
 											source_offset_end += 1;
 										}
+										else if y == '}'
+										{
+											is_closed = true;
+											iter.next();
+											source_offset_end += 1;
+											break;
+										}
 										else
 										{
 											break;
 										}
+									}
+									if !is_closed
+									{
+										literal.clear();
 									}
 									literal
 								}
@@ -632,9 +614,8 @@ fn lex_line(
 								if let Some(c) = c
 								{
 									let mut buffer = [0; 4];
-									c.encode_utf8(&mut buffer);
-									let slice = &buffer[0..c.len_utf8()];
-									bytes.extend_from_slice(slice);
+									let slice = c.encode_utf8(&mut buffer);
+									bytes.extend_from_slice(slice.as_bytes());
 								}
 								else
 								{
@@ -738,7 +719,6 @@ fn lex_line(
 				}
 				Ok(Token::StringLiteral { bytes })
 			}
-			'$' => Ok(Token::DebugDollar),
 			' ' | '\t' =>
 			{
 				source_offset_start = source_offset_end;

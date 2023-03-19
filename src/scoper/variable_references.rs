@@ -528,6 +528,11 @@ impl Analyzer
 		let container_id = name_of_container.resolution_id;
 		let containee_id = name_of_containee.resolution_id;
 
+		// Take the transitive reflexive closure of {containee_id} under
+		// the "contained in" relation.
+		// All constants and structures are listed in `self.containers`
+		// when they are predeclared, and the containee is a container
+		// so must have been predeclared as well.
 		let transitive_ids = self
 			.containers
 			.iter()
@@ -537,14 +542,16 @@ impl Analyzer
 				ids.insert(containee_id);
 				ids
 			})
-			.unwrap_or_else(|| unreachable!());
+			.expect("containee must be predeclared");
 
+		// The same goes for the container.
 		let mut container = self
 			.containers
 			.iter_mut()
 			.find(|x| x.identifier.resolution_id == container_id)
-			.unwrap_or_else(|| unreachable!());
+			.expect("container must be predeclared");
 
+		// If the container already contains itself, we would have reported it.
 		if container.contained_ids.contains(&container_id)
 		{
 			return Err(Poison::Poisoned);
@@ -552,6 +559,8 @@ impl Analyzer
 
 		container.contained_ids = &container.contained_ids | &transitive_ids;
 
+		// If the container contains itself only after adding `transitive_ids`,
+		// then this is because `containee` contains `container`.
 		if container.contained_ids.contains(&container_id)
 		{
 			let error = if let Some(name_of_member) = name_of_member
@@ -572,6 +581,7 @@ impl Analyzer
 			return Err(Poison::Error(error));
 		}
 
+		// If there is no cycle, we need to keep `x.contained_ids` transitive.
 		for other in &mut self.containers
 		{
 			if other.contained_ids.contains(&container_id)
@@ -1379,17 +1389,7 @@ impl Analyzable for Expression
 					deref_type,
 				}
 			}
-			Expression::Autocoerce {
-				expression,
-				coerced_type,
-			} =>
-			{
-				let expression = expression.analyze(analyzer);
-				Expression::Autocoerce {
-					expression: Box::new(expression),
-					coerced_type,
-				}
-			}
+			Expression::Autocoerce { .. } => unreachable!(),
 			Expression::PrimitiveCast {
 				expression,
 				coerced_type,
@@ -1409,16 +1409,22 @@ impl Analyzable for Expression
 				}
 				Err(poison) => Expression::Poison(poison),
 			},
-			Expression::LengthOfArray { reference } =>
+			Expression::LengthOfArray {
+				reference,
+				location,
+			} =>
 			{
 				let reference = reference.analyze(analyzer);
-				Expression::LengthOfArray { reference }
+				Expression::LengthOfArray {
+					reference,
+					location,
+				}
 			}
-			Expression::SizeOfStructure { name } =>
+			Expression::SizeOfStructure { name, location } =>
 			{
 				match analyzer.use_struct(name)
 				{
-					Ok(name) => Expression::SizeOfStructure { name },
+					Ok(name) => Expression::SizeOfStructure { name, location },
 					Err(poison) => Expression::Poison(poison),
 				}
 			}
@@ -1462,6 +1468,7 @@ impl Analyzable for Reference
 			steps,
 			address_depth: self.address_depth,
 			location: self.location,
+			location_of_unaddressed: self.location_of_unaddressed,
 		}
 	}
 }
@@ -1490,9 +1497,9 @@ impl Analyzable for ReferenceStep
 				// types that have the same member name at different offsets.
 				ReferenceStep::Member { member, offset }
 			}
-			ReferenceStep::Autodeslice { .. } => self,
-			ReferenceStep::Autoderef => ReferenceStep::Autoderef,
-			ReferenceStep::Autoview => ReferenceStep::Autoview,
+			ReferenceStep::Autodeslice { .. } => unreachable!(),
+			ReferenceStep::Autoderef => unreachable!(),
+			ReferenceStep::Autoview => unreachable!(),
 		}
 	}
 }

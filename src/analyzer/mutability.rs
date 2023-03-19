@@ -292,32 +292,10 @@ impl Analyzable for Statement
 				let value = value.analyze(analyzer);
 				let reference = reference.analyze(analyzer);
 
-				let mut needs_outer_mutability = true;
-				for step in reference.steps.iter()
-				{
-					match step
-					{
-						ReferenceStep::Element { .. } => (),
-						ReferenceStep::Member { .. } => (),
-						ReferenceStep::Autodeslice { offset } => match offset
-						{
-							DesliceOffset::ArrayByView => (),
-							DesliceOffset::ArrayByPointer =>
-							{
-								needs_outer_mutability = false;
-							}
-							DesliceOffset::Length => (),
-						},
-						ReferenceStep::Autoderef =>
-						{
-							needs_outer_mutability = false;
-						}
-						ReferenceStep::Autoview => (),
-					}
-				}
-
-				match analyzer
-					.use_variable(&reference.base, needs_outer_mutability)
+				match analyzer.use_variable(
+					&reference.base,
+					needs_outer_mutability(&reference),
+				)
 				{
 					Ok(()) => Statement::Assignment {
 						reference,
@@ -519,37 +497,8 @@ impl Analyzable for Expression
 				deref_type,
 			} =>
 			{
-				let is_addressed = match reference.address_depth
-				{
-					0 => false,
-					1 => true,
-					_ =>
-					{
-						match &reference.base
-						{
-							Ok(base) =>
-							{
-								let location = reference.location.clone();
-								let location_of_declaration =
-									base.location.clone();
-								return Expression::Poison(Poison::Error(
-									Error::AddressOfTemporaryAddress {
-										location,
-										location_of_declaration,
-									},
-								));
-							}
-							Err(_poison) =>
-							{
-								// The reference will already throw an error.
-								return Expression::Deref {
-									reference,
-									deref_type,
-								};
-							}
-						}
-					}
-				};
+				let is_addressed = reference.address_depth > 0
+					&& needs_outer_mutability(&reference);
 				let reference = reference.analyze(analyzer);
 				match analyzer.use_variable(&reference.base, is_addressed)
 				{
@@ -560,12 +509,18 @@ impl Analyzable for Expression
 					Err(error) => Expression::Poison(Poison::Error(error)),
 				}
 			}
-			Expression::LengthOfArray { reference } =>
+			Expression::LengthOfArray {
+				reference,
+				location,
+			} =>
 			{
 				let reference = reference.analyze(analyzer);
 				match analyzer.use_variable(&reference.base, false)
 				{
-					Ok(()) => Expression::LengthOfArray { reference },
+					Ok(()) => Expression::LengthOfArray {
+						reference,
+						location,
+					},
 					Err(error) => Expression::Poison(Poison::Error(error)),
 				}
 			}
@@ -630,6 +585,34 @@ impl Analyzable for Reference
 			steps,
 			address_depth: self.address_depth,
 			location: self.location,
+			location_of_unaddressed: self.location_of_unaddressed,
 		}
 	}
+}
+
+fn needs_outer_mutability(reference: &Reference) -> bool
+{
+	for step in reference.steps.iter()
+	{
+		match step
+		{
+			ReferenceStep::Element { .. } => (),
+			ReferenceStep::Member { .. } => (),
+			ReferenceStep::Autodeslice { offset } => match offset
+			{
+				DesliceOffset::ArrayByView => (),
+				DesliceOffset::ArrayByPointer =>
+				{
+					return false;
+				}
+				DesliceOffset::Length => (),
+			},
+			ReferenceStep::Autoderef =>
+			{
+				return false;
+			}
+			ReferenceStep::Autoview => (),
+		}
+	}
+	true
 }

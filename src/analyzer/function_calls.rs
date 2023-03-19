@@ -133,20 +133,20 @@ fn can_hint_missing_address(
 	parameter_type: &ValueType,
 ) -> bool
 {
-	match parameter_type
+	match argument
 	{
-		ValueType::Pointer { deref_type }
-			if deref_type.as_ref() == argument_type =>
+		Expression::Deref {
+			reference: _,
+			deref_type: _,
+		} => match parameter_type
 		{
-			match argument
+			ValueType::Pointer { deref_type }
+				if deref_type.as_ref() == argument_type =>
 			{
-				Expression::Deref {
-					reference: _,
-					deref_type: _,
-				} => true,
-				_ => false,
+				true
 			}
-		}
+			_ => argument_type.can_coerce_address_into(parameter_type),
+		},
 		_ => false,
 	}
 }
@@ -348,13 +348,7 @@ impl Analyzable for Statement
 			}
 			Statement::MethodCall { name, arguments } =>
 			{
-				if analyzer.is_const_evaluated
-				{
-					let error = Error::FunctionInConstContext {
-						location: name.location,
-					};
-					return Statement::Poison(Poison::Error(error));
-				}
+				debug_assert!(!analyzer.is_const_evaluated);
 
 				let recoverable_error =
 					analyzer.use_function(&name, &arguments);
@@ -622,18 +616,22 @@ impl Analyzable for Expression
 					location_of_type,
 				}
 			}
-			Expression::LengthOfArray { reference } =>
+			Expression::LengthOfArray {
+				reference,
+				location,
+			} =>
 			{
 				if analyzer.is_const_evaluated
 				{
-					let error = Error::UnsupportedInConstContext {
-						location: reference.location,
-					};
+					let error = Error::UnsupportedInConstContext { location };
 					return Expression::Poison(Poison::Error(error));
 				}
 
 				let reference = reference.analyze(analyzer);
-				Expression::LengthOfArray { reference }
+				Expression::LengthOfArray {
+					reference,
+					location,
+				}
 			}
 			Expression::SizeOfStructure { .. } => self,
 			Expression::FunctionCall {
@@ -730,6 +728,7 @@ impl Analyzable for Reference
 			steps,
 			address_depth: self.address_depth,
 			location: self.location,
+			location_of_unaddressed: self.location_of_unaddressed,
 		}
 	}
 }

@@ -25,6 +25,36 @@ fn allow_to_compile(filename: &str)
 }
 
 #[test]
+fn allow_empty_file_with_comment()
+{
+	allow_to_compile("tests/samples/valid/empty_file_with_comment.pn")
+}
+
+#[test]
+fn allow_empty_file_with_space()
+{
+	allow_to_compile("tests/samples/valid/empty_file_with_space.pn")
+}
+
+#[test]
+fn allow_empty_file_with_tab()
+{
+	allow_to_compile("tests/samples/valid/empty_file_with_tab.pn")
+}
+
+#[test]
+fn allow_empty_file_with_newline()
+{
+	allow_to_compile("tests/samples/valid/empty_file_with_newline.pn")
+}
+
+#[test]
+fn allow_empty_function()
+{
+	allow_to_compile("tests/samples/valid/empty_function.pn")
+}
+
+#[test]
 fn allow_use_of_untyped_array_in_wasm4_memset()
 {
 	allow_to_compile("tests/samples/valid/wasm4_memset_without_parentheses.pn")
@@ -58,6 +88,45 @@ fn allow_dubious_conditional_definition()
 fn allow_skip_shortlived_var()
 {
 	allow_to_compile("tests/samples/valid/skip_shortlived_var.pn")
+}
+
+#[test]
+fn allow_sketch_of_listen_to_client()
+{
+	allow_to_compile("examples/listen_to_client.pn")
+}
+
+#[test]
+fn allow_multiline_strings()
+{
+	allow_to_compile("examples/strings.pn")
+}
+
+#[test]
+fn allow_wasm4_header()
+{
+	allow_to_compile("vendor/wasm4/wasm4.pn")
+}
+
+#[test]
+fn investigate_nominal_typing()
+{
+	let declarations = match compile("tests/samples/valid/nominal_typing.pn")
+	{
+		Ok(declarations) => declarations,
+		#[allow(unreachable_code)]
+		Err(errors) => match errors.panic() {},
+	};
+	let members = match declarations.into_iter().next()
+	{
+		Some(Declaration::Structure { members, .. }) => members,
+		_ => panic!("broken test"),
+	};
+	assert_eq!(members.len(), 3);
+	let member_types: Vec<value_type::ValueType<resolved::Identifier>> =
+		members.into_iter().map(|m| m.value_type).collect();
+	assert_ne!(member_types[0], member_types[1]);
+	assert_eq!(member_types[0], member_types[2]);
 }
 
 fn compile_to_fail(codes: &[u16], filename: &str)

@@ -1,0 +1,4 @@
+fn foo()
+{
+	var x = "Is \u{20ac a valid escape?";
+}

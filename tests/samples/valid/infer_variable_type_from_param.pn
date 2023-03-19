@@ -1,0 +1,12 @@
+
+fn foo(param: u16) -> i32
+{
+	return: 200
+}
+
+fn main() -> i32
+{
+	var five = 5;
+	var result = foo(five);
+	return: result
+}

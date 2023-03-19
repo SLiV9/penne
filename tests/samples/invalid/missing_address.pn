@@ -9,3 +9,11 @@ fn main() -> u8
 	var result = foo(ten);
 	return: result
 }
+
+fn read_into_buffer(buffer: &[]u8);
+
+fn bar()
+{
+	var databuffer: [1024]u8;
+	read_into_buffer(databuffer);
+}

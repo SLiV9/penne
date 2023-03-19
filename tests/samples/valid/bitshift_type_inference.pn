@@ -4,3 +4,9 @@ fn main() -> u8
 	var result: u16 = x - 56;
 	return: result as u8
 }
+
+fn foo()
+{
+	var x = 1 << 8;
+	var y = x - 56u16;
+}

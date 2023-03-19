@@ -4,3 +4,10 @@ fn main() -> u8
 	var pointer_to_ten: &u8 = ten;
 	return: pointer_to_ten
 }
+
+fn bar()
+{
+	var a: i32 = 0;
+	var x: &i32 = &a;
+	var y: &i32 = x;
+}

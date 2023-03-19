@@ -1,0 +1,26 @@
+fn foo() -> i32
+{
+	var a: i32 = 200;
+	var x = &a;
+	return: x
+}
+
+fn bar() -> i32
+{
+	var a: &i32 = 0x7F00;
+	var x = &a;
+	return: x
+}
+
+fn get(param: &i32) -> i32
+{
+	return: param
+}
+
+fn baz() -> i32
+{
+	var a: &i32 = 0x7F00;
+	var x = &a;
+	var result = get(&x);
+	return: result
+}

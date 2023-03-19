@@ -32,3 +32,16 @@ fn overlapping(input: i32) -> i32
 	result = result + a + b;
 	return: result
 }
+
+fn bar(x: i32) -> i32
+{
+	var result = 300;
+	if x == 400
+		goto calculations;
+	var a: i32 = 5;
+	calculations:
+	a = 2 * a;
+	a = a * a + 2 * a + 5;
+	result = result + a;
+	return: result
+}

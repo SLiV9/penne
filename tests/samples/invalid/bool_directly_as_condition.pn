@@ -1,0 +1,10 @@
+fn main() -> i32
+{
+	var result: i32 = 0;
+	var b: bool = true;
+	if b
+	{
+		result = 1;
+	}
+	return: result
+}

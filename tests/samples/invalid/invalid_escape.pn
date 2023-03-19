@@ -1,4 +1,4 @@
-fn main()
+fn foo()
 {
 	var x = "Is \z a valid escape?";
 }

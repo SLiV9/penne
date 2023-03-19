@@ -59,7 +59,10 @@ fn fail_to_analyze_index_type_mismatch()
 #[test]
 fn fail_to_analyze_argument_type_mismatch()
 {
-	compile_to_fail(&[512], "tests/samples/invalid/argument_type_mismatch.pn");
+	compile_to_fail(
+		&[512, 512],
+		"tests/samples/invalid/argument_type_mismatch.pn",
+	);
 }
 
 #[test]
@@ -78,6 +81,15 @@ fn fail_to_analyze_too_many_arguments()
 fn fail_to_analyze_assign_array_to_array()
 {
 	compile_to_fail(&[531], "tests/samples/invalid/assign_array_to_array.pn");
+}
+
+#[test]
+fn fail_to_analyze_assign_array_view_to_variable()
+{
+	compile_to_fail(
+		&[532, 352],
+		"tests/samples/invalid/assign_array_view_to_variable.pn",
+	);
 }
 
 #[test]
@@ -138,7 +150,7 @@ fn fail_to_analyze_skip_declaration()
 fn fail_to_analyze_conditional_declaration()
 {
 	compile_to_fail(
-		&[482, 482],
+		&[482, 482, 482],
 		"tests/samples/invalid/conditional_declaration.pn",
 	);
 }
@@ -152,23 +164,41 @@ fn fail_to_analyze_var_in_naked_branch()
 #[test]
 fn fail_to_analyze_missing_address()
 {
-	compile_to_fail(&[513], "tests/samples/invalid/missing_address.pn");
+	compile_to_fail(&[513, 513], "tests/samples/invalid/missing_address.pn");
+}
+
+#[test]
+fn fail_to_analyze_missing_address_get_from_pointer()
+{
+	compile_to_fail(
+		&[513],
+		"tests/samples/invalid/missing_address_get_from_pointer.pn",
+	);
 }
 
 #[test]
 fn fail_to_analyze_missing_address_variable()
 {
 	compile_to_fail(
-		&[504],
+		&[504, 504],
 		"tests/samples/invalid/missing_address_variable.pn",
 	);
+}
+
+#[test]
+fn fail_to_analyze_excess_address()
+{
+	compile_to_fail(
+		&[504, 504, 504, 504],
+		"tests/samples/invalid/excess_address.pn",
+	)
 }
 
 #[test]
 fn fail_to_analyze_pointer_to_temporary_pointer()
 {
 	compile_to_fail(
-		&[538],
+		&[538, 538],
 		"tests/samples/invalid/pointer_to_temporary_pointer.pn",
 	);
 }
@@ -183,6 +213,12 @@ fn fail_to_analyze_pointer_to_parameter()
 fn fail_to_analyze_pointer_to_const()
 {
 	compile_to_fail(&[530], "tests/samples/invalid/pointer_to_const.pn");
+}
+
+#[test]
+fn fail_to_analyze_pointer_into_view()
+{
+	compile_to_fail(&[530], "tests/samples/invalid/pointer_into_view.pn");
 }
 
 #[test]

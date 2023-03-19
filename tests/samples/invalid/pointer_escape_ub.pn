@@ -1,0 +1,24 @@
+fn do_something_bad(value: i32) -> &i32
+{
+	var filler: u32 = 0xABCDABCDABCDABCD;
+	var var_on_stack: i32 = value;
+	var pointer_to_var_on_stack: &i32 = &var_on_stack;
+	return: &pointer_to_var_on_stack
+}
+
+fn clobber()
+{
+	var filler1: u64 = 0xFFFFFFFFFFFFFFFF;
+	var filler2: u64 = 0xFFFFFFFFFFFFFFFF;
+	var filler3: u64 = 0xFFFFFFFFFFFFFFFF;
+	var filler4: u64 = 0xFFFFFFFFFFFFFFFF;
+}
+
+fn main() -> i32
+{
+	var x: &i32 = do_something_bad(123);
+	var y: &i32 = do_something_bad(2);
+	clobber();
+	var a: i32 = x;
+	return: a
+}

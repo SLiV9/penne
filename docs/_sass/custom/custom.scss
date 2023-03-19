@@ -1,0 +1,42 @@
+@font-face {
+  font-family: 'Iosevka Fixed Web';
+  font-display: swap;
+  font-weight: 400;
+  font-stretch: normal;
+  font-style: normal;
+  src: url('../fonts/iosevka-fixed-regular-stripped.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'Iosevka Fixed Web';
+  font-display: swap;
+  font-weight: 700;
+  font-stretch: normal;
+  font-style: normal;
+  src: url('../fonts/iosevka-fixed-bold-stripped.woff') format('woff');
+}
+
+@import url('https://fonts.googleapis.com/css?family=Source+Code+Pro:wght@400,700&text=╭─│·┬─╰──╯⋮├─▶&font-display=swap');
+
+.terminal-output {
+  font-family: 'Iosevka Fixed Web', 'Source Code Pro', monospace;
+  line-height: 1.3;
+
+  .bold { font-weight: bold; }
+  .underline { text-decoration: underline; }
+  .line-through { text-decoration: line-through; }
+
+  color: #232221;
+  background-color: #ffffff;
+
+  .ef246 { color: #898179; } // light grey
+  .ef249 { color: #67615c; } // dark grey
+  .f1 { color: #cb2f2c; font-weight: bold; } // red
+  .f3 { color: #ff924f; font-weight: bold; } // yellow
+  .f5 { color: #ac59ae; font-weight: bold; } // purple
+  .f6 { color: #167c9d; font-weight: bold; } // blue
+
+  white-space: pre-wrap;
+  padding-left: 12px;
+  padding-right: 12px;
+}

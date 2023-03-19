@@ -21,21 +21,24 @@ pub fn parse(tokens: Vec<LexedToken>) -> Vec<Declaration>
 {
 	let mut declarations = Vec::new();
 
-	let mut tokens = Tokens::from(tokens);
-	while !tokens.is_empty()
+	if !tokens.is_empty()
 	{
-		match parse_declaration(&mut tokens)
+		let mut tokens = Tokens::from(tokens);
+		while !tokens.is_empty()
 		{
-			Ok(declaration) =>
+			match parse_declaration(&mut tokens)
 			{
-				declarations.push(declaration);
-			}
-			Err(error) =>
-			{
-				let poison = error.into();
-				let declaration = Declaration::Poison(poison);
-				declarations.push(declaration);
-				skip_until_next_declaration(&mut tokens);
+				Ok(declaration) =>
+				{
+					declarations.push(declaration);
+				}
+				Err(error) =>
+				{
+					let poison = error.into();
+					let declaration = Declaration::Poison(poison);
+					declarations.push(declaration);
+					skip_until_next_declaration(&mut tokens);
+				}
 			}
 		}
 	}
@@ -162,11 +165,7 @@ fn peek(tokens: &mut Tokens) -> Option<&Token>
 	}
 }
 
-fn consume(
-	expected_token: Token,
-	expectation: &str,
-	tokens: &mut Tokens,
-) -> Result<(), Error>
+fn consume(expected_token: Token, tokens: &mut Tokens) -> Result<(), Error>
 {
 	match tokens.pop_front()
 	{
@@ -178,7 +177,7 @@ fn consume(
 			result: Ok(_),
 			location,
 		}) => Err(Error::UnexpectedToken {
-			expectation: expectation.to_string(),
+			expectation: expected_token.expectation().to_string(),
 			location,
 		}),
 		Some(LexedToken {
@@ -186,13 +185,34 @@ fn consume(
 			location,
 		}) => Err(Error::Lexical {
 			error,
-			expectation: expectation.to_string(),
+			expectation: expected_token.expectation().to_string(),
 			location,
 		}),
 		None => Err(Error::UnexpectedEndOfFile {
-			expectation: expectation.to_string(),
+			expectation: expected_token.expectation().to_string(),
 			last_location: tokens.last_location.clone(),
 		}),
+	}
+}
+
+impl Token
+{
+	fn expectation(&self) -> &'static str
+	{
+		match self
+		{
+			Token::Assignment => "Expected assignment.",
+			Token::BraceLeft => "Expected opening brace.",
+			Token::BraceRight => "Expected closing brace.",
+			Token::BracketLeft => "Expected opening bracket.",
+			Token::BracketRight => "Expected closing bracket.",
+			Token::Dot => "Expected dot.",
+			Token::ParenLeft => "Expected opening parenthesis.",
+			Token::ParenRight => "Expected closing parenthesis.",
+			Token::Pipe => "Expected pipe.",
+			Token::Semicolon => "Expected semicolon.",
+			_ => unreachable!(),
+		}
 	}
 }
 
@@ -275,7 +295,6 @@ fn can_start_declaration(token: &Token) -> bool
 		Token::Word32 => true,
 		Token::Word64 => true,
 		Token::Word128 => true,
-		Token::DebugDollar => true,
 		_ => false,
 	}
 }
@@ -329,7 +348,7 @@ fn parse_declaration(tokens: &mut Tokens) -> Result<Declaration, Error>
 		flags.insert(DeclarationFlag::External);
 	}
 
-	let (token, location) = extract("expected top-level declaration", tokens)?;
+	let (token, location) = extract("Expected top-level declaration.", tokens)?;
 	let location_of_declaration =
 		location_of_declaration.unwrap_or_else(|| location.clone());
 	match token
@@ -369,7 +388,7 @@ fn parse_declaration(tokens: &mut Tokens) -> Result<Declaration, Error>
 		}
 		_ => Err(Error::UnexpectedToken {
 			location,
-			expectation: "expected top-level declaration".to_string(),
+			expectation: "Expected top-level declaration.".to_string(),
 		}),
 	}
 }
@@ -380,7 +399,7 @@ fn parse_import(
 ) -> Result<Declaration, Error>
 {
 	let filename = parse_quoted_path(tokens)?;
-	consume(Token::Semicolon, "expected semicolon", tokens)?;
+	consume(Token::Semicolon, tokens)?;
 	let declaration = Declaration::Import {
 		filename,
 		location: location_of_import,
@@ -390,7 +409,7 @@ fn parse_import(
 
 fn parse_quoted_path(tokens: &mut Tokens) -> Result<String, Error>
 {
-	let (token, location) = extract("expected path", tokens)?;
+	let (token, location) = extract("Expected path.", tokens)?;
 	match token
 	{
 		Token::StringLiteral { bytes } => match String::from_utf8(bytes)
@@ -398,12 +417,12 @@ fn parse_quoted_path(tokens: &mut Tokens) -> Result<String, Error>
 			Ok(filename) => Ok(filename),
 			Err(_error) => Err(Error::UnexpectedToken {
 				location,
-				expectation: "expected UTF-8 encoded path".to_string(),
+				expectation: "Expected UTF-8 encoded path.".to_string(),
 			}),
 		},
 		_ => Err(Error::UnexpectedToken {
 			location,
-			expectation: "expected path".to_string(),
+			expectation: "Expected path.".to_string(),
 		}),
 	}
 }
@@ -414,7 +433,7 @@ fn parse_constant_declaration(
 	tokens: &mut Tokens,
 ) -> Result<Declaration, Error>
 {
-	let name = extract_identifier("expected constant name", tokens)?;
+	let name = extract_identifier("Expected constant name.", tokens)?;
 	let location_of_declaration =
 		location_of_declaration.combined_with(&tokens.last_location);
 
@@ -434,9 +453,9 @@ fn parse_constant_declaration(
 	let value_type = value_type.map_err(|e| e.into());
 	let location_of_type = tokens.location_of_span(start);
 
-	consume(Token::Assignment, "expected assignment", tokens)?;
+	consume(Token::Assignment, tokens)?;
 	let expression = parse_expression(tokens)?;
-	consume(Token::Semicolon, "expected semicolon", tokens)?;
+	consume(Token::Semicolon, tokens)?;
 
 	let declaration = Declaration::Constant {
 		name,
@@ -457,7 +476,7 @@ fn parse_word_declaration(
 	tokens: &mut Tokens,
 ) -> Result<Declaration, Error>
 {
-	let name = extract_identifier("expected structure name", tokens)?;
+	let name = extract_identifier("Expected structure name.", tokens)?;
 	let structural_type = Ok(ValueType::Word {
 		identifier: name.clone(),
 		size_in_bytes,
@@ -479,7 +498,7 @@ fn parse_struct_declaration(
 	tokens: &mut Tokens,
 ) -> Result<Declaration, Error>
 {
-	let name = extract_identifier("expected structure name", tokens)?;
+	let name = extract_identifier("Expected structure name.", tokens)?;
 	let structural_type = Ok(ValueType::Struct {
 		identifier: name.clone(),
 	});
@@ -496,7 +515,7 @@ fn parse_struct_declaration(
 
 fn parse_struct_members(tokens: &mut Tokens) -> Result<Vec<Member>, Error>
 {
-	consume(Token::BraceLeft, "expected left brace", tokens)?;
+	consume(Token::BraceLeft, tokens)?;
 
 	let mut members = Vec::new();
 	loop
@@ -530,7 +549,7 @@ fn parse_struct_members(tokens: &mut Tokens) -> Result<Vec<Member>, Error>
 		}
 	}
 
-	consume(Token::BraceRight, "expected right brace", tokens)?;
+	consume(Token::BraceRight, tokens)?;
 	Ok(members)
 }
 
@@ -540,8 +559,8 @@ fn parse_function_declaration(
 	tokens: &mut Tokens,
 ) -> Result<Declaration, Error>
 {
-	let name = extract_identifier("expected function name", tokens)?;
-	consume(Token::ParenLeft, "expected left parenthesis", tokens)?;
+	let name = extract_identifier("Expected function name.", tokens)?;
+	consume(Token::ParenLeft, tokens)?;
 	let signature = parse_rest_of_function_signature(tokens)?;
 	let (parameters, return_type, location_of_return_type) = signature;
 	let location_of_return_type =
@@ -608,7 +627,7 @@ fn parse_rest_of_function_signature(
 		}
 	}
 
-	consume(Token::ParenRight, "expected right parenthesis", tokens)?;
+	consume(Token::ParenRight, tokens)?;
 
 	if let Some(Token::Arrow) = peek(tokens)
 	{
@@ -627,7 +646,7 @@ fn parse_rest_of_function_signature(
 
 fn parse_member(tokens: &mut Tokens) -> Result<Member, Error>
 {
-	let name = extract_identifier("expected member name", tokens)?;
+	let name = extract_identifier("Expected member name.", tokens)?;
 
 	let start = tokens.start_location_span();
 	let value_type = if let Some(Token::Colon) = peek(tokens)
@@ -654,7 +673,7 @@ fn parse_member(tokens: &mut Tokens) -> Result<Member, Error>
 
 fn parse_parameter(tokens: &mut Tokens) -> Result<Parameter, Error>
 {
-	let name = extract_identifier("expected parameter name", tokens)?;
+	let name = extract_identifier("Expected parameter name.", tokens)?;
 
 	let start = tokens.start_location_span();
 	let value_type = if let Some(Token::Colon) = peek(tokens)
@@ -699,7 +718,7 @@ fn parse_wellformed_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 
 fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 {
-	let (token, location) = extract("expected type keyword", tokens)?;
+	let (token, location) = extract("Expected type keyword.", tokens)?;
 	match token
 	{
 		Token::Type(value_type) => Ok(value_type),
@@ -725,7 +744,7 @@ fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 		Token::ParenLeft =>
 		{
 			let deref_type = parse_type(tokens)?;
-			consume(Token::ParenRight, "expected right parenthesis", tokens)?;
+			consume(Token::ParenRight, tokens)?;
 			Ok(ValueType::View {
 				deref_type: Box::new(deref_type),
 			})
@@ -735,7 +754,7 @@ fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 			Some(Token::Colon) =>
 			{
 				tokens.pop_front();
-				consume(Token::BracketRight, "expected right bracket", tokens)?;
+				consume(Token::BracketRight, tokens)?;
 				let element_type = parse_type(tokens)?;
 				Ok(ValueType::Slice {
 					element_type: Box::new(element_type),
@@ -744,19 +763,11 @@ fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 			Some(Token::Dot) =>
 			{
 				tokens.pop_front();
-				consume(Token::Dot, "expected dot", tokens)?;
-				consume(Token::Dot, "expected dot", tokens)?;
-				consume(Token::BracketRight, "expected right bracket", tokens)?;
+				consume(Token::Dot, tokens)?;
+				consume(Token::Dot, tokens)?;
+				consume(Token::BracketRight, tokens)?;
 				let element_type = parse_type(tokens)?;
 				Ok(ValueType::EndlessArray {
-					element_type: Box::new(element_type),
-				})
-			}
-			Some(Token::BracketRight) | None =>
-			{
-				consume(Token::BracketRight, "expected right bracket", tokens)?;
-				let element_type = parse_type(tokens)?;
-				Ok(ValueType::Arraylike {
 					element_type: Box::new(element_type),
 				})
 			}
@@ -764,31 +775,24 @@ fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 			{
 				let length = *x as usize;
 				tokens.pop_front();
-				consume(Token::BracketRight, "expected right bracket", tokens)?;
+				consume(Token::BracketRight, tokens)?;
 				let element_type = parse_type(tokens)?;
 				Ok(ValueType::Array {
 					element_type: Box::new(element_type),
 					length,
 				})
 			}
-			Some(Token::Usize(x)) if *x > 0 =>
+			_ =>
 			{
-				let length = *x;
-				tokens.pop_front();
-				consume(Token::BracketRight, "expected right bracket", tokens)?;
+				consume(Token::BracketRight, tokens)?;
 				let element_type = parse_type(tokens)?;
-				Ok(ValueType::Array {
+				Ok(ValueType::Arraylike {
 					element_type: Box::new(element_type),
-					length,
 				})
 			}
-			Some(_) => Err(Error::UnexpectedToken {
-				expectation: "expected right bracket".to_string(),
-				location,
-			}),
 		},
 		_ => Err(Error::UnexpectedToken {
-			expectation: "expected type keyword".to_string(),
+			expectation: "Expected type keyword.".to_string(),
 			location,
 		}),
 	}
@@ -799,7 +803,7 @@ fn parse_function_body(
 	tokens: &mut Tokens,
 ) -> Poisonable<FunctionBody>
 {
-	consume(Token::BraceLeft, "expected function body", tokens)?;
+	consume(Token::BraceLeft, tokens)?;
 
 	let mut statements = Vec::new();
 
@@ -868,11 +872,7 @@ fn parse_function_body(
 					};
 					return Err(error.into());
 				}
-				consume(
-					Token::BraceRight,
-					"expected closing brace after return value",
-					tokens,
-				)?;
+				consume(Token::BraceRight, tokens)?;
 				let return_value_location = return_value.location().clone();
 				let body = FunctionBody {
 					statements,
@@ -916,7 +916,7 @@ fn parse_rest_of_block(
 
 fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 {
-	let (token, location) = extract("expected statement", tokens)?;
+	let (token, location) = extract("Expected statement.", tokens)?;
 
 	match token
 	{
@@ -974,19 +974,19 @@ fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 		Token::Loop =>
 		{
 			let statement = Statement::Loop { location };
-			consume(Token::Semicolon, "expected semicolon", tokens)?;
+			consume(Token::Semicolon, tokens)?;
 			Ok(statement)
 		}
 		Token::Goto =>
 		{
-			let label = extract_identifier("expected label", tokens)?;
+			let label = extract_identifier("Expected label name.", tokens)?;
 			let statement = Statement::Goto { label, location };
-			consume(Token::Semicolon, "expected semicolon", tokens)?;
+			consume(Token::Semicolon, tokens)?;
 			Ok(statement)
 		}
 		Token::Var =>
 		{
-			let name = extract_identifier("expected variable name", tokens)?;
+			let name = extract_identifier("Expected variable name.", tokens)?;
 
 			let value_type = if let Some(Token::Colon) = peek(tokens)
 			{
@@ -1016,7 +1016,7 @@ fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 				value_type,
 				location,
 			};
-			consume(Token::Semicolon, "expected semicolon", tokens)?;
+			consume(Token::Semicolon, tokens)?;
 			Ok(statement)
 		}
 		Token::Identifier(x) =>
@@ -1049,7 +1049,7 @@ fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 					name: identifier,
 					arguments,
 				};
-				consume(Token::Semicolon, "expected semicolon", tokens)?;
+				consume(Token::Semicolon, tokens)?;
 				return Ok(statement);
 			}
 
@@ -1064,7 +1064,7 @@ fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 					after: reference.location,
 				});
 			}
-			consume(Token::Assignment, "expected assignment", tokens)?;
+			consume(Token::Assignment, tokens)?;
 			let expression = parse_expression(tokens)?;
 
 			let statement = Statement::Assignment {
@@ -1072,7 +1072,7 @@ fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 				value: expression,
 				location,
 			};
-			consume(Token::Semicolon, "expected semicolon", tokens)?;
+			consume(Token::Semicolon, tokens)?;
 			Ok(statement)
 		}
 		Token::Ampersand =>
@@ -1080,15 +1080,7 @@ fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 			let assignment_location = location.clone();
 			let reference = parse_addressed_reference(location, tokens)?;
 
-			if let Some(Token::Semicolon) = peek(tokens)
-			{
-				tokens.pop_front();
-				return Err(Error::UnexpectedSemicolonAfterIdentifier {
-					location: tokens.last_location.clone(),
-					after: reference.location,
-				});
-			}
-			consume(Token::Assignment, "expected assignment", tokens)?;
+			consume(Token::Assignment, tokens)?;
 			let expression = parse_expression(tokens)?;
 
 			let statement = Statement::Assignment {
@@ -1096,12 +1088,12 @@ fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 				value: expression,
 				location: assignment_location,
 			};
-			consume(Token::Semicolon, "expected semicolon", tokens)?;
+			consume(Token::Semicolon, tokens)?;
 			Ok(statement)
 		}
 		_ => Err(Error::UnexpectedToken {
 			location,
-			expectation: "expected statement".to_string(),
+			expectation: "Expected statement.".to_string(),
 		}),
 	}
 }
@@ -1111,7 +1103,7 @@ fn parse_comparison(tokens: &mut Tokens) -> Result<Comparison, Error>
 	let left = parse_expression(tokens)?;
 
 	let (token, location_of_op) =
-		extract("expected comparison operator", tokens)?;
+		extract("Expected comparison operator.", tokens)?;
 	let op = match token
 	{
 		Token::Equals => ComparisonOp::Equals,
@@ -1124,7 +1116,7 @@ fn parse_comparison(tokens: &mut Tokens) -> Result<Comparison, Error>
 		{
 			return Err(Error::UnexpectedToken {
 				location: location_of_op,
-				expectation: "expected comparison operator".to_string(),
+				expectation: "Expected comparison operator.".to_string(),
 			});
 		}
 	};
@@ -1192,7 +1184,7 @@ fn parse_rest_of_bitwise_expression(
 ) -> Result<Expression, Error>
 {
 	let (op_token, location_of_op) =
-		extract("expected bitwise operator", tokens)?;
+		extract("Expected bitwise operator.", tokens)?;
 	let op = match op_token
 	{
 		Token::Ampersand => BinaryOp::BitwiseAnd,
@@ -1202,19 +1194,19 @@ fn parse_rest_of_bitwise_expression(
 		{
 			return Err(Error::UnexpectedToken {
 				location: location_of_op,
-				expectation: "expected bitwise operator".to_string(),
+				expectation: "Expected bitwise operator.".to_string(),
 			});
 		}
 	};
 
-	// Do not allow different binary operations inside a bitwise expression.
+	// Do not a bitwise expression after an unparenthesized binary expression.
 	match expression
 	{
 		Expression::Binary { .. } =>
 		{
 			return Err(Error::UnexpectedToken {
 				location: location_of_op,
-				expectation: "bitwise operator is not allowed here".to_string(),
+				expectation: "This operator is not allowed here.".to_string(),
 			});
 		}
 		_ => (),
@@ -1256,7 +1248,7 @@ fn parse_rest_of_bitshift_operation(
 ) -> Result<Expression, Error>
 {
 	let (op_token, location_of_op) =
-		extract("expected bitshift operator", tokens)?;
+		extract("Expected bitshift operator.", tokens)?;
 	let op = match op_token
 	{
 		Token::ShiftLeft => BinaryOp::ShiftLeft,
@@ -1265,20 +1257,19 @@ fn parse_rest_of_bitshift_operation(
 		{
 			return Err(Error::UnexpectedToken {
 				location: location_of_op,
-				expectation: "expected bitshift operator".to_string(),
+				expectation: "Expected bitshift operator.".to_string(),
 			});
 		}
 	};
 
-	// Do not allow different binary operations inside a bitshift expression.
+	// Do not a bitshift expression after an unparenthesized binary expression.
 	match expression
 	{
 		Expression::Binary { .. } =>
 		{
 			return Err(Error::UnexpectedToken {
 				location: location_of_op,
-				expectation: "bitshift operator is not allowed here"
-					.to_string(),
+				expectation: "This operator is not allowed here.".to_string(),
 			});
 		}
 		_ => (),
@@ -1370,18 +1361,25 @@ fn parse_unary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 	{
 		Some(Token::PipeForType) =>
 		{
+			let start = tokens.start_location_span();
 			tokens.pop_front();
-			let name = extract_identifier("expected structure name", tokens)?;
-			consume(Token::Pipe, "expected pipe", tokens)?;
-			let expression = Expression::SizeOfStructure { name };
+			let name = extract_identifier("Expected structure name.", tokens)?;
+			consume(Token::Pipe, tokens)?;
+			let location = tokens.location_of_span(start);
+			let expression = Expression::SizeOfStructure { name, location };
 			Ok(expression)
 		}
 		Some(Token::Pipe) =>
 		{
+			let start = tokens.start_location_span();
 			tokens.pop_front();
 			let reference = parse_reference(tokens)?;
-			consume(Token::Pipe, "expected pipe", tokens)?;
-			let expression = Expression::LengthOfArray { reference };
+			consume(Token::Pipe, tokens)?;
+			let location = tokens.location_of_span(start);
+			let expression = Expression::LengthOfArray {
+				reference,
+				location,
+			};
 			Ok(expression)
 		}
 		Some(Token::Exclamation) =>
@@ -1470,7 +1468,7 @@ fn parse_unary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 
 fn parse_primary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 {
-	let (token, location) = extract("expected literal or identifier", tokens)?;
+	let (token, location) = extract("Expected literal or identifier.", tokens)?;
 	match token
 	{
 		Token::NakedInteger(value) => Ok(Expression::NakedIntegerLiteral {
@@ -1642,7 +1640,7 @@ fn parse_primary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 		Token::ParenLeft =>
 		{
 			let inner = parse_expression(tokens)?;
-			consume(Token::ParenRight, "expected closing parenthesis", tokens)?;
+			consume(Token::ParenRight, tokens)?;
 			let location = location.combined_with(&tokens.last_location);
 			let expression = Expression::Parenthesized {
 				inner: Box::new(inner),
@@ -1652,14 +1650,14 @@ fn parse_primary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 		}
 		_ => Err(Error::UnexpectedToken {
 			location,
-			expectation: "expected literal or identifier".to_string(),
+			expectation: "Expected literal or identifier.".to_string(),
 		}),
 	}
 }
 
 fn parse_arguments(tokens: &mut Tokens) -> Result<Vec<Expression>, Error>
 {
-	consume(Token::ParenLeft, "expected argument list", tokens)?;
+	consume(Token::ParenLeft, tokens)?;
 
 	let mut arguments = Vec::new();
 
@@ -1683,11 +1681,7 @@ fn parse_arguments(tokens: &mut Tokens) -> Result<Vec<Expression>, Error>
 		}
 	}
 
-	consume(
-		Token::ParenRight,
-		"expect comma or right parenthesis",
-		tokens,
-	)?;
+	consume(Token::ParenRight, tokens)?;
 
 	Ok(arguments)
 }
@@ -1717,11 +1711,7 @@ fn parse_rest_of_array(
 		}
 	}
 
-	consume(
-		Token::BracketRight,
-		"expected comma or right bracket",
-		tokens,
-	)?;
+	consume(Token::BracketRight, tokens)?;
 	array.location = array.location.combined_with(&tokens.last_location);
 
 	Ok(array)
@@ -1731,7 +1721,7 @@ fn parse_body_of_structural(
 	tokens: &mut Tokens,
 ) -> Result<Vec<MemberExpression>, Error>
 {
-	consume(Token::BraceLeft, "expected left brace", tokens)?;
+	consume(Token::BraceLeft, tokens)?;
 
 	let mut members = Vec::new();
 	loop
@@ -1741,7 +1731,7 @@ fn parse_body_of_structural(
 			break;
 		}
 
-		let name = extract_identifier("expected member name", tokens)?;
+		let name = extract_identifier("Expected member name.", tokens)?;
 
 		let expression = if let Some(Token::Colon) = peek(tokens)
 		{
@@ -1758,6 +1748,7 @@ fn parse_body_of_structural(
 				steps: Vec::new(),
 				address_depth: 0,
 				location: name.location.clone(),
+				location_of_unaddressed: name.location.clone(),
 			};
 			Expression::Deref {
 				reference,
@@ -1781,7 +1772,7 @@ fn parse_body_of_structural(
 		}
 	}
 
-	consume(Token::BraceRight, "expected right brace", tokens)?;
+	consume(Token::BraceRight, tokens)?;
 	Ok(members)
 }
 
@@ -1795,6 +1786,7 @@ fn parse_addressed_reference(
 		steps,
 		address_depth,
 		location: _,
+		location_of_unaddressed,
 	} = parse_reference(tokens)?;
 	if address_depth + 1 > MAX_ADDRESS_DEPTH
 	{
@@ -1806,14 +1798,15 @@ fn parse_addressed_reference(
 		base,
 		steps,
 		address_depth: address_depth + 1,
-		location,
+		location: location.combined_with(&tokens.last_location),
+		location_of_unaddressed,
 	};
 	Ok(reference)
 }
 
 fn parse_reference(tokens: &mut Tokens) -> Result<Reference, Error>
 {
-	let (token, location) = extract("expected identifier", tokens)?;
+	let (token, location) = extract("Expected identifier.", tokens)?;
 	match token
 	{
 		Token::Ampersand =>
@@ -1836,7 +1829,8 @@ fn parse_reference(tokens: &mut Tokens) -> Result<Reference, Error>
 				base: reference.base,
 				steps: reference.steps,
 				address_depth,
-				location,
+				location: location.combined_with(&tokens.last_location),
+				location_of_unaddressed: reference.location_of_unaddressed,
 			})
 		}
 		Token::Identifier(name) =>
@@ -1845,7 +1839,7 @@ fn parse_reference(tokens: &mut Tokens) -> Result<Reference, Error>
 		}
 		_ => Err(Error::UnexpectedToken {
 			location,
-			expectation: "expected identifier".to_string(),
+			expectation: "Expected identifier.".to_string(),
 		}),
 	}
 }
@@ -1872,7 +1866,7 @@ fn parse_rest_of_reference(
 			{
 				tokens.pop_front();
 				let argument = parse_expression(tokens)?;
-				consume(Token::BracketRight, "expected right bracket", tokens)?;
+				consume(Token::BracketRight, tokens)?;
 				ReferenceStep::Element {
 					argument: Box::new(argument),
 					is_endless: None,
@@ -1882,7 +1876,7 @@ fn parse_rest_of_reference(
 			{
 				tokens.pop_front();
 				let member =
-					extract_identifier("expected member name", tokens)?;
+					extract_identifier("Expected member name.", tokens)?;
 				ReferenceStep::Member {
 					member,
 					offset: None,
@@ -1897,10 +1891,12 @@ fn parse_rest_of_reference(
 			return Err(Error::MaximumParseDepthExceeded { location });
 		}
 	}
+	let location_of_unaddressed = location.clone();
 	Ok(Reference {
 		base: Ok(base),
 		steps,
 		address_depth: 0,
 		location,
+		location_of_unaddressed,
 	})
 }
