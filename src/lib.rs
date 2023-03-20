@@ -20,7 +20,8 @@
 //! [linter], [resolver] and [generator].
 //! The [rebuilder] module allows turning the AST back into (annotated) code.
 //! The [stdout] module contains helper code for the command line interface.
-//! The [included] module contains source code of core and vendor libraries.
+//! The [included] module contains Penne source code for core and vendor
+//! libraries.
 
 pub mod analyzer;
 pub mod common;
@@ -43,7 +44,7 @@ pub use error::Error;
 pub use error::Errors;
 pub use resolved::Declaration;
 
-/// Convience method that parses source code and runs it through each of the
+/// Convenience method that parses source code and runs it through each of the
 /// compiler stages.
 pub fn compile_source(
 	source: &str,

@@ -93,6 +93,7 @@ Functionality:
 			☐	wasm4 saving-data.md code sample versimpelen
 		☐	Move main infra to library so it can be tested
 			☐ Add test for import_sum_of_squares.pn
+			☐	Or create an integratino test with assert_cmd crate
 	☐	Compile-time string and byte-array inclusion from file
 
 Syntactic sugar:
@@ -179,6 +180,7 @@ Documentation:
 
 Development:
 	☐ Refactor the main flow to have a Generator with a single LLVM Context, so we can call LLVMLinkModules2, and also so that we can call the generator inside typer.rs for arraywithnamedlength
+	Ah but the trouble is that we need both the pre-resolver metadata about the constants and the post-resolver generated LLVM.
 	☐	Improve test coverage
 		✔	Is E163 unreachable? @done (2023-03-04 17:25)
 		✔	Is E332 unreachable? @done (2023-03-04 18:35)

@@ -1,0 +1,9 @@
+
+const ADDR: &i32 = &X;
+
+fn foo()
+{
+	var addr: &i32 = &X;
+}
+
+const X: i32 = 0;

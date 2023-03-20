@@ -114,6 +114,15 @@ fn fail_to_analyze_address_of_constant()
 }
 
 #[test]
+fn fail_to_analyze_address_of_later_constant()
+{
+	compile_to_fail(
+		&[360, 530],
+		"tests/samples/invalid/address_of_later_constant.pn",
+	);
+}
+
+#[test]
 fn fail_to_analyze_constant_evaluated_dereference()
 {
 	compile_to_fail(
