@@ -37,6 +37,11 @@ where
 		element_type: Box<ValueType<I>>,
 		length: usize,
 	},
+	ArrayWithNamedLength
+	{
+		element_type: Box<ValueType<I>>,
+		named_length: I,
+	},
 	Slice
 	{
 		element_type: Box<ValueType<I>>,
@@ -116,6 +121,7 @@ where
 			ValueType::Usize => true,
 			ValueType::Bool => false,
 			ValueType::Array { .. } => false,
+			ValueType::ArrayWithNamedLength { .. } => false,
 			ValueType::Slice { .. } => false,
 			ValueType::SlicePointer { .. } => false,
 			ValueType::EndlessArray { .. } => false,
@@ -146,6 +152,7 @@ where
 			ValueType::Usize => None,
 			ValueType::Bool => Some(1),
 			ValueType::Array { .. } => None,
+			ValueType::ArrayWithNamedLength { .. } => None,
 			ValueType::Slice { .. } => None,
 			ValueType::SlicePointer { .. } => None,
 			ValueType::EndlessArray { .. } => None,
@@ -196,6 +203,14 @@ where
 				ValueType::Arraylike { element_type: b } => a.can_be_used_as(b),
 				_ => self == other,
 			},
+			ValueType::ArrayWithNamedLength {
+				element_type: a,
+				named_length: _,
+			} => match other
+			{
+				ValueType::Arraylike { element_type: b } => a.can_be_used_as(b),
+				_ => self == other,
+			},
 			ValueType::EndlessArray { element_type: a } => match other
 			{
 				ValueType::Arraylike { element_type: b } => a.can_be_used_as(b),
@@ -212,6 +227,18 @@ where
 			ValueType::Array {
 				element_type: a,
 				length: _,
+			} => match other
+			{
+				ValueType::ArrayWithNamedLength {
+					element_type: b,
+					named_length: _,
+				} => a == b,
+				ValueType::Arraylike { element_type: b } => a == b,
+				_ => self == other,
+			},
+			ValueType::ArrayWithNamedLength {
+				element_type: a,
+				named_length: _,
 			} => match other
 			{
 				ValueType::Arraylike { element_type: b } => a == b,
@@ -248,6 +275,17 @@ where
 					element_type: b,
 					length: lb,
 				} => la == lb && a.can_be_concretization_of(b),
+				_ => self.can_be_used_as(other),
+			},
+			ValueType::ArrayWithNamedLength {
+				element_type: a,
+				named_length: x,
+			} => match other
+			{
+				ValueType::ArrayWithNamedLength {
+					element_type: b,
+					named_length: y,
+				} => x == y && a.can_be_concretization_of(b),
 				_ => self.can_be_used_as(other),
 			},
 			ValueType::Slice { element_type: a } => match other
@@ -345,6 +383,19 @@ where
 				},
 				_ => false,
 			},
+			ValueType::ArrayWithNamedLength {
+				element_type: a,
+				named_length: _,
+			} => match other
+			{
+				ValueType::Slice { element_type: b } => a == b,
+				ValueType::View { deref_type } => match deref_type.as_ref()
+				{
+					ValueType::EndlessArray { element_type: b } => a == b,
+					_ => false,
+				},
+				_ => false,
+			},
 			ValueType::Slice { element_type: a } => match other
 			{
 				ValueType::View { deref_type } => match deref_type.as_ref()
@@ -389,6 +440,19 @@ where
 				},
 				_ => false,
 			},
+			ValueType::ArrayWithNamedLength {
+				element_type: a,
+				named_length: _,
+			} => match other
+			{
+				ValueType::SlicePointer { element_type: b } => a == b,
+				ValueType::Pointer { deref_type } => match deref_type.as_ref()
+				{
+					ValueType::EndlessArray { element_type: b } => a == b,
+					_ => false,
+				},
+				_ => false,
+			},
 			_ => false,
 		}
 	}
@@ -398,6 +462,10 @@ where
 		match self
 		{
 			ValueType::Array { .. } =>
+			{
+				self == other || self.can_coerce_into(other)
+			}
+			ValueType::ArrayWithNamedLength { .. } =>
 			{
 				self == other || self.can_coerce_into(other)
 			}
@@ -471,8 +539,12 @@ where
 			ValueType::Void => true,
 			ValueType::Array {
 				element_type,
-				length,
-			} => *length > 0 && element_type.is_wellformed_element(),
+				length: _,
+			} => element_type.is_wellformed_element(),
+			ValueType::ArrayWithNamedLength {
+				element_type,
+				named_length: _,
+			} => element_type.is_wellformed_element(),
 			ValueType::Slice { element_type } =>
 			{
 				element_type.is_wellformed_element()
@@ -503,6 +575,10 @@ where
 		match self
 		{
 			ValueType::Array { .. } => self.is_wellformed_inner(),
+			ValueType::ArrayWithNamedLength { .. } =>
+			{
+				self.is_wellformed_inner()
+			}
 			ValueType::Slice { .. } => false,
 			ValueType::SlicePointer { .. } => false,
 			ValueType::EndlessArray { .. } => false,
@@ -519,8 +595,12 @@ where
 		{
 			ValueType::Array {
 				element_type,
-				length,
-			} => *length > 0 && element_type.is_wellformed_element(),
+				length: _,
+			} => element_type.is_wellformed_element(),
+			ValueType::ArrayWithNamedLength {
+				element_type,
+				named_length: _,
+			} => element_type.is_wellformed_element(),
 			ValueType::Slice { .. } => false,
 			ValueType::SlicePointer { .. } => false,
 			ValueType::EndlessArray { element_type } =>
@@ -593,6 +673,7 @@ where
 		{
 			ValueType::Void => false,
 			ValueType::Array { .. } => false,
+			ValueType::ArrayWithNamedLength { .. } => false,
 			ValueType::Struct { .. } => false,
 			_ => self.is_wellformed(),
 		}
@@ -603,6 +684,7 @@ where
 		match self
 		{
 			ValueType::Array { .. } => false,
+			ValueType::ArrayWithNamedLength { .. } => false,
 			ValueType::Slice { .. } => false,
 			ValueType::SlicePointer { .. } => false,
 			ValueType::EndlessArray { .. } => false,
@@ -621,6 +703,10 @@ where
 			ValueType::Array {
 				element_type,
 				length: _,
+			} => Some(element_type.as_ref().clone()),
+			ValueType::ArrayWithNamedLength {
+				element_type,
+				named_length: _,
 			} => Some(element_type.as_ref().clone()),
 			ValueType::Slice { element_type } =>
 			{

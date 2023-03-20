@@ -132,6 +132,15 @@ fn fail_to_analyze_constant_evaluated_dereference()
 }
 
 #[test]
+fn fail_to_analyze_constant_evaluated_array_length()
+{
+	compile_to_fail(
+		&[360],
+		"tests/samples/invalid/constant_evaluated_dereference.pn",
+	);
+}
+
+#[test]
 fn fail_to_analyze_constant_evaluated_member_access()
 {
 	compile_to_fail(

@@ -129,6 +129,15 @@ fn fail_to_scope_cyclical_constants()
 }
 
 #[test]
+fn fail_to_scope_cyclical_constants_and_structures()
+{
+	compile_to_fail(
+		&[416, 416],
+		"tests/samples/invalid/cyclical_constants_and_structures.pn",
+	)
+}
+
+#[test]
 fn fail_to_scope_constant_confusion()
 {
 	compile_to_fail(&[423], "tests/samples/invalid/constant_confusion.pn")

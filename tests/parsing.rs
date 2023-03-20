@@ -450,3 +450,12 @@ fn fail_to_parse_bitshift_binary_expression()
 		"tests/samples/invalid/bitshift_binary_expression.pn",
 	)
 }
+
+#[test]
+fn fail_to_parse_expression_in_array_length()
+{
+	compile_to_fail(
+		&[300, 300, 300],
+		"tests/samples/invalid/expression_in_array_length.pn",
+	)
+}

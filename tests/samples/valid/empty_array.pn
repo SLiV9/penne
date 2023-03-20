@@ -1,0 +1,16 @@
+
+const EMPTY: [0]i64 = [];
+
+struct Foo
+{
+	empty: [0]i64,
+	num: usize,
+}
+
+fn main() -> usize
+{
+	var empty: [0]i64 = [];
+	var foo = Foo { empty: [], num: 200 };
+	var answer: &usize = &foo.num;
+	return: answer + |foo.empty| + |empty| + |EMPTY| + |:Foo| - 8
+}

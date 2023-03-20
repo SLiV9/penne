@@ -1660,10 +1660,17 @@ impl Analyzable for Expression
 				let array = array.analyze(typer);
 				match put_result
 				{
+					Ok(()) if array.elements.is_empty() =>
+					{
+						let element_type = typer.contextual_type.take();
+						Expression::ArrayLiteral {
+							array,
+							element_type,
+						}
+					}
 					Ok(()) =>
 					{
 						let element_type = typer.get_symbol(&name.inferred());
-
 						Expression::ArrayLiteral {
 							array,
 							element_type,
@@ -1736,6 +1743,43 @@ impl Analyzable for Expression
 						Expression::LengthOfArray {
 							reference,
 							location,
+						}
+					}
+					Some(Ok(ValueType::ArrayWithNamedLength {
+						element_type: _,
+						ref named_length,
+					})) =>
+					{
+						let named_length = named_length.clone();
+						let usize_check = typer.put_symbol(
+							&named_length,
+							Some(Ok(ValueType::Usize)),
+						);
+						let reference = reference
+							.analyze_length(base_type, array_type, typer);
+						let Reference {
+							base,
+							steps: _,
+							address_depth: _,
+							location,
+							location_of_unaddressed,
+						} = reference;
+						let base = match (usize_check, base)
+						{
+							(Ok(()), Ok(_)) => Ok(named_length),
+							(Ok(()), Err(poison)) => Err(poison),
+							(Err(error), _) => Err(error.into()),
+						};
+						let reference = Reference {
+							base,
+							steps: Vec::new(),
+							address_depth: 0,
+							location,
+							location_of_unaddressed,
+						};
+						Expression::Deref {
+							reference,
+							deref_type: Some(Ok(ValueType::Usize)),
 						}
 					}
 					Some(Ok(ValueType::Slice { .. }))
@@ -1982,6 +2026,7 @@ fn analyze_assignment_steps(
 				let is_endless = match current_type
 				{
 					ValueType::Array { .. } => Some(false),
+					ValueType::ArrayWithNamedLength { .. } => Some(false),
 					ValueType::Slice { .. } => Some(false),
 					ValueType::SlicePointer { .. } => Some(false),
 					ValueType::EndlessArray { .. } => Some(true),
@@ -2527,6 +2572,26 @@ impl Reference
 				}
 
 				(
+					ValueType::ArrayWithNamedLength {
+						element_type,
+						named_length: _,
+					},
+					Some(ReferenceStep::Element {
+						argument,
+						is_endless: _,
+					}),
+				) =>
+				{
+					let step = ReferenceStep::Element {
+						argument: argument.clone(),
+						is_endless: Some(false),
+					};
+					taken_steps.push(step);
+					available_steps.next();
+					current_type = *element_type;
+				}
+
+				(
 					ValueType::EndlessArray { element_type },
 					Some(ReferenceStep::Element {
 						argument,
@@ -2948,6 +3013,18 @@ fn analyze_type(
 			Ok(ValueType::Array {
 				element_type: Box::new(element_type),
 				length,
+			})
+		}
+		ValueType::ArrayWithNamedLength {
+			element_type,
+			named_length,
+		} =>
+		{
+			typer.put_symbol(&named_length, Some(Ok(ValueType::Usize)))?;
+			let element_type = analyze_type(*element_type, typer)?;
+			Ok(ValueType::ArrayWithNamedLength {
+				element_type: Box::new(element_type),
+				named_length,
 			})
 		}
 		ValueType::Slice { element_type } =>

@@ -1,0 +1,15 @@
+struct Foo
+{
+	x: i32,
+	y: i32,
+}
+
+fn main() -> i32
+{
+	var foo = Foo { x: 0, y: 0 };
+	var a: &i32 = &foo.x;
+	var b: &i32 = &foo.y;
+	a = 50;
+	b = 150;
+	return: foo.x + foo.y
+}

@@ -771,7 +771,15 @@ fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 					element_type: Box::new(element_type),
 				})
 			}
-			Some(Token::NakedInteger(x)) if *x > 0 =>
+			Some(Token::BracketRight) | None =>
+			{
+				consume(Token::BracketRight, tokens)?;
+				let element_type = parse_type(tokens)?;
+				Ok(ValueType::Arraylike {
+					element_type: Box::new(element_type),
+				})
+			}
+			Some(Token::NakedInteger(x)) if *x >= 0 =>
 			{
 				let length = *x as usize;
 				tokens.pop_front();
@@ -782,12 +790,17 @@ fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 					length,
 				})
 			}
-			_ =>
+			Some(_) =>
 			{
+				let named_length = extract_identifier(
+					"Expected size literal or named constant.",
+					tokens,
+				)?;
 				consume(Token::BracketRight, tokens)?;
 				let element_type = parse_type(tokens)?;
-				Ok(ValueType::Arraylike {
+				Ok(ValueType::ArrayWithNamedLength {
 					element_type: Box::new(element_type),
+					named_length,
 				})
 			}
 		},

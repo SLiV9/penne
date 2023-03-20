@@ -219,7 +219,34 @@ fn declare(
 {
 	match declaration
 	{
-		Declaration::Constant { .. } => Ok(()),
+		Declaration::Constant {
+			name,
+			value,
+			value_type,
+			depth: _,
+			flags: _,
+		} =>
+		{
+			let cname = CString::new(&name.name as &str)?;
+			let vartype = value_type.generate(llvm)?;
+			let global =
+				unsafe { LLVMAddGlobal(llvm.module, vartype, cname.as_ptr()) };
+			llvm.global_variables.insert(name.resolution_id, global);
+			unsafe {
+				LLVMSetGlobalConstant(global, 1);
+				LLVMSetUnnamedAddr(global, 1);
+			}
+			let linkage = LLVMLinkage::LLVMPrivateLinkage;
+			unsafe { LLVMSetLinkage(global, linkage) };
+			let constant = value.generate(llvm)?;
+			unsafe { LLVMSetInitializer(global, constant) };
+			let is_const = unsafe { LLVMIsConstant(constant) };
+			if is_const > 0
+			{
+				llvm.constants.insert(name.resolution_id, constant);
+			}
+			Ok(())
+		}
 		Declaration::Function {
 			name,
 			parameters,
@@ -286,11 +313,6 @@ fn declare(
 				.map(|m| m.value_type.generate(llvm))
 				.collect();
 			let mut member_types = member_types?;
-			if member_types.is_empty()
-			{
-				let bytetype = unsafe { LLVMInt8TypeInContext(llvm.context) };
-				member_types.push(bytetype);
-			}
 			let is_packed = 0;
 
 			unsafe {
@@ -327,34 +349,9 @@ impl Generatable for Declaration
 	{
 		match self
 		{
-			Declaration::Constant {
-				name,
-				value,
-				value_type,
-				depth: _,
-				flags: _,
-			} =>
+			Declaration::Constant { .. } =>
 			{
-				let cname = CString::new(&name.name as &str)?;
-				let vartype = value_type.generate(llvm)?;
-				let global = unsafe {
-					LLVMAddGlobal(llvm.module, vartype, cname.as_ptr())
-				};
-				llvm.global_variables.insert(name.resolution_id, global);
-				unsafe {
-					LLVMSetGlobalConstant(global, 1);
-					LLVMSetUnnamedAddr(global, 1);
-				}
-				let linkage = LLVMLinkage::LLVMPrivateLinkage;
-				unsafe { LLVMSetLinkage(global, linkage) };
-
-				let constant = value.generate(llvm)?;
-				unsafe { LLVMSetInitializer(global, constant) };
-				let is_const = unsafe { LLVMIsConstant(constant) };
-				if is_const > 0
-				{
-					llvm.constants.insert(name.resolution_id, constant);
-				}
+				// We already declared this.
 				Ok(())
 			}
 			Declaration::Function {
@@ -1199,6 +1196,25 @@ impl Generatable for ValueType
 			{
 				let element_type = element_type.generate(llvm)?;
 				unsafe { LLVMArrayType(element_type, *length as u32) }
+			}
+			ValueType::ArrayWithNamedLength {
+				element_type,
+				named_length,
+			} =>
+			{
+				let id = &named_length.resolution_id;
+				let length = if let Some(&constant) = llvm.constants.get(id)
+				{
+					let v: u64 = unsafe { LLVMConstIntGetZExtValue(constant) };
+					let length: u32 = v.try_into()?;
+					length
+				}
+				else
+				{
+					unreachable!()
+				};
+				let element_type = element_type.generate(llvm)?;
+				unsafe { LLVMArrayType(element_type, length) }
 			}
 			ValueType::Slice { element_type }
 			| ValueType::SlicePointer { element_type } =>

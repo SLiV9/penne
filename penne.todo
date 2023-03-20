@@ -30,6 +30,11 @@ Functionality:
 	☐	Named constants as array lengths
 		✘	LengthOfArray in constant expressions @cancelled (2023-01-25 14:31)
 		✔	SizeOfStructure in constant expressions @done (2023-01-25 14:31)
+		✔	Think about empty arrays and structs of size 0 @done (2023-01-29 18:19)
+			Follow LLVM, empty structs are of size 0, but empty arrays have length 1.
+		☐	Must be constant, not variable
+		☐	Must be constant-folded, how do we detect that?
+		☐	Oh the trouble is that we need to be able to assign an array literal of length 3 to an array declared with constant length
 	✘	Boolean comparisons outside of if statement condition @cancelled (2023-02-04 18:59)
 		✘	Update ctype.pn @cancelled (2023-02-04 18:59)
 		✘	Boolean and, or @cancelled (2023-02-04 18:59)

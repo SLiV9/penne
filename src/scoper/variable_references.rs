@@ -426,6 +426,26 @@ impl Analyzer
 						length,
 					})
 				}
+				ValueType::ArrayWithNamedLength {
+					element_type,
+					named_length,
+				} =>
+				{
+					let element_type = self.found_container(
+						name_of_container,
+						name_of_member,
+						Ok(*element_type),
+					)?;
+					let named_length = self.found_container_1(
+						name_of_container,
+						name_of_member,
+						named_length,
+					)?;
+					Ok(ValueType::ArrayWithNamedLength {
+						element_type: Box::new(element_type),
+						named_length,
+					})
+				}
 				ValueType::Slice { element_type } =>
 				{
 					let element_type = self.found_container(
@@ -565,10 +585,36 @@ impl Analyzer
 		{
 			let error = if let Some(name_of_member) = name_of_member
 			{
-				Error::CyclicalStructure {
-					name: name_of_container.name.clone(),
-					location_of_member: name_of_member.location.clone(),
-					location_of_declaration: name_of_container.location.clone(),
+				let name_of_structure = name_of_container.name.clone();
+				let location_of_declaration =
+					name_of_container.location.clone();
+				let location_of_member = name_of_member.location.clone();
+				let cycle = container.contained_ids.clone();
+				let constant_in_cycle = self
+					.containers
+					.iter()
+					.filter(|x| !x.is_structure)
+					.find(|x| cycle.contains(&x.identifier.resolution_id));
+				if let Some(constant) = constant_in_cycle
+				{
+					let name_of_constant = constant.identifier.name.clone();
+					let location_of_constant =
+						constant.identifier.location.clone();
+					Error::CyclicalStructureWithConstant {
+						name_of_structure,
+						name_of_constant,
+						location_of_declaration,
+						location_of_member,
+						location_of_constant,
+					}
+				}
+				else
+				{
+					Error::CyclicalStructure {
+						name_of_structure,
+						location_of_declaration,
+						location_of_member,
+					}
 				}
 			}
 			else
@@ -1570,6 +1616,18 @@ fn analyze_type(
 			Ok(ValueType::Array {
 				element_type: Box::new(element_type),
 				length,
+			})
+		}
+		ValueType::ArrayWithNamedLength {
+			element_type,
+			named_length,
+		} =>
+		{
+			let element_type = analyze_type(*element_type, analyzer)?;
+			let named_length = analyzer.use_variable(named_length)?;
+			Ok(ValueType::ArrayWithNamedLength {
+				element_type: Box::new(element_type),
+				named_length,
 			})
 		}
 		ValueType::Slice { element_type } =>

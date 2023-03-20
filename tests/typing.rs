@@ -193,6 +193,33 @@ fn fail_to_type_mismatched_array_type()
 }
 
 #[test]
+fn fail_to_type_mismatched_array_length()
+{
+	compile_to_fail(
+		&[500, 500],
+		"tests/samples/invalid/mismatched_array_length.pn",
+	)
+}
+
+#[test]
+fn fail_to_type_mismatched_constant_array_length()
+{
+	compile_to_fail(
+		&[500, 500],
+		"tests/samples/invalid/mismatched_constant_array_length.pn",
+	)
+}
+
+#[test]
+fn fail_to_type_mismatched_constant_array_length_type()
+{
+	compile_to_fail(
+		&[500, 500],
+		"tests/samples/invalid/mismatched_constant_array_length_type.pn",
+	)
+}
+
+#[test]
 fn fail_to_type_length_of_int()
 {
 	compile_to_fail(&[502], "tests/samples/invalid/length_of_int.pn")
