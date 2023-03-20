@@ -12,6 +12,10 @@ pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 	let mut analyzer = Analyzer {
 		variables: std::collections::HashMap::new(),
 	};
+	for declaration in &program
+	{
+		declare(declaration, &mut analyzer);
+	}
 	program
 		.into_iter()
 		.map(|x| x.analyze(&mut analyzer))
@@ -35,7 +39,7 @@ impl Analyzer
 		&self,
 		identifier: &Poisonable<Identifier>,
 		is_mutated: bool,
-	) -> Result<(), Error>
+	) -> Result<(), Poison>
 	{
 		if let Ok(identifier) = identifier
 		{
@@ -44,12 +48,13 @@ impl Analyzer
 			{
 				if is_mutated && !is_mutable
 				{
-					Err(Error::NotMutable {
+					let error = Error::NotMutable {
 						location: identifier.location.clone(),
 						location_of_declaration: previous_identifier
 							.location
 							.clone(),
-					})
+					};
+					Err(Poison::Error(error))
 				}
 				else
 				{
@@ -58,13 +63,41 @@ impl Analyzer
 			}
 			else
 			{
-				Ok(())
+				Err(Poison::Poisoned)
 			}
 		}
 		else
 		{
 			Ok(())
 		}
+	}
+}
+
+fn declare(declaration: &Declaration, analyzer: &mut Analyzer)
+{
+	match declaration
+	{
+		Declaration::Constant {
+			name,
+			value: _,
+			value_type,
+			flags: _,
+			depth: _,
+			location_of_declaration: _,
+			location_of_type: _,
+		} =>
+		{
+			// If the constant type contains an error, autoderef may have
+			// been skipped, which means we do not know if we have interior
+			// mutability. Avoid cascading errors by faking mutability.
+			let is_error = value_type.is_err();
+			analyzer.declare_variable(&name, false || is_error);
+		}
+		Declaration::Function { .. } => (),
+		Declaration::FunctionHead { .. } => (),
+		Declaration::Structure { .. } => (),
+		Declaration::Import { .. } => (),
+		Declaration::Poison(_) => (),
 	}
 }
 
@@ -79,31 +112,12 @@ impl Analyzable for Declaration
 	{
 		match self
 		{
-			Declaration::Constant {
-				name,
-				value,
-				value_type,
-				flags,
-				depth,
-				location_of_declaration,
-				location_of_type,
-			} =>
+			Declaration::Constant { .. } =>
 			{
-				// If the constant type contains an error, autoderef may have
-				// been skipped, which means we do not know if we have interior
-				// mutability. Avoid cascading errors by faking mutability.
-				let is_error = value_type.is_err();
-				analyzer.declare_variable(&name, false || is_error);
-				let value = value.analyze(analyzer);
-				Declaration::Constant {
-					name,
-					value,
-					value_type,
-					flags,
-					depth,
-					location_of_declaration,
-					location_of_type,
-				}
+				// We do not need to analyze constants for mutability because
+				// they are already analyzed for constness, and mutations and
+				// addresses are never allowed in a constant expression.
+				self
 			}
 			Declaration::Function {
 				name,
@@ -302,7 +316,7 @@ impl Analyzable for Statement
 						value,
 						location,
 					},
-					Err(error) => Statement::Poison(Poison::Error(error)),
+					Err(poison) => Statement::Poison(poison),
 				}
 			}
 			Statement::MethodCall { name, arguments } =>
@@ -506,7 +520,7 @@ impl Analyzable for Expression
 						reference,
 						deref_type,
 					},
-					Err(error) => Expression::Poison(Poison::Error(error)),
+					Err(poison) => Expression::Poison(poison),
 				}
 			}
 			Expression::LengthOfArray {
@@ -521,7 +535,7 @@ impl Analyzable for Expression
 						reference,
 						location,
 					},
-					Err(error) => Expression::Poison(Poison::Error(error)),
+					Err(poison) => Expression::Poison(poison),
 				}
 			}
 			Expression::SizeOfStructure { .. } => self,

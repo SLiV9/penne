@@ -78,6 +78,8 @@ Functionality:
 		☐	Use and pub use
 			☐	Deduplicate symbols that are pub used in two different imports
 	☐	Heap allocation
+		☐	const X: &Foo = $static_alloc Foo { ... }; as a replacement for static globals
+			Do not allow dereffing X in const context.
 	☐	stdlib
 		☐	Get lli to run import_core.pn
 			LLVM ERROR: Tried to execute an unknown external function: is_control_char
