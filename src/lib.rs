@@ -55,8 +55,55 @@ pub fn compile_source(
 	let declarations = parser::parse(tokens);
 	let declarations = expander::expand_one(filename, declarations);
 	resolver::check_surface_level_errors(&declarations)?;
-	let declarations = scoper::analyze(declarations);
-	let declarations = typer::analyze(declarations);
-	let declarations = analyzer::analyze(declarations);
-	resolver::resolve(declarations)
+	let mut declarations = scoper::analyze(declarations);
+
+	// Sort the declarations so that the functions are at the end and
+	// the constants and structures are declared in the right order.
+	let max: u32 = declarations.len().try_into().unwrap();
+	declarations.sort_by_key(|x| scoper::get_container_depth(x, max));
+
+	let mut typer = typer::Typer::default();
+	let mut analyzer = analyzer::Analyzer::default();
+	// First, align all structures.
+	for declaration in &mut declarations
+	{
+		typer::align_structure(declaration, &mut typer);
+	}
+	// Then, declare all constants and functions and analyze their types.
+	let declarations: Vec<_> = declarations
+		.into_iter()
+		.map(|x| typer::declare(x, &mut typer))
+		.collect();
+	// Note the `collect()`.
+	// Then, declare all constants and functions.
+	for declaration in &declarations
+	{
+		analyzer::declare(declaration, &mut analyzer);
+	}
+
+	let mut generator = generator::Generator::new(filename).unwrap();
+
+	// Type, analyze, lint and resolve the program one declaration at
+	// a time, and generate IR for structures and constants in advance.
+	// This works because the declarations are sorted by container depth.
+	declarations
+		.into_iter()
+		.fold(Ok(Vec::new()), |acc, declaration| {
+			let declaration = typer::analyze(declaration, &mut typer);
+			let declaration = analyzer::analyze(declaration, &mut analyzer);
+			// No linting.
+			let resolved = resolver::resolve(declaration);
+			match (acc, resolved)
+			{
+				(Ok(mut declarations), Ok(declaration)) =>
+				{
+					generator::declare(&declaration, &mut generator).unwrap();
+					declarations.push(declaration);
+					Ok(declarations)
+				}
+				(Ok(_), Err(errors)) => Err(errors),
+				(Err(errors), Ok(_)) => Err(errors),
+				(Err(errors), Err(more)) => Err(errors.combined_with(more)),
+			}
+		})
 }

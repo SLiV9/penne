@@ -8,23 +8,14 @@ use crate::common::*;
 use crate::error::Error;
 use crate::typer::Typed;
 
-pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
+pub fn analyze(declaration: Declaration, analyzer: &mut Analyzer)
+	-> Declaration
 {
-	let mut analyzer = Analyzer {
-		functions: std::collections::HashMap::new(),
-		is_immediate_function_argument: false,
-	};
-	for declaration in &program
-	{
-		declare(declaration, &mut analyzer);
-	}
-	program
-		.into_iter()
-		.map(|x| x.analyze(&mut analyzer))
-		.collect()
+	declaration.analyze(analyzer)
 }
 
-struct Analyzer
+#[derive(Default)]
+pub struct Analyzer
 {
 	functions: std::collections::HashMap<u32, Function>,
 	is_immediate_function_argument: bool,
@@ -149,7 +140,7 @@ fn can_hint_missing_address(
 	}
 }
 
-fn declare(declaration: &Declaration, analyzer: &mut Analyzer)
+pub fn declare(declaration: &Declaration, analyzer: &mut Analyzer)
 {
 	match declaration
 	{

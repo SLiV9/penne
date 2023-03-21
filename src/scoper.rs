@@ -18,3 +18,22 @@ pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 	let program = variable_references::analyze(program);
 	program
 }
+
+pub fn get_container_depth(declaration: &Declaration, max: u32) -> u32
+{
+	let depth = match declaration
+	{
+		Declaration::Constant { depth, .. } => depth.as_ref(),
+		Declaration::Function { .. } => None,
+		Declaration::FunctionHead { .. } => None,
+		Declaration::Structure { depth, .. } => depth.as_ref(),
+		Declaration::Import { .. } => None,
+		Declaration::Poison(_) => None,
+	};
+	match depth
+	{
+		Some(Ok(depth)) => *depth,
+		Some(Err(_poison)) => max,
+		None => max,
+	}
+}

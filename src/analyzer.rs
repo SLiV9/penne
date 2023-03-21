@@ -14,11 +14,25 @@ mod syntax;
 
 use crate::common::*;
 
-pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
+#[derive(Default)]
+pub struct Analyzer
 {
-	let program = constness::analyze(program);
-	let program = syntax::analyze(program);
-	let program = function_calls::analyze(program);
-	let program = mutability::analyze(program);
-	program
+	function_call_analyzer: function_calls::Analyzer,
+	mutability_analyzer: mutability::Analyzer,
+}
+
+pub fn declare(declaration: &Declaration, analyzer: &mut Analyzer)
+{
+	function_calls::declare(declaration, &mut analyzer.function_call_analyzer);
+}
+
+pub fn analyze(declaration: Declaration, analyzer: &mut Analyzer)
+	-> Declaration
+{
+	let x = declaration;
+	let x = constness::analyze(x);
+	let x = syntax::analyze(x);
+	let x = function_calls::analyze(x, &mut analyzer.function_call_analyzer);
+	let x = mutability::analyze(x, &mut analyzer.mutability_analyzer);
+	x
 }

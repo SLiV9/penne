@@ -17,36 +17,19 @@ use llvm_sys::target_machine::LLVMGetDefaultTargetTriple;
 use llvm_sys::*;
 use llvm_sys::{LLVMBuilder, LLVMContext, LLVMModule};
 
+use anyhow::anyhow;
+
 pub const DEFAULT_DATA_LAYOUT: &str = "e-m:e-p:64:64-i64:64-n8:16:32:64-S64";
 
 pub fn generate(
-	program: &Vec<Declaration>,
-	source_filename: &str,
-	for_wasm: bool,
-) -> Result<String, anyhow::Error>
+	declaration: &Declaration,
+	llvm: &mut Generator,
+) -> Result<(), anyhow::Error>
 {
-	let mut generator = Generator::new(source_filename)?;
-	if for_wasm
-	{
-		generator.for_wasm()?;
-	}
-
-	let program = organize(program);
-	for declaration in &program
-	{
-		declare(declaration, &mut generator)?;
-	}
-	for declaration in &program
-	{
-		declaration.generate(&mut generator)?;
-	}
-
-	generator.verify();
-	let ircode = generator.generate_ir()?;
-	Ok(ircode)
+	declaration.generate(llvm)
 }
 
-struct Generator
+pub struct Generator
 {
 	module: *mut LLVMModule,
 	context: *mut LLVMContext,
@@ -62,7 +45,7 @@ struct Generator
 
 impl Generator
 {
-	fn new(module_name: &str) -> Result<Generator, anyhow::Error>
+	pub fn new(module_name: &str) -> Result<Generator, anyhow::Error>
 	{
 		let module_name = CString::new(module_name)?;
 		let generator = unsafe {
@@ -92,7 +75,7 @@ impl Generator
 		Ok(generator)
 	}
 
-	fn for_wasm(&mut self) -> Result<(), anyhow::Error>
+	pub fn for_wasm(&mut self) -> Result<(), anyhow::Error>
 	{
 		unsafe {
 			let triple = CString::new("wasm32-unknown-wasi")?;
@@ -105,7 +88,7 @@ impl Generator
 		}
 	}
 
-	fn verify(&self)
+	pub fn verify(&self)
 	{
 		let _ = unsafe {
 			LLVMVerifyModule(
@@ -126,7 +109,7 @@ impl Generator
 		};
 	}
 
-	fn generate_ir(&self) -> Result<String, anyhow::Error>
+	pub fn generate_ir(&self) -> Result<String, anyhow::Error>
 	{
 		let ircode: CString = unsafe {
 			let raw = LLVMPrintModuleToString(self.module);
@@ -167,6 +150,22 @@ impl Generator
 		unsafe { LLVMConstInt(self.type_of_usize, value as u64, 0) }
 	}
 
+	pub fn get_constant_as_u64(
+		&self,
+		name: &Identifier,
+	) -> Result<u64, anyhow::Error>
+	{
+		if let Some(&constant) = self.constants.get(&name.resolution_id)
+		{
+			let v: u64 = unsafe { LLVMConstIntGetZExtValue(constant) };
+			Ok(v)
+		}
+		else
+		{
+			Err(anyhow!("failed to calculate compile-time constant"))
+		}
+	}
+
 	fn size_in_bits(&self, type_ref: LLVMTypeRef) -> usize
 	{
 		let size_in_bits: u64 = unsafe {
@@ -191,28 +190,7 @@ impl Drop for Generator
 	}
 }
 
-fn organize(declarations: &[Declaration]) -> Vec<&Declaration>
-{
-	let mut declarations: Vec<&Declaration> = declarations.iter().collect();
-	// Sort structures and constants before other declarations (max),
-	// and sort the these declarations by their depth, from low to high.
-	let max = declarations.len();
-	declarations.sort_by_key(|x| get_container_depth(x, max));
-	declarations
-}
-
-fn get_container_depth(declaration: &Declaration, max: usize) -> usize
-{
-	match declaration
-	{
-		Declaration::Constant { depth, .. } => *depth as usize,
-		Declaration::Function { .. } => max,
-		Declaration::FunctionHead { .. } => max,
-		Declaration::Structure { depth, .. } => *depth as usize,
-	}
-}
-
-fn declare(
+pub fn declare(
 	declaration: &Declaration,
 	llvm: &mut Generator,
 ) -> Result<(), anyhow::Error>
@@ -1195,24 +1173,17 @@ impl Generatable for ValueType
 			} =>
 			{
 				let element_type = element_type.generate(llvm)?;
-				unsafe { LLVMArrayType(element_type, *length as u32) }
+				let length: usize = *length;
+				let length: u32 = length.try_into()?;
+				unsafe { LLVMArrayType(element_type, length) }
 			}
 			ValueType::ArrayWithNamedLength {
 				element_type,
 				named_length,
 			} =>
 			{
-				let id = &named_length.resolution_id;
-				let length = if let Some(&constant) = llvm.constants.get(id)
-				{
-					let v: u64 = unsafe { LLVMConstIntGetZExtValue(constant) };
-					let length: u32 = v.try_into()?;
-					length
-				}
-				else
-				{
-					unreachable!()
-				};
+				let length: u64 = llvm.get_constant_as_u64(named_length)?;
+				let length: u32 = length.try_into()?;
 				let element_type = element_type.generate(llvm)?;
 				unsafe { LLVMArrayType(element_type, length) }
 			}

@@ -7,22 +7,14 @@
 use crate::common::*;
 use crate::error::Error;
 
-pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
+pub fn analyze(declaration: Declaration, analyzer: &mut Analyzer)
+	-> Declaration
 {
-	let mut analyzer = Analyzer {
-		variables: std::collections::HashMap::new(),
-	};
-	for declaration in &program
-	{
-		declare(declaration, &mut analyzer);
-	}
-	program
-		.into_iter()
-		.map(|x| x.analyze(&mut analyzer))
-		.collect()
+	declaration.analyze(analyzer)
 }
 
-struct Analyzer
+#[derive(Default)]
+pub struct Analyzer
 {
 	variables: std::collections::HashMap<u32, (Identifier, bool)>,
 }
@@ -73,34 +65,6 @@ impl Analyzer
 	}
 }
 
-fn declare(declaration: &Declaration, analyzer: &mut Analyzer)
-{
-	match declaration
-	{
-		Declaration::Constant {
-			name,
-			value: _,
-			value_type,
-			flags: _,
-			depth: _,
-			location_of_declaration: _,
-			location_of_type: _,
-		} =>
-		{
-			// If the constant type contains an error, autoderef may have
-			// been skipped, which means we do not know if we have interior
-			// mutability. Avoid cascading errors by faking mutability.
-			let is_error = value_type.is_err();
-			analyzer.declare_variable(&name, false || is_error);
-		}
-		Declaration::Function { .. } => (),
-		Declaration::FunctionHead { .. } => (),
-		Declaration::Structure { .. } => (),
-		Declaration::Import { .. } => (),
-		Declaration::Poison(_) => (),
-	}
-}
-
 trait Analyzable
 {
 	fn analyze(self, analyzer: &mut Analyzer) -> Self;
@@ -112,8 +76,18 @@ impl Analyzable for Declaration
 	{
 		match self
 		{
-			Declaration::Constant { .. } =>
+			Declaration::Constant {
+				ref name,
+				ref value_type,
+				..
+			} =>
 			{
+				// If the constant type contains an error, autoderef may have
+				// been skipped, which means we do not know if we have interior
+				// mutability. Avoid cascading errors by faking mutability.
+				let is_error = value_type.is_err();
+				analyzer.declare_variable(&name, false || is_error);
+
 				// We do not need to analyze constants for mutability because
 				// they are already analyzed for constness, and mutations and
 				// addresses are never allowed in a constant expression.

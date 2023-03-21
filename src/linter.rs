@@ -11,25 +11,25 @@ use crate::common::*;
 
 pub use crate::error::Error as Lint;
 
-pub fn lint(program: &Vec<Declaration>) -> Vec<Lint>
+pub fn lint(declaration: &Declaration, linter: &mut Linter)
 {
-	let mut linter = Linter {
-		lints: Vec::new(),
-		is_naked_branch: None,
-		is_first_statement_of_branch: None,
-	};
-	for declaration in program
-	{
-		declaration.lint(&mut linter);
-	}
-	linter.lints
+	declaration.lint(linter)
 }
 
-struct Linter
+#[derive(Default)]
+pub struct Linter
 {
 	lints: Vec<Lint>,
 	is_naked_branch: Option<NakedBranch>,
 	is_first_statement_of_branch: Option<Branch>,
+}
+
+impl From<Linter> for Vec<Lint>
+{
+	fn from(linter: Linter) -> Vec<Lint>
+	{
+		linter.lints
+	}
 }
 
 struct NakedBranch

@@ -8,9 +8,9 @@ use crate::common::*;
 use crate::error::Error;
 use crate::typer::Typed;
 
-pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
+pub fn analyze(declaration: Declaration) -> Declaration
 {
-	program.into_iter().map(|x| x.analyze()).collect()
+	declaration.analyze()
 }
 
 trait Analyzable

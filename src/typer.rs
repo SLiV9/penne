@@ -17,62 +17,13 @@ use enumset::EnumSet;
 pub const MAX_AUTODEREF_DEPTH: usize =
 	MAX_REFERENCE_DEPTH + MAX_ADDRESS_DEPTH as usize;
 
-pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
+pub fn analyze(declaration: Declaration, typer: &mut Typer) -> Declaration
 {
-	let mut typer = Typer {
-		symbols: std::collections::HashMap::new(),
-		functions: std::collections::HashMap::new(),
-		structures: std::collections::HashMap::new(),
-		contextual_type: None,
-	};
-	// Prealign all structures so that their use as a value type is defined.
-	let mut declarations = program;
-	for declaration in visit_structures(&mut declarations)
-	{
-		prealign(declaration, &mut typer);
-	}
-	// Predeclare all functions so that they can reference each other.
-	declarations = declarations
-		.into_iter()
-		.map(|x| predeclare(x, &mut typer))
-		.collect();
-	// After collecting all declarations, analyze the function bodies.
-	declarations
-		.into_iter()
-		.map(|x| x.analyze(&mut typer))
-		.collect()
+	declaration.analyze(typer)
 }
 
-fn visit_structures(declarations: &mut [Declaration]) -> Vec<&mut Declaration>
-{
-	let mut declarations: Vec<&mut Declaration> = declarations
-		.iter_mut()
-		.filter(|x| get_structure_depth(x).is_some())
-		.collect();
-	// Sort the structure declarations by their depth, from low to high.
-	declarations.sort_by_key(|x| get_structure_depth(x));
-	declarations
-}
-
-fn get_structure_depth(declaration: &Declaration) -> Option<u32>
-{
-	match declaration
-	{
-		Declaration::Constant { .. } => None,
-		Declaration::Function { .. } => None,
-		Declaration::FunctionHead { .. } => None,
-		Declaration::Structure { depth, .. } => match depth
-		{
-			Some(Ok(depth)) => Some(*depth),
-			Some(Err(_poison)) => Some(0),
-			None => unreachable!(),
-		},
-		Declaration::Import { .. } => None,
-		Declaration::Poison(_) => None,
-	}
-}
-
-struct Typer
+#[derive(Default)]
+pub struct Typer
 {
 	symbols: std::collections::HashMap<u32, Symbol>,
 	functions: std::collections::HashMap<u32, Function>,
@@ -603,7 +554,7 @@ impl StaticallyTyped for PrimitiveLiteral
 	}
 }
 
-fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
+pub fn declare(declaration: Declaration, typer: &mut Typer) -> Declaration
 {
 	match declaration
 	{
@@ -778,7 +729,7 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 	}
 }
 
-fn prealign(declaration: &mut Declaration, typer: &mut Typer)
+pub fn align_structure(declaration: &mut Declaration, typer: &mut Typer)
 {
 	match declaration
 	{

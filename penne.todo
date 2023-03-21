@@ -43,6 +43,7 @@ Functionality:
 	☐	Floats
 	✔	Other integer sizes @done (2022-09-05 14:30)
 		✔	Think about size of usize @done (2022-12-15 19:37)
+			☐	Think about this again because the LLVM C API used currently limits array lengths to u32
 		✔	Different generated integer sizes for WASM and x86 @done (2022-09-23 21:56)
 		✔	Think about natural stack alignment @done (2022-12-24 19:44)
 		✔	Think about isize @done (2022-12-24 18:51)
@@ -187,7 +188,15 @@ Documentation:
 
 Development:
 	☐ Refactor the main flow to have a Generator with a single LLVM Context, so we can call LLVMLinkModules2, and also so that we can call the generator inside typer.rs for arraywithnamedlength
-	Ah but the trouble is that we need both the pre-resolver metadata about the constants and the post-resolver generated LLVM.
+		Ah but the trouble is that we need both the pre-resolver metadata about the constants and the post-resolver generated LLVM.
+		Also I need debug information in the resolved AST for DWARF.
+		Perhaps just add a more traditional symbol table?
+		Because I do not have global type inference, I should be able to do the stages after scoping separately for all declarations.
+		Hmm except that mutability checks now has a cascading error avoidance that relies on the constant being typed before mutability::declare().
+		☐	Fix tests
+		☐	Add a check or Declaration::Assertion for named lengths
+		☐	Link modules
+		☐	Clean up main.rs and lib.rs
 	☐	Improve test coverage
 		✔	Is E163 unreachable? @done (2023-03-04 17:25)
 		✔	Is E332 unreachable? @done (2023-03-04 18:35)

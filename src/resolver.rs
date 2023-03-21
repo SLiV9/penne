@@ -18,10 +18,10 @@ use crate::resolved;
 use crate::typer::Typed;
 
 pub fn resolve(
-	program: Vec<common::Declaration>,
-) -> Result<Vec<resolved::Declaration>, Errors>
+	declaration: Declaration,
+) -> Result<resolved::Declaration, Errors>
 {
-	program.resolve()
+	declaration.resolve()
 }
 
 pub fn check_surface_level_errors(
