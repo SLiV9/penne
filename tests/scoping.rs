@@ -156,6 +156,15 @@ fn fail_to_scope_misspelled_member()
 }
 
 #[test]
+fn fail_to_type_variable_array_length()
+{
+	compile_to_fail(
+		&[433, 433],
+		"tests/samples/invalid/variable_array_length.pn",
+	)
+}
+
+#[test]
 fn fail_to_parse_unresolved_import()
 {
 	compile_to_fail(&[470], "tests/samples/invalid/unresolved_import.pn")

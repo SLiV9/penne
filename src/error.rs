@@ -328,6 +328,12 @@ pub enum Error
 	{
 		name: String, location: Location
 	},
+	NotACompileTimeConstant
+	{
+		name: String,
+		location: Location,
+		location_of_declaration: Location,
+	},
 	UnresolvedImport
 	{
 		filename: String,
@@ -591,6 +597,7 @@ impl Error
 			Error::DuplicateDeclarationParameter { .. } => 424,
 			Error::DuplicateDeclarationStructure { .. } => 425,
 			Error::DuplicateDeclarationMember { .. } => 426,
+			Error::NotACompileTimeConstant { .. } => 433,
 			Error::UnresolvedImport { .. } => 470,
 			Error::VariableDeclarationMayBeSkipped { .. } => 482,
 			Error::ConflictingTypes { .. } => 500,
@@ -707,6 +714,7 @@ impl Error
 			Error::DuplicateDeclarationParameter { location, .. } => &location,
 			Error::DuplicateDeclarationStructure { location, .. } => &location,
 			Error::DuplicateDeclarationMember { location, .. } => &location,
+			Error::NotACompileTimeConstant { location, .. } => &location,
 			Error::UnresolvedImport { location, .. } => &location,
 			Error::ConflictingTypes { location, .. } => &location,
 			Error::NotAnArray { location, .. } => &location,
@@ -1622,6 +1630,31 @@ fn write(
 					.with_color(PRIMARY),
 			)
 		}
+
+		Error::NotACompileTimeConstant {
+			name,
+			location,
+			location_of_declaration,
+		} => report
+			.with_message("Value not known at compile-time")
+			.with_label(
+				location
+					.label()
+					.with_message(
+						"Only compile-time constants are allowed here.",
+					)
+					.with_color(PRIMARY),
+			)
+			.with_label(
+				location_of_declaration
+					.label()
+					.with_message(format!(
+						"The value of the variable '{}' declared here is not \
+						 known at compile-time.",
+						name.fg(SECONDARY),
+					))
+					.with_color(SECONDARY),
+			),
 
 		Error::UnresolvedImport {
 			filename,

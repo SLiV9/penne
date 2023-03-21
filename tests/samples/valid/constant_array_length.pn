@@ -16,3 +16,8 @@ struct BufferHolder
 }
 
 const NUM_FLAGS: usize = 2 * MAX_LEN;
+
+fn foo()
+{
+	var data: [MAX_LEN]u8;
+}
