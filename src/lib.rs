@@ -85,7 +85,7 @@ impl Compiler
 	{
 		self.typer = typer::Typer::default();
 		self.analyzer = analyzer::Analyzer::default();
-		// Keep the linter between modules.
+		self.linter = linter::Linter::default();
 		self.generator.add_module(module_name)
 	}
 
@@ -125,6 +125,13 @@ impl Compiler
 	) -> Result<Result<Vec<resolved::Declaration>, error::Errors>, anyhow::Error>
 	{
 		// The declarations must be aligned and sorted with `align()`.
+
+		// Forward declare all structures as opaque types so that
+		// pointer types are valid (because they do not affect container depth).
+		for name in declarations.iter().filter_map(scoper::get_structure_name)
+		{
+			generator::forward_declare_structure(name, &mut self.generator)?;
+		}
 
 		// Type, analyze, lint and resolve the program one declaration at
 		// a time, and generate IR for structures and constants in advance.

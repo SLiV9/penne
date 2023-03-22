@@ -121,7 +121,7 @@ fn fail_to_type_assign_from_void()
 fn fail_to_type_missing_return_type()
 {
 	compile_to_fail(
-		&[330, 582, 331],
+		&[330, 331, 582],
 		"tests/samples/invalid/missing_return_type.pn",
 	)
 }

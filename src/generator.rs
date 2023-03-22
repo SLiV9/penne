@@ -281,6 +281,16 @@ impl Drop for Generator
 	}
 }
 
+pub fn forward_declare_structure(
+	structure_name: &str,
+	llvm: &mut Generator,
+) -> Result<(), anyhow::Error>
+{
+	let name = CString::new(structure_name)?;
+	unsafe { LLVMStructCreateNamed(llvm.context, name.as_ptr()) };
+	Ok(())
+}
+
 pub fn declare(
 	declaration: &Declaration,
 	llvm: &mut Generator,
@@ -374,8 +384,17 @@ pub fn declare(
 		} =>
 		{
 			let name = CString::new(&name.name as &str)?;
-			let struct_type =
-				unsafe { LLVMStructCreateNamed(llvm.context, name.as_ptr()) };
+			let struct_type = unsafe {
+				let x = LLVMGetTypeByName(llvm.module, name.as_ptr());
+				if !x.is_null()
+				{
+					x
+				}
+				else
+				{
+					LLVMStructCreateNamed(llvm.context, name.as_ptr())
+				}
+			};
 
 			let member_types: Result<Vec<LLVMTypeRef>, anyhow::Error> = members
 				.iter()
