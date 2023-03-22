@@ -195,8 +195,8 @@ impl Resolvable for Declaration
 				location_of_type: _,
 			} =>
 			{
-				let (name, value, value_type) =
-					(name, value, value_type).resolve()?;
+				let (name, value_type, value) =
+					(name, value_type, value).resolve()?;
 				let depth = match depth
 				{
 					Some(Ok(depth)) => depth,
@@ -221,8 +221,8 @@ impl Resolvable for Declaration
 				location_of_return_type: _,
 			} =>
 			{
-				let (name, parameters, body, return_type) =
-					(name, parameters, body, return_type).resolve()?;
+				let (name, parameters, return_type, body) =
+					(name, parameters, return_type, body).resolve()?;
 				let return_type = Some(return_type).filter(|x| !x.is_void());
 				Ok(resolved::Declaration::Function {
 					name,
@@ -260,8 +260,8 @@ impl Resolvable for Declaration
 				location_of_declaration: _,
 			} =>
 			{
-				let (name, members, structural_type) =
-					(name, members, structural_type).resolve()?;
+				let (name, structural_type, members) =
+					(name, structural_type, members).resolve()?;
 				let _ = structural_type;
 				let depth = match depth
 				{
@@ -346,7 +346,7 @@ impl Resolvable for Statement
 				location: _,
 			} =>
 			{
-				let (name, value, vt) = (name, value, vt).resolve()?;
+				let (name, vt, value) = (name, vt, value).resolve()?;
 				Ok(resolved::Statement::Declaration {
 					name,
 					value: Some(value),
@@ -839,8 +839,8 @@ impl Resolvable for ValueType
 				named_length,
 			} =>
 			{
-				let (element_type, named_length) =
-					(element_type, named_length).resolve()?;
+				let (named_length, element_type) =
+					(named_length, element_type).resolve()?;
 				Ok(resolved::ValueType::ArrayWithNamedLength {
 					element_type,
 					named_length,

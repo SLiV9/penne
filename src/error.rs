@@ -91,6 +91,17 @@ impl Errors
 		errors.append(&mut other.errors);
 		Errors { errors }
 	}
+
+	pub fn sorted(self) -> Errors
+	{
+		let Errors { mut errors } = self;
+		errors.sort_by(|a, b| {
+			a.location()
+				.comparison_key()
+				.cmp(&b.location().comparison_key())
+		});
+		Errors { errors }
+	}
 }
 
 pub enum Never {}
@@ -636,8 +647,6 @@ impl Error
 		}
 	}
 
-	#[cfg_attr(coverage, no_coverage)]
-	#[cfg(not(tarpaulin_include))]
 	fn location(&self) -> &Location
 	{
 		match self

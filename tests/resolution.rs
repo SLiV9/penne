@@ -97,6 +97,12 @@ fn allow_constant_array_length()
 }
 
 #[test]
+fn allow_cyclical_structure_pointers()
+{
+	allow_to_compile("tests/samples/valid/cyclical_structure_pointers.pn")
+}
+
+#[test]
 fn allow_sketch_of_listen_to_client()
 {
 	allow_to_compile("examples/listen_to_client.pn")

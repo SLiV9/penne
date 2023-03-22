@@ -701,6 +701,10 @@ impl Analyzer
 	{
 		assert!(self.containers.len() < u32::MAX as usize);
 		let len = self.containers.len() as u32;
+		for container in &self.containers
+		{
+			dbg!(&container.identifier.name, &container.contained_ids);
+		}
 		for depth in 0..len
 		{
 			let mut resolved = std::collections::HashSet::new();

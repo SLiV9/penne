@@ -121,6 +121,11 @@ impl Location
 			..self
 		}
 	}
+
+	pub fn comparison_key(&self) -> (&str, usize, usize)
+	{
+		(&self.source_filename, self.line_number, self.line_offset)
+	}
 }
 
 #[derive(Debug)]

@@ -87,7 +87,7 @@ fn fail_to_analyze_assign_array_to_array()
 fn fail_to_analyze_assign_array_view_to_variable()
 {
 	compile_to_fail(
-		&[532, 352],
+		&[352, 532],
 		"tests/samples/invalid/assign_array_view_to_variable.pn",
 	);
 }

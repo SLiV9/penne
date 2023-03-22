@@ -57,6 +57,7 @@ pub fn compile_source(
 	resolver::check_surface_level_errors(&declarations)?;
 	let declarations = scoper::analyze(declarations);
 	let mut compiler = Compiler::default();
+	compiler.add_module(filename).unwrap();
 	let declarations = compiler.align(declarations);
 	compiler
 		.analyze_and_resolve(declarations)
@@ -128,7 +129,7 @@ impl Compiler
 		// Type, analyze, lint and resolve the program one declaration at
 		// a time, and generate IR for structures and constants in advance.
 		// This works because the declarations are sorted by container depth.
-		declarations.into_iter().try_fold(Ok(Vec::new()), |acc, x| {
+		let r = declarations.into_iter().try_fold(Ok(Vec::new()), |acc, x| {
 			let declaration = x;
 			let declaration = typer::analyze(declaration, &mut self.typer);
 			let declaration =
@@ -148,7 +149,13 @@ impl Compiler
 				(Err(errors), Err(more)) => Err(errors.combined_with(more)),
 			};
 			Ok(acc)
-		})
+		});
+		match r
+		{
+			Ok(Ok(declarations)) => Ok(Ok(declarations)),
+			Ok(Err(errors)) => Ok(Err(errors.sorted())),
+			Err(error) => Err(error),
+		}
 	}
 
 	pub fn compile(

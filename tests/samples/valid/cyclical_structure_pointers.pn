@@ -1,0 +1,17 @@
+struct Red
+{
+	left: &Black,
+	right: &Black,
+}
+
+struct Black
+{
+	left: &Red,
+	right: &Red,
+}
+
+struct Tree
+{
+	left: &Tree,
+	right: &Tree,
+}

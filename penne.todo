@@ -194,7 +194,8 @@ Development:
 		Because I do not have global type inference, I should be able to do the stages after scoping separately for all declarations.
 		Hmm except that mutability checks now has a cascading error avoidance that relies on the constant being typed before mutability::declare().
 		✔	Fix tests @done (2023-03-22 15:32)
-		☐	Figure out a way to undo the sort inside a fold to get the errors in the correct order
+		✔	Figure out a way to undo the sort inside a fold to get the errors in the correct order @done (2023-03-22 16:29)
+	  ☐	Figure out a way to forward declare structures for &Red types
 		☐	Add a check or Declaration::Assertion for named lengths
 		✔	Link modules @done (2023-03-22 15:32)
 		✔	Clean up main.rs and lib.rs @done (2023-03-22 15:32)

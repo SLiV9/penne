@@ -393,6 +393,7 @@ fn do_main() -> Result<(), anyhow::Error>
 		stdout.dump_code(&filename, &declarations)?;
 
 		stdout.header("Typing, analyzing and resolving", &filename)?;
+		stdout.prepare_for_errors()?;
 		let resolved = compiler.analyze_and_resolve(declarations)?;
 		let declarations = match resolved
 		{
