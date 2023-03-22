@@ -123,7 +123,12 @@ fn investigate_nominal_typing()
 		#[allow(unreachable_code)]
 		Err(errors) => match errors.panic() {},
 	};
-	let members = match declarations.into_iter().next()
+	let test_structure = declarations.into_iter().find(|x| match x
+	{
+		Declaration::Structure { name, .. } => name.name == "Test",
+		_ => false,
+	});
+	let members = match test_structure
 	{
 		Some(Declaration::Structure { members, .. }) => members,
 		_ => panic!("broken test"),

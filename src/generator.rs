@@ -31,59 +31,135 @@ pub fn generate(
 
 pub struct Generator
 {
-	module: *mut LLVMModule,
 	context: *mut LLVMContext,
 	builder: *mut LLVMBuilder,
+	module: *mut LLVMModule,
+	combined_module: Option<*mut LLVMModule>,
 	constants: std::collections::HashMap<u32, LLVMValueRef>,
 	global_variables: std::collections::HashMap<u32, LLVMValueRef>,
 	global_functions: std::collections::HashMap<u32, LLVMValueRef>,
 	local_parameters: std::collections::HashMap<u32, LLVMValueRef>,
 	local_variables: std::collections::HashMap<u32, LLVMValueRef>,
 	local_labeled_blocks: std::collections::HashMap<u32, LLVMBasicBlockRef>,
+	target_triple: CString,
+	data_layout: CString,
 	type_of_usize: LLVMTypeRef,
+}
+
+impl Default for Generator
+{
+	fn default() -> Generator
+	{
+		Generator::new()
+	}
 }
 
 impl Generator
 {
-	pub fn new(module_name: &str) -> Result<Generator, anyhow::Error>
+	fn new() -> Generator
 	{
-		let module_name = CString::new(module_name)?;
+		let module_name = CString::new("combined").unwrap();
 		let generator = unsafe {
 			let context = LLVMContextCreate();
 			let module = LLVMModuleCreateWithNameInContext(
 				module_name.as_ptr(),
 				context,
 			);
-			LLVMSetTarget(module, LLVMGetDefaultTargetTriple());
-			let data_layout = CString::new(DEFAULT_DATA_LAYOUT)?;
-			LLVMSetDataLayout(module, data_layout.as_ptr());
+			let target_triple =
+				CStr::from_ptr(LLVMGetDefaultTargetTriple()).to_owned();
+			let data_layout = CString::new(DEFAULT_DATA_LAYOUT).unwrap();
 			let builder = LLVMCreateBuilderInContext(context);
 			let type_of_usize = LLVMInt64TypeInContext(context);
 			Generator {
-				module,
 				context,
 				builder,
+				module,
+				combined_module: None,
 				constants: std::collections::HashMap::new(),
 				global_variables: std::collections::HashMap::new(),
 				global_functions: std::collections::HashMap::new(),
 				local_parameters: std::collections::HashMap::new(),
 				local_variables: std::collections::HashMap::new(),
 				local_labeled_blocks: std::collections::HashMap::new(),
+				target_triple,
+				data_layout,
 				type_of_usize,
 			}
 		};
-		Ok(generator)
+		generator
 	}
 
 	pub fn for_wasm(&mut self) -> Result<(), anyhow::Error>
 	{
 		unsafe {
-			let triple = CString::new("wasm32-unknown-wasi")?;
-			LLVMSetTarget(self.module, triple.as_ptr());
+			self.target_triple = CString::new("wasm32-unknown-wasi")?;
+			LLVMSetTarget(self.module, self.target_triple.as_ptr());
 			let data_layout = "e-p:32:32-i64:64-n32:64-S64";
-			let data_layout = CString::new(data_layout)?;
-			LLVMSetDataLayout(self.module, data_layout.as_ptr());
+			self.data_layout = CString::new(data_layout)?;
 			self.type_of_usize = LLVMInt32TypeInContext(self.context);
+			LLVMSetDataLayout(self.module, self.data_layout.as_ptr());
+			Ok(())
+		}
+	}
+
+	pub fn add_module(&mut self, module_name: &str)
+		-> Result<(), anyhow::Error>
+	{
+		// Link the previous `module` into `combined_module`.
+		if let Some(combined) = self.combined_module.take()
+		{
+			// This disposes of `module`.
+			let _ = unsafe {
+				llvm_sys::linker::LLVMLinkModules2(combined, self.module)
+			};
+			self.combined_module = Some(combined);
+		}
+		else
+		{
+			// Just move `module` into the previously empty `combined_module`.
+			self.combined_module = Some(self.module);
+		}
+		// Now `combined_module` contains a module and `module` does not.
+		// That is, it is safe to overwrite `module` without disposing it.
+
+		// Create a new `module`.
+		let module_name = CString::new(module_name)?;
+		unsafe {
+			let module = LLVMModuleCreateWithNameInContext(
+				module_name.as_ptr(),
+				self.context,
+			);
+			LLVMSetTarget(module, self.target_triple.as_ptr());
+			LLVMSetDataLayout(module, self.data_layout.as_ptr());
+			self.module = module;
+		}
+
+		// Reset module specific metadata.
+		self.constants.clear();
+		self.global_variables.clear();
+		self.global_functions.clear();
+		self.local_parameters.clear();
+		self.local_variables.clear();
+		self.local_labeled_blocks.clear();
+
+		Ok(())
+	}
+
+	pub fn link_modules(&mut self) -> Result<(), anyhow::Error>
+	{
+		// Link the previous `module` into `combined_module`.
+		if let Some(combined) = self.combined_module.take()
+		{
+			// This disposes of `module`.
+			let _ = unsafe {
+				llvm_sys::linker::LLVMLinkModules2(combined, self.module)
+			};
+			// Move the result into `module`, leaving `combined_module` empty.
+			self.module = combined;
+			Ok(())
+		}
+		else
+		{
 			Ok(())
 		}
 	}
@@ -97,6 +173,17 @@ impl Generator
 				std::ptr::null_mut(),
 			)
 		};
+
+		if let Some(module) = self.combined_module
+		{
+			let _ = unsafe {
+				LLVMVerifyModule(
+					module,
+					LLVMVerifierFailureAction::LLVMAbortProcessAction,
+					std::ptr::null_mut(),
+				)
+			};
+		}
 	}
 
 	fn verify_function(&self, function: LLVMValueRef)
@@ -185,6 +272,10 @@ impl Drop for Generator
 		unsafe {
 			LLVMDisposeBuilder(self.builder);
 			LLVMDisposeModule(self.module);
+			if let Some(module) = self.combined_module
+			{
+				LLVMDisposeModule(module);
+			}
 			LLVMContextDispose(self.context);
 		}
 	}

@@ -4,16 +4,12 @@
 // License: MIT
 //
 
-use penne::analyzer;
 use penne::expander;
-use penne::generator;
 use penne::included;
 use penne::lexer;
-use penne::linter;
 use penne::parser;
 use penne::resolver;
 use penne::scoper;
-use penne::typer;
 
 use std::io::Write;
 
@@ -377,76 +373,27 @@ fn do_main() -> Result<(), anyhow::Error>
 		}
 	}
 
-	let mut generated_ir = None;
+	let mut compiler = penne::Compiler::default();
+	if wasm
+	{
+		compiler.for_wasm()?;
+	}
 
 	for (filepath, declarations) in modules
 	{
 		let filename = filepath.to_string_lossy().to_string();
 		stdout.newline()?;
 		stdout.header("Scoping", &filename)?;
-		let mut declarations = scoper::analyze(declarations);
+		let declarations = scoper::analyze(declarations);
 		stdout.dump_code(&filename, &declarations)?;
 
-		// Sort the declarations so that the functions are at the end and
-		// the constants and structures are declared in the right order.
-		let max: u32 = declarations.len().try_into()?;
-		declarations.sort_by_key(|x| scoper::get_container_depth(x, max));
-
-		stdout.header("Aligning and declaring", &filename)?;
-		let mut typer = typer::Typer::default();
-		let mut analyzer = analyzer::Analyzer::default();
-		// First, align all structures.
-		for declaration in &mut declarations
-		{
-			typer::align_structure(declaration, &mut typer);
-		}
-		// Note the `collect()`.
-		// Then, declare all constants and functions and analyze their types.
-		let declarations: Vec<_> = declarations
-			.into_iter()
-			.map(|x| typer::declare(x, &mut typer))
-			.collect();
-		// Note the `collect()`.
-		// Then, declare all constants and functions.
-		for declaration in &declarations
-		{
-			analyzer::declare(declaration, &mut analyzer);
-		}
+		compiler.add_module(&filename)?;
+		stdout.header("Aligning", &filename)?;
+		let declarations = compiler.align(declarations);
 		stdout.dump_code(&filename, &declarations)?;
-
-		let mut generator = generator::Generator::new(&filename)?;
-		if wasm
-		{
-			generator.for_wasm()?;
-		}
-		let mut linter = linter::Linter::default();
 
 		stdout.header("Typing, analyzing and resolving", &filename)?;
-		// Type, analyze, lint and resolve the program one declaration at
-		// a time, and generate IR for structures and constants in advance.
-		// This works because the declarations are sorted by container depth.
-		let resolved = declarations.into_iter().try_fold(
-			Ok(Vec::new()),
-			|acc, declaration| {
-				let declaration = typer::analyze(declaration, &mut typer);
-				let declaration = analyzer::analyze(declaration, &mut analyzer);
-				linter::lint(&declaration, &mut linter);
-				let resolved = resolver::resolve(declaration);
-				let acc = match (acc, resolved)
-				{
-					(Ok(mut declarations), Ok(declaration)) =>
-					{
-						generator::declare(&declaration, &mut generator)?;
-						declarations.push(declaration);
-						Ok(declarations)
-					}
-					(Ok(_), Err(errors)) => Err(errors),
-					(Err(errors), Ok(_)) => Err(errors),
-					(Err(errors), Err(more)) => Err(errors.combined_with(more)),
-				};
-				Ok::<Result<Vec<penne::Declaration>, _>, anyhow::Error>(acc)
-			},
-		)?;
+		let resolved = compiler.analyze_and_resolve(declarations)?;
 		let declarations = match resolved
 		{
 			Ok(declarations) => declarations,
@@ -457,23 +404,21 @@ fn do_main() -> Result<(), anyhow::Error>
 				return Err(anyhow!("compilation failed"));
 			}
 		};
+		stdout.dump_resolved(&filename, &declarations)?;
 
 		stdout.header("Linting", &filename)?;
-		let lints: Vec<_> = linter.into();
+		let lints: Vec<_> = compiler.take_lints();
+		stdout.linting(lints.is_empty())?;
 		if !lints.is_empty()
 		{
 			stdout.show_errors(lints, &mut source_cache)?;
 		}
-		stdout.dump_resolved(&filename, &declarations)?;
+		stdout.newline()?;
 
 		stdout.header("Generating IR for", &filename)?;
 		stdout.prepare_for_errors()?;
-		for declaration in &declarations
-		{
-			generator::generate(declaration, &mut generator)?;
-		}
-		generator.verify();
-		let ir = generator.generate_ir()?;
+		compiler.compile(&declarations)?;
+		let ir = compiler.generate_ir()?;
 		stdout.dump_text(&ir)?;
 
 		if let Some(out_dir) = &out_dir
@@ -489,11 +434,15 @@ fn do_main() -> Result<(), anyhow::Error>
 			stdout.io_header("Writing to", &outputpath)?;
 			std::fs::write(outputpath, ir)?;
 		}
-		else
-		{
-			generated_ir = Some(ir);
-		}
 	}
+
+	stdout.newline()?;
+	stdout.basic_header("Linking modules")?;
+	stdout.prepare_for_errors()?;
+	compiler.link_modules()?;
+	let full_ir = compiler.generate_ir()?;
+	stdout.dump_text(&full_ir)?;
+	let generated_ir = Some(full_ir);
 
 	if let Some(output_filepath) = output_filepath.filter(|_x| !skip_backend)
 	{
