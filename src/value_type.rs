@@ -220,6 +220,65 @@ where
 		}
 	}
 
+	pub fn can_be_asserted_as(
+		&self,
+		other: &ValueType<I>,
+	) -> Option<Assertion<I>>
+	{
+		match self
+		{
+			ValueType::Array {
+				element_type: a,
+				length,
+			} => match other
+			{
+				ValueType::ArrayWithNamedLength {
+					element_type: b,
+					named_length,
+				} =>
+				{
+					if a == b
+					{
+						Some(Assertion::EqualsKnownUsize {
+							named: named_length.clone(),
+							known: *length,
+						})
+					}
+					else
+					{
+						None
+					}
+				}
+				_ => None,
+			},
+			ValueType::ArrayWithNamedLength {
+				element_type: a,
+				named_length: left,
+			} => match other
+			{
+				ValueType::ArrayWithNamedLength {
+					element_type: b,
+					named_length: right,
+				} =>
+				{
+					if a == b
+					{
+						Some(Assertion::Equals {
+							left: left.clone(),
+							right: right.clone(),
+						})
+					}
+					else
+					{
+						None
+					}
+				}
+				_ => None,
+			},
+			_ => None,
+		}
+	}
+
 	pub fn can_be_declared_as(&self, other: &ValueType<I>) -> bool
 	{
 		match self
@@ -229,10 +288,6 @@ where
 				length: _,
 			} => match other
 			{
-				ValueType::ArrayWithNamedLength {
-					element_type: b,
-					named_length: _,
-				} => a == b,
 				ValueType::Arraylike { element_type: b } => a == b,
 				_ => self == other,
 			},
@@ -788,4 +843,16 @@ where
 			_ => false,
 		}
 	}
+}
+
+pub enum Assertion<I: Identifier>
+{
+	Equals
+	{
+		left: I, right: I
+	},
+	EqualsKnownUsize
+	{
+		named: I, known: usize
+	},
 }

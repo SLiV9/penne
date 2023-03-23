@@ -197,6 +197,7 @@ Development:
 		✔	Figure out a way to undo the sort inside a fold to get the errors in the correct order @done (2023-03-22 16:29)
 	  ✔	Figure out a way to forward declare structures for &Red types @done (2023-03-22 17:12)
 		☐	Add a check or Declaration::Assertion for named lengths
+			☐	Replace ArrayWithNamedLength with an ArrayLength enum that can be either Known or Named, then add pub fn can_be_asserted_as() -> Option<TypeAssertion> with a new TypeAssertion enum that can check a Known against a Named or two Nameds against each other
 		✔	Link modules @done (2023-03-22 15:32)
 		✔	Clean up main.rs and lib.rs @done (2023-03-22 15:32)
 		☐	Use typestate to encode implicit preconditions
