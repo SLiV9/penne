@@ -152,6 +152,21 @@ impl Typer
 		}
 	}
 
+	fn forward_declare_symbol(
+		&mut self,
+		identifier: &Identifier,
+		value_type: Poisonable<ValueType>,
+	)
+	{
+		self.symbols.insert(
+			identifier.resolution_id,
+			Symbol {
+				identifier: identifier.clone(),
+				value_type,
+			},
+		);
+	}
+
 	fn get_symbol(&self, name: &Identifier) -> Option<Poisonable<ValueType>>
 	{
 		match self.symbols.get(&name.resolution_id)
@@ -581,6 +596,40 @@ impl StaticallyTyped for PrimitiveLiteral
 			PrimitiveLiteral::Usize(_) => ValueType::Usize,
 			PrimitiveLiteral::Bool(_) => ValueType::Bool,
 		}
+	}
+}
+
+pub fn forward_declare_structure(declaration: &Declaration, typer: &mut Typer)
+{
+	match declaration
+	{
+		Declaration::Constant { .. } => (),
+		Declaration::Function { .. } => (),
+		Declaration::FunctionHead { .. } => (),
+		Declaration::Structure {
+			name,
+			members: _,
+			structural_type: _,
+			flags: _,
+			depth: Some(Err(_poison)),
+			location_of_declaration: _,
+		} =>
+		{
+			typer.poison_symbol(name, Poison::Poisoned);
+		}
+		Declaration::Structure {
+			name,
+			members: _,
+			structural_type,
+			flags: _,
+			depth: _,
+			location_of_declaration: _,
+		} =>
+		{
+			typer.forward_declare_symbol(name, structural_type.clone());
+		}
+		Declaration::Import { .. } => (),
+		Declaration::Poison(_) => (),
 	}
 }
 

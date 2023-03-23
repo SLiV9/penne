@@ -27,14 +27,12 @@ Functionality:
 		✔	extern C fn(); @done (2022-09-05 18:38)
 		✔	pub extern C fn() {...} @done (2022-09-05 16:51)
 	✔	Parenthesized subexpressions @done (2023-01-15 16:07)
-	☐	Named constants as array lengths
+	✔	Named constants as array lengths @done (2023-03-23 16:17)
 		✘	LengthOfArray in constant expressions @cancelled (2023-01-25 14:31)
 		✔	SizeOfStructure in constant expressions @done (2023-01-25 14:31)
 		✔	Think about empty arrays and structs of size 0 @done (2023-01-29 18:19)
 			Follow LLVM, empty structs and empty arrays have size 0.
-		☐	Must be constant, not variable
-		☐	Must be constant-folded, how do we detect that?
-		☐	Oh the trouble is that we need to be able to assign an array literal of length 3 to an array declared with constant length
+		✔	Must be constant, not variable @done (2023-03-23 16:18)
 	✘	Boolean comparisons outside of if statement condition @cancelled (2023-02-04 18:59)
 		✘	Update ctype.pn @cancelled (2023-02-04 18:59)
 		✘	Boolean and, or @cancelled (2023-02-04 18:59)
@@ -87,7 +85,7 @@ Functionality:
 		☐	const X: &Foo = $static_alloc Foo { ... }; as a replacement for static globals
 			Do not allow dereffing X in const context.
 	☐	stdlib
-		☐	Get lli to run import_core.pn
+		✔	Get lli to run import_core.pn @done (2023-03-23 16:22)
 			LLVM ERROR: Tried to execute an unknown external function: is_control_char
 			The second argument to lli is passed to main(), not loaded...
 			So calling LLVMLinkModules2 was not overcomplicating things.
@@ -197,8 +195,8 @@ Development:
 		✔	Figure out a way to undo the sort inside a fold to get the errors in the correct order @done (2023-03-22 16:29)
 	  ✔	Figure out a way to forward declare structures for &Red types @done (2023-03-22 17:12)
 		✘	Add a check or Declaration::Assertion for named lengths @cancelled (2023-03-23 14:48)
-		☐	Add some way to forward declare a struct
-			☐	Treat &UnresolvedStructOrWord as this during resolution
+		✔	Add some way to forward declare a struct @done (2023-03-23 16:11)
+			✘	Treat &UnresolvedStructOrWord as this during resolution @cancelled (2023-03-23 16:11)
 		✔	Link modules @done (2023-03-22 15:32)
 		✔	Clean up main.rs and lib.rs @done (2023-03-22 15:32)
 		☐	Use typestate to encode implicit preconditions

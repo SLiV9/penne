@@ -493,7 +493,7 @@ fn parse_word_declaration(
 }
 
 fn parse_struct_declaration(
-	flags: EnumSet<DeclarationFlag>,
+	mut flags: EnumSet<DeclarationFlag>,
 	location_of_declaration: Location,
 	tokens: &mut Tokens,
 ) -> Result<Declaration, Error>
@@ -502,7 +502,17 @@ fn parse_struct_declaration(
 	let structural_type = Ok(ValueType::Struct {
 		identifier: name.clone(),
 	});
-	let members = parse_struct_members(tokens)?;
+	let members = if peek(tokens) == Some(&Token::Semicolon)
+	{
+		consume(Token::Semicolon, tokens)?;
+		flags.insert(DeclarationFlag::OpaqueStruct);
+		Vec::new()
+	}
+	else
+	{
+		let members = parse_struct_members(tokens)?;
+		members
+	};
 	Ok(Declaration::Structure {
 		name,
 		members,

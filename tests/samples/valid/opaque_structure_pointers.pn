@@ -1,0 +1,8 @@
+struct Owner;
+
+struct Handler
+{
+	owner: &Owner,
+}
+
+fn handle(owner: &Owner, handler: Handler);

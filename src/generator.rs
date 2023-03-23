@@ -374,7 +374,7 @@ pub fn declare(
 		Declaration::Structure {
 			name,
 			members,
-			flags: _,
+			flags,
 			depth: _,
 		} =>
 		{
@@ -390,6 +390,12 @@ pub fn declare(
 					LLVMStructCreateNamed(llvm.context, name.as_ptr())
 				}
 			};
+
+			if flags.contains(DeclarationFlag::OpaqueStruct)
+			{
+				assert!(members.is_empty());
+				return Ok(());
+			}
 
 			let member_types: Result<Vec<LLVMTypeRef>, anyhow::Error> = members
 				.iter()

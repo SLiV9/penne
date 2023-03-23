@@ -128,6 +128,17 @@ impl Compiler
 		are_all_containers: bool,
 	) -> Result<Result<Vec<resolved::Declaration>, error::Errors>, anyhow::Error>
 	{
+		// Forward declare all structures as opaque types so that pointer types
+		// are valid (because pointers do not affect container depth).
+		for declaration in &declarations
+		{
+			typer::forward_declare_structure(declaration, &mut self.typer);
+		}
+		for name in declarations.iter().filter_map(scoper::get_structure_name)
+		{
+			generator::forward_declare_structure(name, &mut self.generator)?;
+		}
+
 		let declarations = if are_all_containers
 		{
 			declarations
@@ -152,13 +163,6 @@ impl Compiler
 			}
 			declarations
 		};
-
-		// Forward declare all structures as opaque types so that pointer types
-		// are valid (because pointers do not affect container depth).
-		for name in declarations.iter().filter_map(scoper::get_structure_name)
-		{
-			generator::forward_declare_structure(name, &mut self.generator)?;
-		}
 
 		// Type, analyze, lint and resolve the program one declaration at
 		// a time, and generate IR for structures and constants in advance.
