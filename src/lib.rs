@@ -96,13 +96,12 @@ impl Compiler
 		// Sort the declarations so that the functions are at the end and
 		// the constants and structures are declared in the right order.
 		declarations.sort_by_key(|x| scoper::get_container_depth(x, u32::MAX));
-
 		let offset = declarations.partition_point(|x| scoper::is_container(x));
+		let functions = declarations.split_off(offset);
+		let containers = declarations;
 		// First analyze and resolve all the constants and structures,
 		// then analyze and resolve all the functions.
 		// This works because constants and structures cannot use functions.
-		let functions = declarations.split_off(offset);
-		let containers = declarations;
 		let containers = self.analyze_and_resolve_sorted(containers, true)?;
 		let functions = self.analyze_and_resolve_sorted(functions, false)?;
 		let declarations = match (containers, functions)

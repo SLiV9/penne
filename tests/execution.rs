@@ -513,6 +513,18 @@ fn execute_import_position_and_line() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_import_sum_of_squares() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation_with_imports(&[
+		"tests/samples/valid/import_sum_of_squares.pn",
+		"tests/samples/valid/position.pn",
+		"tests/samples/valid/sum_of_squares.pn",
+	])?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn fail_to_execute_pointer_escape_ub() -> Result<(), anyhow::Error>
 {
 	let result =

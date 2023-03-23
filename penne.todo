@@ -85,10 +85,6 @@ Functionality:
 		☐	const X: &Foo = $static_alloc Foo { ... }; as a replacement for static globals
 			Do not allow dereffing X in const context.
 	☐	stdlib
-		✔	Get lli to run import_core.pn @done (2023-03-23 16:22)
-			LLVM ERROR: Tried to execute an unknown external function: is_control_char
-			The second argument to lli is passed to main(), not loaded...
-			So calling LLVMLinkModules2 was not overcomplicating things.
 		☐	panic()
 		☐	print()
 		☐	fopen(), fclose()
@@ -97,9 +93,9 @@ Functionality:
 			☐	Write fix examples in error code reference for E531 through E533
 		☐	transmute() implemented met bitcast (geen struct size checks)
 			☐	wasm4 saving-data.md code sample versimpelen
-		☐	Move main infra to library so it can be tested
-			☐ Add test for import_sum_of_squares.pn
-			☐	Or create an integratino test with assert_cmd crate
+		✘	Move main infra to library so it can be tested @cancelled (2023-03-23 17:55)
+			✔ Add test for import_sum_of_squares.pn @done (2023-03-23 17:17)
+			✔	Or create an integration test with assert_cmd crate @done (2023-03-23 17:55)
 	☐	Compile-time string and byte-array inclusion from file
 
 Syntactic sugar:
