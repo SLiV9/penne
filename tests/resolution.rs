@@ -103,6 +103,12 @@ fn allow_cyclical_structure_pointers()
 }
 
 #[test]
+fn allow_explicit_view_constant()
+{
+	allow_to_compile("tests/samples/valid/explicit_view_constant.pn")
+}
+
+#[test]
 fn allow_sketch_of_listen_to_client()
 {
 	allow_to_compile("examples/listen_to_client.pn")

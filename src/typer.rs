@@ -2570,14 +2570,12 @@ impl Reference
 
 				(ValueType::Pointer { deref_type }, _) =>
 				{
-					let step = ReferenceStep::Autoderef;
-					taken_steps.push(step);
+					taken_steps.push(ReferenceStep::Autoderef);
 					current_type = *deref_type;
 				}
 				(ValueType::View { deref_type }, _) =>
 				{
-					let step = ReferenceStep::Autoview;
-					taken_steps.push(step);
+					taken_steps.push(ReferenceStep::Autoview);
 					current_type = *deref_type;
 				}
 
@@ -2741,6 +2739,14 @@ impl Reference
 		{
 			take_address = false;
 			coerced_type = None;
+		}
+		else if self.address_depth == 0
+			&& current_type.get_viewee_type().as_ref() == Some(&target_type)
+		{
+			take_address = false;
+			coerced_type = None;
+			taken_steps.push(ReferenceStep::Autoview);
+			current_type = target_type;
 		}
 		else if self.address_depth == 0
 			&& current_type.can_coerce_into(&target_type)
