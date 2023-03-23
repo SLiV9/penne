@@ -388,9 +388,6 @@ fn do_main() -> Result<(), anyhow::Error>
 		stdout.dump_code(&filename, &declarations)?;
 
 		compiler.add_module(&filename)?;
-		stdout.header("Aligning", &filename)?;
-		let declarations = compiler.align(declarations);
-		stdout.dump_code(&filename, &declarations)?;
 
 		stdout.header("Typing, analyzing and resolving", &filename)?;
 		stdout.prepare_for_errors()?;

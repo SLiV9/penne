@@ -537,7 +537,6 @@ fn execute_calculation(filename: &str) -> Result<i32, anyhow::Error>
 	let declarations = scoper::analyze(declarations);
 	let mut compiler = Compiler::default();
 	compiler.add_module(&filename)?;
-	let declarations = compiler.align(declarations);
 	let declarations = match compiler.analyze_and_resolve(declarations)?
 	{
 		Ok(declarations) => declarations,
@@ -578,7 +577,6 @@ fn execute_calculation_with_imports(
 		let filename = filepath.to_str().unwrap();
 		compiler.add_module(&filename)?;
 		let declarations = scoper::analyze(declarations);
-		let declarations = compiler.align(declarations);
 		let declarations = match compiler.analyze_and_resolve(declarations)?
 		{
 			Ok(declarations) => declarations,

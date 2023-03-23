@@ -229,10 +229,6 @@ where
 				length: _,
 			} => match other
 			{
-				ValueType::ArrayWithNamedLength {
-					element_type: b,
-					named_length: _,
-				} => a == b,
 				ValueType::Arraylike { element_type: b } => a == b,
 				_ => self == other,
 			},

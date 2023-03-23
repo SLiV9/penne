@@ -58,7 +58,6 @@ pub fn compile_source(
 	let declarations = scoper::analyze(declarations);
 	let mut compiler = Compiler::default();
 	compiler.add_module(filename).unwrap();
-	let declarations = compiler.align(declarations);
 	compiler
 		.analyze_and_resolve(declarations)
 		.expect("failed to generate IR")
@@ -89,45 +88,73 @@ impl Compiler
 		self.generator.add_module(module_name)
 	}
 
-	pub fn align(
+	pub fn analyze_and_resolve(
 		&mut self,
 		mut declarations: Vec<common::Declaration>,
-	) -> Vec<common::Declaration>
+	) -> Result<Result<Vec<resolved::Declaration>, error::Errors>, anyhow::Error>
 	{
 		// Sort the declarations so that the functions are at the end and
 		// the constants and structures are declared in the right order.
-		let max: u32 = declarations.len().try_into().unwrap_or(u32::MAX);
-		declarations.sort_by_key(|x| scoper::get_container_depth(x, max));
+		declarations.sort_by_key(|x| scoper::get_container_depth(x, u32::MAX));
 
-		// First, align all structures.
-		for declaration in &mut declarations
+		let offset = declarations.partition_point(|x| scoper::is_container(x));
+		// First analyze and resolve all the constants and structures,
+		// then analyze and resolve all the functions.
+		// This works because constants and structures cannot use functions.
+		let functions = declarations.split_off(offset);
+		let containers = declarations;
+		let containers = self.analyze_and_resolve_sorted(containers, true)?;
+		let functions = self.analyze_and_resolve_sorted(functions, false)?;
+		let declarations = match (containers, functions)
 		{
-			typer::align_structure(declaration, &mut self.typer);
-		}
-		// Then, declare all constants and functions and analyze their types.
-		let declarations: Vec<_> = declarations
-			.into_iter()
-			.map(|x| typer::declare(x, &mut self.typer))
-			.collect();
-		// Note the `collect()`.
-		// Then, declare all constants and functions.
-		for declaration in &declarations
-		{
-			analyzer::declare(declaration, &mut self.analyzer);
-		}
-
-		declarations
+			(Ok(mut declarations), Ok(mut more)) =>
+			{
+				declarations.append(&mut more);
+				Ok(declarations)
+			}
+			(Ok(_), Err(errors)) => Err(errors),
+			(Err(errors), Ok(_)) => Err(errors),
+			(Err(errors), Err(more)) =>
+			{
+				Err(errors.combined_with(more).sorted())
+			}
+		};
+		Ok(declarations)
 	}
 
-	pub fn analyze_and_resolve(
+	fn analyze_and_resolve_sorted(
 		&mut self,
 		declarations: Vec<common::Declaration>,
+		are_all_containers: bool,
 	) -> Result<Result<Vec<resolved::Declaration>, error::Errors>, anyhow::Error>
 	{
-		// The declarations must be aligned and sorted with `align()`.
+		let declarations = if are_all_containers
+		{
+			declarations
+		}
+		else
+		{
+			// Align all poisoned structures at the same time, because they
+			// might contain references to each other.
+			let mut declarations = declarations;
+			for declaration in &mut declarations
+			{
+				typer::align_structure(declaration, &mut self.typer);
+			}
+			// Declare all function signatures and analyze their types.
+			let declarations: Vec<_> = declarations
+				.into_iter()
+				.map(|x| typer::declare(x, &mut self.typer))
+				.collect();
+			for declaration in &declarations
+			{
+				analyzer::declare(declaration, &mut self.analyzer);
+			}
+			declarations
+		};
 
-		// Forward declare all structures as opaque types so that
-		// pointer types are valid (because they do not affect container depth).
+		// Forward declare all structures as opaque types so that pointer types
+		// are valid (because pointers do not affect container depth).
 		for name in declarations.iter().filter_map(scoper::get_structure_name)
 		{
 			generator::forward_declare_structure(name, &mut self.generator)?;
@@ -136,8 +163,19 @@ impl Compiler
 		// Type, analyze, lint and resolve the program one declaration at
 		// a time, and generate IR for structures and constants in advance.
 		// This works because the declarations are sorted by container depth.
+		// Also generate IR for function signatures in advance.
 		let r = declarations.into_iter().try_fold(Ok(Vec::new()), |acc, x| {
 			let declaration = x;
+			let declaration = if are_all_containers
+			{
+				let mut declaration = declaration;
+				typer::align_structure(&mut declaration, &mut self.typer);
+				typer::declare(declaration, &mut self.typer)
+			}
+			else
+			{
+				declaration
+			};
 			let declaration = typer::analyze(declaration, &mut self.typer);
 			let declaration =
 				analyzer::analyze(declaration, &mut self.analyzer);
@@ -148,6 +186,7 @@ impl Compiler
 				(Ok(mut declarations), Ok(declaration)) =>
 				{
 					generator::declare(&declaration, &mut self.generator)?;
+					self.fetch_declared_constants(&declaration);
 					declarations.push(declaration);
 					Ok(declarations)
 				}
@@ -162,6 +201,25 @@ impl Compiler
 			Ok(Ok(declarations)) => Ok(Ok(declarations)),
 			Ok(Err(errors)) => Ok(Err(errors.sorted())),
 			Err(error) => Err(error),
+		}
+	}
+
+	fn fetch_declared_constants(&mut self, declaration: &resolved::Declaration)
+	{
+		match declaration
+		{
+			Declaration::Constant {
+				name,
+				value_type: value_type::ValueType::Usize,
+				..
+			} =>
+			{
+				if let Some(value) = self.generator.get_named_length(name)
+				{
+					self.typer.resolve_named_length(name.resolution_id, value);
+				}
+			}
+			_ => (),
 		}
 	}
 

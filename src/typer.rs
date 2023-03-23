@@ -28,6 +28,7 @@ pub struct Typer
 	symbols: std::collections::HashMap<u32, Symbol>,
 	functions: std::collections::HashMap<u32, Function>,
 	structures: std::collections::HashMap<u32, Structure>,
+	calculated_named_lengths: std::collections::HashMap<u32, usize>,
 	contextual_type: Option<Poisonable<ValueType>>,
 }
 
@@ -92,6 +93,11 @@ fn do_update_symbol(
 
 impl Typer
 {
+	pub fn resolve_named_length(&mut self, resolution_id: u32, value: usize)
+	{
+		self.calculated_named_lengths.insert(resolution_id, value);
+	}
+
 	fn put_symbol(
 		&mut self,
 		identifier: &Identifier,
@@ -176,6 +182,30 @@ impl Typer
 				Some((previous_type, symbol.identifier.location.clone()))
 			}
 			None => None,
+		}
+	}
+
+	fn retrieve_named_length(&mut self, name: Identifier) -> Poisonable<usize>
+	{
+		match self.calculated_named_lengths.get(&name.resolution_id)
+		{
+			Some(value) => Ok(*value),
+			None => match self.symbols.get(&name.resolution_id)
+			{
+				Some(symbol) =>
+				{
+					let location_of_declaration =
+						symbol.identifier.location.clone();
+					self.poison_symbol(&name, Poison::Poisoned);
+					let error = Error::NotACompileTimeConstant {
+						name: name.name,
+						location: name.location,
+						location_of_declaration,
+					};
+					Err(error.into())
+				}
+				None => unreachable!(),
+			},
 		}
 	}
 
@@ -2973,9 +3003,10 @@ fn analyze_type(
 		{
 			typer.put_symbol(&named_length, Some(Ok(ValueType::Usize)))?;
 			let element_type = analyze_type(*element_type, typer)?;
-			Ok(ValueType::ArrayWithNamedLength {
+			let length = typer.retrieve_named_length(named_length)?;
+			Ok(ValueType::Array {
 				element_type: Box::new(element_type),
-				named_length,
+				length,
 			})
 		}
 		ValueType::Slice { element_type } =>

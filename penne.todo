@@ -196,10 +196,13 @@ Development:
 		✔	Fix tests @done (2023-03-22 15:32)
 		✔	Figure out a way to undo the sort inside a fold to get the errors in the correct order @done (2023-03-22 16:29)
 	  ✔	Figure out a way to forward declare structures for &Red types @done (2023-03-22 17:12)
-		☐	Add a check or Declaration::Assertion for named lengths
+		✘	Add a check or Declaration::Assertion for named lengths @cancelled (2023-03-23 14:48)
+		☐	Add some way to forward declare a struct
+			☐	Treat &UnresolvedStructOrWord as this during resolution
 		✔	Link modules @done (2023-03-22 15:32)
 		✔	Clean up main.rs and lib.rs @done (2023-03-22 15:32)
 		☐	Use typestate to encode implicit preconditions
+			☐	Replace unreachable ArrayWithNamedLength with typestate
 	☐	Improve test coverage
 		✔	Is E163 unreachable? @done (2023-03-04 17:25)
 		✔	Is E332 unreachable? @done (2023-03-04 18:35)

@@ -17,8 +17,6 @@ use llvm_sys::target_machine::LLVMGetDefaultTargetTriple;
 use llvm_sys::*;
 use llvm_sys::{LLVMBuilder, LLVMContext, LLVMModule};
 
-use anyhow::anyhow;
-
 pub const DEFAULT_DATA_LAYOUT: &str = "e-m:e-p:64:64-i64:64-n8:16:32:64-S64";
 
 pub fn generate(
@@ -237,19 +235,16 @@ impl Generator
 		unsafe { LLVMConstInt(self.type_of_usize, value as u64, 0) }
 	}
 
-	pub fn get_constant_as_u64(
-		&self,
-		name: &Identifier,
-	) -> Result<u64, anyhow::Error>
+	pub fn get_named_length(&self, name: &Identifier) -> Option<usize>
 	{
 		if let Some(&constant) = self.constants.get(&name.resolution_id)
 		{
 			let v: u64 = unsafe { LLVMConstIntGetZExtValue(constant) };
-			Ok(v)
+			v.try_into().ok()
 		}
 		else
 		{
-			Err(anyhow!("failed to calculate compile-time constant"))
+			None
 		}
 	}
 
@@ -1287,15 +1282,9 @@ impl Generatable for ValueType
 				let length: u32 = length.try_into()?;
 				unsafe { LLVMArrayType(element_type, length) }
 			}
-			ValueType::ArrayWithNamedLength {
-				element_type,
-				named_length,
-			} =>
+			ValueType::ArrayWithNamedLength { .. } =>
 			{
-				let length: u64 = llvm.get_constant_as_u64(named_length)?;
-				let length: u32 = length.try_into()?;
-				let element_type = element_type.generate(llvm)?;
-				unsafe { LLVMArrayType(element_type, length) }
+				unreachable!()
 			}
 			ValueType::Slice { element_type }
 			| ValueType::SlicePointer { element_type } =>

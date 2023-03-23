@@ -28,7 +28,6 @@ fn lint(filename: &str) -> Vec<Lint>
 	}
 	let declarations = scoper::analyze(declarations);
 	let mut compiler = Compiler::default();
-	let declarations = compiler.align(declarations);
 	match compiler.analyze_and_resolve(declarations).unwrap()
 	{
 		Ok(_) => (),

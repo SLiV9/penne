@@ -38,6 +38,11 @@ pub fn get_container_depth(declaration: &Declaration, max: u32) -> u32
 	}
 }
 
+pub fn is_container(declaration: &Declaration) -> bool
+{
+	get_container_depth(declaration, u32::MAX) < u32::MAX
+}
+
 pub fn get_structure_name(declaration: &Declaration) -> Option<&str>
 {
 	match declaration
