@@ -27,6 +27,15 @@ fn build_addition()
 }
 
 #[test]
+fn emit_addition()
+{
+	let mut cmd = Command::cargo_bin("penne").unwrap();
+	cmd.arg("emit");
+	cmd.arg("examples/addition.pn");
+	cmd.assert().success();
+}
+
+#[test]
 fn run_import_core()
 {
 	let mut cmd = Command::cargo_bin("penne").unwrap();
@@ -37,28 +46,22 @@ fn run_import_core()
 }
 
 #[test]
-fn build_wasm4_hello_from_penne()
+fn emit_wasm4_hello_from_penne()
 {
-	let outdir = tempfile::tempdir().unwrap();
 	let mut cmd = Command::cargo_bin("penne").unwrap();
-	cmd.arg("--out-dir");
-	cmd.arg(outdir.path());
-	cmd.arg("--config");
-	cmd.arg("examples/wasm4/penne_wasm4.toml");
+	cmd.arg("emit");
+	cmd.arg("--wasm");
 	cmd.arg("examples/wasm4/hello_from_penne.pn");
 	cmd.arg("vendor:wasm4");
 	cmd.assert().success();
 }
 
 #[test]
-fn build_wasm4_write_with_custom_font()
+fn emit_wasm4_write_with_custom_font()
 {
-	let outdir = tempfile::tempdir().unwrap();
 	let mut cmd = Command::cargo_bin("penne").unwrap();
-	cmd.arg("--out-dir");
-	cmd.arg(outdir.path());
-	cmd.arg("--config");
-	cmd.arg("examples/wasm4/penne_wasm4.toml");
+	cmd.arg("emit");
+	cmd.arg("--wasm");
 	cmd.arg("examples/wasm4/write_with_custom_font.pn");
 	cmd.arg("vendor:wasm4");
 	cmd.assert().success();

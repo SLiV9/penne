@@ -181,22 +181,9 @@ Documentation:
 	✔	High def logo @done (23-02-16 17:28)
 
 Development:
-	☐ Refactor the main flow to have a Generator with a single LLVM Context, so we can call LLVMLinkModules2, and also so that we can call the generator inside typer.rs for arraywithnamedlength
-		Ah but the trouble is that we need both the pre-resolver metadata about the constants and the post-resolver generated LLVM.
-		Also I need debug information in the resolved AST for DWARF.
-		Perhaps just add a more traditional symbol table?
-		Because I do not have global type inference, I should be able to do the stages after scoping separately for all declarations.
-		Hmm except that mutability checks now has a cascading error avoidance that relies on the constant being typed before mutability::declare().
-		✔	Fix tests @done (2023-03-22 15:32)
-		✔	Figure out a way to undo the sort inside a fold to get the errors in the correct order @done (2023-03-22 16:29)
-	  ✔	Figure out a way to forward declare structures for &Red types @done (2023-03-22 17:12)
-		✘	Add a check or Declaration::Assertion for named lengths @cancelled (2023-03-23 14:48)
-		✔	Add some way to forward declare a struct @done (2023-03-23 16:11)
-			✘	Treat &UnresolvedStructOrWord as this during resolution @cancelled (2023-03-23 16:11)
-		✔	Link modules @done (2023-03-22 15:32)
-		✔	Clean up main.rs and lib.rs @done (2023-03-22 15:32)
-		☐	Use typestate to encode implicit preconditions
-			☐	Replace unreachable ArrayWithNamedLength with typestate
+	☐	Finish rework
+		☐	Cleanup unnecessary typer::align_structure etcetera
+		☐	Add documentation for 0.4.0 features and errors
 	☐	Improve test coverage
 		✔	Is E163 unreachable? @done (2023-03-04 17:25)
 		✔	Is E332 unreachable? @done (2023-03-04 18:35)
