@@ -10,7 +10,7 @@ pub trait Identifier: Clone + PartialEq {}
 
 impl Identifier for String {}
 
-/// The maximum alignment of members is 8 bytes.
+/// The maximum alignment of structure members is 8 bytes.
 pub const MAXIMUM_ALIGNMENT: usize = 8;
 
 #[must_use]

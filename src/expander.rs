@@ -15,6 +15,7 @@ use crate::included;
 use enumset::EnumSet;
 use std::collections::HashSet;
 
+/// Share public symbols between modules.
 pub fn expand(modules: &mut [(std::path::PathBuf, Vec<Declaration>)])
 {
 	let keys: Vec<std::path::PathBuf> =
@@ -83,6 +84,7 @@ pub fn expand(modules: &mut [(std::path::PathBuf, Vec<Declaration>)])
 	}
 }
 
+/// Convenience method that calls [expand](expand) with a single module.
 pub fn expand_one(
 	filename: &str,
 	declarations: Vec<Declaration>,

@@ -11,6 +11,7 @@ use crate::common::*;
 
 pub use crate::error::Error as Lint;
 
+/// The Linter keeps track of context during the linting stage.
 #[derive(Default)]
 pub struct Linter
 {
@@ -21,6 +22,9 @@ pub struct Linter
 
 impl Linter
 {
+	/// Generates lints for a declaration.
+	/// The lints are stored in the Linter
+	/// and can be retrieved by turning the Linter into `Vec<Lint>`.
 	pub fn lint(&mut self, declaration: &Declaration)
 	{
 		declaration.lint(self)

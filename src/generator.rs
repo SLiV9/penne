@@ -17,8 +17,10 @@ use llvm_sys::target_machine::LLVMGetDefaultTargetTriple;
 use llvm_sys::*;
 use llvm_sys::{LLVMBuilder, LLVMContext, LLVMModule};
 
+/// The LLVM data layout specification for the default target.
 pub const DEFAULT_DATA_LAYOUT: &str = "e-m:e-p:64:64-i64:64-n8:16:32:64-S64";
 
+/// The Generator generates LLVM IR.
 pub struct Generator
 {
 	context: *mut LLVMContext,
@@ -79,6 +81,7 @@ impl Generator
 		generator
 	}
 
+	/// Change the target triple from the current OS to WebAssembly.
 	pub fn for_wasm(&mut self) -> Result<(), anyhow::Error>
 	{
 		unsafe {
@@ -92,6 +95,8 @@ impl Generator
 		}
 	}
 
+	/// Ready the Generator for a new module.
+	/// This function must be called before analyzing declarations.
 	pub fn add_module(&mut self, module_name: &str)
 		-> Result<(), anyhow::Error>
 	{
@@ -135,9 +140,10 @@ impl Generator
 		Ok(())
 	}
 
+	/// Link the current module into the previous module.
+	/// The result is the new current module.
 	pub fn link_modules(&mut self) -> Result<(), anyhow::Error>
 	{
-		// Link the previous `module` into `combined_module`.
 		if let Some(combined) = self.combined_module.take()
 		{
 			// This disposes of `module`.
@@ -154,6 +160,8 @@ impl Generator
 		}
 	}
 
+	/// Add a structure as an opaque type, so that it can be used in
+	/// pointer types.
 	pub fn forward_declare_structure(
 		&mut self,
 		structure_name: &str,
@@ -164,6 +172,8 @@ impl Generator
 		Ok(())
 	}
 
+	/// Generate surface level IR for constants, structures and
+	/// function signatures.
 	pub fn declare(
 		&mut self,
 		declaration: &Declaration,
@@ -172,6 +182,7 @@ impl Generator
 		declare(declaration, self)
 	}
 
+	/// Generate full IR for all types of declarations.
 	pub fn generate(
 		&mut self,
 		declaration: &Declaration,
@@ -180,6 +191,7 @@ impl Generator
 		declaration.generate(self)
 	}
 
+	/// Verify that IR generation for the current module was successful.
 	pub fn verify(&self)
 	{
 		let _ = unsafe {
@@ -212,6 +224,7 @@ impl Generator
 		};
 	}
 
+	/// Generate textual IR for the current module.
 	pub fn generate_ir(&self) -> Result<String, anyhow::Error>
 	{
 		let ircode: CString = unsafe {
@@ -253,6 +266,9 @@ impl Generator
 		unsafe { LLVMConstInt(self.type_of_usize, value as u64, 0) }
 	}
 
+	/// Get the value of a constant of type `usize`,
+	/// if it can be obtained through constant folding.
+	/// This allows that constant to be used as the length in array types.
 	pub fn get_named_length(&self, name: &Identifier) -> Option<usize>
 	{
 		if let Some(&constant) = self.constants.get(&name.resolution_id)

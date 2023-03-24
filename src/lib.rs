@@ -45,7 +45,7 @@ pub use error::Errors;
 pub use resolved::Declaration;
 
 /// Convenience method that parses source code and runs it through each of the
-/// compiler stages.
+/// compiler stages, except full IR generation.
 pub fn compile_source(
 	source: &str,
 	filename: &str,
@@ -63,6 +63,9 @@ pub fn compile_source(
 		.expect("failed to generate IR")
 }
 
+/// After parsing and scoping, the relative order of type inferencing, analysis
+/// and IR generation for individual declarations is managed by a Compiler.
+/// This allows compile-time constants to be used during type inference.
 #[derive(Default)]
 pub struct Compiler
 {
@@ -74,11 +77,14 @@ pub struct Compiler
 
 impl Compiler
 {
+	/// Change the target triple from the current OS to WebAssembly.
 	pub fn for_wasm(&mut self) -> Result<(), anyhow::Error>
 	{
 		self.generator.for_wasm()
 	}
 
+	/// Ready the Compiler for a new module.
+	/// This function must be called before analyzing declarations.
 	pub fn add_module(&mut self, module_name: &str)
 		-> Result<(), anyhow::Error>
 	{
@@ -88,6 +94,9 @@ impl Compiler
 		self.generator.add_module(module_name)
 	}
 
+	/// Apply type inference, semantic analysis and syntactical analysis
+	/// on the declarations of a single module,
+	/// and perform preliminary IR generation.
 	pub fn analyze_and_resolve(
 		&mut self,
 		mut declarations: Vec<common::Declaration>,
@@ -192,6 +201,7 @@ impl Compiler
 		}
 	}
 
+	/// Compile declarations into IR.
 	pub fn compile(
 		&mut self,
 		declarations: &[resolved::Declaration],
@@ -205,16 +215,20 @@ impl Compiler
 		Ok(())
 	}
 
+	/// Retrieve the lints generated while analyzing the current module.
 	pub fn take_lints(&mut self) -> Vec<linter::Lint>
 	{
 		std::mem::take(&mut self.linter).into()
 	}
 
+	/// Link all added modules together into a single module.
+	/// The result becomes the current module.
 	pub fn link_modules(&mut self) -> Result<(), anyhow::Error>
 	{
 		self.generator.link_modules()
 	}
 
+	/// Generate textual IR for the current module.
 	pub fn generate_ir(&self) -> Result<String, anyhow::Error>
 	{
 		self.generator.generate_ir()

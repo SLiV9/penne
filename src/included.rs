@@ -4,7 +4,7 @@
 // License: MIT
 //
 
-//! The source files for code and vendor libraries are embedded within the
+//! The source files for core and vendor libraries are embedded within the
 //! compiler binary, in order to simplify installation.
 
 use include_dir::include_dir;
@@ -12,6 +12,10 @@ use include_dir::include_dir;
 static CORE: include_dir::Dir = include_dir!("./core/");
 static VENDOR: include_dir::Dir = include_dir!("./vendor/");
 
+/// If the source URI used in an import statement
+/// is recognized as a core or vendor library,
+/// return the parent URI that can be added as a compiler argument
+/// to include that library.
 pub fn source_name_hint(filepath: &str) -> Option<&str>
 {
 	let filepath = std::path::Path::new(filepath);
@@ -29,6 +33,7 @@ pub fn source_name_hint(filepath: &str) -> Option<&str>
 	}
 }
 
+/// Look for an included core or vendor library with the specified source URI.
 pub fn find(
 	filepath: &str,
 ) -> Option<(&'static include_dir::DirEntry<'static>, &'static str)>

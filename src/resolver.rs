@@ -17,6 +17,8 @@ use crate::error::Poisonable;
 use crate::resolved;
 use crate::typer::Typed;
 
+/// Resolve a typed and analyzed declaration into either a resolved declaration
+/// or a collection of errors.
 pub fn resolve(
 	declaration: Declaration,
 ) -> Result<resolved::Declaration, Errors>
@@ -24,6 +26,9 @@ pub fn resolve(
 	declaration.resolve()
 }
 
+/// Collect errors from unresolved declarations.
+/// This is used to abort the compilation process early if parse errors occur
+/// or import statements fail to expand.
 pub fn check_surface_level_errors(
 	declarations: &[common::Declaration],
 ) -> Result<(), Errors>
@@ -47,6 +52,8 @@ pub fn check_surface_level_errors(
 	}
 }
 
+/// Append two collections of resolved declarations,
+/// combining all errors if there are any.
 pub fn combine(
 	declarations: Result<Vec<resolved::Declaration>, Errors>,
 	more: Result<Vec<resolved::Declaration>, Errors>,
@@ -65,6 +72,8 @@ pub fn combine(
 	}
 }
 
+/// Add a resolved declaration to a collection of resolved declarations,
+/// combining all errors if there are any.
 pub fn accumulate(
 	acc: Result<Vec<resolved::Declaration>, Errors>,
 	addition: Result<resolved::Declaration, Errors>,

@@ -14,6 +14,8 @@ mod syntax;
 
 use crate::common::*;
 
+/// The Analyzer keeps track of function calls and variable mutability status
+/// needed for during the analysis stage.
 #[derive(Default)]
 pub struct Analyzer
 {
@@ -23,11 +25,15 @@ pub struct Analyzer
 
 impl Analyzer
 {
+	/// Add analysis metadata for a declaration.
+	/// All function declarations need to be declared before analyzing first
+	/// first function body.
 	pub fn declare(&mut self, declaration: &Declaration)
 	{
 		function_calls::declare(declaration, &mut self.function_call_analyzer);
 	}
 
+	/// Analyze a declaration for various types of syntax and semantical errors.
 	pub fn analyze(&mut self, declaration: Declaration) -> Declaration
 	{
 		let x = declaration;

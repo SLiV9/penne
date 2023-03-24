@@ -182,7 +182,6 @@ Documentation:
 
 Development:
 	☐	Finish rework
-		☐	Cleanup unnecessary typer::align_structure etcetera
 		☐	Add documentation for 0.4.0 features and errors
 	☐	Improve test coverage
 		✔	Is E163 unreachable? @done (2023-03-04 17:25)

@@ -14,9 +14,11 @@ use crate::value_type::MAXIMUM_ALIGNMENT;
 
 use enumset::EnumSet;
 
-pub const MAX_AUTODEREF_DEPTH: usize =
+const MAX_NUM_AUTODEREF_STEPS: usize =
 	MAX_REFERENCE_DEPTH + MAX_ADDRESS_DEPTH as usize;
 
+/// The Typer manages a symbol table and keeps track of context
+/// during the type inference stage.
 #[derive(Default)]
 pub struct Typer
 {
@@ -88,21 +90,31 @@ fn do_update_symbol(
 
 impl Typer
 {
+	/// Add a structure as an opaque type, so that it can be used in
+	/// pointer types.
 	pub fn forward_declare_structure(&mut self, declaration: &Declaration)
 	{
 		forward_declare_structure(declaration, self)
 	}
 
+	/// Perform surface level type checking for constants, structures and
+	/// function signatures.
+	/// This does not perform type inference proper because Penne does not
+	/// feature global type inference.
 	pub fn declare(&mut self, declaration: Declaration) -> Declaration
 	{
 		declare(declaration, self)
 	}
 
+	/// Perform type inference on all types of declarations.
 	pub fn analyze(&mut self, declaration: Declaration) -> Declaration
 	{
 		declaration.analyze(self)
 	}
 
+	/// Store the value of a constant of type `usize`
+	/// after it was obtained through constant folding.
+	/// This allows that constant to be used as the length in array types.
 	pub fn resolve_named_length(&mut self, resolution_id: u32, value: usize)
 	{
 		self.calculated_named_lengths.insert(resolution_id, value);
@@ -569,11 +581,13 @@ fn align(current_size: usize, alignment: usize) -> usize
 	alignment * ((current_size + alignment - 1) / alignment)
 }
 
+/// Helper trait that extracts the inferred type from a value expression.
 pub trait Typed
 {
 	fn value_type(&self) -> Option<Poisonable<ValueType>>;
 }
 
+/// Helper trait that extracts a statically known type from a value expression.
 pub trait StaticallyTyped
 {
 	fn static_value_type(&self) -> ValueType;
@@ -1975,7 +1989,7 @@ fn analyze_assignment_steps(
 				is_endless: _,
 			} =>
 			{
-				for _i in 0..MAX_AUTODEREF_DEPTH
+				for _i in 0..MAX_ADDRESS_DEPTH
 				{
 					match current_type
 					{
@@ -2037,7 +2051,7 @@ fn analyze_assignment_steps(
 			}
 			ReferenceStep::Member { member, offset } =>
 			{
-				for _i in 0..MAX_AUTODEREF_DEPTH
+				for _i in 0..MAX_ADDRESS_DEPTH
 				{
 					match current_type
 					{
@@ -2465,7 +2479,7 @@ impl Reference
 		let mut taken_steps = Vec::new();
 		let mut current_type = known_ref_type;
 
-		for _i in 0..MAX_AUTODEREF_DEPTH
+		for _i in 0..MAX_NUM_AUTODEREF_STEPS
 		{
 			match (current_type, available_steps.peek())
 			{
