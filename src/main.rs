@@ -405,7 +405,7 @@ fn do_main() -> Result<(), anyhow::Error>
 		stdout.dump_resolved(&filename, &declarations)?;
 
 		stdout.header("Linting", &filename)?;
-		let lints: Vec<_> = compiler.take_lints();
+		let lints = compiler.take_lints();
 		stdout.linting(lints.is_empty())?;
 		if !lints.is_empty()
 		{

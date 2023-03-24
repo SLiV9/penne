@@ -19,14 +19,6 @@ use llvm_sys::{LLVMBuilder, LLVMContext, LLVMModule};
 
 pub const DEFAULT_DATA_LAYOUT: &str = "e-m:e-p:64:64-i64:64-n8:16:32:64-S64";
 
-pub fn generate(
-	declaration: &Declaration,
-	llvm: &mut Generator,
-) -> Result<(), anyhow::Error>
-{
-	declaration.generate(llvm)
-}
-
 pub struct Generator
 {
 	context: *mut LLVMContext,
@@ -162,6 +154,32 @@ impl Generator
 		}
 	}
 
+	pub fn forward_declare_structure(
+		&mut self,
+		structure_name: &str,
+	) -> Result<(), anyhow::Error>
+	{
+		let name = CString::new(structure_name)?;
+		unsafe { LLVMStructCreateNamed(self.context, name.as_ptr()) };
+		Ok(())
+	}
+
+	pub fn declare(
+		&mut self,
+		declaration: &Declaration,
+	) -> Result<(), anyhow::Error>
+	{
+		declare(declaration, self)
+	}
+
+	pub fn generate(
+		&mut self,
+		declaration: &Declaration,
+	) -> Result<(), anyhow::Error>
+	{
+		declaration.generate(self)
+	}
+
 	pub fn verify(&self)
 	{
 		let _ = unsafe {
@@ -276,17 +294,7 @@ impl Drop for Generator
 	}
 }
 
-pub fn forward_declare_structure(
-	structure_name: &str,
-	llvm: &mut Generator,
-) -> Result<(), anyhow::Error>
-{
-	let name = CString::new(structure_name)?;
-	unsafe { LLVMStructCreateNamed(llvm.context, name.as_ptr()) };
-	Ok(())
-}
-
-pub fn declare(
+fn declare(
 	declaration: &Declaration,
 	llvm: &mut Generator,
 ) -> Result<(), anyhow::Error>

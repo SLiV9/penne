@@ -21,18 +21,20 @@ pub struct Analyzer
 	mutability_analyzer: mutability::Analyzer,
 }
 
-pub fn declare(declaration: &Declaration, analyzer: &mut Analyzer)
+impl Analyzer
 {
-	function_calls::declare(declaration, &mut analyzer.function_call_analyzer);
-}
+	pub fn declare(&mut self, declaration: &Declaration)
+	{
+		function_calls::declare(declaration, &mut self.function_call_analyzer);
+	}
 
-pub fn analyze(declaration: Declaration, analyzer: &mut Analyzer)
-	-> Declaration
-{
-	let x = declaration;
-	let x = constness::analyze(x);
-	let x = syntax::analyze(x);
-	let x = function_calls::analyze(x, &mut analyzer.function_call_analyzer);
-	let x = mutability::analyze(x, &mut analyzer.mutability_analyzer);
-	x
+	pub fn analyze(&mut self, declaration: Declaration) -> Declaration
+	{
+		let x = declaration;
+		let x = constness::analyze(x);
+		let x = syntax::analyze(x);
+		let x = function_calls::analyze(x, &mut self.function_call_analyzer);
+		let x = mutability::analyze(x, &mut self.mutability_analyzer);
+		x
+	}
 }

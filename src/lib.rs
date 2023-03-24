@@ -132,11 +132,11 @@ impl Compiler
 		// Also make sure that cyclical structures are poisoned.
 		for declaration in &declarations
 		{
-			typer::forward_declare_structure(declaration, &mut self.typer);
+			self.typer.forward_declare_structure(declaration);
 		}
 		for name in declarations.iter().filter_map(scoper::get_structure_name)
 		{
-			generator::forward_declare_structure(name, &mut self.generator)?;
+			self.generator.forward_declare_structure(name)?;
 		}
 
 		let declarations = if are_all_containers
@@ -146,13 +146,14 @@ impl Compiler
 		else
 		{
 			// Declare all function signatures and analyze their types.
-			let declarations: Vec<_> = declarations
+			// Also declare poisoned cyclical structures and constants.
+			let declarations = declarations
 				.into_iter()
-				.map(|x| typer::declare(x, &mut self.typer))
+				.map(|x| self.typer.declare(x))
 				.collect();
 			for declaration in &declarations
 			{
-				analyzer::declare(declaration, &mut self.analyzer);
+				self.analyzer.declare(declaration);
 			}
 			declarations
 		};
@@ -165,22 +166,26 @@ impl Compiler
 			let declaration = x;
 			let declaration = if are_all_containers
 			{
-				typer::declare(declaration, &mut self.typer)
+				self.typer.declare(declaration)
 			}
 			else
 			{
 				declaration
 			};
-			let declaration = typer::analyze(declaration, &mut self.typer);
-			let declaration =
-				analyzer::analyze(declaration, &mut self.analyzer);
-			linter::lint(&declaration, &mut self.linter);
+			let declaration = self.typer.analyze(declaration);
+			let declaration = self.analyzer.analyze(declaration);
+			self.linter.lint(&declaration);
 			let resolved = resolver::resolve(declaration);
+			// This fold statement is a bit particular but is intentional.
+			// While there are no resolution errors, keep generating IR.
+			// If there are resolution errors, keep analyzing and resolving
+			// to gather more resolution errors, but skip IR generation.
 			let acc = match (acc, resolved)
 			{
 				(Ok(mut declarations), Ok(declaration)) =>
 				{
-					generator::declare(&declaration, &mut self.generator)?;
+					// If code generation fails, bail out.
+					self.generator.declare(&declaration)?;
 					self.fetch_declared_constants(&declaration);
 					declarations.push(declaration);
 					Ok(declarations)
@@ -225,7 +230,7 @@ impl Compiler
 	{
 		for declaration in declarations
 		{
-			generator::generate(declaration, &mut self.generator)?;
+			self.generator.generate(declaration)?;
 		}
 		self.generator.verify();
 		Ok(())

@@ -17,11 +17,6 @@ use enumset::EnumSet;
 pub const MAX_AUTODEREF_DEPTH: usize =
 	MAX_REFERENCE_DEPTH + MAX_ADDRESS_DEPTH as usize;
 
-pub fn analyze(declaration: Declaration, typer: &mut Typer) -> Declaration
-{
-	declaration.analyze(typer)
-}
-
 #[derive(Default)]
 pub struct Typer
 {
@@ -93,6 +88,21 @@ fn do_update_symbol(
 
 impl Typer
 {
+	pub fn forward_declare_structure(&mut self, declaration: &Declaration)
+	{
+		forward_declare_structure(declaration, self)
+	}
+
+	pub fn declare(&mut self, declaration: Declaration) -> Declaration
+	{
+		declare(declaration, self)
+	}
+
+	pub fn analyze(&mut self, declaration: Declaration) -> Declaration
+	{
+		declaration.analyze(self)
+	}
+
 	pub fn resolve_named_length(&mut self, resolution_id: u32, value: usize)
 	{
 		self.calculated_named_lengths.insert(resolution_id, value);
@@ -599,7 +609,7 @@ impl StaticallyTyped for PrimitiveLiteral
 	}
 }
 
-pub fn forward_declare_structure(declaration: &Declaration, typer: &mut Typer)
+fn forward_declare_structure(declaration: &Declaration, typer: &mut Typer)
 {
 	match declaration
 	{
@@ -633,7 +643,7 @@ pub fn forward_declare_structure(declaration: &Declaration, typer: &mut Typer)
 	}
 }
 
-pub fn declare(declaration: Declaration, typer: &mut Typer) -> Declaration
+fn declare(declaration: Declaration, typer: &mut Typer) -> Declaration
 {
 	match declaration
 	{
