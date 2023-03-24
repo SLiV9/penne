@@ -1,0 +1,5 @@
+const UNRELATED_ERROR: u8 = -10i32;
+
+const MAX_LEN: usize = 4;
+
+const GLOBAL_BUFFER: [MAX_LEN]i32 = [1, 2, 3, 4];

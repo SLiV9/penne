@@ -104,20 +104,7 @@ impl Compiler
 		// This works because constants and structures cannot use functions.
 		let containers = self.analyze_and_resolve_sorted(containers, true)?;
 		let functions = self.analyze_and_resolve_sorted(functions, false)?;
-		let declarations = match (containers, functions)
-		{
-			(Ok(mut declarations), Ok(mut more)) =>
-			{
-				declarations.append(&mut more);
-				Ok(declarations)
-			}
-			(Ok(_), Err(errors)) => Err(errors),
-			(Err(errors), Ok(_)) => Err(errors),
-			(Err(errors), Err(more)) =>
-			{
-				Err(errors.combined_with(more).sorted())
-			}
-		};
+		let declarations = resolver::combine(containers, functions);
 		Ok(declarations)
 	}
 
@@ -162,7 +149,7 @@ impl Compiler
 		// a time, and generate IR for structures and constants in advance.
 		// This works because the declarations are sorted by container depth.
 		// Also generate IR for function signatures in advance.
-		let r = declarations.into_iter().try_fold(Ok(Vec::new()), |acc, x| {
+		declarations.into_iter().try_fold(Ok(Vec::new()), |acc, x| {
 			let declaration = x;
 			let declaration = if are_all_containers
 			{
@@ -176,32 +163,14 @@ impl Compiler
 			let declaration = self.analyzer.analyze(declaration);
 			self.linter.lint(&declaration);
 			let resolved = resolver::resolve(declaration);
-			// This fold statement is a bit particular but is intentional.
-			// While there are no resolution errors, keep generating IR.
-			// If there are resolution errors, keep analyzing and resolving
-			// to gather more resolution errors, but skip IR generation.
-			let acc = match (acc, resolved)
+			if let Ok(declaration) = &resolved
 			{
-				(Ok(mut declarations), Ok(declaration)) =>
-				{
-					// If code generation fails, bail out.
-					self.generator.declare(&declaration)?;
-					self.fetch_declared_constants(&declaration);
-					declarations.push(declaration);
-					Ok(declarations)
-				}
-				(Ok(_), Err(errors)) => Err(errors),
-				(Err(errors), Ok(_)) => Err(errors),
-				(Err(errors), Err(more)) => Err(errors.combined_with(more)),
-			};
-			Ok(acc)
-		});
-		match r
-		{
-			Ok(Ok(declarations)) => Ok(Ok(declarations)),
-			Ok(Err(errors)) => Ok(Err(errors.sorted())),
-			Err(error) => Err(error),
-		}
+				// If code generation fails, bail out.
+				self.generator.declare(&declaration)?;
+				self.fetch_declared_constants(&declaration);
+			}
+			Ok(resolver::accumulate(acc, resolved))
+		})
 	}
 
 	fn fetch_declared_constants(&mut self, declaration: &resolved::Declaration)

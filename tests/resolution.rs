@@ -226,3 +226,12 @@ fn fail_to_resolve_multiple_errors()
 		"tests/samples/invalid/multiple_errors.pn",
 	)
 }
+
+#[test]
+fn fail_to_resolve_unrelated_error_constant_array_length()
+{
+	compile_to_fail(
+		&[500],
+		"tests/samples/invalid/unrelated_error_constant_array_length.pn",
+	)
+}

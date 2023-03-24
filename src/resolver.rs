@@ -47,6 +47,42 @@ pub fn check_surface_level_errors(
 	}
 }
 
+pub fn combine(
+	declarations: Result<Vec<resolved::Declaration>, Errors>,
+	more: Result<Vec<resolved::Declaration>, Errors>,
+) -> Result<Vec<resolved::Declaration>, Errors>
+{
+	match (declarations, more)
+	{
+		(Ok(mut declarations), Ok(mut more)) =>
+		{
+			declarations.append(&mut more);
+			Ok(declarations)
+		}
+		(Ok(_), Err(errors)) => Err(errors),
+		(Err(errors), Ok(_)) => Err(errors),
+		(Err(errors), Err(more)) => Err(errors.combined_with(more).sorted()),
+	}
+}
+
+pub fn accumulate(
+	acc: Result<Vec<resolved::Declaration>, Errors>,
+	addition: Result<resolved::Declaration, Errors>,
+) -> Result<Vec<resolved::Declaration>, Errors>
+{
+	match (acc, addition)
+	{
+		(Ok(mut declarations), Ok(declaration)) =>
+		{
+			declarations.push(declaration);
+			Ok(declarations)
+		}
+		(Ok(_), Err(errors)) => Err(errors),
+		(Err(errors), Ok(_)) => Err(errors),
+		(Err(errors), Err(more)) => Err(errors.combined_with(more).sorted()),
+	}
+}
+
 trait Resolvable
 {
 	type Item;
