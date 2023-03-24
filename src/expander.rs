@@ -44,18 +44,29 @@ pub fn expand(modules: &mut [(std::path::PathBuf, Vec<Declaration>)])
 						{
 							imports.insert((offset_of_includer, offset));
 						}
-						None =>
+						None => match included::source_name_hint(filename)
 						{
-							let hinted_package_name =
-								included::source_name_hint(filename)
-									.map(|x| x.to_string());
-							let error = Error::UnresolvedImport {
-								filename: filename.to_string(),
-								location: location.clone(),
-								hinted_package_name,
-							};
-							*declaration = Declaration::Poison(error.into());
-						}
+							Some(hinted_package_name) =>
+							{
+								let error = Error::UnresolvedImportWithHint {
+									filename: filename.to_string(),
+									location: location.clone(),
+									hinted_package_name: hinted_package_name
+										.to_string(),
+								};
+								*declaration =
+									Declaration::Poison(error.into());
+							}
+							None =>
+							{
+								let error = Error::UnresolvedImport {
+									filename: filename.to_string(),
+									location: location.clone(),
+								};
+								*declaration =
+									Declaration::Poison(error.into());
+							}
+						},
 					}
 				}
 				_ => unreachable!(),

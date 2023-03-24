@@ -169,3 +169,12 @@ fn fail_to_parse_unresolved_import()
 {
 	compile_to_fail(&[470], "tests/samples/invalid/unresolved_import.pn")
 }
+
+#[test]
+fn fail_to_parse_unresolved_import_core()
+{
+	// Despite this example file being valid, this test should fail because
+	// we are not specifying the inclusion of 'core:text'.
+	// Compare and contrast the integration test `run_import_core`.
+	compile_to_fail(&[477], "examples/import_core.pn")
+}

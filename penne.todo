@@ -183,6 +183,7 @@ Documentation:
 Development:
 	☐	Finish rework
 		☐	Add documentation for 0.4.0 features and errors
+			☐	Describe core as "batteries included but not pre-installed"
 	☐	Improve test coverage
 		✔	Is E163 unreachable? @done (2023-03-04 17:25)
 		✔	Is E332 unreachable? @done (2023-03-04 18:35)

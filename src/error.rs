@@ -349,7 +349,12 @@ pub enum Error
 	{
 		filename: String,
 		location: Location,
-		hinted_package_name: Option<String>,
+	},
+	UnresolvedImportWithHint
+	{
+		filename: String,
+		location: Location,
+		hinted_package_name: String,
 	},
 	ConflictingTypes
 	{
@@ -610,6 +615,7 @@ impl Error
 			Error::DuplicateDeclarationMember { .. } => 426,
 			Error::NotACompileTimeConstant { .. } => 433,
 			Error::UnresolvedImport { .. } => 470,
+			Error::UnresolvedImportWithHint { .. } => 477,
 			Error::VariableDeclarationMayBeSkipped { .. } => 482,
 			Error::ConflictingTypes { .. } => 500,
 			Error::NotAnArray { .. } => 501,
@@ -725,6 +731,7 @@ impl Error
 			Error::DuplicateDeclarationMember { location, .. } => &location,
 			Error::NotACompileTimeConstant { location, .. } => &location,
 			Error::UnresolvedImport { location, .. } => &location,
+			Error::UnresolvedImportWithHint { location, .. } => &location,
 			Error::ConflictingTypes { location, .. } => &location,
 			Error::NotAnArray { location, .. } => &location,
 			Error::NotAnArrayWithLength { location, .. } => &location,
@@ -1537,25 +1544,25 @@ fn write(
 					.label()
 					.with_message(format!(
 						"This constant depends on the size of '{}'.",
-						name_of_structure.fg(SECONDARY)
+						name_of_structure.fg(PRIMARY)
 					))
-					.with_color(PRIMARY),
+					.with_color(SECONDARY),
 			)
 			.with_label(
 				location_of_declaration
 					.label()
 					.with_message(format!(
 						"Cannot determine size of structure '{}'...",
-						name_of_structure.fg(SECONDARY)
+						name_of_structure.fg(PRIMARY)
 					))
-					.with_color(SECONDARY),
+					.with_color(PRIMARY),
 			)
 			.with_label(
 				location_of_member
 					.label()
 					.with_message(format!(
 						"...because this member depends on '{}'.",
-						name_of_constant.fg(PRIMARY)
+						name_of_constant.fg(SECONDARY)
 					))
 					.with_color(TERTIARY),
 			),
@@ -1665,37 +1672,40 @@ fn write(
 					.with_color(SECONDARY),
 			),
 
-		Error::UnresolvedImport {
+		Error::UnresolvedImport { filename, location } => report
+			.with_message("Unresolved import")
+			.with_label(
+				location
+					.label()
+					.with_message(format!(
+						"Reference to unknown source '{}'.",
+						filename.fg(PRIMARY)
+					))
+					.with_color(PRIMARY),
+			)
+			.with_note(
+				"All source files need to be added as compiler arguments.",
+			),
+
+		Error::UnresolvedImportWithHint {
 			filename,
 			location,
 			hinted_package_name,
-		} =>
-		{
-			let note = if let Some(package_name) = hinted_package_name
-			{
-				format!(
-					"Add '{}' as a compiler argument to include it.",
-					package_name.fg(PRIMARY)
-				)
-			}
-			else
-			{
-				"All source files need to be added as compiler arguments."
-					.to_string()
-			};
-			report
-				.with_message("Unresolved import")
-				.with_label(
-					location
-						.label()
-						.with_message(format!(
-							"Reference to unknown source '{}'.",
-							filename.fg(PRIMARY)
-						))
-						.with_color(PRIMARY),
-				)
-				.with_note(note)
-		}
+		} => report
+			.with_message("Unresolved import")
+			.with_label(
+				location
+					.label()
+					.with_message(format!(
+						"Reference to unknown source '{}'.",
+						filename.fg(PRIMARY)
+					))
+					.with_color(PRIMARY),
+			)
+			.with_note(format!(
+				"Add '{}' as a compiler argument to include it.",
+				hinted_package_name.fg(PRIMARY)
+			)),
 
 		Error::ConflictingTypes {
 			name,
