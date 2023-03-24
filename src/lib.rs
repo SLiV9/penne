@@ -129,6 +129,7 @@ impl Compiler
 	{
 		// Forward declare all structures as opaque types so that pointer types
 		// are valid (because pointers do not affect container depth).
+		// Also make sure that cyclical structures are poisoned.
 		for declaration in &declarations
 		{
 			typer::forward_declare_structure(declaration, &mut self.typer);
@@ -144,13 +145,6 @@ impl Compiler
 		}
 		else
 		{
-			// Align all poisoned structures at the same time, because they
-			// might contain references to each other.
-			let mut declarations = declarations;
-			for declaration in &mut declarations
-			{
-				typer::align_structure(declaration, &mut self.typer);
-			}
 			// Declare all function signatures and analyze their types.
 			let declarations: Vec<_> = declarations
 				.into_iter()
@@ -171,8 +165,6 @@ impl Compiler
 			let declaration = x;
 			let declaration = if are_all_containers
 			{
-				let mut declaration = declaration;
-				typer::align_structure(&mut declaration, &mut self.typer);
 				typer::declare(declaration, &mut self.typer)
 			}
 			else

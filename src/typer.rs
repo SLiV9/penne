@@ -775,8 +775,6 @@ pub fn declare(declaration: Declaration, typer: &mut Typer) -> Declaration
 			location_of_declaration,
 		} =>
 		{
-			// Analyze the members again because cyclical structures will have
-			// members with type UnresolvedStructOrWord instead of Poisoned.
 			let members: Vec<Member> = members
 				.into_iter()
 				.map(|x| {
@@ -805,55 +803,6 @@ pub fn declare(declaration: Declaration, typer: &mut Typer) -> Declaration
 		}
 		Declaration::Import { .. } => declaration,
 		Declaration::Poison(_) => declaration,
-	}
-}
-
-pub fn align_structure(declaration: &mut Declaration, typer: &mut Typer)
-{
-	match declaration
-	{
-		Declaration::Constant { .. } => (),
-		Declaration::Function { .. } => (),
-		Declaration::FunctionHead { .. } => (),
-		Declaration::Structure {
-			name,
-			members: _,
-			structural_type: _,
-			flags: _,
-			depth: Some(Err(_poison)),
-			location_of_declaration: _,
-		} =>
-		{
-			typer.poison_symbol(name, Poison::Poisoned);
-		}
-		Declaration::Structure {
-			name,
-			members,
-			structural_type,
-			flags,
-			depth: _,
-			location_of_declaration,
-		} =>
-		{
-			*members = std::mem::take(members)
-				.into_iter()
-				.map(|x| {
-					typer.contextual_type = Some(structural_type.clone());
-					x.analyze_and_fix(flags, location_of_declaration, typer)
-				})
-				.collect();
-
-			let aligned_type =
-				typer.align_struct(name, members, structural_type.clone());
-			let result = typer.put_symbol(name, Some(aligned_type.clone()));
-			*structural_type = match (aligned_type, result)
-			{
-				(Ok(_), Err(error)) => Err(Poison::Error(error)),
-				(structural_type, _) => structural_type,
-			};
-		}
-		Declaration::Import { .. } => (),
-		Declaration::Poison(_) => (),
 	}
 }
 
