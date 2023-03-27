@@ -12,7 +12,7 @@ exclude = ["/docs/_site"]
 [dependencies]
 enumset = "1.0"
 anyhow = "1.0"
-ariadne = "0.1.5"
+ariadne = "0.2"
 termcolor = "1.1"
 include_dir = { version = "0.7", features = ["glob"] }
 serde = { version = "1.0", features = ["derive"] }

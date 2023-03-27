@@ -790,7 +790,7 @@ impl Error
 	#[cfg(not(tarpaulin_include))]
 	pub fn build_report(
 		&self,
-		ariadne_config: ariadne::Config,
+		config: Config,
 	) -> Report<(String, std::ops::Range<usize>)>
 	{
 		let location = self.location();
@@ -804,10 +804,56 @@ impl Error
 		};
 		let report =
 			Report::build(kind, &location.source_filename, location.span.end)
-				.with_config(ariadne_config)
+				.with_config(config.into())
 				.with_code(format!("{}{}", letter, code));
-		let report = write(report, self);
+		let report = write(report, config.into(), self);
 		report.finish()
+	}
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Config
+{
+	inner: ariadne::Config,
+	with_color: bool,
+}
+
+#[cfg_attr(coverage, no_coverage)]
+#[cfg(not(tarpaulin_include))]
+impl From<Config> for ariadne::Config
+{
+	fn from(config: Config) -> ariadne::Config
+	{
+		config.inner
+	}
+}
+
+#[cfg_attr(coverage, no_coverage)]
+#[cfg(not(tarpaulin_include))]
+impl From<ariadne::Config> for Config
+{
+	fn from(inner: ariadne::Config) -> Config
+	{
+		Config {
+			inner,
+			with_color: false,
+		}
+	}
+}
+
+#[cfg_attr(coverage, no_coverage)]
+#[cfg(not(tarpaulin_include))]
+impl Config
+{
+	pub fn with_color(mut self, with_color: bool) -> Self
+	{
+		self.with_color = with_color;
+		self
+	}
+
+	fn filter(&self, color: ariadne::Color) -> Option<ariadne::Color>
+	{
+		Some(color).filter(|_| self.with_color)
 	}
 }
 
@@ -815,12 +861,34 @@ const PRIMARY: ariadne::Color = ariadne::Color::Yellow;
 const SECONDARY: ariadne::Color = ariadne::Color::Cyan;
 const TERTIARY: ariadne::Color = ariadne::Color::Magenta;
 
+struct Colors
+{
+	primary: Option<ariadne::Color>,
+	secondary: Option<ariadne::Color>,
+	tertiary: Option<ariadne::Color>,
+}
+
+impl From<Config> for Colors
+{
+	#[cfg_attr(coverage, no_coverage)]
+	#[cfg(not(tarpaulin_include))]
+	fn from(config: Config) -> Colors
+	{
+		Colors {
+			primary: config.filter(PRIMARY),
+			secondary: config.filter(SECONDARY),
+			tertiary: config.filter(TERTIARY),
+		}
+	}
+}
+
 #[cfg_attr(coverage, no_coverage)]
 #[cfg(not(tarpaulin_include))]
-fn write(
-	report: ariadne::ReportBuilder<(String, std::ops::Range<usize>)>,
+fn write<'a>(
+	report: ariadne::ReportBuilder<'a, (String, std::ops::Range<usize>)>,
+	colors: Colors,
 	error: &Error,
-) -> ariadne::ReportBuilder<(String, std::ops::Range<usize>)>
+) -> ariadne::ReportBuilder<'a, (String, std::ops::Range<usize>)>
 {
 	match error
 	{
@@ -839,7 +907,7 @@ fn write(
 			.with_label(
 				last_location
 					.label()
-					.with_message("Expected more after this.".to_string())
+					.with_message("Expected more after this.")
 					.with_order(2)
 					.with_color(SECONDARY),
 			),
@@ -897,7 +965,7 @@ fn write(
 			)
 			.with_note(format!(
 				"Hexadecimal and binary integer literals have to fit {}.",
-				"`u64`".fg(PRIMARY)
+				show_type(&ValueType::Uint64, colors.primary)
 			)),
 
 		Error::Lexical {
@@ -914,7 +982,7 @@ fn write(
 			)
 			.with_note(format!(
 				"Consider adding a type suffix like {}.",
-				"`i128`".fg(PRIMARY)
+				show_type(&ValueType::Int128, colors.primary)
 			)),
 
 		Error::Lexical {
@@ -1069,7 +1137,7 @@ fn write(
 				.label()
 				.with_message(format!(
 					"The type {} is invalid.",
-					show_type(value_type, PRIMARY)
+					show_type(value_type, colors.primary)
 				))
 				.with_color(PRIMARY),
 		),
@@ -1082,7 +1150,7 @@ fn write(
 				.label()
 				.with_message(format!(
 					"A value of type {} cannot be assigned to a variable.",
-					show_type(value_type, PRIMARY)
+					show_type(value_type, colors.primary)
 				))
 				.with_color(PRIMARY),
 		),
@@ -1095,7 +1163,7 @@ fn write(
 				.label()
 				.with_message(format!(
 					"The type {} is not allowed as a parameter.",
-					show_type(value_type, PRIMARY)
+					show_type(value_type, colors.primary)
 				))
 				.with_color(PRIMARY),
 		),
@@ -1108,7 +1176,7 @@ fn write(
 				.label()
 				.with_message(format!(
 					"The type {} is not allowed as a return value.",
-					show_type(value_type, PRIMARY)
+					show_type(value_type, colors.primary)
 				))
 				.with_color(PRIMARY),
 		),
@@ -1122,7 +1190,7 @@ fn write(
 				.label()
 				.with_message(format!(
 					"The type {} is not allowed as a member of a struct.",
-					show_type(value_type, PRIMARY),
+					show_type(value_type, colors.primary),
 				))
 				.with_color(PRIMARY),
 		),
@@ -1136,7 +1204,7 @@ fn write(
 				.label()
 				.with_message(format!(
 					"The type {} is not allowed as a member of a word.",
-					show_type(value_type, PRIMARY),
+					show_type(value_type, colors.primary),
 				))
 				.with_color(PRIMARY),
 		),
@@ -1149,7 +1217,7 @@ fn write(
 				.label()
 				.with_message(format!(
 					"A value of type {} cannot be assigned to a constant.",
-					show_type(value_type, PRIMARY)
+					show_type(value_type, colors.primary)
 				))
 				.with_color(PRIMARY),
 		),
@@ -1165,7 +1233,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"The type {} is not allowed in external declarations.",
-						show_type(value_type, PRIMARY)
+						show_type(value_type, colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1189,7 +1257,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"The size of this structure is {} bits.",
-						inferred_size_in_bits.to_string().fg(PRIMARY)
+						inferred_size_in_bits.fg(colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1197,11 +1265,11 @@ fn write(
 				location_of_keyword
 					.label()
 					.with_message(format!(
-						"The structure is declared with {} and therefore has \
-						 a maximum size of {} bits.",
-						format!("`word{}`", declared_size_in_bits)
-							.fg(SECONDARY),
-						declared_size_in_bits.to_string().fg(SECONDARY),
+						"The structure is declared with `{}{}` and therefore \
+						 has a maximum size of {} bits.",
+						"word".fg(colors.secondary),
+						declared_size_in_bits.fg(colors.secondary),
+						declared_size_in_bits.fg(colors.secondary),
 					))
 					.with_color(SECONDARY),
 			),
@@ -1217,7 +1285,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Value of type {} returned here.",
-						show_type(inferred_type, PRIMARY)
+						show_type(inferred_type, colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1263,7 +1331,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Expected {} based on this declaration.",
-						show_type(declared_type, SECONDARY)
+						show_type(declared_type, colors.secondary)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1280,7 +1348,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Value of type {} returned here.",
-						show_type(inferred_type, PRIMARY)
+						show_type(inferred_type, colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1289,7 +1357,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Expected {} based on this declaration.",
-						show_type(declared_type, SECONDARY)
+						show_type(declared_type, colors.secondary)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1311,7 +1379,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Expected {} based on this declaration.",
-						show_type(declared_type, SECONDARY)
+						show_type(declared_type, colors.secondary)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1328,8 +1396,8 @@ fn write(
 				after
 					.label()
 					.with_message(format!(
-						"...after this {} label.",
-						"`return`".fg(SECONDARY)
+						"...after this `{}` label.",
+						"return".fg(colors.secondary)
 					))
 					.with_order(2)
 					.with_color(SECONDARY),
@@ -1347,7 +1415,7 @@ fn write(
 					.with_message(format!(
 						"A variable named '{}' is already defined in this \
 						 scope.",
-						name.fg(PRIMARY)
+						name.fg(colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1369,7 +1437,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"The constant '{}' is already defined.",
-						name.fg(PRIMARY)
+						name.fg(colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1391,7 +1459,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"A function named '{}' is already defined.",
-						name.fg(PRIMARY)
+						name.fg(colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1414,7 +1482,7 @@ fn write(
 					.with_message(format!(
 						"A parameter named '{}' is already defined for this \
 						 function.",
-						name.fg(PRIMARY)
+						name.fg(colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1436,7 +1504,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"A struct or word named '{}' is already defined.",
-						name.fg(PRIMARY)
+						name.fg(colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1459,7 +1527,7 @@ fn write(
 					.with_message(format!(
 						"A member named '{}' is already defined in this \
 						 structure.",
-						name.fg(PRIMARY)
+						name.fg(colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1481,7 +1549,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"The label '{}' is already defined in this scope.",
-						name.fg(PRIMARY)
+						name.fg(colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1499,7 +1567,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"The definition of constant '{}' depends on itself.",
-						name.fg(PRIMARY)
+						name.fg(colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1517,7 +1585,7 @@ fn write(
 					.with_message(format!(
 						"Cannot determine size of structure '{}' that \
 						 contains itself.",
-						name_of_structure.fg(PRIMARY)
+						name_of_structure.fg(colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1526,7 +1594,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"This member contains '{}'.",
-						name_of_structure.fg(PRIMARY)
+						name_of_structure.fg(colors.primary)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1544,7 +1612,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"This constant depends on the size of '{}'.",
-						name_of_structure.fg(PRIMARY)
+						name_of_structure.fg(colors.primary)
 					))
 					.with_color(SECONDARY),
 			)
@@ -1553,7 +1621,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Cannot determine size of structure '{}'...",
-						name_of_structure.fg(PRIMARY)
+						name_of_structure.fg(colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1562,7 +1630,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"...because this member depends on '{}'.",
-						name_of_constant.fg(SECONDARY)
+						name_of_constant.fg(colors.secondary)
 					))
 					.with_color(TERTIARY),
 			),
@@ -1575,7 +1643,7 @@ fn write(
 					.with_message(format!(
 						"There is no variable, parameter or constant named \
 						 '{}' in this scope.",
-						name.fg(PRIMARY)
+						name.fg(colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1588,7 +1656,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Reference to undefined function named '{}'.",
-						name.fg(PRIMARY)
+						name.fg(colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1601,7 +1669,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Reference to undefined struct or word named '{}'.",
-						name.fg(PRIMARY)
+						name.fg(colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1619,8 +1687,8 @@ fn write(
 					.label()
 					.with_message(format!(
 						"No member '{}' exists for structure '{}'.",
-						name_of_member.fg(PRIMARY),
-						name_of_structure.fg(SECONDARY),
+						name_of_member.fg(colors.primary),
+						name_of_structure.fg(colors.secondary),
 					))
 					.with_color(PRIMARY),
 			)
@@ -1629,7 +1697,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"The structure '{}' is defined here.",
-						name_of_structure.fg(SECONDARY),
+						name_of_structure.fg(colors.secondary),
 					))
 					.with_color(SECONDARY),
 			),
@@ -1641,7 +1709,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Reference to undefined label '{}'.",
-						name.fg(PRIMARY)
+						name.fg(colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1667,7 +1735,7 @@ fn write(
 					.with_message(format!(
 						"The value of the variable '{}' declared here is not \
 						 known at compile-time.",
-						name.fg(SECONDARY),
+						name.fg(colors.secondary),
 					))
 					.with_color(SECONDARY),
 			),
@@ -1679,7 +1747,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Reference to unknown source '{}'.",
-						filename.fg(PRIMARY)
+						filename.fg(colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1698,13 +1766,13 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Reference to unknown source '{}'.",
-						filename.fg(PRIMARY)
+						filename.fg(colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
 			.with_note(format!(
 				"Add '{}' as a compiler argument to include it.",
-				hinted_package_name.fg(PRIMARY)
+				hinted_package_name.fg(colors.primary)
 			)),
 
 		Error::ConflictingTypes {
@@ -1720,8 +1788,8 @@ fn write(
 					.label()
 					.with_message(format!(
 						"'{}' has type {}.",
-						name.fg(PRIMARY),
-						show_type(current_type, PRIMARY)
+						name.fg(colors.primary),
+						show_type(current_type, colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1730,7 +1798,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Previously determined to be {}.",
-						show_type(previous_type, SECONDARY)
+						show_type(previous_type, colors.secondary)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1748,7 +1816,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Cannot assign this expression of type {}.",
-						show_type(current_type, PRIMARY)
+						show_type(current_type, colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1757,8 +1825,8 @@ fn write(
 					.label()
 					.with_message(format!(
 						"'{}' has type {}.",
-						name.fg(SECONDARY),
-						show_type(previous_type, SECONDARY)
+						name.fg(colors.secondary),
+						show_type(previous_type, colors.secondary)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1781,8 +1849,8 @@ fn write(
 					.label()
 					.with_message(format!(
 						"'{}' has type {}.",
-						name.fg(SECONDARY),
-						show_type(previous_type, SECONDARY)
+						name.fg(colors.secondary),
+						show_type(previous_type, colors.secondary)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1803,7 +1871,7 @@ fn write(
 					.with_order(1)
 					.with_message(format!(
 						"Cannot assign this expression of type {}.",
-						show_type(assigned_type, PRIMARY)
+						show_type(assigned_type, colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1813,7 +1881,7 @@ fn write(
 					.with_order(2)
 					.with_message(format!(
 						"The assignee has type {}.",
-						show_type(assignee_type, SECONDARY)
+						show_type(assignee_type, colors.secondary)
 					))
 					.with_color(SECONDARY),
 			)
@@ -1822,8 +1890,8 @@ fn write(
 					.label()
 					.with_message(format!(
 						"'{}' has type {}.",
-						name.fg(TERTIARY),
-						show_type(declared_type, TERTIARY)
+						name.fg(colors.tertiary),
+						show_type(declared_type, colors.tertiary)
 					))
 					.with_color(TERTIARY),
 			),
@@ -1841,7 +1909,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Argument has type {}.",
-						show_type(argument_type, PRIMARY)
+						show_type(argument_type, colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1850,8 +1918,8 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Parameter '{}' has type {}.",
-						parameter_name.fg(SECONDARY),
-						show_type(parameter_type, SECONDARY)
+						parameter_name.fg(colors.secondary),
+						show_type(parameter_type, colors.secondary)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1869,7 +1937,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Argument has type {}.",
-						show_type(argument_type, PRIMARY)
+						show_type(argument_type, colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1878,8 +1946,8 @@ fn write(
 					.label_before_start()
 					.with_order(3)
 					.with_message(format!(
-						"Add {} here to pass by reference pointer.",
-						"`&`".fg(TERTIARY)
+						"Add `{}` here to pass by reference pointer.",
+						"&".fg(colors.tertiary)
 					))
 					.with_color(TERTIARY),
 			)
@@ -1888,8 +1956,8 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Parameter '{}' has type {}.",
-						parameter_name.fg(SECONDARY),
-						show_type(parameter_type, SECONDARY)
+						parameter_name.fg(colors.secondary),
+						show_type(parameter_type, colors.secondary)
 					))
 					.with_color(SECONDARY),
 			),
@@ -1903,8 +1971,8 @@ fn write(
 				.label()
 				.with_message(format!(
 					"Argument has type {}, expected {}.",
-					show_type(argument_type, PRIMARY),
-					show_type(index_type, TERTIARY)
+					show_type(argument_type, colors.primary),
+					show_type(index_type, colors.tertiary)
 				))
 				.with_color(PRIMARY),
 		),
@@ -1920,7 +1988,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Cannot index into value of non-array type {}.",
-						show_type(current_type, PRIMARY)
+						show_type(current_type, colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1942,7 +2010,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Cannot take length of value of non-array type {}.",
-						show_type(current_type, PRIMARY)
+						show_type(current_type, colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1964,7 +2032,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Cannot access member of non-structure type {}.",
-						show_type(current_type, PRIMARY)
+						show_type(current_type, colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -2099,7 +2167,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"This reference has type {}.",
-						show_type(type_of_unaddressed, SECONDARY),
+						show_type(type_of_unaddressed, colors.secondary),
 					))
 					.with_color(SECONDARY),
 			),
@@ -2114,8 +2182,8 @@ fn write(
 			)
 			.with_note(format!(
 				"Braces around conditional branches can only be omitted for \
-				 {} statements.",
-				"`goto`".fg(PRIMARY)
+				 `{}` statements.",
+				"goto".fg(colors.primary)
 			)),
 
 		Error::NonFinalLoopStatement {
@@ -2136,9 +2204,9 @@ fn write(
 					.with_color(SECONDARY),
 			)
 			.with_note(format!(
-				"The {} statement must always be the final statement of a \
+				"The `{}` statement must always be the final statement of a \
 				 block.",
-				"`loop`".fg(PRIMARY)
+				"loop".fg(colors.primary)
 			)),
 
 		Error::MisplacedLoopStatement { location } => report
@@ -2150,9 +2218,9 @@ fn write(
 					.with_color(PRIMARY),
 			)
 			.with_note(format!(
-				"The {} statement must always be the final statement of a \
+				"The `{}` statement must always be the final statement of a \
 				 block.",
-				"`loop`".fg(PRIMARY)
+				"loop".fg(colors.primary)
 			)),
 
 		Error::VariableDeclarationMayBeSkipped {
@@ -2175,7 +2243,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"...may skip the declaration of the variable '{}'.",
-						name.fg(PRIMARY)
+						name.fg(colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -2183,9 +2251,9 @@ fn write(
 				location_of_goto
 					.label()
 					.with_message(format!(
-						"A jump from this {} statement to '{}'...",
-						"`goto`".fg(SECONDARY),
-						label.fg(TERTIARY)
+						"A jump from this `{}` statement to '{}'...",
+						"goto".fg(colors.secondary),
+						label.fg(colors.tertiary)
 					))
 					.with_color(SECONDARY),
 			)
@@ -2194,7 +2262,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"After this label, the existence of '{}' is dubious.",
-						name.fg(PRIMARY)
+						name.fg(colors.primary)
 					))
 					.with_color(TERTIARY),
 			),
@@ -2235,7 +2303,7 @@ fn write(
 					.label_after_end()
 					.with_message(format!(
 						"Consider adding {} here.",
-						show_colon_and_type(suggested_type, SECONDARY)
+						show_colon_and_type(suggested_type, colors.secondary)
 					))
 					.with_color(SECONDARY),
 			)
@@ -2257,7 +2325,7 @@ fn write(
 					.label_after_end()
 					.with_message(format!(
 						"Consider adding a type suffix like {}.",
-						show_type(suggested_type, SECONDARY)
+						show_type(suggested_type, colors.secondary)
 					))
 					.with_color(SECONDARY),
 			),
@@ -2297,7 +2365,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"This has type {}.",
-						show_type(type_of_left, PRIMARY)
+						show_type(type_of_left, colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -2306,7 +2374,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"This has type {}.",
-						show_type(type_of_right, SECONDARY)
+						show_type(type_of_right, colors.secondary)
 					))
 					.with_color(SECONDARY),
 			)
@@ -2331,7 +2399,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"This has type {}.",
-						show_type(value_type, PRIMARY)
+						show_type(value_type, colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -2341,7 +2409,7 @@ fn write(
 					.with_order(2)
 					.with_message(format!(
 						"Expected {}.",
-						show_possible_types(possible_types, SECONDARY)
+						show_possible_types(possible_types, colors.secondary)
 					))
 					.with_color(SECONDARY),
 			),
@@ -2360,7 +2428,7 @@ fn write(
 					.label()
 					.with_message(format!(
 						"This has type {}.",
-						show_type(value_type, PRIMARY)
+						show_type(value_type, colors.primary)
 					))
 					.with_color(PRIMARY),
 			)
@@ -2369,8 +2437,8 @@ fn write(
 					.label()
 					.with_message(format!(
 						"Cannot cast {} into {}.",
-						show_type(value_type, PRIMARY),
-						show_type(coerced_type, SECONDARY),
+						show_type(value_type, colors.primary),
+						show_type(coerced_type, colors.secondary),
 					))
 					.with_color(SECONDARY),
 			)
@@ -2379,6 +2447,7 @@ fn write(
 				coerced_type,
 				possible_value_types,
 				possible_coerced_types,
+				colors,
 			)),
 
 		// Lints:
@@ -2392,30 +2461,27 @@ fn write(
 				location_of_loop
 					.label()
 					.with_message(
-						"...this loop statement will cause an infinite loop..."
-							.to_string(),
+						"...this loop statement will cause an infinite loop...",
 					)
 					.with_color(PRIMARY),
 			)
 			.with_label(
 				location_of_block
 					.label()
-					.with_message(
-						"...because it belongs to this block.".to_string(),
-					)
+					.with_message("...because it belongs to this block.")
 					.with_color(TERTIARY),
 			)
 			.with_label(
 				location_of_condition
 					.label()
-					.with_message("If this condition is met...".to_string())
+					.with_message("If this condition is met...")
 					.with_color(SECONDARY),
 			)
 			.with_note(format!(
-				"Perhaps use {} instead to jump to a {} elsewhere. To \
+				"Perhaps use `{}` instead to jump to a `{}` elsewhere. To \
 				 surpress this warning, add a label.",
-				"`goto`".fg(PRIMARY),
-				"`loop`".fg(PRIMARY)
+				"goto".fg(colors.primary),
+				"loop".fg(colors.primary)
 			)),
 
 		Error::UnreachableCode { location } =>
@@ -2423,7 +2489,7 @@ fn write(
 			report.with_message("Unreachable code").with_label(
 				location
 					.label()
-					.with_message("starting here".to_string())
+					.with_message("starting here")
 					.with_color(PRIMARY),
 			)
 		}
@@ -2437,6 +2503,7 @@ fn note_for_possible_casts(
 	coerced_type: &ValueType,
 	possible_value_types: &[OperandValueType],
 	possible_coerced_types: &[OperandValueType],
+	colors: Colors,
 ) -> String
 {
 	if possible_coerced_types.is_empty()
@@ -2447,18 +2514,18 @@ fn note_for_possible_casts(
 	{
 		format!(
 			"Can cast {} into {}.",
-			show_type(value_type, PRIMARY),
-			show_possible_types(possible_coerced_types, SECONDARY),
+			show_type(value_type, colors.primary),
+			show_possible_types(possible_coerced_types, colors.secondary),
 		)
 	}
 	else
 	{
 		format!(
 			"Can cast {} into {}, or {} into {}.",
-			show_type(value_type, PRIMARY),
-			show_possible_types(possible_coerced_types, SECONDARY),
-			show_possible_types(possible_value_types, PRIMARY),
-			show_type(coerced_type, SECONDARY),
+			show_type(value_type, colors.primary),
+			show_possible_types(possible_coerced_types, colors.secondary),
+			show_possible_types(possible_value_types, colors.primary),
+			show_type(coerced_type, colors.secondary),
 		)
 	}
 }
@@ -2467,7 +2534,7 @@ fn note_for_possible_casts(
 #[cfg(not(tarpaulin_include))]
 fn show_possible_types(
 	possible_types: &[OperandValueType],
-	color: ariadne::Color,
+	color: Option<ariadne::Color>,
 ) -> String
 {
 	let list: Vec<String> = possible_types
@@ -2478,7 +2545,7 @@ fn show_possible_types(
 			{
 				format!("{}", show_type(value_type, color))
 			}
-			OperandValueType::Pointer => format!("{}", "`&_`".fg(color)),
+			OperandValueType::Pointer => format!("`{}`", "&_".fg(color)),
 		})
 		.collect();
 	match list.len()
@@ -2491,8 +2558,10 @@ fn show_possible_types(
 
 #[cfg_attr(coverage, no_coverage)]
 #[cfg(not(tarpaulin_include))]
-fn show_colon_and_type(value_type: &ValueType, color: ariadne::Color)
-	-> String
+fn show_colon_and_type(
+	value_type: &ValueType,
+	color: Option<ariadne::Color>,
+) -> String
 {
 	format!(
 		"`{}{}`",
@@ -2503,7 +2572,7 @@ fn show_colon_and_type(value_type: &ValueType, color: ariadne::Color)
 
 #[cfg_attr(coverage, no_coverage)]
 #[cfg(not(tarpaulin_include))]
-fn show_type(value_type: &ValueType, color: ariadne::Color) -> String
+fn show_type(value_type: &ValueType, color: Option<ariadne::Color>) -> String
 {
 	format!("`{}`", show_type_inner(value_type).fg(color))
 }

@@ -68,6 +68,30 @@ fn emit_wasm4_write_with_custom_font()
 }
 
 #[test]
+fn emit_colorless_ascii()
+{
+	let mut cmd = Command::cargo_bin("penne").unwrap();
+	cmd.arg("emit");
+	cmd.arg("--color=never");
+	cmd.arg("--arrows=ascii");
+	cmd.arg("tests/samples/invalid/loop_in_naked_branch.pn");
+	let result = cmd.assert().failure();
+	let output = result.get_output();
+	assert!(is_colorless_ascii(&output.stdout));
+	println!("@@@");
+	println!("{}", std::str::from_utf8(&output.stderr).unwrap());
+	println!("@@@");
+	assert!(is_colorless_ascii(&output.stderr));
+}
+
+fn is_colorless_ascii(data: &[u8]) -> bool
+{
+	let text = std::str::from_utf8(data).unwrap();
+	text.chars()
+		.all(|x| x.is_ascii_graphic() || x == ' ' || x == '\n')
+}
+
+#[test]
 fn fail_to_build_loop_in_naked_branch()
 {
 	let outdir = tempfile::tempdir().unwrap();

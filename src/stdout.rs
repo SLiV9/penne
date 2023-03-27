@@ -8,6 +8,7 @@
 //! when run with the _verbose_ flag.
 
 use crate::common;
+use crate::error;
 use crate::lexer;
 use crate::rebuilder;
 use crate::resolved;
@@ -25,7 +26,7 @@ pub struct Options
 	verbose: bool,
 
 	/// When to use ANSI colors in error messages and intermediate output
-	#[clap(hide(true), long, value_name("WHEN"))]
+	#[clap(long, value_name("WHEN"))]
 	#[clap(value_enum, default_value_t=ColorChoice::Auto)]
 	color: ColorChoice,
 
@@ -81,7 +82,7 @@ pub struct StdOut
 {
 	stdout: StandardStream,
 	is_verbose: bool,
-	ariadne_config: ariadne::Config,
+	report_config: error::Config,
 }
 
 impl StdOut
@@ -99,10 +100,12 @@ impl StdOut
 		let ariadne_config = ariadne::Config::default()
 			.with_color(with_color)
 			.with_char_set(options.arrows.into());
+		let report_config =
+			error::Config::from(ariadne_config).with_color(with_color);
 		StdOut {
 			stdout,
 			is_verbose,
-			ariadne_config,
+			report_config,
 		}
 	}
 
@@ -295,7 +298,7 @@ impl StdOut
 		for error in errors
 		{
 			writeln!(self.stdout)?;
-			let report = error.build_report(self.ariadne_config);
+			let report = error.build_report(self.report_config);
 			report.eprint(&mut source_cache)?;
 		}
 		writeln!(self.stdout)?;

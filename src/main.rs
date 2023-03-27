@@ -136,8 +136,9 @@ fn main() -> Result<(), anyhow::Error>
 	let result = do_main();
 	if result.is_err()
 	{
-		let mut stdout = penne::stdout::StdOut::new(Default::default());
-		stdout.prepare_for_errors()?;
+		penne::stdout::StdOut::new(Default::default());
+		println!();
+		println!();
 	}
 	result
 }
