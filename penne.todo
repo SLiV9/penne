@@ -78,6 +78,7 @@ Functionality:
 			✘	Prevent circular imports @cancelled (2023-01-05 19:05)
 		✔	Public vs private @done (2023-01-05 19:05)
 			☐	Think about pub (extern) const (not) being static
+			☐	Think about public vs private structure members
 		☐	Namespacing
 		☐	Use and pub use
 			☐	Deduplicate symbols that are pub used in two different imports

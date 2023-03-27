@@ -653,6 +653,8 @@ impl Error
 		}
 	}
 
+	#[cfg_attr(coverage, no_coverage)]
+	#[cfg(not(tarpaulin_include))]
 	fn location(&self) -> &Location
 	{
 		match self

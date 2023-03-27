@@ -49,7 +49,7 @@ jobs:
     - name: Testspace
       run: testspace ./target/nextest/ci/junit.xml
     - name: Run cargo-tarpaulin
-      run: cargo tarpaulin -o lcov
+      run: cargo tarpaulin --follow-exec --implicit-test-threads --engine llvm -o lcov
     - name: Coveralls
       uses: coverallsapp/github-action@1.1.3
       with:
