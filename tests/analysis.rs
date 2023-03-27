@@ -87,7 +87,7 @@ fn fail_to_analyze_assign_array_to_array()
 fn fail_to_analyze_assign_array_view_to_variable()
 {
 	compile_to_fail(
-		&[532, 352],
+		&[352, 532],
 		"tests/samples/invalid/assign_array_view_to_variable.pn",
 	);
 }
@@ -114,7 +114,25 @@ fn fail_to_analyze_address_of_constant()
 }
 
 #[test]
+fn fail_to_analyze_address_of_later_constant()
+{
+	compile_to_fail(
+		&[360, 530],
+		"tests/samples/invalid/address_of_later_constant.pn",
+	);
+}
+
+#[test]
 fn fail_to_analyze_constant_evaluated_dereference()
+{
+	compile_to_fail(
+		&[360],
+		"tests/samples/invalid/constant_evaluated_dereference.pn",
+	);
+}
+
+#[test]
+fn fail_to_analyze_constant_evaluated_array_length()
 {
 	compile_to_fail(
 		&[360],

@@ -4,15 +4,12 @@
 // License: MIT
 //
 
-use penne::analyzer;
 use penne::expander;
-use penne::generator;
+use penne::included;
 use penne::lexer;
-use penne::linter;
 use penne::parser;
 use penne::resolver;
 use penne::scoper;
-use penne::typer;
 
 use std::io::Write;
 
@@ -286,35 +283,58 @@ fn do_main() -> Result<(), anyhow::Error>
 			})
 	});
 
-	// If there are multiple compilation units, we need to generate separate
-	// (temporary) LLVM IR files in order to pass them to the backend.
-	// Do this after determining the output_filepath, because it makes no sense
-	// for the actual user output to be a temporary file.
-	let scoped_temp_dir = if out_dir.is_none() && filepaths.len() > 1
+	let mut compilation_units = Vec::new();
+
+	for filepath in filepaths
 	{
-		let temp_dir = tempfile::tempdir()?;
-		Some(temp_dir)
+		let filename = filepath.to_string_lossy();
+		if let Some((entry, scheme_prefix)) = included::find(&filename)
+		{
+			match entry
+			{
+				include_dir::DirEntry::Dir(dir) =>
+				{
+					let found = dir.find("**/*.pn")?;
+					for file in found.filter_map(|e| e.as_file())
+					{
+						let subpath = std::path::PathBuf::from(format!(
+							"{}{}",
+							scheme_prefix,
+							file.path().to_string_lossy()
+						));
+						let source = std::str::from_utf8(file.contents())?;
+						compilation_units.push((subpath, source.to_string()));
+					}
+				}
+				include_dir::DirEntry::File(file) =>
+				{
+					let subpath = std::path::PathBuf::from(format!(
+						"{}{}",
+						scheme_prefix,
+						file.path().to_string_lossy()
+					));
+					let source = std::str::from_utf8(file.contents())?;
+					compilation_units.push((subpath, source.to_string()));
+				}
+			}
+		}
+		else
+		{
+			let source = std::fs::read_to_string(&filepath)
+				.with_context(|| format!("Failed to open '{}'", filename))?;
+			compilation_units.push((filepath, source));
+		}
 	}
-	else
-	{
-		None
-	};
-	let out_dir = match &scoped_temp_dir
-	{
-		Some(temp_dir) => Some(temp_dir.path().to_owned()),
-		None => out_dir,
-	};
 
 	let mut stdout = penne::stdout::StdOut::new(stdout_options);
 
 	let mut sources = Vec::new();
 	let mut modules = Vec::new();
 
-	for filepath in filepaths
+	for (filepath, source) in compilation_units
 	{
 		let filename = filepath.to_string_lossy().to_string();
 		stdout.newline()?;
-		let source = std::fs::read_to_string(&filepath)?;
 		stdout.header("Lexing", &filename)?;
 		let tokens = lexer::lex(&source, &filename);
 		stdout.dump_tokens(&tokens)?;
@@ -353,8 +373,11 @@ fn do_main() -> Result<(), anyhow::Error>
 		}
 	}
 
-	let mut generated_ir_files = Vec::new();
-	let mut generated_ir = None;
+	let mut compiler = penne::Compiler::default();
+	if wasm
+	{
+		compiler.for_wasm()?;
+	}
 
 	for (filepath, declarations) in modules
 	{
@@ -364,22 +387,12 @@ fn do_main() -> Result<(), anyhow::Error>
 		let declarations = scoper::analyze(declarations);
 		stdout.dump_code(&filename, &declarations)?;
 
-		stdout.header("Typing", &filename)?;
-		let declarations = typer::analyze(declarations);
-		stdout.dump_code(&filename, &declarations)?;
+		compiler.add_module(&filename)?;
 
-		stdout.header("Analyzing", &filename)?;
-		let declarations = analyzer::analyze(declarations);
-		stdout.dump_code(&filename, &declarations)?;
-
-		stdout.header("Linting", &filename)?;
-		let lints = linter::lint(&declarations);
-		// We show the lints after resolution, if there are no errors.
-		let linting_was_successful = lints.is_empty();
-		stdout.linting(linting_was_successful)?;
-
-		stdout.header("Resolving", &filename)?;
-		let declarations = match resolver::resolve(declarations)
+		stdout.header("Typing, analyzing and resolving", &filename)?;
+		stdout.prepare_for_errors()?;
+		let resolved = compiler.analyze_and_resolve(declarations)?;
+		let declarations = match resolved
 		{
 			Ok(declarations) => declarations,
 			Err(errors) =>
@@ -389,15 +402,21 @@ fn do_main() -> Result<(), anyhow::Error>
 				return Err(anyhow!("compilation failed"));
 			}
 		};
+		stdout.dump_resolved(&filename, &declarations)?;
+
+		stdout.header("Linting", &filename)?;
+		let lints = compiler.take_lints();
+		stdout.linting(lints.is_empty())?;
 		if !lints.is_empty()
 		{
 			stdout.show_errors(lints, &mut source_cache)?;
 		}
-		stdout.dump_resolved(&filename, &declarations)?;
+		stdout.newline()?;
 
 		stdout.header("Generating IR for", &filename)?;
 		stdout.prepare_for_errors()?;
-		let ir = generator::generate(&declarations, &filename, wasm)?;
+		compiler.compile(&declarations)?;
+		let ir = compiler.generate_ir()?;
 		stdout.dump_text(&ir)?;
 
 		if let Some(out_dir) = &out_dir
@@ -410,15 +429,18 @@ fn do_main() -> Result<(), anyhow::Error>
 			};
 			let dirname = outputpath.parent().context("invalid output dir")?;
 			std::fs::create_dir_all(dirname)?;
-			generated_ir_files.push(outputpath.clone());
 			stdout.io_header("Writing to", &outputpath)?;
 			std::fs::write(outputpath, ir)?;
 		}
-		else
-		{
-			generated_ir = Some(ir);
-		}
 	}
+
+	stdout.newline()?;
+	stdout.basic_header("Linking modules")?;
+	stdout.prepare_for_errors()?;
+	compiler.link_modules()?;
+	let full_ir = compiler.generate_ir()?;
+	stdout.dump_text(&full_ir)?;
+	let generated_ir = Some(full_ir);
 
 	if let Some(output_filepath) = output_filepath.filter(|_x| !skip_backend)
 	{
@@ -436,10 +458,6 @@ fn do_main() -> Result<(), anyhow::Error>
 			{
 				cmd.arg(format!("-Wl,{}", arg));
 			}
-		}
-		for filepath in generated_ir_files
-		{
-			cmd.arg(filepath);
 		}
 		if generated_ir.is_some()
 		{
@@ -470,7 +488,8 @@ fn do_main() -> Result<(), anyhow::Error>
 		let status = cmd.wait()?;
 		if is_lli
 		{
-			let exitcode = status.code().context("no exitcode")?;
+			let exitcode =
+				status.code().ok_or_else(|| error_from_status(status))?;
 			stdout.output(exitcode)?;
 		}
 		else
@@ -481,9 +500,6 @@ fn do_main() -> Result<(), anyhow::Error>
 				.context("compilation unsuccessful")?;
 		}
 	}
-
-	// Make sure we drop the scoped temp dir (if any) here and not before.
-	std::mem::drop(scoped_temp_dir);
 
 	stdout.done()?;
 	Ok(())
@@ -523,6 +539,28 @@ fn get_exe_extension() -> &'static str
 	else
 	{
 		std::env::consts::ARCH
+	}
+}
+
+fn error_from_status(status: std::process::ExitStatus) -> anyhow::Error
+{
+	let signal = if cfg!(unix)
+	{
+		use std::os::unix::process::ExitStatusExt;
+		status.signal()
+	}
+	else
+	{
+		None
+	};
+
+	if signal == Some(libc::SIGSEGV)
+	{
+		anyhow!("segmentation fault")
+	}
+	else
+	{
+		anyhow!("no exitcode")
 	}
 }
 

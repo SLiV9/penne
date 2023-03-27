@@ -186,6 +186,15 @@ fn execute_pointers() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_pointer_to_member() -> Result<(), anyhow::Error>
+{
+	let result =
+		execute_calculation("tests/samples/valid/pointer_to_member.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_pointer_to_mut() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation("tests/samples/valid/pointer_to_mut.pn")?;
@@ -464,6 +473,14 @@ fn execute_pointer_stability_struct() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_empty_array() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation("tests/samples/valid/empty_array.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_identifier_starting_with_keyword() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation(
@@ -496,6 +513,18 @@ fn execute_import_position_and_line() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_import_sum_of_squares() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation_with_imports(&[
+		"tests/samples/valid/import_sum_of_squares.pn",
+		"tests/samples/valid/position.pn",
+		"tests/samples/valid/sum_of_squares.pn",
+	])?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn fail_to_execute_pointer_escape_ub() -> Result<(), anyhow::Error>
 {
 	let result =
@@ -507,14 +536,27 @@ fn fail_to_execute_pointer_escape_ub() -> Result<(), anyhow::Error>
 
 fn execute_calculation(filename: &str) -> Result<i32, anyhow::Error>
 {
-	let source = std::fs::read_to_string(&filename)?;
-	let declarations = match penne::compile_source(&source, &filename)
+	let source = std::fs::read_to_string(filename)?;
+	let tokens = lexer::lex(&source, filename);
+	let declarations = parser::parse(tokens);
+	let declarations = expander::expand_one(filename, declarations);
+	match resolver::check_surface_level_errors(&declarations)
+	{
+		Ok(_) => (),
+		#[allow(unreachable_code)]
+		Err(errors) => match errors.panic() {},
+	}
+	let declarations = scoper::analyze(declarations);
+	let mut compiler = Compiler::default();
+	compiler.add_module(&filename)?;
+	let declarations = match compiler.analyze_and_resolve(declarations)?
 	{
 		Ok(declarations) => declarations,
 		#[allow(unreachable_code)]
 		Err(errors) => match errors.panic() {},
 	};
-	let ir = generator::generate(&declarations, filename, false)?;
+	compiler.compile(&declarations)?;
+	let ir = compiler.generate_ir()?;
 	execute_ir(&ir)
 }
 
@@ -541,23 +583,22 @@ fn execute_calculation_with_imports(
 			Err(errors) => match errors.panic() {},
 		};
 	}
-	let mut irs = Vec::new();
+	let mut compiler = Compiler::default();
 	for (filepath, declarations) in modules
 	{
 		let filename = filepath.to_str().unwrap();
+		compiler.add_module(&filename)?;
 		let declarations = scoper::analyze(declarations);
-		let declarations = typer::analyze(declarations);
-		let declarations = analyzer::analyze(declarations);
-		let declarations = match resolver::resolve(declarations)
+		let declarations = match compiler.analyze_and_resolve(declarations)?
 		{
 			Ok(declarations) => declarations,
 			#[allow(unreachable_code)]
 			Err(errors) => match errors.panic() {},
 		};
-		let ir = generator::generate(&declarations, filename, false)?;
-		irs.push(ir);
+		compiler.compile(&declarations)?;
 	}
-	let ir = irs.join("\n\n\n");
+	compiler.link_modules()?;
+	let ir = compiler.generate_ir()?;
 	execute_ir(&ir)
 }
 

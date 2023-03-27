@@ -1,0 +1,14 @@
+
+const LEN: i64 = -1;
+
+struct Foo
+{
+	bytes: [LEN]u8,
+}
+
+const SIZE: u8 = 2;
+
+struct Bar
+{
+	bytes: [SIZE]u8,
+}

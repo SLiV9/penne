@@ -1,4 +1,4 @@
-import "wasm4.pn";
+import "vendor:wasm4/wasm4.pn";
 
 const FONT_WIDTH: u32 = 208;
 const CHAR_WIDTH: u32 = 8;

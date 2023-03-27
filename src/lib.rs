@@ -20,12 +20,15 @@
 //! [linter], [resolver] and [generator].
 //! The [rebuilder] module allows turning the AST back into (annotated) code.
 //! The [stdout] module contains helper code for the command line interface.
+//! The [included] module contains Penne source code for core and vendor
+//! libraries.
 
 pub mod analyzer;
 pub mod common;
 pub mod error;
 pub mod expander;
 pub mod generator;
+pub mod included;
 pub mod lexer;
 pub mod linter;
 pub mod parser;
@@ -41,8 +44,8 @@ pub use error::Error;
 pub use error::Errors;
 pub use resolved::Declaration;
 
-/// Convience method that parses source code and runs it through each of the
-/// compiler stages.
+/// Convenience method that parses source code and runs it through each of the
+/// compiler stages, except full IR generation.
 pub fn compile_source(
 	source: &str,
 	filename: &str,
@@ -53,7 +56,181 @@ pub fn compile_source(
 	let declarations = expander::expand_one(filename, declarations);
 	resolver::check_surface_level_errors(&declarations)?;
 	let declarations = scoper::analyze(declarations);
-	let declarations = typer::analyze(declarations);
-	let declarations = analyzer::analyze(declarations);
-	resolver::resolve(declarations)
+	let mut compiler = Compiler::default();
+	compiler.add_module(filename).unwrap();
+	compiler
+		.analyze_and_resolve(declarations)
+		.expect("failed to generate IR")
+}
+
+/// After parsing and scoping, the relative order of type inferencing, analysis
+/// and IR generation for individual declarations is managed by a Compiler.
+/// This allows compile-time constants to be used during type inference.
+#[derive(Default)]
+pub struct Compiler
+{
+	typer: typer::Typer,
+	analyzer: analyzer::Analyzer,
+	linter: linter::Linter,
+	generator: generator::Generator,
+}
+
+impl Compiler
+{
+	/// Change the target triple from the current OS to WebAssembly.
+	pub fn for_wasm(&mut self) -> Result<(), anyhow::Error>
+	{
+		self.generator.for_wasm()
+	}
+
+	/// Ready the Compiler for a new module.
+	/// This function must be called before analyzing declarations.
+	pub fn add_module(&mut self, module_name: &str)
+		-> Result<(), anyhow::Error>
+	{
+		self.typer = typer::Typer::default();
+		self.analyzer = analyzer::Analyzer::default();
+		self.linter = linter::Linter::default();
+		self.generator.add_module(module_name)
+	}
+
+	/// Apply type inference, semantic analysis and syntactical analysis
+	/// on the declarations of a single module,
+	/// and perform preliminary IR generation.
+	pub fn analyze_and_resolve(
+		&mut self,
+		mut declarations: Vec<common::Declaration>,
+	) -> Result<Result<Vec<resolved::Declaration>, error::Errors>, anyhow::Error>
+	{
+		// Sort the declarations so that the functions are at the end and
+		// the constants and structures are declared in the right order.
+		declarations.sort_by_key(|x| scoper::get_container_depth(x, u32::MAX));
+		let offset = declarations.partition_point(|x| scoper::is_container(x));
+		let functions = declarations.split_off(offset);
+		let containers = declarations;
+		// First analyze and resolve all the constants and structures,
+		// then analyze and resolve all the functions.
+		// This works because constants and structures cannot use functions.
+		let containers = self.analyze_and_resolve_sorted(containers, true)?;
+		let functions = self.analyze_and_resolve_sorted(functions, false)?;
+		let declarations = resolver::combine(containers, functions);
+		Ok(declarations)
+	}
+
+	fn analyze_and_resolve_sorted(
+		&mut self,
+		declarations: Vec<common::Declaration>,
+		are_all_containers: bool,
+	) -> Result<Result<Vec<resolved::Declaration>, error::Errors>, anyhow::Error>
+	{
+		// Forward declare all structures as opaque types so that pointer types
+		// are valid (because pointers do not affect container depth).
+		// Also make sure that cyclical structures are poisoned.
+		for declaration in &declarations
+		{
+			self.typer.forward_declare_structure(declaration);
+		}
+		for name in declarations.iter().filter_map(scoper::get_structure_name)
+		{
+			self.generator.forward_declare_structure(name)?;
+		}
+
+		let declarations = if are_all_containers
+		{
+			declarations
+		}
+		else
+		{
+			// Declare all function signatures and analyze their types.
+			// Also declare poisoned cyclical structures and constants.
+			let declarations = declarations
+				.into_iter()
+				.map(|x| self.typer.declare(x))
+				.collect();
+			for declaration in &declarations
+			{
+				self.analyzer.declare(declaration);
+			}
+			declarations
+		};
+
+		// Type, analyze, lint and resolve the program one declaration at
+		// a time, and generate IR for structures and constants in advance.
+		// This works because the declarations are sorted by container depth.
+		// Also generate IR for function signatures in advance.
+		declarations.into_iter().try_fold(Ok(Vec::new()), |acc, x| {
+			let declaration = x;
+			let declaration = if are_all_containers
+			{
+				self.typer.declare(declaration)
+			}
+			else
+			{
+				declaration
+			};
+			let declaration = self.typer.analyze(declaration);
+			let declaration = self.analyzer.analyze(declaration);
+			self.linter.lint(&declaration);
+			let resolved = resolver::resolve(declaration);
+			if let Ok(declaration) = &resolved
+			{
+				// If code generation fails, bail out.
+				self.generator.declare(&declaration)?;
+				self.fetch_declared_constants(&declaration);
+			}
+			Ok(resolver::accumulate(acc, resolved))
+		})
+	}
+
+	fn fetch_declared_constants(&mut self, declaration: &resolved::Declaration)
+	{
+		match declaration
+		{
+			Declaration::Constant {
+				name,
+				value_type: value_type::ValueType::Usize,
+				..
+			} =>
+			{
+				if let Some(value) = self.generator.get_named_length(name)
+				{
+					self.typer.resolve_named_length(name.resolution_id, value);
+				}
+			}
+			_ => (),
+		}
+	}
+
+	/// Compile declarations into IR.
+	pub fn compile(
+		&mut self,
+		declarations: &[resolved::Declaration],
+	) -> Result<(), anyhow::Error>
+	{
+		for declaration in declarations
+		{
+			self.generator.generate(declaration)?;
+		}
+		self.generator.verify();
+		Ok(())
+	}
+
+	/// Retrieve the lints generated while analyzing the current module.
+	pub fn take_lints(&mut self) -> Vec<linter::Lint>
+	{
+		std::mem::take(&mut self.linter).into()
+	}
+
+	/// Link all added modules together into a single module.
+	/// The result becomes the current module.
+	pub fn link_modules(&mut self) -> Result<(), anyhow::Error>
+	{
+		self.generator.link_modules()
+	}
+
+	/// Generate textual IR for the current module.
+	pub fn generate_ir(&self) -> Result<String, anyhow::Error>
+	{
+		self.generator.generate_ir()
+	}
 }

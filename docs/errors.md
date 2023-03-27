@@ -751,6 +751,21 @@ struct Metadata
 }
 ```
 
+## Error code E416
+
+A structure definition relies on a constant that in turn relies on the size of that structure.
+
+### Example of erroneous code
+
+```penne
+const SIZE_OF_FOO_IN_BYTES: usize = |:Foo|;
+
+struct Foo
+{
+    buffer: [SIZE_OF_FOO_IN_BYTES]u8,
+}
+```
+
 ## Error code E420
 
 Two labels with the same name are present in the same scope.
@@ -848,6 +863,38 @@ struct ItemCollection
 }
 ```
 
+## Error code E433
+
+An array is declared with a named length that is either not a constant or a constant whose value cannot be determined at compile-time.
+
+### Example of erroneous code
+
+```penne
+fn read_packet_data(max_num_packets: usize, packet_size: usize)
+{
+    var max_len = max_num_packets * packet_size;
+    var data: [max_len]u8;
+    // ...
+}
+```
+
+### Explanation
+
+Using a variable or parameter to specify the length of an array is not allowed, because its value cannot be determined while compiling the program.
+Array lengths must be either an integer literal (as in `[10]i32`) or a named constant of type `usize`.
+
+```penne
+const MAX_NUM_PACKETS: usize = 1000;
+const PACKET_SIZE: usize = 128;
+const MAX_LEN: usize = MAX_NUM_PACKETS * PACKET_SIZE;
+
+fn read_packet_data()
+{
+    var data: [MAX_LEN]u8;
+    // ...
+}
+```
+
 ## Error code E470
 
 An `import` declaration could not be resolved.
@@ -865,6 +912,25 @@ In order to include a source file in the compilation process, add it as an extra
 
 ```console
 $ penne build src/main.pn src/nice_functionality.pn
+```
+
+## Error code E477
+
+An `import` declaration for a core or vendor library could not be resolved.
+
+### Example of erroneous code
+
+```penne
+import "core:text/char.pn";
+```
+
+### Explanation
+
+The Penne compiler does not include core libraries by default.
+In order to use a core library, add it as an extra argument after the main entry point.
+
+```console
+$ penne build src/main.pn core:text
 ```
 
 ## Error code E482

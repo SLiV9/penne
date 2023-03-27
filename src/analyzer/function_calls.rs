@@ -8,27 +8,16 @@ use crate::common::*;
 use crate::error::Error;
 use crate::typer::Typed;
 
-pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
+pub fn analyze(declaration: Declaration, analyzer: &mut Analyzer)
+	-> Declaration
 {
-	let mut analyzer = Analyzer {
-		functions: std::collections::HashMap::new(),
-		is_const_evaluated: false,
-		is_immediate_function_argument: false,
-	};
-	for declaration in &program
-	{
-		declare(declaration, &mut analyzer);
-	}
-	program
-		.into_iter()
-		.map(|x| x.analyze(&mut analyzer))
-		.collect()
+	declaration.analyze(analyzer)
 }
 
-struct Analyzer
+#[derive(Default)]
+pub struct Analyzer
 {
 	functions: std::collections::HashMap<u32, Function>,
-	is_const_evaluated: bool,
 	is_immediate_function_argument: bool,
 }
 
@@ -151,7 +140,7 @@ fn can_hint_missing_address(
 	}
 }
 
-fn declare(declaration: &Declaration, analyzer: &mut Analyzer)
+pub fn declare(declaration: &Declaration, analyzer: &mut Analyzer)
 {
 	match declaration
 	{
@@ -191,29 +180,12 @@ impl Analyzable for Declaration
 		analyzer.is_immediate_function_argument = false;
 		match self
 		{
-			Declaration::Constant {
-				name,
-				value,
-				value_type,
-				flags,
-				depth,
-				location_of_declaration,
-				location_of_type,
-			} =>
+			Declaration::Constant { .. } =>
 			{
-				analyzer.is_const_evaluated = true;
-				let value = value.analyze(analyzer);
-				analyzer.is_const_evaluated = false;
-
-				Declaration::Constant {
-					name,
-					value,
-					value_type,
-					flags,
-					depth,
-					location_of_declaration,
-					location_of_type,
-				}
+				// We do not need to analyze constants here because they are
+				// already analyzed for constness, and function calls are never
+				// allowed in a constant expression.
+				self
 			}
 			Declaration::Function {
 				name,
@@ -348,8 +320,6 @@ impl Analyzable for Statement
 			}
 			Statement::MethodCall { name, arguments } =>
 			{
-				debug_assert!(!analyzer.is_const_evaluated);
-
 				let recoverable_error =
 					analyzer.use_function(&name, &arguments);
 				let arguments = arguments
@@ -530,14 +500,6 @@ impl Analyzable for Expression
 				deref_type,
 			} =>
 			{
-				if analyzer.is_const_evaluated && !reference.is_trivial()
-				{
-					let error = Error::UnsupportedInConstContext {
-						location: reference.location,
-					};
-					return Expression::Poison(Poison::Error(error));
-				}
-
 				let deref_type = match deref_type
 				{
 					Some(Ok(vt @ ValueType::Array { .. }))
@@ -621,12 +583,6 @@ impl Analyzable for Expression
 				location,
 			} =>
 			{
-				if analyzer.is_const_evaluated
-				{
-					let error = Error::UnsupportedInConstContext { location };
-					return Expression::Poison(Poison::Error(error));
-				}
-
 				let reference = reference.analyze(analyzer);
 				Expression::LengthOfArray {
 					reference,
@@ -640,14 +596,6 @@ impl Analyzable for Expression
 				return_type,
 			} =>
 			{
-				if analyzer.is_const_evaluated
-				{
-					let error = Error::FunctionInConstContext {
-						location: name.location,
-					};
-					return Expression::Poison(Poison::Error(error));
-				}
-
 				let recoverable_error =
 					analyzer.use_function(&name, &arguments);
 				let arguments = arguments

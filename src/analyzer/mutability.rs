@@ -7,18 +7,14 @@
 use crate::common::*;
 use crate::error::Error;
 
-pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
+pub fn analyze(declaration: Declaration, analyzer: &mut Analyzer)
+	-> Declaration
 {
-	let mut analyzer = Analyzer {
-		variables: std::collections::HashMap::new(),
-	};
-	program
-		.into_iter()
-		.map(|x| x.analyze(&mut analyzer))
-		.collect()
+	declaration.analyze(analyzer)
 }
 
-struct Analyzer
+#[derive(Default)]
+pub struct Analyzer
 {
 	variables: std::collections::HashMap<u32, (Identifier, bool)>,
 }
@@ -35,7 +31,7 @@ impl Analyzer
 		&self,
 		identifier: &Poisonable<Identifier>,
 		is_mutated: bool,
-	) -> Result<(), Error>
+	) -> Result<(), Poison>
 	{
 		if let Ok(identifier) = identifier
 		{
@@ -44,12 +40,13 @@ impl Analyzer
 			{
 				if is_mutated && !is_mutable
 				{
-					Err(Error::NotMutable {
+					let error = Error::NotMutable {
 						location: identifier.location.clone(),
 						location_of_declaration: previous_identifier
 							.location
 							.clone(),
-					})
+					};
+					Err(Poison::Error(error))
 				}
 				else
 				{
@@ -58,7 +55,7 @@ impl Analyzer
 			}
 			else
 			{
-				Ok(())
+				Err(Poison::Poisoned)
 			}
 		}
 		else
@@ -80,13 +77,9 @@ impl Analyzable for Declaration
 		match self
 		{
 			Declaration::Constant {
-				name,
-				value,
-				value_type,
-				flags,
-				depth,
-				location_of_declaration,
-				location_of_type,
+				ref name,
+				ref value_type,
+				..
 			} =>
 			{
 				// If the constant type contains an error, autoderef may have
@@ -94,16 +87,11 @@ impl Analyzable for Declaration
 				// mutability. Avoid cascading errors by faking mutability.
 				let is_error = value_type.is_err();
 				analyzer.declare_variable(&name, false || is_error);
-				let value = value.analyze(analyzer);
-				Declaration::Constant {
-					name,
-					value,
-					value_type,
-					flags,
-					depth,
-					location_of_declaration,
-					location_of_type,
-				}
+
+				// We do not need to analyze constants for mutability because
+				// they are already analyzed for constness, and mutations and
+				// addresses are never allowed in a constant expression.
+				self
 			}
 			Declaration::Function {
 				name,
@@ -302,7 +290,7 @@ impl Analyzable for Statement
 						value,
 						location,
 					},
-					Err(error) => Statement::Poison(Poison::Error(error)),
+					Err(poison) => Statement::Poison(poison),
 				}
 			}
 			Statement::MethodCall { name, arguments } =>
@@ -506,7 +494,7 @@ impl Analyzable for Expression
 						reference,
 						deref_type,
 					},
-					Err(error) => Expression::Poison(Poison::Error(error)),
+					Err(poison) => Expression::Poison(poison),
 				}
 			}
 			Expression::LengthOfArray {
@@ -521,7 +509,7 @@ impl Analyzable for Expression
 						reference,
 						location,
 					},
-					Err(error) => Expression::Poison(Poison::Error(error)),
+					Err(poison) => Expression::Poison(poison),
 				}
 			}
 			Expression::SizeOfStructure { .. } => self,

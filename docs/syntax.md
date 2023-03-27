@@ -101,6 +101,10 @@ fn something_with_casting()
     var result = a as u8 + |data| as u8;
 }
 
+struct Handler;
+
+extern fn something_with_handler(handler: &Handler);
+
 fn main() -> i32
 {
     var from = Position { x: 10, y: 10 };

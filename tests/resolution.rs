@@ -91,6 +91,24 @@ fn allow_skip_shortlived_var()
 }
 
 #[test]
+fn allow_constant_array_length()
+{
+	allow_to_compile("tests/samples/valid/constant_array_length.pn")
+}
+
+#[test]
+fn allow_cyclical_structure_pointers()
+{
+	allow_to_compile("tests/samples/valid/cyclical_structure_pointers.pn")
+}
+
+#[test]
+fn allow_explicit_view_constant()
+{
+	allow_to_compile("tests/samples/valid/explicit_view_constant.pn")
+}
+
+#[test]
 fn allow_sketch_of_listen_to_client()
 {
 	allow_to_compile("examples/listen_to_client.pn")
@@ -105,7 +123,7 @@ fn allow_multiline_strings()
 #[test]
 fn allow_wasm4_header()
 {
-	allow_to_compile("examples/wasm4/wasm4.pn")
+	allow_to_compile("vendor/wasm4/wasm4.pn")
 }
 
 #[test]
@@ -117,7 +135,12 @@ fn investigate_nominal_typing()
 		#[allow(unreachable_code)]
 		Err(errors) => match errors.panic() {},
 	};
-	let members = match declarations.into_iter().next()
+	let test_structure = declarations.into_iter().find(|x| match x
+	{
+		Declaration::Structure { name, .. } => name.name == "Test",
+		_ => false,
+	});
+	let members = match test_structure
 	{
 		Some(Declaration::Structure { members, .. }) => members,
 		_ => panic!("broken test"),
@@ -201,5 +224,14 @@ fn fail_to_resolve_multiple_errors()
 	compile_to_fail(
 		&[581, 581, 402, 402],
 		"tests/samples/invalid/multiple_errors.pn",
+	)
+}
+
+#[test]
+fn fail_to_resolve_unrelated_error_constant_array_length()
+{
+	compile_to_fail(
+		&[500],
+		"tests/samples/invalid/unrelated_error_constant_array_length.pn",
 	)
 }

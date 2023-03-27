@@ -91,6 +91,17 @@ impl Errors
 		errors.append(&mut other.errors);
 		Errors { errors }
 	}
+
+	pub fn sorted(self) -> Errors
+	{
+		let Errors { mut errors } = self;
+		errors.sort_by(|a, b| {
+			a.location()
+				.comparison_key()
+				.cmp(&b.location().comparison_key())
+		});
+		Errors { errors }
+	}
 }
 
 pub enum Never {}
@@ -293,9 +304,17 @@ pub enum Error
 	},
 	CyclicalStructure
 	{
-		name: String,
-		location_of_member: Location,
+		name_of_structure: String,
 		location_of_declaration: Location,
+		location_of_member: Location,
+	},
+	CyclicalStructureWithConstant
+	{
+		name_of_structure: String,
+		name_of_constant: String,
+		location_of_declaration: Location,
+		location_of_member: Location,
+		location_of_constant: Location,
 	},
 	UndefinedVariable
 	{
@@ -320,10 +339,22 @@ pub enum Error
 	{
 		name: String, location: Location
 	},
+	NotACompileTimeConstant
+	{
+		name: String,
+		location: Location,
+		location_of_declaration: Location,
+	},
 	UnresolvedImport
 	{
 		filename: String,
 		location: Location,
+	},
+	UnresolvedImportWithHint
+	{
+		filename: String,
+		location: Location,
+		hinted_package_name: String,
 	},
 	ConflictingTypes
 	{
@@ -574,6 +605,7 @@ impl Error
 			Error::UndefinedMember { .. } => 406,
 			Error::CyclicalConstant { .. } => 413,
 			Error::CyclicalStructure { .. } => 415,
+			Error::CyclicalStructureWithConstant { .. } => 416,
 			Error::DuplicateDeclarationLabel { .. } => 420,
 			Error::DuplicateDeclarationFunction { .. } => 421,
 			Error::DuplicateDeclarationVariable { .. } => 422,
@@ -581,7 +613,9 @@ impl Error
 			Error::DuplicateDeclarationParameter { .. } => 424,
 			Error::DuplicateDeclarationStructure { .. } => 425,
 			Error::DuplicateDeclarationMember { .. } => 426,
+			Error::NotACompileTimeConstant { .. } => 433,
 			Error::UnresolvedImport { .. } => 470,
+			Error::UnresolvedImportWithHint { .. } => 477,
 			Error::VariableDeclarationMayBeSkipped { .. } => 482,
 			Error::ConflictingTypes { .. } => 500,
 			Error::NotAnArray { .. } => 501,
@@ -619,8 +653,6 @@ impl Error
 		}
 	}
 
-	#[cfg_attr(coverage, no_coverage)]
-	#[cfg(not(tarpaulin_include))]
 	fn location(&self) -> &Location
 	{
 		match self
@@ -686,6 +718,10 @@ impl Error
 				location_of_declaration,
 				..
 			} => &location_of_declaration,
+			Error::CyclicalStructureWithConstant {
+				location_of_declaration,
+				..
+			} => &location_of_declaration,
 			Error::DuplicateDeclarationLabel { location, .. } => &location,
 			Error::DuplicateDeclarationFunction { location, .. } => &location,
 			Error::DuplicateDeclarationVariable { location, .. } => &location,
@@ -693,7 +729,9 @@ impl Error
 			Error::DuplicateDeclarationParameter { location, .. } => &location,
 			Error::DuplicateDeclarationStructure { location, .. } => &location,
 			Error::DuplicateDeclarationMember { location, .. } => &location,
+			Error::NotACompileTimeConstant { location, .. } => &location,
 			Error::UnresolvedImport { location, .. } => &location,
+			Error::UnresolvedImportWithHint { location, .. } => &location,
 			Error::ConflictingTypes { location, .. } => &location,
 			Error::NotAnArray { location, .. } => &location,
 			Error::NotAnArrayWithLength { location, .. } => &location,
@@ -1468,9 +1506,9 @@ fn write(
 		}
 
 		Error::CyclicalStructure {
-			name,
-			location_of_member,
+			name_of_structure,
 			location_of_declaration,
+			location_of_member,
 		} => report
 			.with_message("Cyclical definition")
 			.with_label(
@@ -1479,7 +1517,7 @@ fn write(
 					.with_message(format!(
 						"Cannot determine size of structure '{}' that \
 						 contains itself.",
-						name.fg(PRIMARY)
+						name_of_structure.fg(PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
@@ -1488,9 +1526,45 @@ fn write(
 					.label()
 					.with_message(format!(
 						"This member contains '{}'.",
-						name.fg(PRIMARY)
+						name_of_structure.fg(PRIMARY)
 					))
 					.with_color(SECONDARY),
+			),
+
+		Error::CyclicalStructureWithConstant {
+			name_of_structure,
+			name_of_constant,
+			location_of_declaration,
+			location_of_member,
+			location_of_constant,
+		} => report
+			.with_message("Cyclical definition")
+			.with_label(
+				location_of_constant
+					.label()
+					.with_message(format!(
+						"This constant depends on the size of '{}'.",
+						name_of_structure.fg(PRIMARY)
+					))
+					.with_color(SECONDARY),
+			)
+			.with_label(
+				location_of_declaration
+					.label()
+					.with_message(format!(
+						"Cannot determine size of structure '{}'...",
+						name_of_structure.fg(PRIMARY)
+					))
+					.with_color(PRIMARY),
+			)
+			.with_label(
+				location_of_member
+					.label()
+					.with_message(format!(
+						"...because this member depends on '{}'.",
+						name_of_constant.fg(SECONDARY)
+					))
+					.with_color(TERTIARY),
 			),
 
 		Error::UndefinedVariable { name, location } =>
@@ -1573,18 +1647,65 @@ fn write(
 			)
 		}
 
-		Error::UnresolvedImport { filename, location } =>
-		{
-			report.with_message("Unresolved import").with_label(
+		Error::NotACompileTimeConstant {
+			name,
+			location,
+			location_of_declaration,
+		} => report
+			.with_message("Value not known at compile-time")
+			.with_label(
+				location
+					.label()
+					.with_message(
+						"Only compile-time constants are allowed here.",
+					)
+					.with_color(PRIMARY),
+			)
+			.with_label(
+				location_of_declaration
+					.label()
+					.with_message(format!(
+						"The value of the variable '{}' declared here is not \
+						 known at compile-time.",
+						name.fg(SECONDARY),
+					))
+					.with_color(SECONDARY),
+			),
+
+		Error::UnresolvedImport { filename, location } => report
+			.with_message("Unresolved import")
+			.with_label(
 				location
 					.label()
 					.with_message(format!(
-						"Reference to unknown file '{}'.",
+						"Reference to unknown source '{}'.",
 						filename.fg(PRIMARY)
 					))
 					.with_color(PRIMARY),
 			)
-		}
+			.with_note(
+				"All source files need to be added as compiler arguments.",
+			),
+
+		Error::UnresolvedImportWithHint {
+			filename,
+			location,
+			hinted_package_name,
+		} => report
+			.with_message("Unresolved import")
+			.with_label(
+				location
+					.label()
+					.with_message(format!(
+						"Reference to unknown source '{}'.",
+						filename.fg(PRIMARY)
+					))
+					.with_color(PRIMARY),
+			)
+			.with_note(format!(
+				"Add '{}' as a compiler argument to include it.",
+				hinted_package_name.fg(PRIMARY)
+			)),
 
 		Error::ConflictingTypes {
 			name,
@@ -2410,6 +2531,14 @@ fn show_type_inner(value_type: &ValueType) -> String
 			element_type,
 			length,
 		} => format!("[{}]{}", length, show_type_inner(element_type)),
+		ValueType::ArrayWithNamedLength {
+			element_type,
+			named_length,
+		} => format!(
+			"[{}]{}",
+			named_length.name.to_string(),
+			show_type_inner(element_type)
+		),
 		ValueType::Slice { element_type } =>
 		{
 			format!("[:]{}", show_type_inner(element_type))

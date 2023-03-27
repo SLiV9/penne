@@ -1,0 +1,14 @@
+const GAMEPAD: (u8) = 0x16;
+
+const BUTTON_1: u8 = 1;
+
+fn main()
+{
+	var gamepad = GAMEPAD;
+	if gamepad & BUTTON_1 != 0
+	{
+		trace("Pressed X");
+	}
+}
+
+fn trace(message: []u8);

@@ -1,0 +1,7 @@
+import "vendor:libc/ctype.pn";
+
+fn main() -> i32
+{
+	var result = is_alnum(33) as i32;
+	return: result
+}

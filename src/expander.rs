@@ -10,10 +10,12 @@
 use crate::common::Declaration;
 use crate::common::DeclarationFlag;
 use crate::error::Error;
+use crate::included;
 
 use enumset::EnumSet;
 use std::collections::HashSet;
 
+/// Share public symbols between modules.
 pub fn expand(modules: &mut [(std::path::PathBuf, Vec<Declaration>)])
 {
 	let keys: Vec<std::path::PathBuf> =
@@ -42,14 +44,29 @@ pub fn expand(modules: &mut [(std::path::PathBuf, Vec<Declaration>)])
 						{
 							imports.insert((offset_of_includer, offset));
 						}
-						None =>
+						None => match included::source_name_hint(filename)
 						{
-							let error = Error::UnresolvedImport {
-								filename: filename.to_string(),
-								location: location.clone(),
-							};
-							*declaration = Declaration::Poison(error.into());
-						}
+							Some(hinted_package_name) =>
+							{
+								let error = Error::UnresolvedImportWithHint {
+									filename: filename.to_string(),
+									location: location.clone(),
+									hinted_package_name: hinted_package_name
+										.to_string(),
+								};
+								*declaration =
+									Declaration::Poison(error.into());
+							}
+							None =>
+							{
+								let error = Error::UnresolvedImport {
+									filename: filename.to_string(),
+									location: location.clone(),
+								};
+								*declaration =
+									Declaration::Poison(error.into());
+							}
+						},
 					}
 				}
 				_ => unreachable!(),
@@ -78,6 +95,7 @@ pub fn expand(modules: &mut [(std::path::PathBuf, Vec<Declaration>)])
 	}
 }
 
+/// Convenience method that calls [expand](expand) with a single module.
 pub fn expand_one(
 	filename: &str,
 	declarations: Vec<Declaration>,
@@ -105,10 +123,13 @@ fn get_key_offset(
 	path_of_includer: &std::path::Path,
 ) -> Option<usize>
 {
-	path_of_includer
-		.parent()
-		.map(|path| path.join(filename.clone()))
-		.and_then(|path| keys.iter().position(|x| x == &path))
+	let filepath = std::path::Path::new(filename);
+	keys.iter().position(|x| x == filepath).or_else(|| {
+		path_of_includer
+			.parent()
+			.map(|path| path.join(filepath.clone()))
+			.and_then(|path| keys.iter().position(|x| x == &path))
+	})
 }
 
 fn export(declaration: &Declaration) -> Option<Declaration>

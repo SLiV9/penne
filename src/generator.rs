@@ -17,95 +17,182 @@ use llvm_sys::target_machine::LLVMGetDefaultTargetTriple;
 use llvm_sys::*;
 use llvm_sys::{LLVMBuilder, LLVMContext, LLVMModule};
 
+/// The LLVM data layout specification for the default target.
 pub const DEFAULT_DATA_LAYOUT: &str = "e-m:e-p:64:64-i64:64-n8:16:32:64-S64";
 
-pub fn generate(
-	program: &Vec<Declaration>,
-	source_filename: &str,
-	for_wasm: bool,
-) -> Result<String, anyhow::Error>
+/// The Generator generates LLVM IR.
+pub struct Generator
 {
-	let mut generator = Generator::new(source_filename)?;
-	if for_wasm
-	{
-		generator.for_wasm()?;
-	}
-
-	let program = organize(program);
-	for declaration in &program
-	{
-		declare(declaration, &mut generator)?;
-	}
-	for declaration in &program
-	{
-		declaration.generate(&mut generator)?;
-	}
-
-	generator.verify();
-	let ircode = generator.generate_ir()?;
-	Ok(ircode)
-}
-
-struct Generator
-{
-	module: *mut LLVMModule,
 	context: *mut LLVMContext,
 	builder: *mut LLVMBuilder,
+	module: *mut LLVMModule,
+	combined_module: Option<*mut LLVMModule>,
 	constants: std::collections::HashMap<u32, LLVMValueRef>,
 	global_variables: std::collections::HashMap<u32, LLVMValueRef>,
 	global_functions: std::collections::HashMap<u32, LLVMValueRef>,
 	local_parameters: std::collections::HashMap<u32, LLVMValueRef>,
 	local_variables: std::collections::HashMap<u32, LLVMValueRef>,
 	local_labeled_blocks: std::collections::HashMap<u32, LLVMBasicBlockRef>,
+	target_triple: CString,
+	data_layout: CString,
 	type_of_usize: LLVMTypeRef,
+}
+
+impl Default for Generator
+{
+	fn default() -> Generator
+	{
+		Generator::new()
+	}
 }
 
 impl Generator
 {
-	fn new(module_name: &str) -> Result<Generator, anyhow::Error>
+	fn new() -> Generator
 	{
-		let module_name = CString::new(module_name)?;
+		let module_name = CString::new("combined").unwrap();
 		let generator = unsafe {
 			let context = LLVMContextCreate();
 			let module = LLVMModuleCreateWithNameInContext(
 				module_name.as_ptr(),
 				context,
 			);
-			LLVMSetTarget(module, LLVMGetDefaultTargetTriple());
-			let data_layout = CString::new(DEFAULT_DATA_LAYOUT)?;
-			LLVMSetDataLayout(module, data_layout.as_ptr());
+			let target_triple =
+				CStr::from_ptr(LLVMGetDefaultTargetTriple()).to_owned();
+			let data_layout = CString::new(DEFAULT_DATA_LAYOUT).unwrap();
 			let builder = LLVMCreateBuilderInContext(context);
 			let type_of_usize = LLVMInt64TypeInContext(context);
 			Generator {
-				module,
 				context,
 				builder,
+				module,
+				combined_module: None,
 				constants: std::collections::HashMap::new(),
 				global_variables: std::collections::HashMap::new(),
 				global_functions: std::collections::HashMap::new(),
 				local_parameters: std::collections::HashMap::new(),
 				local_variables: std::collections::HashMap::new(),
 				local_labeled_blocks: std::collections::HashMap::new(),
+				target_triple,
+				data_layout,
 				type_of_usize,
 			}
 		};
-		Ok(generator)
+		generator
 	}
 
-	fn for_wasm(&mut self) -> Result<(), anyhow::Error>
+	/// Change the target triple from the current OS to WebAssembly.
+	pub fn for_wasm(&mut self) -> Result<(), anyhow::Error>
 	{
 		unsafe {
-			let triple = CString::new("wasm32-unknown-wasi")?;
-			LLVMSetTarget(self.module, triple.as_ptr());
+			self.target_triple = CString::new("wasm32-unknown-wasi")?;
+			LLVMSetTarget(self.module, self.target_triple.as_ptr());
 			let data_layout = "e-p:32:32-i64:64-n32:64-S64";
-			let data_layout = CString::new(data_layout)?;
-			LLVMSetDataLayout(self.module, data_layout.as_ptr());
+			self.data_layout = CString::new(data_layout)?;
 			self.type_of_usize = LLVMInt32TypeInContext(self.context);
+			LLVMSetDataLayout(self.module, self.data_layout.as_ptr());
 			Ok(())
 		}
 	}
 
-	fn verify(&self)
+	/// Ready the Generator for a new module.
+	/// This function must be called before analyzing declarations.
+	pub fn add_module(&mut self, module_name: &str)
+		-> Result<(), anyhow::Error>
+	{
+		// Link the previous `module` into `combined_module`.
+		if let Some(combined) = self.combined_module.take()
+		{
+			// This disposes of `module`.
+			let _ = unsafe {
+				llvm_sys::linker::LLVMLinkModules2(combined, self.module)
+			};
+			self.combined_module = Some(combined);
+		}
+		else
+		{
+			// Just move `module` into the previously empty `combined_module`.
+			self.combined_module = Some(self.module);
+		}
+		// Now `combined_module` contains a module and `module` does not.
+		// That is, it is safe to overwrite `module` without disposing it.
+
+		// Create a new `module`.
+		let module_name = CString::new(module_name)?;
+		unsafe {
+			let module = LLVMModuleCreateWithNameInContext(
+				module_name.as_ptr(),
+				self.context,
+			);
+			LLVMSetTarget(module, self.target_triple.as_ptr());
+			LLVMSetDataLayout(module, self.data_layout.as_ptr());
+			self.module = module;
+		}
+
+		// Reset module specific metadata.
+		self.constants.clear();
+		self.global_variables.clear();
+		self.global_functions.clear();
+		self.local_parameters.clear();
+		self.local_variables.clear();
+		self.local_labeled_blocks.clear();
+
+		Ok(())
+	}
+
+	/// Link the current module into the previous module.
+	/// The result is the new current module.
+	pub fn link_modules(&mut self) -> Result<(), anyhow::Error>
+	{
+		if let Some(combined) = self.combined_module.take()
+		{
+			// This disposes of `module`.
+			let _ = unsafe {
+				llvm_sys::linker::LLVMLinkModules2(combined, self.module)
+			};
+			// Move the result into `module`, leaving `combined_module` empty.
+			self.module = combined;
+			Ok(())
+		}
+		else
+		{
+			Ok(())
+		}
+	}
+
+	/// Add a structure as an opaque type, so that it can be used in
+	/// pointer types.
+	pub fn forward_declare_structure(
+		&mut self,
+		structure_name: &str,
+	) -> Result<(), anyhow::Error>
+	{
+		let name = CString::new(structure_name)?;
+		unsafe { LLVMStructCreateNamed(self.context, name.as_ptr()) };
+		Ok(())
+	}
+
+	/// Generate surface level IR for constants, structures and
+	/// function signatures.
+	pub fn declare(
+		&mut self,
+		declaration: &Declaration,
+	) -> Result<(), anyhow::Error>
+	{
+		declare(declaration, self)
+	}
+
+	/// Generate full IR for all types of declarations.
+	pub fn generate(
+		&mut self,
+		declaration: &Declaration,
+	) -> Result<(), anyhow::Error>
+	{
+		declaration.generate(self)
+	}
+
+	/// Verify that IR generation for the current module was successful.
+	pub fn verify(&self)
 	{
 		let _ = unsafe {
 			LLVMVerifyModule(
@@ -114,6 +201,17 @@ impl Generator
 				std::ptr::null_mut(),
 			)
 		};
+
+		if let Some(module) = self.combined_module
+		{
+			let _ = unsafe {
+				LLVMVerifyModule(
+					module,
+					LLVMVerifierFailureAction::LLVMAbortProcessAction,
+					std::ptr::null_mut(),
+				)
+			};
+		}
 	}
 
 	fn verify_function(&self, function: LLVMValueRef)
@@ -126,7 +224,8 @@ impl Generator
 		};
 	}
 
-	fn generate_ir(&self) -> Result<String, anyhow::Error>
+	/// Generate textual IR for the current module.
+	pub fn generate_ir(&self) -> Result<String, anyhow::Error>
 	{
 		let ircode: CString = unsafe {
 			let raw = LLVMPrintModuleToString(self.module);
@@ -167,6 +266,22 @@ impl Generator
 		unsafe { LLVMConstInt(self.type_of_usize, value as u64, 0) }
 	}
 
+	/// Get the value of a constant of type `usize`,
+	/// if it can be obtained through constant folding.
+	/// This allows that constant to be used as the length in array types.
+	pub fn get_named_length(&self, name: &Identifier) -> Option<usize>
+	{
+		if let Some(&constant) = self.constants.get(&name.resolution_id)
+		{
+			let v: u64 = unsafe { LLVMConstIntGetZExtValue(constant) };
+			v.try_into().ok()
+		}
+		else
+		{
+			None
+		}
+	}
+
 	fn size_in_bits(&self, type_ref: LLVMTypeRef) -> usize
 	{
 		let size_in_bits: u64 = unsafe {
@@ -186,29 +301,12 @@ impl Drop for Generator
 		unsafe {
 			LLVMDisposeBuilder(self.builder);
 			LLVMDisposeModule(self.module);
+			if let Some(module) = self.combined_module
+			{
+				LLVMDisposeModule(module);
+			}
 			LLVMContextDispose(self.context);
 		}
-	}
-}
-
-fn organize(declarations: &[Declaration]) -> Vec<&Declaration>
-{
-	let mut declarations: Vec<&Declaration> = declarations.iter().collect();
-	// Sort structures and constants before other declarations (max),
-	// and sort the these declarations by their depth, from low to high.
-	let max = declarations.len();
-	declarations.sort_by_key(|x| get_container_depth(x, max));
-	declarations
-}
-
-fn get_container_depth(declaration: &Declaration, max: usize) -> usize
-{
-	match declaration
-	{
-		Declaration::Constant { depth, .. } => *depth as usize,
-		Declaration::Function { .. } => max,
-		Declaration::FunctionHead { .. } => max,
-		Declaration::Structure { depth, .. } => *depth as usize,
 	}
 }
 
@@ -219,7 +317,34 @@ fn declare(
 {
 	match declaration
 	{
-		Declaration::Constant { .. } => Ok(()),
+		Declaration::Constant {
+			name,
+			value,
+			value_type,
+			depth: _,
+			flags: _,
+		} =>
+		{
+			let cname = CString::new(&name.name as &str)?;
+			let vartype = value_type.generate(llvm)?;
+			let global =
+				unsafe { LLVMAddGlobal(llvm.module, vartype, cname.as_ptr()) };
+			llvm.global_variables.insert(name.resolution_id, global);
+			unsafe {
+				LLVMSetGlobalConstant(global, 1);
+				LLVMSetUnnamedAddr(global, 1);
+			}
+			let linkage = LLVMLinkage::LLVMPrivateLinkage;
+			unsafe { LLVMSetLinkage(global, linkage) };
+			let constant = value.generate(llvm)?;
+			unsafe { LLVMSetInitializer(global, constant) };
+			let is_const = unsafe { LLVMIsConstant(constant) };
+			if is_const > 0
+			{
+				llvm.constants.insert(name.resolution_id, constant);
+			}
+			Ok(())
+		}
 		Declaration::Function {
 			name,
 			parameters,
@@ -273,24 +398,34 @@ fn declare(
 		Declaration::Structure {
 			name,
 			members,
-			flags: _,
+			flags,
 			depth: _,
 		} =>
 		{
 			let name = CString::new(&name.name as &str)?;
-			let struct_type =
-				unsafe { LLVMStructCreateNamed(llvm.context, name.as_ptr()) };
+			let struct_type = unsafe {
+				let x = LLVMGetTypeByName(llvm.module, name.as_ptr());
+				if !x.is_null()
+				{
+					x
+				}
+				else
+				{
+					LLVMStructCreateNamed(llvm.context, name.as_ptr())
+				}
+			};
+
+			if flags.contains(DeclarationFlag::OpaqueStruct)
+			{
+				assert!(members.is_empty());
+				return Ok(());
+			}
 
 			let member_types: Result<Vec<LLVMTypeRef>, anyhow::Error> = members
 				.iter()
 				.map(|m| m.value_type.generate(llvm))
 				.collect();
 			let mut member_types = member_types?;
-			if member_types.is_empty()
-			{
-				let bytetype = unsafe { LLVMInt8TypeInContext(llvm.context) };
-				member_types.push(bytetype);
-			}
 			let is_packed = 0;
 
 			unsafe {
@@ -327,34 +462,9 @@ impl Generatable for Declaration
 	{
 		match self
 		{
-			Declaration::Constant {
-				name,
-				value,
-				value_type,
-				depth: _,
-				flags: _,
-			} =>
+			Declaration::Constant { .. } =>
 			{
-				let cname = CString::new(&name.name as &str)?;
-				let vartype = value_type.generate(llvm)?;
-				let global = unsafe {
-					LLVMAddGlobal(llvm.module, vartype, cname.as_ptr())
-				};
-				llvm.global_variables.insert(name.resolution_id, global);
-				unsafe {
-					LLVMSetGlobalConstant(global, 1);
-					LLVMSetUnnamedAddr(global, 1);
-				}
-				let linkage = LLVMLinkage::LLVMPrivateLinkage;
-				unsafe { LLVMSetLinkage(global, linkage) };
-
-				let constant = value.generate(llvm)?;
-				unsafe { LLVMSetInitializer(global, constant) };
-				let is_const = unsafe { LLVMIsConstant(constant) };
-				if is_const > 0
-				{
-					llvm.constants.insert(name.resolution_id, constant);
-				}
+				// We already declared this.
 				Ok(())
 			}
 			Declaration::Function {
@@ -1198,7 +1308,13 @@ impl Generatable for ValueType
 			} =>
 			{
 				let element_type = element_type.generate(llvm)?;
-				unsafe { LLVMArrayType(element_type, *length as u32) }
+				let length: usize = *length;
+				let length: u32 = length.try_into()?;
+				unsafe { LLVMArrayType(element_type, length) }
+			}
+			ValueType::ArrayWithNamedLength { .. } =>
+			{
+				unreachable!()
 			}
 			ValueType::Slice { element_type }
 			| ValueType::SlicePointer { element_type } =>
@@ -1379,7 +1495,6 @@ impl Reference
 		}
 		else
 		{
-			dbg!(self);
 			unreachable!()
 		};
 

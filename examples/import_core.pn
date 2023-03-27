@@ -1,0 +1,13 @@
+import "core:text/char.pn";
+
+
+fn main() -> i32
+{
+	var result = 0;
+	var should_be_true = is_control_char(0);
+	if should_be_true == false
+	{
+		result = -1;
+	}
+	return: result
+}

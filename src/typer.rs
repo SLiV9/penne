@@ -14,69 +14,18 @@ use crate::value_type::MAXIMUM_ALIGNMENT;
 
 use enumset::EnumSet;
 
-pub const MAX_AUTODEREF_DEPTH: usize =
+const MAX_NUM_AUTODEREF_STEPS: usize =
 	MAX_REFERENCE_DEPTH + MAX_ADDRESS_DEPTH as usize;
 
-pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
-{
-	let mut typer = Typer {
-		symbols: std::collections::HashMap::new(),
-		functions: std::collections::HashMap::new(),
-		structures: std::collections::HashMap::new(),
-		contextual_type: None,
-	};
-	// Prealign all structures so that their use as a value type is defined.
-	let mut declarations = program;
-	for declaration in visit_structures(&mut declarations)
-	{
-		prealign(declaration, &mut typer);
-	}
-	// Predeclare all functions so that they can reference each other.
-	declarations = declarations
-		.into_iter()
-		.map(|x| predeclare(x, &mut typer))
-		.collect();
-	// After collecting all declarations, analyze the function bodies.
-	declarations
-		.into_iter()
-		.map(|x| x.analyze(&mut typer))
-		.collect()
-}
-
-fn visit_structures(declarations: &mut [Declaration]) -> Vec<&mut Declaration>
-{
-	let mut declarations: Vec<&mut Declaration> = declarations
-		.iter_mut()
-		.filter(|x| get_structure_depth(x).is_some())
-		.collect();
-	// Sort the structure declarations by their depth, from low to high.
-	declarations.sort_by_key(|x| get_structure_depth(x));
-	declarations
-}
-
-fn get_structure_depth(declaration: &Declaration) -> Option<u32>
-{
-	match declaration
-	{
-		Declaration::Constant { .. } => None,
-		Declaration::Function { .. } => None,
-		Declaration::FunctionHead { .. } => None,
-		Declaration::Structure { depth, .. } => match depth
-		{
-			Some(Ok(depth)) => Some(*depth),
-			Some(Err(_poison)) => Some(0),
-			None => unreachable!(),
-		},
-		Declaration::Import { .. } => None,
-		Declaration::Poison(_) => None,
-	}
-}
-
-struct Typer
+/// The Typer manages a symbol table and keeps track of context
+/// during the type inference stage.
+#[derive(Default)]
+pub struct Typer
 {
 	symbols: std::collections::HashMap<u32, Symbol>,
 	functions: std::collections::HashMap<u32, Function>,
 	structures: std::collections::HashMap<u32, Structure>,
+	calculated_named_lengths: std::collections::HashMap<u32, usize>,
 	contextual_type: Option<Poisonable<ValueType>>,
 }
 
@@ -141,6 +90,36 @@ fn do_update_symbol(
 
 impl Typer
 {
+	/// Add a structure as an opaque type, so that it can be used in
+	/// pointer types.
+	pub fn forward_declare_structure(&mut self, declaration: &Declaration)
+	{
+		forward_declare_structure(declaration, self)
+	}
+
+	/// Perform surface level type checking for constants, structures and
+	/// function signatures.
+	/// This does not perform type inference proper because Penne does not
+	/// feature global type inference.
+	pub fn declare(&mut self, declaration: Declaration) -> Declaration
+	{
+		declare(declaration, self)
+	}
+
+	/// Perform type inference on all types of declarations.
+	pub fn analyze(&mut self, declaration: Declaration) -> Declaration
+	{
+		declaration.analyze(self)
+	}
+
+	/// Store the value of a constant of type `usize`
+	/// after it was obtained through constant folding.
+	/// This allows that constant to be used as the length in array types.
+	pub fn resolve_named_length(&mut self, resolution_id: u32, value: usize)
+	{
+		self.calculated_named_lengths.insert(resolution_id, value);
+	}
+
 	fn put_symbol(
 		&mut self,
 		identifier: &Identifier,
@@ -195,6 +174,21 @@ impl Typer
 		}
 	}
 
+	fn forward_declare_symbol(
+		&mut self,
+		identifier: &Identifier,
+		value_type: Poisonable<ValueType>,
+	)
+	{
+		self.symbols.insert(
+			identifier.resolution_id,
+			Symbol {
+				identifier: identifier.clone(),
+				value_type,
+			},
+		);
+	}
+
 	fn get_symbol(&self, name: &Identifier) -> Option<Poisonable<ValueType>>
 	{
 		match self.symbols.get(&name.resolution_id)
@@ -225,6 +219,30 @@ impl Typer
 				Some((previous_type, symbol.identifier.location.clone()))
 			}
 			None => None,
+		}
+	}
+
+	fn retrieve_named_length(&mut self, name: Identifier) -> Poisonable<usize>
+	{
+		match self.calculated_named_lengths.get(&name.resolution_id)
+		{
+			Some(value) => Ok(*value),
+			None => match self.symbols.get(&name.resolution_id)
+			{
+				Some(symbol) =>
+				{
+					let location_of_declaration =
+						symbol.identifier.location.clone();
+					self.poison_symbol(&name, Poison::Poisoned);
+					let error = Error::NotACompileTimeConstant {
+						name: name.name,
+						location: name.location,
+						location_of_declaration,
+					};
+					Err(error.into())
+				}
+				None => unreachable!(),
+			},
 		}
 	}
 
@@ -563,11 +581,13 @@ fn align(current_size: usize, alignment: usize) -> usize
 	alignment * ((current_size + alignment - 1) / alignment)
 }
 
+/// Helper trait that extracts the inferred type from a value expression.
 pub trait Typed
 {
 	fn value_type(&self) -> Option<Poisonable<ValueType>>;
 }
 
+/// Helper trait that extracts a statically known type from a value expression.
 pub trait StaticallyTyped
 {
 	fn static_value_type(&self) -> ValueType;
@@ -603,7 +623,41 @@ impl StaticallyTyped for PrimitiveLiteral
 	}
 }
 
-fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
+fn forward_declare_structure(declaration: &Declaration, typer: &mut Typer)
+{
+	match declaration
+	{
+		Declaration::Constant { .. } => (),
+		Declaration::Function { .. } => (),
+		Declaration::FunctionHead { .. } => (),
+		Declaration::Structure {
+			name,
+			members: _,
+			structural_type: _,
+			flags: _,
+			depth: Some(Err(_poison)),
+			location_of_declaration: _,
+		} =>
+		{
+			typer.poison_symbol(name, Poison::Poisoned);
+		}
+		Declaration::Structure {
+			name,
+			members: _,
+			structural_type,
+			flags: _,
+			depth: _,
+			location_of_declaration: _,
+		} =>
+		{
+			typer.forward_declare_symbol(name, structural_type.clone());
+		}
+		Declaration::Import { .. } => (),
+		Declaration::Poison(_) => (),
+	}
+}
+
+fn declare(declaration: Declaration, typer: &mut Typer) -> Declaration
 {
 	match declaration
 	{
@@ -745,8 +799,6 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 			location_of_declaration,
 		} =>
 		{
-			// Analyze the members again because cyclical structures will have
-			// members with type UnresolvedStructOrWord instead of Poisoned.
 			let members: Vec<Member> = members
 				.into_iter()
 				.map(|x| {
@@ -775,55 +827,6 @@ fn predeclare(declaration: Declaration, typer: &mut Typer) -> Declaration
 		}
 		Declaration::Import { .. } => declaration,
 		Declaration::Poison(_) => declaration,
-	}
-}
-
-fn prealign(declaration: &mut Declaration, typer: &mut Typer)
-{
-	match declaration
-	{
-		Declaration::Constant { .. } => (),
-		Declaration::Function { .. } => (),
-		Declaration::FunctionHead { .. } => (),
-		Declaration::Structure {
-			name,
-			members: _,
-			structural_type: _,
-			flags: _,
-			depth: Some(Err(_poison)),
-			location_of_declaration: _,
-		} =>
-		{
-			typer.poison_symbol(name, Poison::Poisoned);
-		}
-		Declaration::Structure {
-			name,
-			members,
-			structural_type,
-			flags,
-			depth: _,
-			location_of_declaration,
-		} =>
-		{
-			*members = std::mem::take(members)
-				.into_iter()
-				.map(|x| {
-					typer.contextual_type = Some(structural_type.clone());
-					x.analyze_and_fix(flags, location_of_declaration, typer)
-				})
-				.collect();
-
-			let aligned_type =
-				typer.align_struct(name, members, structural_type.clone());
-			let result = typer.put_symbol(name, Some(aligned_type.clone()));
-			*structural_type = match (aligned_type, result)
-			{
-				(Ok(_), Err(error)) => Err(Poison::Error(error)),
-				(structural_type, _) => structural_type,
-			};
-		}
-		Declaration::Import { .. } => (),
-		Declaration::Poison(_) => (),
 	}
 }
 
@@ -1660,10 +1663,17 @@ impl Analyzable for Expression
 				let array = array.analyze(typer);
 				match put_result
 				{
+					Ok(()) if array.elements.is_empty() =>
+					{
+						let element_type = typer.contextual_type.take();
+						Expression::ArrayLiteral {
+							array,
+							element_type,
+						}
+					}
 					Ok(()) =>
 					{
 						let element_type = typer.get_symbol(&name.inferred());
-
 						Expression::ArrayLiteral {
 							array,
 							element_type,
@@ -1736,6 +1746,43 @@ impl Analyzable for Expression
 						Expression::LengthOfArray {
 							reference,
 							location,
+						}
+					}
+					Some(Ok(ValueType::ArrayWithNamedLength {
+						element_type: _,
+						ref named_length,
+					})) =>
+					{
+						let named_length = named_length.clone();
+						let usize_check = typer.put_symbol(
+							&named_length,
+							Some(Ok(ValueType::Usize)),
+						);
+						let reference = reference
+							.analyze_length(base_type, array_type, typer);
+						let Reference {
+							base,
+							steps: _,
+							address_depth: _,
+							location,
+							location_of_unaddressed,
+						} = reference;
+						let base = match (usize_check, base)
+						{
+							(Ok(()), Ok(_)) => Ok(named_length),
+							(Ok(()), Err(poison)) => Err(poison),
+							(Err(error), _) => Err(error.into()),
+						};
+						let reference = Reference {
+							base,
+							steps: Vec::new(),
+							address_depth: 0,
+							location,
+							location_of_unaddressed,
+						};
+						Expression::Deref {
+							reference,
+							deref_type: Some(Ok(ValueType::Usize)),
 						}
 					}
 					Some(Ok(ValueType::Slice { .. }))
@@ -1942,7 +1989,7 @@ fn analyze_assignment_steps(
 				is_endless: _,
 			} =>
 			{
-				for _i in 0..MAX_AUTODEREF_DEPTH
+				for _i in 0..MAX_ADDRESS_DEPTH
 				{
 					match current_type
 					{
@@ -1982,6 +2029,7 @@ fn analyze_assignment_steps(
 				let is_endless = match current_type
 				{
 					ValueType::Array { .. } => Some(false),
+					ValueType::ArrayWithNamedLength { .. } => Some(false),
 					ValueType::Slice { .. } => Some(false),
 					ValueType::SlicePointer { .. } => Some(false),
 					ValueType::EndlessArray { .. } => Some(true),
@@ -2003,7 +2051,7 @@ fn analyze_assignment_steps(
 			}
 			ReferenceStep::Member { member, offset } =>
 			{
-				for _i in 0..MAX_AUTODEREF_DEPTH
+				for _i in 0..MAX_ADDRESS_DEPTH
 				{
 					match current_type
 					{
@@ -2431,7 +2479,7 @@ impl Reference
 		let mut taken_steps = Vec::new();
 		let mut current_type = known_ref_type;
 
-		for _i in 0..MAX_AUTODEREF_DEPTH
+		for _i in 0..MAX_NUM_AUTODEREF_STEPS
 		{
 			match (current_type, available_steps.peek())
 			{
@@ -2495,14 +2543,12 @@ impl Reference
 
 				(ValueType::Pointer { deref_type }, _) =>
 				{
-					let step = ReferenceStep::Autoderef;
-					taken_steps.push(step);
+					taken_steps.push(ReferenceStep::Autoderef);
 					current_type = *deref_type;
 				}
 				(ValueType::View { deref_type }, _) =>
 				{
-					let step = ReferenceStep::Autoview;
-					taken_steps.push(step);
+					taken_steps.push(ReferenceStep::Autoview);
 					current_type = *deref_type;
 				}
 
@@ -2510,6 +2556,26 @@ impl Reference
 					ValueType::Array {
 						element_type,
 						length: _,
+					},
+					Some(ReferenceStep::Element {
+						argument,
+						is_endless: _,
+					}),
+				) =>
+				{
+					let step = ReferenceStep::Element {
+						argument: argument.clone(),
+						is_endless: Some(false),
+					};
+					taken_steps.push(step);
+					available_steps.next();
+					current_type = *element_type;
+				}
+
+				(
+					ValueType::ArrayWithNamedLength {
+						element_type,
+						named_length: _,
 					},
 					Some(ReferenceStep::Element {
 						argument,
@@ -2646,6 +2712,14 @@ impl Reference
 		{
 			take_address = false;
 			coerced_type = None;
+		}
+		else if self.address_depth == 0
+			&& current_type.get_viewee_type().as_ref() == Some(&target_type)
+		{
+			take_address = false;
+			coerced_type = None;
+			taken_steps.push(ReferenceStep::Autoview);
+			current_type = target_type;
 		}
 		else if self.address_depth == 0
 			&& current_type.can_coerce_into(&target_type)
@@ -2945,6 +3019,19 @@ fn analyze_type(
 		} =>
 		{
 			let element_type = analyze_type(*element_type, typer)?;
+			Ok(ValueType::Array {
+				element_type: Box::new(element_type),
+				length,
+			})
+		}
+		ValueType::ArrayWithNamedLength {
+			element_type,
+			named_length,
+		} =>
+		{
+			typer.put_symbol(&named_length, Some(Ok(ValueType::Usize)))?;
+			let element_type = analyze_type(*element_type, typer)?;
+			let length = typer.retrieve_named_length(named_length)?;
 			Ok(ValueType::Array {
 				element_type: Box::new(element_type),
 				length,

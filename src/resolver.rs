@@ -17,13 +17,18 @@ use crate::error::Poisonable;
 use crate::resolved;
 use crate::typer::Typed;
 
+/// Resolve a typed and analyzed declaration into either a resolved declaration
+/// or a collection of errors.
 pub fn resolve(
-	program: Vec<common::Declaration>,
-) -> Result<Vec<resolved::Declaration>, Errors>
+	declaration: Declaration,
+) -> Result<resolved::Declaration, Errors>
 {
-	program.resolve()
+	declaration.resolve()
 }
 
+/// Collect errors from unresolved declarations.
+/// This is used to abort the compilation process early if parse errors occur
+/// or import statements fail to expand.
 pub fn check_surface_level_errors(
 	declarations: &[common::Declaration],
 ) -> Result<(), Errors>
@@ -44,6 +49,46 @@ pub fn check_surface_level_errors(
 	else
 	{
 		Ok(())
+	}
+}
+
+/// Append two collections of resolved declarations,
+/// combining all errors if there are any.
+pub fn combine(
+	declarations: Result<Vec<resolved::Declaration>, Errors>,
+	more: Result<Vec<resolved::Declaration>, Errors>,
+) -> Result<Vec<resolved::Declaration>, Errors>
+{
+	match (declarations, more)
+	{
+		(Ok(mut declarations), Ok(mut more)) =>
+		{
+			declarations.append(&mut more);
+			Ok(declarations)
+		}
+		(Ok(_), Err(errors)) => Err(errors),
+		(Err(errors), Ok(_)) => Err(errors),
+		(Err(errors), Err(more)) => Err(errors.combined_with(more).sorted()),
+	}
+}
+
+/// Add a resolved declaration to a collection of resolved declarations,
+/// combining all errors if there are any.
+pub fn accumulate(
+	acc: Result<Vec<resolved::Declaration>, Errors>,
+	addition: Result<resolved::Declaration, Errors>,
+) -> Result<Vec<resolved::Declaration>, Errors>
+{
+	match (acc, addition)
+	{
+		(Ok(mut declarations), Ok(declaration)) =>
+		{
+			declarations.push(declaration);
+			Ok(declarations)
+		}
+		(Ok(_), Err(errors)) => Err(errors),
+		(Err(errors), Ok(_)) => Err(errors),
+		(Err(errors), Err(more)) => Err(errors.combined_with(more).sorted()),
 	}
 }
 
@@ -195,8 +240,8 @@ impl Resolvable for Declaration
 				location_of_type: _,
 			} =>
 			{
-				let (name, value, value_type) =
-					(name, value, value_type).resolve()?;
+				let (name, value_type, value) =
+					(name, value_type, value).resolve()?;
 				let depth = match depth
 				{
 					Some(Ok(depth)) => depth,
@@ -221,8 +266,8 @@ impl Resolvable for Declaration
 				location_of_return_type: _,
 			} =>
 			{
-				let (name, parameters, body, return_type) =
-					(name, parameters, body, return_type).resolve()?;
+				let (name, parameters, return_type, body) =
+					(name, parameters, return_type, body).resolve()?;
 				let return_type = Some(return_type).filter(|x| !x.is_void());
 				Ok(resolved::Declaration::Function {
 					name,
@@ -260,8 +305,8 @@ impl Resolvable for Declaration
 				location_of_declaration: _,
 			} =>
 			{
-				let (name, members, structural_type) =
-					(name, members, structural_type).resolve()?;
+				let (name, structural_type, members) =
+					(name, structural_type, members).resolve()?;
 				let _ = structural_type;
 				let depth = match depth
 				{
@@ -342,7 +387,7 @@ impl Resolvable for Statement
 				location: _,
 			} =>
 			{
-				let (name, value, vt) = (name, value, vt).resolve()?;
+				let (name, vt, value) = (name, vt, value).resolve()?;
 				Ok(resolved::Statement::Declaration {
 					name,
 					value: Some(value),
@@ -830,6 +875,7 @@ impl Resolvable for ValueType
 				element_type: element_type.resolve()?,
 				length,
 			}),
+			ValueType::ArrayWithNamedLength { .. } => unreachable!(),
 			ValueType::Slice { element_type } =>
 			{
 				Ok(resolved::ValueType::Slice {

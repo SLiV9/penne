@@ -9,8 +9,10 @@ use crate::error::Error;
 
 pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 {
+	// Layer 0 of the variable stack consists of constants.
+	let variable_stack = vec![Vec::new()];
 	let mut analyzer = Analyzer {
-		variable_stack: Vec::new(),
+		variable_stack,
 		function_list: Vec::new(),
 		containers: Vec::new(),
 		unresolved_labels: std::collections::HashMap::new(),
@@ -103,13 +105,10 @@ impl Analyzer
 			depth: None,
 			is_structure: false,
 		});
-		if let Some(scope) = self.variable_stack.last_mut()
+
 		{
+			let scope = self.variable_stack.last_mut().unwrap();
 			scope.push(identifier.clone());
-		}
-		else
-		{
-			self.variable_stack.push(vec![identifier.clone()]);
 		}
 
 		if let Some(error) = recoverable_error
@@ -191,13 +190,9 @@ impl Analyzer
 		};
 		self.resolution_id += 1;
 
-		if let Some(scope) = self.variable_stack.last_mut()
 		{
+			let scope = self.variable_stack.last_mut().unwrap();
 			scope.push(identifier.clone());
-		}
-		else
-		{
-			self.variable_stack.push(vec![identifier.clone()]);
 		}
 
 		if let Some(error) = recoverable_error
@@ -254,6 +249,53 @@ impl Analyzer
 		{
 			return Err(Poison::Poisoned);
 		}
+
+		let identifier = Identifier {
+			resolution_id,
+			is_authoritative: false,
+			..identifier
+		};
+		self.use_containee(identifier)
+	}
+
+	fn use_constant(&mut self, identifier: Identifier)
+		-> Poisonable<Identifier>
+	{
+		let previous = self
+			.variable_stack
+			.get(0)
+			.map(|layer| layer.iter().find(|x| x.name == identifier.name))
+			.flatten();
+		let previous_identifier = match previous
+		{
+			Some(previous) => previous,
+			None => match self
+				.variable_stack
+				.iter()
+				.skip(1)
+				.flat_map(|layer| layer.iter())
+				.find(|x| x.name == identifier.name)
+			{
+				Some(previous) =>
+				{
+					let error = Error::NotACompileTimeConstant {
+						name: identifier.name,
+						location: identifier.location,
+						location_of_declaration: previous.location.clone(),
+					};
+					return Err(error.into());
+				}
+				None =>
+				{
+					let error = Error::UndefinedVariable {
+						name: identifier.name,
+						location: identifier.location,
+					};
+					return Err(error.into());
+				}
+			},
+		};
+		let resolution_id = previous_identifier.resolution_id;
 
 		let identifier = Identifier {
 			resolution_id,
@@ -426,6 +468,26 @@ impl Analyzer
 						length,
 					})
 				}
+				ValueType::ArrayWithNamedLength {
+					element_type,
+					named_length,
+				} =>
+				{
+					let element_type = self.found_container(
+						name_of_container,
+						name_of_member,
+						Ok(*element_type),
+					)?;
+					let named_length = self.found_container_1(
+						name_of_container,
+						name_of_member,
+						named_length,
+					)?;
+					Ok(ValueType::ArrayWithNamedLength {
+						element_type: Box::new(element_type),
+						named_length,
+					})
+				}
 				ValueType::Slice { element_type } =>
 				{
 					let element_type = self.found_container(
@@ -565,10 +627,36 @@ impl Analyzer
 		{
 			let error = if let Some(name_of_member) = name_of_member
 			{
-				Error::CyclicalStructure {
-					name: name_of_container.name.clone(),
-					location_of_member: name_of_member.location.clone(),
-					location_of_declaration: name_of_container.location.clone(),
+				let name_of_structure = name_of_container.name.clone();
+				let location_of_declaration =
+					name_of_container.location.clone();
+				let location_of_member = name_of_member.location.clone();
+				let cycle = container.contained_ids.clone();
+				let constant_in_cycle = self
+					.containers
+					.iter()
+					.filter(|x| !x.is_structure)
+					.find(|x| cycle.contains(&x.identifier.resolution_id));
+				if let Some(constant) = constant_in_cycle
+				{
+					let name_of_constant = constant.identifier.name.clone();
+					let location_of_constant =
+						constant.identifier.location.clone();
+					Error::CyclicalStructureWithConstant {
+						name_of_structure,
+						name_of_constant,
+						location_of_declaration,
+						location_of_member,
+						location_of_constant,
+					}
+				}
+				else
+				{
+					Error::CyclicalStructure {
+						name_of_structure,
+						location_of_declaration,
+						location_of_member,
+					}
 				}
 			}
 			else
@@ -1570,6 +1658,18 @@ fn analyze_type(
 			Ok(ValueType::Array {
 				element_type: Box::new(element_type),
 				length,
+			})
+		}
+		ValueType::ArrayWithNamedLength {
+			element_type,
+			named_length,
+		} =>
+		{
+			let element_type = analyze_type(*element_type, analyzer)?;
+			let named_length = analyzer.use_constant(named_length)?;
+			Ok(ValueType::ArrayWithNamedLength {
+				element_type: Box::new(element_type),
+				named_length,
 			})
 		}
 		ValueType::Slice { element_type } =>

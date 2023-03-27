@@ -1,0 +1,4 @@
+
+// This is disallowed, but also unnecessary. Instead use `[BUFFER_LEN]i32`.
+const BUFFER: [4]i32 = [1, 2, 3, 4];
+const BUFFER_LEN: usize = |BUFFER|;

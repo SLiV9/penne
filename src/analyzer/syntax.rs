@@ -7,19 +7,13 @@
 use crate::common::*;
 use crate::error::Error;
 
-pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
+pub fn analyze(declaration: Declaration) -> Declaration
 {
-	let mut analyzer = Analyzer {
-		is_naked_then_branch: false,
-		is_naked_else_branch: false,
-		is_in_block: false,
-	};
-	program
-		.into_iter()
-		.map(|x| x.analyze(&mut analyzer))
-		.collect()
+	let mut analyzer = Analyzer::default();
+	declaration.analyze(&mut analyzer)
 }
 
+#[derive(Default)]
 struct Analyzer
 {
 	is_naked_then_branch: bool,

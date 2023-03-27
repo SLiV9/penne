@@ -5,3 +5,4 @@ brace_style = "AlwaysNextLine"
 control_brace_style = "AlwaysNextLine"
 edition = "2021"
 format_strings = true
+merge_derives = false

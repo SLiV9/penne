@@ -4,15 +4,13 @@
 // License: MIT
 //
 
-use penne::analyzer;
 use penne::expander;
 use penne::lexer;
-use penne::linter;
 use penne::linter::Lint;
 use penne::parser;
 use penne::resolver;
 use penne::scoper;
-use penne::typer;
+use penne::Compiler;
 
 use pretty_assertions::assert_eq;
 
@@ -29,16 +27,14 @@ fn lint(filename: &str) -> Vec<Lint>
 		Err(errors) => match errors.panic() {},
 	}
 	let declarations = scoper::analyze(declarations);
-	let declarations = typer::analyze(declarations);
-	let declarations = analyzer::analyze(declarations);
-	let lints = linter::lint(&declarations);
-	match resolver::resolve(declarations)
+	let mut compiler = Compiler::default();
+	match compiler.analyze_and_resolve(declarations).unwrap()
 	{
 		Ok(_) => (),
 		#[allow(unreachable_code)]
 		Err(errors) => match errors.panic() {},
 	}
-	lints
+	compiler.take_lints()
 }
 
 fn lint_to_fail(codes: &[u16], filename: &str)

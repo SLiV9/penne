@@ -129,6 +129,15 @@ fn fail_to_scope_cyclical_constants()
 }
 
 #[test]
+fn fail_to_scope_cyclical_constants_and_structures()
+{
+	compile_to_fail(
+		&[416, 416],
+		"tests/samples/invalid/cyclical_constants_and_structures.pn",
+	)
+}
+
+#[test]
 fn fail_to_scope_constant_confusion()
 {
 	compile_to_fail(&[423], "tests/samples/invalid/constant_confusion.pn")
@@ -147,7 +156,25 @@ fn fail_to_scope_misspelled_member()
 }
 
 #[test]
+fn fail_to_type_variable_array_length()
+{
+	compile_to_fail(
+		&[433, 433],
+		"tests/samples/invalid/variable_array_length.pn",
+	)
+}
+
+#[test]
 fn fail_to_parse_unresolved_import()
 {
 	compile_to_fail(&[470], "tests/samples/invalid/unresolved_import.pn")
+}
+
+#[test]
+fn fail_to_parse_unresolved_import_core()
+{
+	// Despite this example file being valid, this test should fail because
+	// we are not specifying the inclusion of 'core:text'.
+	// Compare and contrast the integration test `run_import_core`.
+	compile_to_fail(&[477], "examples/import_core.pn")
 }

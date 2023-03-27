@@ -1,0 +1,11 @@
+
+fn foo()
+{
+	var max_len: usize = 10;
+	var data: [max_len]u8;
+}
+
+fn bar(max_len: usize)
+{
+	var data: [max_len]u8;
+}

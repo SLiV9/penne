@@ -1,0 +1,13 @@
+const SIZE_OF_FOO_IN_BYTES: usize = |:Foo|;
+
+struct Foo
+{
+	buffer: [SIZE_OF_FOO_IN_BYTES]u8,
+}
+
+const IMPOSSIBLE_SIZE_OF_BAR_IN_BYTES: usize = |:Bar|;
+
+struct Bar
+{
+	buffer: [IMPOSSIBLE_SIZE_OF_BAR_IN_BYTES]i32,
+}

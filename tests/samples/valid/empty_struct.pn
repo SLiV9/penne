@@ -1,0 +1,24 @@
+
+struct Empty {}
+
+const EMPTY: Empty = Empty {};
+
+struct Nothing
+{
+	empty: Empty,
+	nothing: [0]i64,
+}
+
+struct Foo
+{
+	empty: Empty,
+	num: u8,
+}
+
+fn main() -> usize
+{
+	var empty: Empty = Empty {};
+	var foo = Foo { empty: Empty {}, num: 200 };
+	var answer: &u8 = &foo.num;
+	return: answer as usize + |:Empty| + |:Nothing| + |:Foo| - 1
+}

@@ -493,7 +493,7 @@ fn parse_word_declaration(
 }
 
 fn parse_struct_declaration(
-	flags: EnumSet<DeclarationFlag>,
+	mut flags: EnumSet<DeclarationFlag>,
 	location_of_declaration: Location,
 	tokens: &mut Tokens,
 ) -> Result<Declaration, Error>
@@ -502,7 +502,17 @@ fn parse_struct_declaration(
 	let structural_type = Ok(ValueType::Struct {
 		identifier: name.clone(),
 	});
-	let members = parse_struct_members(tokens)?;
+	let members = if peek(tokens) == Some(&Token::Semicolon)
+	{
+		consume(Token::Semicolon, tokens)?;
+		flags.insert(DeclarationFlag::OpaqueStruct);
+		Vec::new()
+	}
+	else
+	{
+		let members = parse_struct_members(tokens)?;
+		members
+	};
 	Ok(Declaration::Structure {
 		name,
 		members,
@@ -771,7 +781,15 @@ fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 					element_type: Box::new(element_type),
 				})
 			}
-			Some(Token::NakedInteger(x)) if *x > 0 =>
+			Some(Token::BracketRight) | None =>
+			{
+				consume(Token::BracketRight, tokens)?;
+				let element_type = parse_type(tokens)?;
+				Ok(ValueType::Arraylike {
+					element_type: Box::new(element_type),
+				})
+			}
+			Some(Token::NakedInteger(x)) if *x >= 0 =>
 			{
 				let length = *x as usize;
 				tokens.pop_front();
@@ -782,12 +800,17 @@ fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 					length,
 				})
 			}
-			_ =>
+			Some(_) =>
 			{
+				let named_length = extract_identifier(
+					"Expected size literal or named constant.",
+					tokens,
+				)?;
 				consume(Token::BracketRight, tokens)?;
 				let element_type = parse_type(tokens)?;
-				Ok(ValueType::Arraylike {
+				Ok(ValueType::ArrayWithNamedLength {
 					element_type: Box::new(element_type),
+					named_length,
 				})
 			}
 		},

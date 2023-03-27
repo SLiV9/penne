@@ -14,6 +14,11 @@ struct Baz
 	foo: Foo,
 }
 
+struct InnocentBystander
+{
+	foo: Foo,
+}
+
 struct Tree
 {
 	left: Tree,
