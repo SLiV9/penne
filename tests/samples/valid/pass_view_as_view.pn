@@ -1,0 +1,30 @@
+struct Container
+{
+	x: Xenon,
+	y: i32,
+}
+
+struct Xenon
+{
+	x: i32,
+}
+
+fn foo(container: Container) -> i32
+{
+	return: bar(container.x, container)
+}
+
+fn bar(xenon: Xenon, container: Container) -> i32
+{
+	return: xenon.x + container.y
+}
+
+fn main() -> i32
+{
+	var container = Container {
+		x: Xenon { x: 150 },
+		y: 50,
+	};
+	var result = foo(container);
+	return: result
+}

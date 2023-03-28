@@ -394,6 +394,16 @@ impl Typer
 				deref_type: Box::new(x),
 			};
 		}
+		match &x
+		{
+			ValueType::EndlessArray { .. } =>
+			{
+				x = ValueType::View {
+					deref_type: Box::new(x),
+				};
+			}
+			_ => (),
+		}
 		Some(Ok(x))
 	}
 

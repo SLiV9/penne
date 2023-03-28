@@ -1,3 +1,23 @@
+pub extern fn strlen(str: []u8) -> usize;
+pub extern fn strcmp(lhs: []u8, rhs: []u8) -> i32;
+pub extern fn strncmp(lhs: []u8, rhs: []u8, num: usize) -> i32;
+pub extern fn strchr(haystack: []u8, needle: i32) -> &[]u8;
+pub extern fn strrchr(haystack: []u8, needle: i32) -> &[]u8;
 pub extern fn strstr(haystack: []u8, needle: []u8) -> &[]u8;
 
+pub extern fn str_chr(haystack: []u8, needle: u8) -> &[]u8
+{
+	return: strchr(haystack, needle as i32)
+}
+
+pub extern fn str_rchr(haystack: []u8, needle: u8) -> &[]u8
+{
+	return: strrchr(haystack, needle as i32)
+}
+
+pub extern fn strcpy(dst: &[]u8, src: []u8) -> &[]u8;
 pub extern fn strncpy(dst: &[]u8, src: []u8, num: usize) -> &[]u8;
+pub extern fn strcat(dst: []u8, src: []u8) -> &[]u8;
+pub extern fn strncat(dst: &[]u8, src: []u8, num: usize) -> &[]u8;
+
+pub extern fn strerror(errnum: i32) -> []u8;

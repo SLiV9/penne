@@ -36,12 +36,13 @@ Functionality:
 	✘	Boolean comparisons outside of if statement condition @cancelled (2023-02-04 18:59)
 		✘	Update ctype.pn @cancelled (2023-02-04 18:59)
 		✘	Boolean and, or @cancelled (2023-02-04 18:59)
-	☐	Disallow function calls in comparisons or boolean expressions
+		☐	Boolean comparison but only top-level and only after `=` or `return:`?
+	✘	Disallow function calls in comparisons or boolean expressions @cancelled (2023-03-27 18:02)
 	☐	Operator += etcetera
 	☐	Floats
 	✔	Other integer sizes @done (2022-09-05 14:30)
 		✔	Think about size of usize @done (2022-12-15 19:37)
-			☐	Think about this again because the LLVM C API used currently limits array lengths to u32
+			☐	Think about this again because the LLVM C API used currently limits array lengths to u32, but also considering vendor:libc and extern usage of usize
 		✔	Different generated integer sizes for WASM and x86 @done (2022-09-23 21:56)
 		✔	Think about natural stack alignment @done (2022-12-24 19:44)
 		✔	Think about isize @done (2022-12-24 18:51)
@@ -85,7 +86,11 @@ Functionality:
 	☐	Heap allocation
 		☐	const X: &Foo = $static_alloc Foo { ... }; as a replacement for static globals
 			Do not allow dereffing X in const context.
+	  ☐	Build and document replacements for malloc, calloc, realloc and free
 	☐	stdlib
+		☐	vendor:libc
+			☐	malloc, calloc, realloc and free, using void* somehow
+			☐	memchr, memcmp, memset, memcpy, memmove, using const void* somehow
 		☐	panic()
 		☐	print()
 		☐	fopen(), fclose()

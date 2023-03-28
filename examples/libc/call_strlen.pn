@@ -1,0 +1,7 @@
+import "vendor:libc/string.pn";
+
+fn main() -> i32
+{
+	var len: usize = strlen("Hallo\0");
+	return: len as i32
+}

@@ -1,0 +1,7 @@
+
+struct BigStruct;
+
+fn main(data: BigStruct)
+{
+	var copy_of_data = data;
+}

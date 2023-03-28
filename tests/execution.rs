@@ -481,6 +481,25 @@ fn execute_empty_array() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_pass_view_as_view() -> Result<(), anyhow::Error>
+{
+	let result =
+		execute_calculation("tests/samples/valid/pass_view_as_view.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn execute_pass_endless_array_as_endless_array() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation(
+		"tests/samples/valid/pass_endless_array_as_endless_array.pn",
+	)?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_identifier_starting_with_keyword() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation(

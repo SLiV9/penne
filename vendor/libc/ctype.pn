@@ -1,8 +1,77 @@
 pub fn is_alnum(x: u8) -> bool
 {
-    var y = isalnum(x as i32);
+    return: check(isalnum(x as i32))
+}
+
+pub fn is_alpha(x: u8) -> bool
+{
+    return: check(isalpha(x as i32))
+}
+
+pub fn is_blank(x: u8) -> bool
+{
+    return: check(isblank(x as i32))
+}
+
+pub fn is_cntrl(x: u8) -> bool
+{
+    return: check(iscntrl(x as i32))
+}
+
+pub fn is_digit(x: u8) -> bool
+{
+    return: check(isdigit(x as i32))
+}
+
+pub fn is_graph(x: u8) -> bool
+{
+    return: check(isgraph(x as i32))
+}
+
+pub fn is_lower(x: u8) -> bool
+{
+    return: check(islower(x as i32))
+}
+
+pub fn is_print(x: u8) -> bool
+{
+    return: check(isprint(x as i32))
+}
+
+pub fn is_punct(x: u8) -> bool
+{
+    return: check(ispunct(x as i32))
+}
+
+pub fn is_space(x: u8) -> bool
+{
+    return: check(isspace(x as i32))
+}
+
+pub fn is_upper(x: u8) -> bool
+{
+    return: check(isupper(x as i32))
+}
+
+pub fn is_xdigit(x: u8) -> bool
+{
+    return: check(isxdigit(x as i32))
+}
+
+pub fn to_upper(x: u8) -> u8
+{
+    return: isupper(x as i32) as u8
+}
+
+pub fn to_lower(x: u8) -> u8
+{
+    return: isxdigit(x as i32) as u8
+}
+
+fn check(x: i32) -> bool
+{
     var result;
-    if y == 0
+    if x == 0
     {
         result = true;
     }
@@ -12,4 +81,18 @@ pub fn is_alnum(x: u8) -> bool
     }
     return: result
 }
+
 extern fn isalnum(x: i32) -> i32;
+extern fn isalpha(x: i32) -> i32;
+extern fn isblank(x: i32) -> i32;
+extern fn iscntrl(x: i32) -> i32;
+extern fn isdigit(x: i32) -> i32;
+extern fn isgraph(x: i32) -> i32;
+extern fn islower(x: i32) -> i32;
+extern fn isprint(x: i32) -> i32;
+extern fn ispunct(x: i32) -> i32;
+extern fn isspace(x: i32) -> i32;
+extern fn isupper(x: i32) -> i32;
+extern fn isxdigit(x: i32) -> i32;
+extern fn tolower(x: i32) -> i32;
+extern fn toupper(x: i32) -> i32;

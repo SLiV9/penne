@@ -1,0 +1,16 @@
+fn foo(data: ([...]i32)) -> i32
+{
+	return: bar(data)
+}
+
+fn bar(data: ([...]i32)) -> i32
+{
+	return: data[1]
+}
+
+fn main() -> i32
+{
+	var data: []i32 = [100, 200, 300];
+	var result = foo(data);
+	return: result
+}

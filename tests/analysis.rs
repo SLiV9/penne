@@ -99,6 +99,15 @@ fn fail_to_analyze_assign_struct_to_struct()
 }
 
 #[test]
+fn fail_to_analyze_assign_struct_view_to_struct()
+{
+	compile_to_fail(
+		&[533],
+		"tests/samples/invalid/assign_struct_view_to_struct.pn",
+	);
+}
+
+#[test]
 fn fail_to_analyze_return_array_by_value()
 {
 	compile_to_fail(&[351], "tests/samples/invalid/return_array_by_value.pn");

@@ -670,6 +670,8 @@ where
 			ValueType::Void => false,
 			ValueType::Array { .. } => false,
 			ValueType::ArrayWithNamedLength { .. } => false,
+			ValueType::EndlessArray { .. } => false,
+			ValueType::Arraylike { .. } => false,
 			ValueType::Struct { .. } => false,
 			_ => self.is_wellformed(),
 		}
