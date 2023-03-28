@@ -1,3 +1,8 @@
 pub extern fn abort();
 
 pub extern fn system(command: []u8);
+
+pub extern fn malloc(size_in_bytes: usize) -> &[]u8;
+pub extern fn calloc(num_items: usize, size_of_item: usize) -> &[]u8;
+pub extern fn realloc(ptr: &[]u8, size_in_bytes: usize) -> &[]u8;
+pub extern fn free(ptr: &[]u8);

@@ -16,6 +16,8 @@ Functionality:
 			The only use case I care about is debugging and maybe offsets.
 			☐	printf()/format() needs a %p
 			☐	builtin function (&T, usize) -> &T
+				for every type, and specifically it needs to take |:T| into account
+			☐	Cast between pointer types (specifically from &T to &[]u8 and back)
 			☐	Error if using 0x0 to initialize a view or non-optional pointer
 	✔	Pass array by const-reference (slice) by default @done (2022-09-04 18:06)
 		☐	A [3]i32 parameter is typechecked as [3]i32 but implemented as []i32
@@ -89,8 +91,8 @@ Functionality:
 	  ☐	Build and document replacements for malloc, calloc, realloc and free
 	☐	stdlib
 		☐	vendor:libc
-			☐	malloc, calloc, realloc and free, using void* somehow
-			☐	memchr, memcmp, memset, memcpy, memmove, using const void* somehow
+			✔	malloc, calloc, realloc and free @done (2023-03-28 18:27)
+			✔	memchr, memcmp, memset, memcpy, memmove @done (2023-03-28 18:27)
 		☐	panic()
 		☐	print()
 		☐	fopen(), fclose()

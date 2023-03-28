@@ -46,6 +46,16 @@ fn run_import_core()
 }
 
 #[test]
+fn emit_call_memcpy()
+{
+	let mut cmd = Command::cargo_bin("penne").unwrap();
+	cmd.arg("emit");
+	cmd.arg("examples/libc/call_memcpy.pn");
+	cmd.arg("vendor:libc");
+	cmd.assert().success();
+}
+
+#[test]
 fn emit_wasm4_hello_from_penne()
 {
 	let mut cmd = Command::cargo_bin("penne").unwrap();

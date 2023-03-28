@@ -20,4 +20,21 @@ pub extern fn strncpy(dst: &[]u8, src: []u8, num: usize) -> &[]u8;
 pub extern fn strcat(dst: []u8, src: []u8) -> &[]u8;
 pub extern fn strncat(dst: &[]u8, src: []u8, num: usize) -> &[]u8;
 
-pub extern fn strerror(errnum: i32) -> []u8;
+pub extern fn memchr(haystack: []u8, needle: i32) -> &[]u8;
+pub extern fn memcmp(lhs: []u8, rhs: []u8, num: usize) -> i32;
+pub extern fn memset(dst: &[]u8, val: i32, num: usize) -> &[]u8;
+pub extern fn memcpy(dst: &[]u8, src: []u8, num: usize) -> &[]u8;
+pub extern fn memmove(dst: &[]u8, src: []u8, num: usize) -> &[]u8;
+
+
+pub extern fn mem_chr(haystack: []u8, needle: u8) -> &[]u8
+{
+	return: memchr(haystack, needle as i32)
+}
+
+pub extern fn mem_set(dst: &[]u8, val: u8, num: usize) -> &[]u8
+{
+	return: memset(&dst, val as i32, num)
+}
+
+pub extern fn strerror(errnum: i32) -> &[]u8;

@@ -1,0 +1,10 @@
+import "vendor:libc/string.pn";
+
+fn main() -> i32
+{
+	var buffer = "Hallo\0";
+	memcpy(&buffer, "Heeeeeee", 2);
+	var target = "Hello";
+	var diff = memcmp(buffer, target, |target|);
+	return: diff
+}
