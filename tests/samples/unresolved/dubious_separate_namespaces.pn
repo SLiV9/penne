@@ -1,0 +1,16 @@
+// Although this is shared with C and Rust, so maybe not that strange.
+
+struct foo
+{
+  x: i32
+}
+
+const foo: i32 = 1;
+
+fn foo(bar: &foo)
+{
+  if bar.x == foo
+    goto foo;
+  bar.x = 2;
+  foo:
+}

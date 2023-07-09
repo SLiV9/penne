@@ -42,6 +42,15 @@ fn fail_to_scope_duplicate_declaration()
 }
 
 #[test]
+fn fail_to_scope_variable_shadowing_constant()
+{
+	compile_to_fail(
+		&[422],
+		"tests/samples/invalid/variable_shadowing_constant.pn",
+	)
+}
+
+#[test]
 fn fail_to_scope_misplaced_variable()
 {
 	compile_to_fail(&[402], "tests/samples/invalid/misplaced_variable.pn")

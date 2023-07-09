@@ -39,7 +39,7 @@ Functionality:
 		✘	Update ctype.pn @cancelled (2023-02-04 18:59)
 		✘	Boolean and, or @cancelled (2023-02-04 18:59)
 		☐	Boolean comparison but only top-level and only after `=` or `return:`?
-	✘	Disallow function calls in comparisons or boolean expressions @cancelled (2023-03-27 18:02)
+	☐	Disallow function calls in comparisons and return values
 	☐	Operator += etcetera
 	☐	Floats
 	✔	Other integer sizes @done (2022-09-05 14:30)
@@ -93,6 +93,7 @@ Functionality:
 		☐	vendor:libc
 			✔	malloc, calloc, realloc and free @done (2023-03-28 18:27)
 			✔	memchr, memcmp, memset, memcpy, memmove @done (2023-03-28 18:27)
+			☐	think about "u8 as i32" parameters, vs treating all extern u8 parameters as u64 in terms of zero initializing
 		☐	panic()
 		☐	print()
 		☐	fopen(), fclose()
@@ -105,6 +106,18 @@ Functionality:
 			✔ Add test for import_sum_of_squares.pn @done (2023-03-23 17:17)
 			✔	Or create an integration test with assert_cmd crate @done (2023-03-23 17:55)
 	☐	Compile-time string and byte-array inclusion from file
+	☐	Tuples
+		☐ var [x, y] = [123i64, true];
+		☐	Array *literals* are actually tuple literals
+			☐	What is the inferred type of var x = [0, 1, 2]; ?
+		☐	|x| is tuple length
+		☐	What is the type of x[i]?
+	☐	Generic functions
+		☐	Explicitly declare the typed functions in "use" statement
+			☐	If compilation units A and B both "use foo<i64>" then A instantiates it and B uses the instatiated version from B
+		☐	Syntactic sugar foo(a, b, c) for foo([a, b, c])
+		☐	"Macros" like dbg and fmt are generics over tuples
+	☐	Generic structs
 
 Syntactic sugar:
 	☐	Operator assignment syntax (e.g. i += 1)
@@ -128,6 +141,8 @@ Syntactic sugar:
 		// x and y are not in scope here
 		(Or perhaps "with" instead of "var"?)
 	✔	C-style string literal concatenation @done (2021-07-10 13:26)
+	☐	Herb Sutter's cppfront style multiple return types?
+		☐	With tuples this becomes -> [x: i32, y: i32] which automatically declares these inside the function scope
 
 Syntax errors:
 	These are syntax errors because they would cause errors during IR generation
@@ -183,6 +198,10 @@ Performance:
 Documentation:
 	✔ Move tests from lib.rs to *tests/* @done (2022-10-04 16:44)
 	☐	Reference of all current and unstable language features
+	☐	Mention supported platforms
+		* Linux 64-bit (using System V AMD64 ABI);
+		* Windows 64-bit (using Microsoft x64 ABI);
+		* the WASM-4 fantasy console (using WASI SDK).
 	☐	Changelog.md
 	☐	Tags for crates.io
 	☐	Replace "total lines" github shield with "cloc src/"
@@ -206,3 +225,22 @@ Development:
 		☐	Rethink necessity of is_immediate_parameter in generate_storage_address()
 		☐	Add tests that fully cover generate_autocoerce()
 			☐	Remove need for unimplemented!() somehow?
+
+Needed for Advent of Code:
+	☐	Equivalent of format!()
+	☐	Equivalent of dbg!()
+	☐	Equivalent of assert!()
+	☐	File IO
+		☐	Basically everything in stdlib
+	☐	Somewhat nice deserialization (no joke)
+	☐	Somewhat nice serialization (for dbg)
+	☐	Error handling
+		☐	Optionals
+	☐	Heap allocation
+	☐	Vec, HashMap, HashSet, VecDeque, String
+	☐	Tuples (for fmt and dbg)
+	☐	Generic functions (for fmt and dbg)
+	☐	Generic structs (for Vec and String and fmt)
+	☐	Regex?
+		☐	plan9 regexp9.c from plan9port?
+	☐	Performance

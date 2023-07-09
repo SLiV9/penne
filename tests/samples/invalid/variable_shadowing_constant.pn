@@ -1,0 +1,8 @@
+
+const X: i32 = 10;
+
+fn foo() -> i32
+{
+	var X = 400;
+	return: X
+}
