@@ -102,22 +102,16 @@ Functionality:
 			☐	Write fix examples in error code reference for E531 through E533
 		☐	transmute() implemented met bitcast (geen struct size checks)
 			☐	wasm4 saving-data.md code sample versimpelen
-		✘	Move main infra to library so it can be tested @cancelled (2023-03-23 17:55)
-			✔ Add test for import_sum_of_squares.pn @done (2023-03-23 17:17)
-			✔	Or create an integration test with assert_cmd crate @done (2023-03-23 17:55)
 	☐	Compile-time string and byte-array inclusion from file
 	☐	Tuples
 		☐ var [x, y] = [123i64, true];
-		☐	Array *literals* are actually tuple literals
+		☐	Array *literals* are actually tuple literals?
 			☐	What is the inferred type of var x = [0, 1, 2]; ?
-		☐	|x| is tuple length
-		☐	What is the type of x[i]?
-	☐	Generic functions
-		☐	Explicitly declare the typed functions in "use" statement
-			☐	If compilation units A and B both "use foo<i64>" then A instantiates it and B uses the instatiated version from B
-		☐	Syntactic sugar foo(a, b, c) for foo([a, b, c])
-		☐	"Macros" like dbg and fmt are generics over tuples
-	☐	Generic structs
+		☐	Is |x| tuple length or size of the anonymous struct?
+		☐	Access with x.0 or x[0]? What is the type of x[i] in loop block?
+	✘	Generic functions @cancelled (2023-07-09 22:59)
+		Unless they are C++ style duck typed templates, how could anyone implement a generic function without the existence of traits?
+	✘	Generic structs @cancelled (2023-07-09 22:59)
 
 Syntactic sugar:
 	☐	Operator assignment syntax (e.g. i += 1)
@@ -143,6 +137,7 @@ Syntactic sugar:
 	✔	C-style string literal concatenation @done (2021-07-10 13:26)
 	☐	Herb Sutter's cppfront style multiple return types?
 		☐	With tuples this becomes -> [x: i32, y: i32] which automatically declares these inside the function scope
+		☐	Use -> [x: i32, y: ?MyError] for error handling?
 
 Syntax errors:
 	These are syntax errors because they would cause errors during IR generation
@@ -187,30 +182,23 @@ Usability:
 	☐	Add helpful note when trying to jump backwards
 		☐	Similarly, add note when referencing variable declared later
 		☐	Add note when referencing variable from an inner scope
-	✔	Allow goto to skip var declaration if short-lived (skip_shortlived_var.pn) @done (2023-01-09 17:57)
-	✔	Add options to disable color and unicode symbols in errors @done (2023-03-03 17:10)
-		✔	Update ariadne when fixed and remove hide(true) @done (2023-03-27 13:09)
-		✔	Disable red in final error message when --color=never @done (2023-03-27 14:47)
 
 Performance:
 	☐	Add parameter attributes such as nonnull and readonly
+	☐	Take a look at issue #5
 
 Documentation:
-	✔ Move tests from lib.rs to *tests/* @done (2022-10-04 16:44)
+	(cd docs && bundle exec jekyll serve --open-url --livereload)
+	(cd docs/_site/ && git status)
 	☐	Reference of all current and unstable language features
 	☐	Mention supported platforms
 		* Linux 64-bit (using System V AMD64 ABI);
 		* Windows 64-bit (using Microsoft x64 ABI);
 		* the WASM-4 fantasy console (using WASI SDK).
 	☐	Changelog.md
+	☐	Fix mis-highlighting of parameters in pages
 	☐	Tags for crates.io
 	☐	Replace "total lines" github shield with "cloc src/"
-	✔	High def logo @done (23-02-16 17:28)
-
-Development:
-	☐	Finish rework
-		☐	Add documentation for 0.4.0 features and errors
-			☐	Describe core as "batteries included but not pre-installed"
 	☐	Improve test coverage
 		✔	Is E163 unreachable? @done (2023-03-04 17:25)
 		✔	Is E332 unreachable? @done (2023-03-04 18:35)
@@ -219,28 +207,35 @@ Development:
 			☐	Separate typed AST at the end of typing stage?
 		✘	Isn't it better to consume E582 into other errors if possible? @cancelled (2023-03-15 22:15)
 		☐	Are E583 and E584 unreachable?
-		✔	Take another look at uncovered lines in complicated match statements, because it can and did reveal impossible cases @done (2023-03-15 22:24)
 		☐	Think about whether variables (declared with var) can ever be immutable due to their type, because variables currently cannot be slices and views
 			☐	Remove `let is_mutable = match value_type` in mutability.rs
 		☐	Rethink necessity of is_immediate_parameter in generate_storage_address()
 		☐	Add tests that fully cover generate_autocoerce()
 			☐	Remove need for unimplemented!() somehow?
 
+Development:
+	☐	Release 0.4.0
+		☐	Flesh out core and vendor/libc
+		☐	Describe core as "batteries included but not pre-installed"
+		☐	Deploy website
+
 Needed for Advent of Code:
-	☐	Equivalent of format!()
+	☐	Equivalent of format!() using builtin magic
 	☐	Equivalent of dbg!()
+		☐	file!() and line!() using builtin magic
 	☐	Equivalent of assert!()
+		☐	panic!() using builtin magic
 	☐	File IO
-		☐	Basically everything in stdlib
+		☐	Basically everything mentioned under stdlib
 	☐	Somewhat nice deserialization (no joke)
 	☐	Somewhat nice serialization (for dbg)
 	☐	Error handling
 		☐	Optionals
 	☐	Heap allocation
-	☐	Vec, HashMap, HashSet, VecDeque, String
-	☐	Tuples (for fmt and dbg)
-	☐	Generic functions (for fmt and dbg)
-	☐	Generic structs (for Vec and String and fmt)
+	✘	Vec, HashMap, HashSet, VecDeque, String @cancelled (2023-07-09 22:59)
+	☐	Tuples (for fmt and dbg, and for error handling)
+	✘	Generic functions (for fmt and dbg) @cancelled (2023-07-09 22:58)
+	✘	Generic structs (for Vec and String and fmt) @cancelled (2023-07-09 22:58)
 	☐	Regex?
 		☐	plan9 regexp9.c from plan9port?
 	☐	Performance

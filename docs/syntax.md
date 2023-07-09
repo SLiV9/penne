@@ -13,8 +13,11 @@ The following codesample displays a broad range of syntax.
 
 const COLOR: u32 = 0xfb4934ff;
 
-const DATA_HEIGHT: u32 = 3;
-const DATA: [3]u8 = [
+const TRIPLE_BUFFER: [3]u32 = [128, 256, 512];
+
+const DATA_HEIGHT: usize = 4;
+const DATA: [DATA_HEIGHT]u8 = [
+    0b00000000,
     0b11000011,
     0b10000001,
     0b00100100,
@@ -100,10 +103,6 @@ fn something_with_casting()
     var data: []i16 = [80, 20];
     var result = a as u8 + |data| as u8;
 }
-
-struct Handler;
-
-extern fn something_with_handler(handler: &Handler);
 
 fn main() -> i32
 {
