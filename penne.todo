@@ -15,8 +15,8 @@ Functionality:
 		✔	Think about (disallowing) cast between pointer and integer @done (2022-12-24 18:39)
 			The only use case I care about is debugging and maybe offsets.
 			☐	printf()/format() needs a %p
-			☐	builtin function (&T, usize) -> &T
-				for every type, and specifically it needs to take |:T| into account
+			✘	builtin function (&T, usize) -> &T @cancelled (2023-07-10 15:14)
+				Not needed if you can cast &[]u8 to &T and &[]T
 			☐	Cast between pointer types (specifically from &T to &[]u8 and back)
 			☐	Error if using 0x0 to initialize a view or non-optional pointer
 	✔	Pass array by const-reference (slice) by default @done (2022-09-04 18:06)
@@ -52,6 +52,7 @@ Functionality:
 		☐	Allow integer type suffixes for 0x123 and 0b101
 			Only u8 through u64, and becomes Token::Uint64, not Token::BitInteger
 			☐	Or make sure they default to u64 and do not cause E582
+		☐	Think about size of bool again (especially generator.rs)
 	☐	Strong enums
 	☐	Optional
 		☐	Niches for pointers and enums
@@ -215,6 +216,7 @@ Documentation:
 
 Development:
 	☐	Release 0.4.0
+		☐	Add documentation for E359
 		☐	Flesh out core and vendor/libc
 		☐	Describe core as "batteries included but not pre-installed"
 		☐	Deploy website
@@ -239,3 +241,4 @@ Needed for Advent of Code:
 	☐	Regex?
 		☐	plan9 regexp9.c from plan9port?
 	☐	Performance
+	☐	(And Makefile for automated testing, if just running the test is not enough)

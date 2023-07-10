@@ -318,9 +318,9 @@ pub enum Expression
 		reference: Reference,
 		location: Location,
 	},
-	SizeOfStructure
+	SizeOf
 	{
-		name: Identifier,
+		queried_type: ValueType,
 		location: Location,
 	},
 	FunctionCall
@@ -351,7 +351,7 @@ impl Expression
 			Expression::Autocoerce { expression, .. } => expression.location(),
 			Expression::PrimitiveCast { location, .. } => location,
 			Expression::LengthOfArray { location, .. } => &location,
-			Expression::SizeOfStructure { location, .. } => &location,
+			Expression::SizeOf { location, .. } => &location,
 			Expression::FunctionCall { name, .. } => &name.location,
 			Expression::Poison(Poison::Error { .. }) => unreachable!(),
 			Expression::Poison(Poison::Poisoned) => unreachable!(),

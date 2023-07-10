@@ -711,7 +711,7 @@ fn parse_parameter(tokens: &mut Tokens) -> Result<Parameter, Error>
 fn parse_wellformed_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 {
 	let start = tokens.start_location_span();
-	let value_type = parse_type(tokens)?;
+	let value_type = parse_inner_type(tokens)?;
 	if value_type.is_wellformed()
 	{
 		Ok(value_type)
@@ -726,7 +726,7 @@ fn parse_wellformed_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 	}
 }
 
-fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
+fn parse_inner_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 {
 	let (token, location) = extract("Expected type keyword.", tokens)?;
 	match token
@@ -746,14 +746,14 @@ fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 		}
 		Token::Ampersand =>
 		{
-			let deref_type = parse_type(tokens)?;
+			let deref_type = parse_inner_type(tokens)?;
 			Ok(ValueType::Pointer {
 				deref_type: Box::new(deref_type),
 			})
 		}
 		Token::ParenLeft =>
 		{
-			let deref_type = parse_type(tokens)?;
+			let deref_type = parse_inner_type(tokens)?;
 			consume(Token::ParenRight, tokens)?;
 			Ok(ValueType::View {
 				deref_type: Box::new(deref_type),
@@ -765,7 +765,7 @@ fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 			{
 				tokens.pop_front();
 				consume(Token::BracketRight, tokens)?;
-				let element_type = parse_type(tokens)?;
+				let element_type = parse_inner_type(tokens)?;
 				Ok(ValueType::Slice {
 					element_type: Box::new(element_type),
 				})
@@ -776,7 +776,7 @@ fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 				consume(Token::Dot, tokens)?;
 				consume(Token::Dot, tokens)?;
 				consume(Token::BracketRight, tokens)?;
-				let element_type = parse_type(tokens)?;
+				let element_type = parse_inner_type(tokens)?;
 				Ok(ValueType::EndlessArray {
 					element_type: Box::new(element_type),
 				})
@@ -784,7 +784,7 @@ fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 			Some(Token::BracketRight) | None =>
 			{
 				consume(Token::BracketRight, tokens)?;
-				let element_type = parse_type(tokens)?;
+				let element_type = parse_inner_type(tokens)?;
 				Ok(ValueType::Arraylike {
 					element_type: Box::new(element_type),
 				})
@@ -794,7 +794,7 @@ fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 				let length = *x as usize;
 				tokens.pop_front();
 				consume(Token::BracketRight, tokens)?;
-				let element_type = parse_type(tokens)?;
+				let element_type = parse_inner_type(tokens)?;
 				Ok(ValueType::Array {
 					element_type: Box::new(element_type),
 					length,
@@ -807,7 +807,7 @@ fn parse_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 					tokens,
 				)?;
 				consume(Token::BracketRight, tokens)?;
-				let element_type = parse_type(tokens)?;
+				let element_type = parse_inner_type(tokens)?;
 				Ok(ValueType::ArrayWithNamedLength {
 					element_type: Box::new(element_type),
 					named_length,
@@ -1386,10 +1386,13 @@ fn parse_unary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 		{
 			let start = tokens.start_location_span();
 			tokens.pop_front();
-			let name = extract_identifier("Expected structure name.", tokens)?;
+			let queried_type = parse_wellformed_type(tokens)?;
 			consume(Token::Pipe, tokens)?;
 			let location = tokens.location_of_span(start);
-			let expression = Expression::SizeOfStructure { name, location };
+			let expression = Expression::SizeOf {
+				queried_type,
+				location,
+			};
 			Ok(expression)
 		}
 		Some(Token::Pipe) =>

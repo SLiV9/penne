@@ -206,9 +206,9 @@ pub enum Expression
 	{
 		reference: Reference,
 	},
-	SizeOfStructure
+	SizeOf
 	{
-		name: Identifier,
+		queried_type: ValueType,
 	},
 	FunctionCall
 	{

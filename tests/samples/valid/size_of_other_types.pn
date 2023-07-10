@@ -1,0 +1,8 @@
+const N: usize = 4;
+
+fn main() -> usize
+{
+	var total = |:i128| + |:u8| + |:[4]i16| + |:[N]u32| + |:bool| + |:[2]bool|;
+	var expected =  16  +    1  +    4 * 2  +    4 * 4  +      1  +     2 * 1 ;
+	return: 200 + total - expected
+}

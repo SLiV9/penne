@@ -589,7 +589,7 @@ impl Analyzable for Expression
 					location,
 				}
 			}
-			Expression::SizeOfStructure { .. } => self,
+			Expression::SizeOf { .. } => self,
 			Expression::FunctionCall {
 				name,
 				arguments,

@@ -612,8 +612,13 @@ where
 				deref_type.is_wellformed_inner()
 			}
 			ValueType::View { .. } => false,
-			_ => true,
+			_ => self.is_wellformed(),
 		}
+	}
+
+	pub fn can_be_sized(&self) -> bool
+	{
+		self.is_wellformed_element()
 	}
 
 	pub fn can_be_struct_member(&self) -> bool

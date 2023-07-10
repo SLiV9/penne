@@ -1552,7 +1552,7 @@ impl Typed for Expression
 				Some(Ok(coerced_type.clone()))
 			}
 			Expression::LengthOfArray { .. } => Some(Ok(ValueType::Usize)),
-			Expression::SizeOfStructure { .. } => Some(Ok(ValueType::Usize)),
+			Expression::SizeOf { .. } => Some(Ok(ValueType::Usize)),
 			Expression::FunctionCall { return_type, .. } => return_type.clone(),
 			Expression::Poison(_) => Some(Err(Poison::Poisoned)),
 		}
@@ -1846,26 +1846,28 @@ impl Analyzable for Expression
 					},
 				}
 			}
-			Expression::SizeOfStructure { name, location } =>
+			Expression::SizeOf {
+				queried_type,
+				location,
+			} => match analyze_type(queried_type, typer)
 			{
-				let unresolved_type = ValueType::UnresolvedStructOrWord {
-					identifier: Some(name.clone()),
-				};
-				let structure_type = analyze_type(unresolved_type, typer);
-				match structure_type
+				Ok(queried_type) if queried_type.can_be_sized() =>
 				{
-					Ok(ValueType::Struct { .. }) =>
-					{
-						Expression::SizeOfStructure { name, location }
+					Expression::SizeOf {
+						queried_type,
+						location,
 					}
-					Ok(ValueType::Word { .. }) =>
-					{
-						Expression::SizeOfStructure { name, location }
-					}
-					Ok(_other) => unreachable!(),
-					Err(poison) => Expression::Poison(poison),
 				}
-			}
+				Ok(queried_type) =>
+				{
+					let error = Error::TypeLacksKnownSize {
+						queried_type,
+						location_of_query: location,
+					};
+					Expression::Poison(Poison::Error(error))
+				}
+				Err(poison) => Expression::Poison(poison),
+			},
 			Expression::FunctionCall {
 				name,
 				arguments,

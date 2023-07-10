@@ -1131,13 +1131,17 @@ impl Generatable for Expression
 			{
 				reference.generate_array_len(llvm)
 			}
-			Expression::SizeOfStructure { name: identifier } =>
+			Expression::SizeOf {
+				queried_type: ValueType::Bool,
+			} =>
 			{
-				let struct_name = CString::new(&identifier.name as &str)?;
-				let struct_type = unsafe {
-					LLVMGetTypeByName(llvm.module, struct_name.as_ptr())
-				};
-				let size_in_bits = llvm.size_in_bits(struct_type);
+				let value = llvm.const_usize(1);
+				Ok(value)
+			}
+			Expression::SizeOf { queried_type } =>
+			{
+				let queried_type = queried_type.generate(llvm)?;
+				let size_in_bits = llvm.size_in_bits(queried_type);
 				assert_eq!(size_in_bits % 8, 0);
 				let value = llvm.const_usize(size_in_bits / 8);
 				Ok(value)

@@ -215,6 +215,11 @@ pub enum Error
 		location_of_type: Location,
 		location_of_declaration: Location,
 	},
+	TypeLacksKnownSize
+	{
+		queried_type: ValueType,
+		location_of_query: Location,
+	},
 	WordSizeMismatch
 	{
 		inferred_size_in_bits: usize,
@@ -594,6 +599,7 @@ impl Error
 			Error::IllegalParameterType { .. } => 354,
 			Error::IllegalMemberType { .. } => 356,
 			Error::TypeNotAllowedInExtern { .. } => 358,
+			Error::TypeLacksKnownSize { .. } => 359,
 			Error::UnsupportedInConstContext { .. } => 360,
 			Error::FunctionInConstContext { .. } => 361,
 			Error::WordSizeMismatch { .. } => 380,
@@ -703,6 +709,9 @@ impl Error
 			Error::TypeNotAllowedInExtern {
 				location_of_type, ..
 			} => &location_of_type,
+			Error::TypeLacksKnownSize {
+				location_of_query, ..
+			} => &location_of_query,
 			Error::UnsupportedInConstContext { location, .. } => &location,
 			Error::FunctionInConstContext { location, .. } => &location,
 			Error::WordSizeMismatch {
@@ -1245,6 +1254,21 @@ fn write<'a>(
 					.with_message("Declaration marked external here.")
 					.with_order(2)
 					.with_color(SECONDARY),
+			),
+
+		Error::TypeLacksKnownSize {
+			queried_type,
+			location_of_query,
+		} => report
+			.with_message("Invalid type size operation")
+			.with_label(
+				location_of_query
+					.label()
+					.with_message(format!(
+						"The type {} does not have a known size.",
+						show_type(queried_type, colors.primary)
+					))
+					.with_color(PRIMARY),
 			),
 
 		Error::WordSizeMismatch {

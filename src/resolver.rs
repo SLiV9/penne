@@ -739,10 +739,13 @@ impl Resolvable for Expression
 			} => Ok(resolved::Expression::LengthOfArray {
 				reference: reference.resolve()?,
 			}),
-			Expression::SizeOfStructure { name, location: _ } =>
+			Expression::SizeOf {
+				queried_type,
+				location: _,
+			} =>
 			{
-				let name = name.resolve()?;
-				Ok(resolved::Expression::SizeOfStructure { name })
+				let queried_type = queried_type.resolve()?;
+				Ok(resolved::Expression::SizeOf { queried_type })
 			}
 			Expression::FunctionCall {
 				name,

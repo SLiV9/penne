@@ -1508,14 +1508,17 @@ impl Analyzable for Expression
 					location,
 				}
 			}
-			Expression::SizeOfStructure { name, location } =>
+			Expression::SizeOf {
+				queried_type,
+				location,
+			} => match analyze_type(queried_type, analyzer)
 			{
-				match analyzer.use_struct(name)
-				{
-					Ok(name) => Expression::SizeOfStructure { name, location },
-					Err(poison) => Expression::Poison(poison),
-				}
-			}
+				Ok(queried_type) => Expression::SizeOf {
+					queried_type,
+					location,
+				},
+				Err(poison) => Expression::Poison(poison),
+			},
 			Expression::FunctionCall {
 				name,
 				arguments,

@@ -326,3 +326,9 @@ fn fail_to_type_ambiguous_bit_integer()
 {
 	compile_to_fail(&[582], "tests/samples/invalid/ambiguous_bit_integer.pn")
 }
+
+#[test]
+fn fail_to_type_size_of_slice()
+{
+	compile_to_fail(&[359], "tests/samples/invalid/size_of_slice.pn")
+}

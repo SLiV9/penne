@@ -229,7 +229,7 @@ impl Analyzable for Expression
 				let error = Error::UnsupportedInConstContext { location };
 				Expression::Poison(Poison::Error(error))
 			}
-			Expression::SizeOfStructure { .. } => self,
+			Expression::SizeOf { .. } => self,
 			Expression::FunctionCall {
 				name,
 				arguments: _,
