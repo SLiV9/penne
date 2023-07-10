@@ -1,0 +1,4 @@
+fn main()
+{
+	var x = 256 as u8;
+}

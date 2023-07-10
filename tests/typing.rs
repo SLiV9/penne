@@ -322,9 +322,30 @@ fn fail_to_type_non_abi_in_extern()
 }
 
 #[test]
-fn fail_to_type_ambiguous_bit_integer()
+fn fail_to_type_ambiguous_bit_integer_too_big()
 {
-	compile_to_fail(&[582], "tests/samples/invalid/ambiguous_bit_integer.pn")
+	compile_to_fail(
+		&[582],
+		"tests/samples/invalid/ambiguous_bit_integer_too_big.pn",
+	)
+}
+
+#[test]
+fn fail_to_type_ambiguous_naked_integer_too_big()
+{
+	compile_to_fail(
+		&[582],
+		"tests/samples/invalid/ambiguous_naked_integer_too_big.pn",
+	)
+}
+
+#[test]
+fn fail_to_type_typed_naked_integer_too_big()
+{
+	compile_to_fail(
+		&[582],
+		"tests/samples/invalid/typed_naked_integer_too_big.pn",
+	)
 }
 
 #[test]

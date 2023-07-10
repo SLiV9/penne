@@ -346,6 +346,15 @@ fn execute_integer_casting() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_identity_casting() -> Result<(), anyhow::Error>
+{
+	let result =
+		execute_calculation("tests/samples/valid/identity_casting.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_structs_and_words() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation("examples/structs_and_words.pn")?;
@@ -421,6 +430,14 @@ fn execute_struct_literal_as_argument() -> Result<(), anyhow::Error>
 fn execute_constant_array() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation("tests/samples/valid/constant_array.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn execute_minus_128() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation("tests/samples/valid/minus_128.pn")?;
 	assert_eq!(result, 200);
 	Ok(())
 }

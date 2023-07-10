@@ -1,0 +1,10 @@
+fn main() -> i32
+{
+	var a = 2i32 as i32;
+	var x: &i32 = &a as &i32;
+	var y: &&i32 = &&x as &&i32;
+	var b = 255 as u8;
+	var data = [5, 6] as [2]i32;
+	var z: &[2]i32 = &data as &[2]i32;
+	return: 200 - 8 + x + z[1]
+}

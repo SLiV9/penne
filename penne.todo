@@ -18,6 +18,7 @@ Functionality:
 			✘	builtin function (&T, usize) -> &T @cancelled (2023-07-10 15:14)
 				Not needed if you can cast &[]u8 to &T and &[]T
 			☐	Cast between pointer types (specifically from &T to &[]u8 and back)
+				☐	And check that the alignment is safe (i.e. no &[3]u8 to &u32)
 			☐	Error if using 0x0 to initialize a view or non-optional pointer
 	✔	Pass array by const-reference (slice) by default @done (2022-09-04 18:06)
 		☐	A [3]i32 parameter is typechecked as [3]i32 but implemented as []i32
@@ -49,9 +50,8 @@ Functionality:
 		✔	Think about natural stack alignment @done (2022-12-24 19:44)
 		✔	Think about isize @done (2022-12-24 18:51)
 		✔	Think about difference between usize and upointer @done (2022-12-24 18:51)
-		☐	Allow integer type suffixes for 0x123 and 0b101
-			Only u8 through u64, and becomes Token::Uint64, not Token::BitInteger
-			☐	Or make sure they default to u64 and do not cause E582
+		✘	Allow integer type suffixes for 0x123 and 0b101 @cancelled (2023-07-10 17:55)
+			☐ Make sure they default to u128 and do not cause E582 with "as"
 		☐	Think about size of bool again (especially generator.rs)
 	☐	Strong enums
 	☐	Optional
@@ -89,19 +89,24 @@ Functionality:
 	☐	Heap allocation
 		☐	const X: &Foo = $static_alloc Foo { ... }; as a replacement for static globals
 			Do not allow dereffing X in const context.
-	  ☐	Build and document replacements for malloc, calloc, realloc and free
+		☐	Build and document replacements for malloc, calloc, realloc and free
+			E.g. "var ptr: &[10]i64 = $something" is shorthand for
+			var ptr: &[10]i64 = cast malloc(10 * |:i64|);
 	☐	stdlib
 		☐	vendor:libc
 			✔	malloc, calloc, realloc and free @done (2023-03-28 18:27)
 			✔	memchr, memcmp, memset, memcpy, memmove @done (2023-03-28 18:27)
 			☐	think about "u8 as i32" parameters, vs treating all extern u8 parameters as u64 in terms of zero initializing
 		☐	panic()
-		☐	print()
+		☐	print(), eprint()
 		☐	fopen(), fclose()
 		☐	memcpy(), memset()
 			☐	wasm4 basic-drawing.md code sample versimplen
 			☐	Write fix examples in error code reference for E531 through E533
-		☐	transmute() implemented met bitcast (geen struct size checks)
+		☐	transmute() implemented met bitcast
+			☐	cast keyword gecombineerd met type hint ("cast x as &[10]i32")
+			☐	Alleen tussen pointers, tussen words en primitives, en tussen enums en primitives
+			☐	Check equal size of structs (even through pointers)
 			☐	wasm4 saving-data.md code sample versimpelen
 	☐	Compile-time string and byte-array inclusion from file
 	☐	Tuples
@@ -167,6 +172,7 @@ Linting errors:
 	☐	Private struct used in public declaration
 	☐	Discarding the result of a function (but only if error-like?)
 	☐	Using "\x80" in the same string as "\u{80}" or "€"
+	☐	Initializing "var x: u8 = 256" or "var x = 256u8" or "var x = 0xFFF as u8"
 
 Usability:
 	✔	Error recovery @done (2022-10-09 22:24)
@@ -219,6 +225,7 @@ Development:
 		☐	Add documentation for E359
 		☐	Flesh out core and vendor/libc
 		☐	Describe core as "batteries included but not pre-installed"
+		☐	Mention that "as" is safe, "cast" is unsafe / platform dependent
 		☐	Deploy website
 
 Needed for Advent of Code:
