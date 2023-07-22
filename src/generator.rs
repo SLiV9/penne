@@ -1042,9 +1042,15 @@ impl Generatable for Expression
 					| ValueType::View { deref_type: _ } =>
 					{
 						let pointertype = value_type.generate(llvm)?;
-						let address = value as u64 as usize;
+						let value_bits = (value & 0xFFFFFFFF) as u64;
+						let address = value_bits as usize;
 						let value = llvm.const_usize(address);
 						unsafe { Ok(LLVMConstIntToPtr(value, pointertype)) }
+					}
+					ValueType::Usize =>
+					{
+						let value_bits = (value & 0xFFFFFFFF) as u64;
+						Ok(llvm.const_usize(value_bits as usize))
 					}
 					_ if value <= u64::MAX as u128 =>
 					{

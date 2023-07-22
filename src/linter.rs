@@ -55,6 +55,17 @@ trait Lintable
 	fn lint(&self, linter: &mut Linter);
 }
 
+impl<T: Lintable> Lintable for Option<T>
+{
+	fn lint(&self, linter: &mut Linter)
+	{
+		if let Some(thing) = self
+		{
+			thing.lint(linter);
+		}
+	}
+}
+
 impl Lintable for Declaration
 {
 	fn lint(&self, linter: &mut Linter)
@@ -63,13 +74,13 @@ impl Lintable for Declaration
 		{
 			Declaration::Constant {
 				name: _,
-				value: _,
+				value,
 				value_type: _,
 				flags: _,
 				depth: _,
 				location_of_declaration: _,
 				location_of_type: _,
-			} => (),
+			} => value.lint(linter),
 			Declaration::Function {
 				name: _,
 				parameters: _,
@@ -154,9 +165,31 @@ impl Lintable for Statement
 	{
 		match self
 		{
-			Statement::Declaration { .. } => (),
-			Statement::Assignment { .. } => (),
-			Statement::MethodCall { .. } => (),
+			Statement::Declaration {
+				name: _,
+				value,
+				value_type: _,
+				location: _,
+			} =>
+			{
+				value.lint(linter);
+			}
+			Statement::Assignment {
+				reference,
+				value,
+				location: _,
+			} =>
+			{
+				reference.lint(linter);
+				value.lint(linter);
+			}
+			Statement::MethodCall { name: _, arguments } =>
+			{
+				for argument in arguments
+				{
+					argument.lint(linter);
+				}
+			}
 			Statement::Loop { location } =>
 			{
 				if let Some(branch) = linter.is_first_statement_of_branch.take()
@@ -199,6 +232,197 @@ impl Lintable for Statement
 			}
 			Statement::Block(block) => block.lint(linter),
 			Statement::Poison(_) => (),
+		}
+	}
+}
+
+impl Lintable for Expression
+{
+	fn lint(&self, linter: &mut Linter)
+	{
+		match self
+		{
+			Expression::Binary {
+				op: _,
+				left,
+				right,
+				location: _,
+				location_of_op: _,
+			} =>
+			{
+				left.lint(linter);
+				right.lint(linter);
+			}
+			Expression::Unary {
+				op: _,
+				expression,
+				location: _,
+				location_of_op: _,
+			} =>
+			{
+				expression.lint(linter);
+			}
+			Expression::BooleanLiteral {
+				value: _,
+				location: _,
+			} => (),
+			Expression::SignedIntegerLiteral {
+				value,
+				value_type: Some(Ok(value_type)),
+				location,
+			} =>
+			{
+				let value: i128 = *value;
+				let is_truncated = if value < 0
+				{
+					value < value_type.min_i128()
+				}
+				else
+				{
+					value as u128 > value_type.max_u128()
+				};
+				if is_truncated
+				{
+					let lint = Lint::IntegerLiteralTruncation {
+						value_type: value_type.clone(),
+						location_of_literal: location.clone(),
+					};
+					linter.lints.push(lint);
+				}
+			}
+			Expression::SignedIntegerLiteral {
+				value: _,
+				value_type: _,
+				location: _,
+			} => (),
+			Expression::BitIntegerLiteral {
+				value,
+				value_type: Some(Ok(value_type)),
+				location,
+			} =>
+			{
+				let value: u128 = *value;
+				if value > value_type.max_u128()
+				{
+					let lint = Lint::IntegerLiteralTruncation {
+						value_type: value_type.clone(),
+						location_of_literal: location.clone(),
+					};
+					linter.lints.push(lint);
+				}
+			}
+			Expression::BitIntegerLiteral {
+				value: _,
+				value_type: _,
+				location: _,
+			} => (),
+			Expression::ArrayLiteral {
+				array,
+				element_type: _,
+			} =>
+			{
+				for element in &array.elements
+				{
+					element.lint(linter);
+				}
+			}
+			Expression::StringLiteral {
+				bytes: _,
+				location: _,
+			} => (),
+			Expression::Structural {
+				members,
+				structural_type: _,
+				location: _,
+			} =>
+			{
+				for member in members
+				{
+					member.expression.lint(linter);
+				}
+			}
+			Expression::Parenthesized { inner, location: _ } =>
+			{
+				inner.lint(linter);
+			}
+			Expression::Autocoerce {
+				expression,
+				coerced_type: _,
+			} =>
+			{
+				expression.lint(linter);
+			}
+			Expression::PrimitiveCast {
+				expression,
+				coerced_type: _,
+				location: _,
+				location_of_type: _,
+			} =>
+			{
+				expression.lint(linter);
+			}
+			Expression::Deref {
+				reference,
+				deref_type: _,
+			} =>
+			{
+				reference.lint(linter);
+			}
+			Expression::LengthOfArray {
+				reference,
+				location: _,
+			} =>
+			{
+				reference.lint(linter);
+			}
+			Expression::SizeOf { .. } => (),
+			Expression::FunctionCall {
+				name: _,
+				arguments,
+				return_type: _,
+			} =>
+			{
+				for argument in arguments
+				{
+					argument.lint(linter);
+				}
+			}
+			Expression::Poison(_) => (),
+		}
+	}
+}
+
+impl Lintable for Reference
+{
+	fn lint(&self, linter: &mut Linter)
+	{
+		for step in &self.steps
+		{
+			step.lint(linter);
+		}
+	}
+}
+
+impl Lintable for ReferenceStep
+{
+	fn lint(&self, linter: &mut Linter)
+	{
+		match self
+		{
+			ReferenceStep::Element {
+				argument,
+				is_endless: _,
+			} =>
+			{
+				argument.lint(linter);
+			}
+			ReferenceStep::Member {
+				member: _,
+				offset: _,
+			} => (),
+			ReferenceStep::Autodeslice { offset: _ } => (),
+			ReferenceStep::Autoderef => (),
+			ReferenceStep::Autoview => (),
 		}
 	}
 }

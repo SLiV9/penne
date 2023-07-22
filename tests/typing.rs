@@ -52,7 +52,7 @@ fn compile_to_fail(codes: &[u16], filename: &str)
 fn fail_to_type_assignment_type_mismatch()
 {
 	compile_to_fail(
-		&[504, 504, 504, 504],
+		&[504, 504, 504, 504, 504],
 		"tests/samples/invalid/assignment_type_mismatch.pn",
 	)
 }
@@ -328,33 +328,6 @@ fn fail_to_type_word_casting()
 fn fail_to_type_non_abi_in_extern()
 {
 	compile_to_fail(&[358, 358], "tests/samples/invalid/non_abi_in_extern.pn")
-}
-
-#[test]
-fn fail_to_type_ambiguous_bit_integer_too_big()
-{
-	compile_to_fail(
-		&[582],
-		"tests/samples/invalid/ambiguous_bit_integer_too_big.pn",
-	)
-}
-
-#[test]
-fn fail_to_type_ambiguous_naked_integer_too_big()
-{
-	compile_to_fail(
-		&[582],
-		"tests/samples/invalid/ambiguous_naked_integer_too_big.pn",
-	)
-}
-
-#[test]
-fn fail_to_type_typed_naked_integer_too_big()
-{
-	compile_to_fail(
-		&[582],
-		"tests/samples/invalid/typed_naked_integer_too_big.pn",
-	)
 }
 
 #[test]

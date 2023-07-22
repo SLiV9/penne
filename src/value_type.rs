@@ -791,4 +791,46 @@ where
 			_ => false,
 		}
 	}
+
+	pub fn min_i128(&self) -> i128
+	{
+		match self
+		{
+			ValueType::Int8 => i8::MIN as i128,
+			ValueType::Int16 => i16::MIN as i128,
+			ValueType::Int32 => i32::MIN as i128,
+			ValueType::Int64 => i64::MIN as i128,
+			ValueType::Int128 => i128::MIN as i128,
+			ValueType::Uint8 => u8::MIN as i128,
+			ValueType::Uint16 => u16::MIN as i128,
+			ValueType::Uint32 => u32::MIN as i128,
+			ValueType::Uint64 => u64::MIN as i128,
+			ValueType::Uint128 => u128::MIN as i128,
+			ValueType::Usize => u64::MIN as i128,
+			ValueType::Pointer { .. } => u64::MIN as i128,
+			ValueType::View { .. } => u64::MIN as i128,
+			_ => 0,
+		}
+	}
+
+	pub fn max_u128(&self) -> u128
+	{
+		match self
+		{
+			ValueType::Int8 => i8::MAX as u128,
+			ValueType::Int16 => i16::MAX as u128,
+			ValueType::Int32 => i32::MAX as u128,
+			ValueType::Int64 => i64::MAX as u128,
+			ValueType::Int128 => i128::MAX as u128,
+			ValueType::Uint8 => u8::MAX as u128,
+			ValueType::Uint16 => u16::MAX as u128,
+			ValueType::Uint32 => u32::MAX as u128,
+			ValueType::Uint64 => u64::MAX as u128,
+			ValueType::Uint128 => u128::MAX as u128,
+			ValueType::Usize => u64::MAX as u128,
+			ValueType::Pointer { .. } => u64::MAX as u128,
+			ValueType::View { .. } => u64::MAX as u128,
+			_ => 0,
+		}
+	}
 }

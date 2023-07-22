@@ -50,11 +50,10 @@ Functionality:
 		✔	Think about natural stack alignment @done (2022-12-24 19:44)
 		✔	Think about isize @done (2022-12-24 18:51)
 		✔	Think about difference between usize and upointer @done (2022-12-24 18:51)
-		☐	Allow integer type suffixes for 0x123 and 0b101
-			☐ Make sure they default to u128 and do not cause E582 with "as"
+		✔	Allow integer type suffixes for 0x123 and 0b101 @done (2023-07-22 12:02)
+			✔ Make sure they default to u128 and do not cause E582 with "as" @done (2023-07-22 12:02)
 			☐	Sublime syntax highlighting
 			☐	Ruby syntax highlighting
-			☐	filter_for_xyz_integer should not cause truncation
 		☐	Think about size of bool again (especially generator.rs)
 	☐	Strong enums
 	☐	Optional
@@ -175,7 +174,7 @@ Linting errors:
 	☐	Private struct used in public declaration
 	☐	Discarding the result of a function (but only if error-like?)
 	☐	Using "\x80" in the same string as "\u{80}" or "€"
-	☐	Initializing "var x: u8 = 256" or "var x = 256u8" or "var x = 0xFFF as u8"
+	✔	Initializing "var x: u8 = 256" or "var x = 256u8" or "var x = 0xFFF as u8" @done (2023-07-22 13:05)
 
 Usability:
 	✔	Error recovery @done (2022-10-09 22:24)

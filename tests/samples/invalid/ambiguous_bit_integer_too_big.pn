@@ -1,4 +1,0 @@
-fn main()
-{
-	var x = 0x4625 as u8;
-}

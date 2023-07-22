@@ -549,6 +549,11 @@ pub enum Error
 	},
 
 	// Lints:
+	IntegerLiteralTruncation
+	{
+		value_type: ValueType,
+		location_of_literal: Location,
+	},
 	LoopAsFirstStatement
 	{
 		location_of_loop: Location,
@@ -652,6 +657,7 @@ impl Error
 			Error::MissingBraces { .. } => 840,
 
 			// Lints:
+			Error::IntegerLiteralTruncation { .. } => 1142,
 			Error::LoopAsFirstStatement { .. } => 1800,
 			Error::UnreachableCode { .. } => 1880,
 		}
@@ -788,6 +794,10 @@ impl Error
 			Error::MissingBraces { location, .. } => &location,
 
 			// Lints:
+			Error::IntegerLiteralTruncation {
+				location_of_literal,
+				..
+			} => &location_of_literal,
 			Error::LoopAsFirstStatement {
 				location_of_loop, ..
 			} => &location_of_loop,
@@ -2472,6 +2482,39 @@ fn write<'a>(
 				"loop".fg(colors.primary)
 			)),
 
+		Error::IntegerLiteralTruncation {
+			location_of_literal,
+			value_type,
+		} if is_address_value_type(value_type) => report
+			.with_message("Integer literal truncation")
+			.with_label(
+				location_of_literal
+					.label()
+					.with_message(format!(
+						"This integer literal does not fit {} and will be \
+						 truncated.",
+						show_type(value_type, colors.primary),
+					))
+					.with_color(PRIMARY),
+			)
+			.with_note("Address values can be at most 64 bits."),
+
+		Error::IntegerLiteralTruncation {
+			location_of_literal,
+			value_type,
+		} => report
+			.with_message("Integer literal truncation")
+			.with_label(
+				location_of_literal
+					.label()
+					.with_message(format!(
+						"This integer literal does not fit {} and will be \
+						 truncated.",
+						show_type(value_type, colors.primary),
+					))
+					.with_color(PRIMARY),
+			),
+
 		Error::UnreachableCode { location } =>
 		{
 			report.with_message("Unreachable code").with_label(
@@ -2658,5 +2701,18 @@ impl Location
 			..self.clone()
 		};
 		location.label()
+	}
+}
+
+#[cfg_attr(coverage, no_coverage)]
+#[cfg(not(tarpaulin_include))]
+fn is_address_value_type(value_type: &ValueType) -> bool
+{
+	match value_type
+	{
+		ValueType::Usize { .. } => true,
+		ValueType::Pointer { .. } => true,
+		ValueType::View { .. } => true,
+		_ => false,
 	}
 }

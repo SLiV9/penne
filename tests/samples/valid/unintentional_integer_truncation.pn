@@ -1,3 +1,7 @@
+
+const X: &i32 = 0x400000000000000000;
+const Y: (u128) = 0x400000000000000000;
+
 fn main() -> i32
 {
 	var a: u8 = 256;
@@ -5,8 +9,8 @@ fn main() -> i32
 	var c = 0x100u8;
 	var d = 0b100000000u8;
 	var e = 256 as u8;
-	var f: i8 = 128;
-	var g = 128i8;
-	var h = 128 as i8;
+	var f = 128i8;
+	var g: i64 = 1180591620717411303424;
+	var len: usize = 0x400000000000000000;
 	return: 0
 }

@@ -8,5 +8,6 @@ fn main() -> i32
 	u = true;
 	var b = false;
 	&u = &b;
+	b = 1180591620717411303424;
 	return: x
 }

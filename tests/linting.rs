@@ -60,7 +60,7 @@ fn trigger_multiple_lints()
 fn trigger_lint_for_unintentional_integer_truncation()
 {
 	lint_to_fail(
-		&[0, 0, 0, 0, 0, 0, 0, 0],
+		&[1142, 1142, 1142, 1142, 1142, 1142, 1142, 1142, 1142, 1142],
 		"tests/samples/valid/unintentional_integer_truncation.pn",
 	);
 }
