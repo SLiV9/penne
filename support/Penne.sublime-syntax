@@ -31,10 +31,14 @@ contexts:
       captures:
         1: constant.numeric.penne
         3: storage.type.numeric.penne
-    - match: '\b0x[0-9a-fA-F]+\b'
-      scope: constant.numeric.penne
-    - match: '\b0b[01]+\b'
-      scope: constant.numeric.penne
+    - match: '\b(0x[0-9a-fA-F]+)({{int_suffixes}})?\b'
+      captures:
+        1: constant.numeric.penne
+        2: storage.type.numeric.penne
+    - match: '\b(0b[01]+)({{int_suffixes}})?\b'
+      captures:
+        1: constant.numeric.penne
+        2: storage.type.numeric.penne
     - match: '\b(true|false)\b'
       scope: constant.language.penne
     - match: '\b(var|const|fn|struct|{{word_x}})\s+(?=({{keyword}})\b)\b'
