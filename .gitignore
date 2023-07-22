@@ -1,4 +1,8 @@
 /target
 /bin
 
+*.x64
+*.x86_64
+*.exe
+
 /docs/_site/
