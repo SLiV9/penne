@@ -258,12 +258,12 @@ pub enum Expression
 		location: Location,
 		location_of_op: Location,
 	},
-	PrimitiveLiteral
+	BooleanLiteral
 	{
-		literal: PrimitiveLiteral,
+		value: bool,
 		location: Location,
 	},
-	NakedIntegerLiteral
+	SignedIntegerLiteral
 	{
 		value: i128,
 		value_type: Option<Poisonable<ValueType>>,
@@ -271,7 +271,7 @@ pub enum Expression
 	},
 	BitIntegerLiteral
 	{
-		value: u64,
+		value: u128,
 		value_type: Option<Poisonable<ValueType>>,
 		location: Location,
 	},
@@ -340,8 +340,8 @@ impl Expression
 		{
 			Expression::Binary { location, .. } => location,
 			Expression::Unary { location, .. } => location,
-			Expression::PrimitiveLiteral { location, .. } => location,
-			Expression::NakedIntegerLiteral { location, .. } => location,
+			Expression::BooleanLiteral { location, .. } => location,
+			Expression::SignedIntegerLiteral { location, .. } => location,
 			Expression::BitIntegerLiteral { location, .. } => location,
 			Expression::StringLiteral { location, .. } => location,
 			Expression::ArrayLiteral { array, .. } => &array.location,
@@ -381,24 +381,6 @@ pub enum UnaryOp
 {
 	Negative,
 	BitwiseComplement,
-}
-
-#[must_use]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PrimitiveLiteral
-{
-	Int8(i8),
-	Int16(i16),
-	Int32(i32),
-	Int64(i64),
-	Int128(i128),
-	Uint8(u8),
-	Uint16(u16),
-	Uint32(u32),
-	Uint64(u64),
-	Uint128(u128),
-	Usize(usize),
-	Bool(bool),
 }
 
 #[must_use]

@@ -1,0 +1,16 @@
+fn main() -> u8
+{
+	var x: u128 = 1180591620717411303424;
+	var y = 1180591620717411303424u128;
+	var z = 1180591620717411303424 as u128;
+	var result = 200;
+	if x != y
+	{
+		result = 1;
+	}
+	if x != z
+	{
+		result = 2;
+	}
+	return: result
+}

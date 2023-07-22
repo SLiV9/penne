@@ -449,8 +449,8 @@ impl Analyzable for Expression
 					location_of_op,
 				}
 			}
-			Expression::PrimitiveLiteral { .. } => self,
-			Expression::NakedIntegerLiteral { .. } => self,
+			Expression::BooleanLiteral { .. } => self,
+			Expression::SignedIntegerLiteral { .. } => self,
 			Expression::BitIntegerLiteral { .. } => self,
 			Expression::ArrayLiteral {
 				array,

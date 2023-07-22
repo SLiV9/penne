@@ -1,4 +1,5 @@
 fn main()
 {
 	var x = 123127312i63;
+	var y = 0x;
 }

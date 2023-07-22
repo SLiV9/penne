@@ -50,8 +50,11 @@ Functionality:
 		✔	Think about natural stack alignment @done (2022-12-24 19:44)
 		✔	Think about isize @done (2022-12-24 18:51)
 		✔	Think about difference between usize and upointer @done (2022-12-24 18:51)
-		✘	Allow integer type suffixes for 0x123 and 0b101 @cancelled (2023-07-10 17:55)
+		☐	Allow integer type suffixes for 0x123 and 0b101
 			☐ Make sure they default to u128 and do not cause E582 with "as"
+			☐	Sublime syntax highlighting
+			☐	Ruby syntax highlighting
+			☐	filter_for_xyz_integer should not cause truncation
 		☐	Think about size of bool again (especially generator.rs)
 	☐	Strong enums
 	☐	Optional
@@ -180,6 +183,8 @@ Usability:
 			☐	Experiment with structural pre-parsing phase?
 		✘	Better error recovery for unmatched parentheses @cancelled (2023-01-07 20:08)
 		☐	Prevent duplicate "reference to undefined struct" errors?
+		☐	Prevent duplicate "ambiguous type" errors
+			In particular comparison_without_types.pn
 		☐	Better "duplicate variable" error text for parameters and members
 		☐	Better "conflicting types" error text for assigning to arrays or pointers
 			Because it will call 0i32 an expression of type []i32, for instance.

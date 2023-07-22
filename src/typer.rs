@@ -597,42 +597,6 @@ pub trait Typed
 	fn value_type(&self) -> Option<Poisonable<ValueType>>;
 }
 
-/// Helper trait that extracts a statically known type from a value expression.
-pub trait StaticallyTyped
-{
-	fn static_value_type(&self) -> ValueType;
-}
-
-impl Typed for PrimitiveLiteral
-{
-	fn value_type(&self) -> Option<Poisonable<ValueType>>
-	{
-		Some(Ok(self.static_value_type()))
-	}
-}
-
-impl StaticallyTyped for PrimitiveLiteral
-{
-	fn static_value_type(&self) -> ValueType
-	{
-		match self
-		{
-			PrimitiveLiteral::Int8(_) => ValueType::Int8,
-			PrimitiveLiteral::Int16(_) => ValueType::Int16,
-			PrimitiveLiteral::Int32(_) => ValueType::Int32,
-			PrimitiveLiteral::Int64(_) => ValueType::Int64,
-			PrimitiveLiteral::Int128(_) => ValueType::Int128,
-			PrimitiveLiteral::Uint8(_) => ValueType::Uint8,
-			PrimitiveLiteral::Uint16(_) => ValueType::Uint16,
-			PrimitiveLiteral::Uint32(_) => ValueType::Uint32,
-			PrimitiveLiteral::Uint64(_) => ValueType::Uint64,
-			PrimitiveLiteral::Uint128(_) => ValueType::Uint128,
-			PrimitiveLiteral::Usize(_) => ValueType::Usize,
-			PrimitiveLiteral::Bool(_) => ValueType::Bool,
-		}
-	}
-}
-
 fn forward_declare_structure(declaration: &Declaration, typer: &mut Typer)
 {
 	match declaration
@@ -1501,11 +1465,8 @@ impl Typed for Expression
 		{
 			Expression::Binary { left, .. } => left.value_type(),
 			Expression::Unary { expression, .. } => expression.value_type(),
-			Expression::PrimitiveLiteral { literal, .. } =>
-			{
-				literal.value_type()
-			}
-			Expression::NakedIntegerLiteral { value_type, .. } =>
+			Expression::BooleanLiteral { .. } => Some(Ok(ValueType::Bool)),
+			Expression::SignedIntegerLiteral { value_type, .. } =>
 			{
 				value_type.clone()
 			}
@@ -1602,8 +1563,8 @@ impl Analyzable for Expression
 					location_of_op,
 				}
 			}
-			Expression::PrimitiveLiteral { .. } => self,
-			Expression::NakedIntegerLiteral {
+			Expression::BooleanLiteral { .. } => self,
+			Expression::SignedIntegerLiteral {
 				value,
 				value_type,
 				location,
@@ -1619,7 +1580,7 @@ impl Analyzable for Expression
 						filter_for_naked_integer(contextual_type)
 					}
 				};
-				Expression::NakedIntegerLiteral {
+				Expression::SignedIntegerLiteral {
 					value,
 					value_type,
 					location,
@@ -1730,6 +1691,8 @@ impl Analyzable for Expression
 					// We cannot infer the type of `expression` from context,
 					// because it will always be `coerced_type`.
 					typer.contextual_type = None;
+					// But we can resolve ambiguities with a type hint.
+					typer.contextual_type = Some(Ok(coerced_type.clone()));
 					let expr = expression.analyze(typer);
 					Expression::PrimitiveCast {
 						expression: Box::new(expr),
@@ -2962,16 +2925,9 @@ fn filter_for_bit_integer(
 {
 	match value_type
 	{
-		Some(Ok(ValueType::Uint8)) => value_type,
-		Some(Ok(ValueType::Uint16)) => value_type,
-		Some(Ok(ValueType::Uint32)) => value_type,
-		Some(Ok(ValueType::Uint64)) => value_type,
-		Some(Ok(ValueType::Usize)) => value_type,
 		Some(Ok(ValueType::Pointer { .. })) => value_type,
 		Some(Ok(ValueType::View { .. })) => value_type,
-		Some(Ok(_)) => Some(Ok(ValueType::Uint64)),
-		Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
-		None => None,
+		value_type => filter_for_naked_integer(value_type),
 	}
 }
 

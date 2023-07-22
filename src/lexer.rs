@@ -66,19 +66,13 @@ pub enum Token
 
 	// Literals.
 	Identifier(String),
-	NakedInteger(i128),
-	BitInteger(u64),
-	Int8(i8),
-	Int16(i16),
-	Int32(i32),
-	Int64(i64),
-	Int128(i128),
-	Uint8(u8),
-	Uint16(u16),
-	Uint32(u32),
-	Uint64(u64),
-	Uint128(u128),
-	Usize(usize),
+	NakedDecimal(u128),
+	BitInteger(u128),
+	SuffixedInteger
+	{
+		value: u128,
+		suffix_type: ValueType,
+	},
 	Bool(bool),
 	StringLiteral
 	{
@@ -94,9 +88,7 @@ pub enum Error
 {
 	UnexpectedZeroByteFile,
 	UnexpectedCharacter,
-	InvalidIntegerLiteral(std::num::ParseIntError),
-	InvalidNakedIntegerLiteral,
-	InvalidBitIntegerLiteral,
+	InvalidIntegerLength,
 	InvalidIntegerTypeSuffix,
 	InvalidEscapeSequence,
 	UnexpectedTrailingBackslash,
@@ -333,86 +325,106 @@ fn lex_line(
 				};
 				Ok(token)
 			}
-			'0' => match iter.peek()
+			'0' =>
 			{
-				Some((_i, 'x')) =>
+				let mut literal = String::new();
+				let mut suffix = String::new();
+				let value = match iter.peek()
 				{
-					iter.next();
-					source_offset_end += 1;
-					let mut literal = x.to_string();
-					while let Some(&(_, y)) = iter.peek()
+					Some((_i, 'x')) =>
 					{
-						if y.is_ascii_hexdigit()
+						iter.next();
+						source_offset_end += 1;
+						while let Some(&(_, y)) = iter.peek()
 						{
-							literal.push(y);
-							iter.next();
-							source_offset_end += 1;
+							if y.is_ascii_hexdigit()
+							{
+								literal.push(y);
+								iter.next();
+								source_offset_end += 1;
+							}
+							else
+							{
+								break;
+							}
 						}
-						else
+						match u128::from_str_radix(&literal, 16)
 						{
-							break;
+							Ok(value) => Ok(value),
+							Err(_) if literal.is_empty() =>
+							{
+								suffix.push('x');
+								Ok(0)
+							}
+							Err(_) => Err(Error::InvalidIntegerLength),
 						}
 					}
-					u64::from_str_radix(&literal, 16)
-						.map(Token::BitInteger)
-						.map_err(|_error| Error::InvalidBitIntegerLiteral)
-				}
-				Some((_i, 'b')) =>
-				{
-					iter.next();
-					source_offset_end += 1;
-					let mut literal = x.to_string();
-					while let Some(&(_, y)) = iter.peek()
+					Some((_i, 'b')) =>
 					{
-						if y.is_digit(2)
+						iter.next();
+						source_offset_end += 1;
+						while let Some(&(_, y)) = iter.peek()
 						{
-							literal.push(y);
-							iter.next();
-							source_offset_end += 1;
+							if y.is_digit(2)
+							{
+								literal.push(y);
+								iter.next();
+								source_offset_end += 1;
+							}
+							else
+							{
+								break;
+							}
 						}
-						else
+						match u128::from_str_radix(&literal, 2)
 						{
-							break;
+							Ok(value) => Ok(value),
+							Err(_) if literal.is_empty() =>
+							{
+								suffix.push('b');
+								Ok(0)
+							}
+							Err(_) => Err(Error::InvalidIntegerLength),
 						}
 					}
-					u64::from_str_radix(&literal, 2)
-						.map(Token::BitInteger)
-						.map_err(|_error| Error::InvalidBitIntegerLiteral)
-				}
-				_ =>
+					_ => Ok(0),
+				};
+				while let Some(&(_, y)) = iter.peek()
 				{
-					let mut suffix = String::new();
-					while let Some(&(_, y)) = iter.peek()
+					if is_identifier_continuation(y)
 					{
-						if is_identifier_continuation(y)
-						{
-							suffix.push(y);
-							iter.next();
-							source_offset_end += 1;
-						}
-						else
-						{
-							break;
-						}
+						suffix.push(y);
+						iter.next();
+						source_offset_end += 1;
 					}
-					match suffix.as_str()
+					else
 					{
-						"" => Ok(Token::NakedInteger(0)),
-						"i8" => Ok(Token::Int8(0)),
-						"i16" => Ok(Token::Int16(0)),
-						"i32" => Ok(Token::Int32(0)),
-						"i64" => Ok(Token::Int64(0)),
-						"i128" => Ok(Token::Int128(0)),
-						"u8" => Ok(Token::Uint8(0)),
-						"u16" => Ok(Token::Uint16(0)),
-						"u32" => Ok(Token::Uint32(0)),
-						"u64" => Ok(Token::Uint64(0)),
-						"u128" => Ok(Token::Uint128(0)),
-						"usize" => Ok(Token::Usize(0)),
-						_ => Err(Error::InvalidIntegerTypeSuffix),
+						break;
 					}
 				}
-			},
+				// We have to consume the entire token (0[a-zA-Z0-9_]*)
+				// before we can error out and move on to the next token.
+				match value
+				{
+					Ok(0) if literal.is_empty() && suffix.is_empty() =>
+					{
+						Ok(Token::NakedDecimal(0))
+					}
+					Ok(value) if suffix.is_empty() =>
+					{
+						Ok(Token::BitInteger(value))
+					}
+					Ok(value) => match parse_integer_type(&suffix)
+					{
+						Ok(suffix_type) =>
+						{
+							Ok(Token::SuffixedInteger { value, suffix_type })
+						}
+						Err(err) => Err(err),
+					},
+					Err(err) => Err(err),
+				}
+			}
 			'1'..='9' =>
 			{
 				let mut literal = x.to_string();
@@ -443,70 +455,23 @@ fn lex_line(
 						break;
 					}
 				}
-				if suffix.is_empty()
+				// We have to consume the entire token ([1-9][a-zA-Z0-9_]*)
+				// before we can error out and move on to the next token.
+				match literal.parse()
 				{
-					match literal.parse()
+					Ok(value) if suffix.is_empty() =>
 					{
-						Ok(value)
-							if value >= i64::MIN as i128
-								&& value <= u64::MAX as i128 =>
+						Ok(Token::NakedDecimal(value))
+					}
+					Ok(value) => match parse_integer_type(&suffix)
+					{
+						Ok(suffix_type) =>
 						{
-							Ok(Token::NakedInteger(value))
+							Ok(Token::SuffixedInteger { value, suffix_type })
 						}
-						Ok(_) => Err(Error::InvalidNakedIntegerLiteral),
-						Err(_error) => Err(Error::InvalidNakedIntegerLiteral),
-					}
-				}
-				else
-				{
-					match suffix.as_str()
-					{
-						"i8" => literal
-							.parse()
-							.map(Token::Int8)
-							.map_err(Error::InvalidIntegerLiteral),
-						"i16" => literal
-							.parse()
-							.map(Token::Int16)
-							.map_err(Error::InvalidIntegerLiteral),
-						"i32" => literal
-							.parse()
-							.map(Token::Int32)
-							.map_err(Error::InvalidIntegerLiteral),
-						"i64" => literal
-							.parse()
-							.map(Token::Int64)
-							.map_err(Error::InvalidIntegerLiteral),
-						"i128" => literal
-							.parse()
-							.map(Token::Int128)
-							.map_err(Error::InvalidIntegerLiteral),
-						"u8" => literal
-							.parse()
-							.map(Token::Uint8)
-							.map_err(Error::InvalidIntegerLiteral),
-						"u16" => literal
-							.parse()
-							.map(Token::Uint16)
-							.map_err(Error::InvalidIntegerLiteral),
-						"u32" => literal
-							.parse()
-							.map(Token::Uint32)
-							.map_err(Error::InvalidIntegerLiteral),
-						"u64" => literal
-							.parse()
-							.map(Token::Uint64)
-							.map_err(Error::InvalidIntegerLiteral),
-						"u128" => literal
-							.parse()
-							.map(Token::Uint128)
-							.map_err(Error::InvalidIntegerLiteral),
-						"usize" => literal
-							.parse()
-							.map(Token::Usize)
-							.map_err(Error::InvalidIntegerLiteral),
-						_ => Err(Error::InvalidIntegerTypeSuffix),
-					}
+						Err(err) => Err(err),
+					},
+					Err(_) => Err(Error::InvalidIntegerLength),
 				}
 			}
 			'"' =>
@@ -737,6 +702,25 @@ fn lex_line(
 		};
 		tokens.push(LexedToken { result, location });
 		source_offset_start = source_offset_end;
+	}
+}
+
+fn parse_integer_type(suffix: &str) -> Result<ValueType, Error>
+{
+	match suffix
+	{
+		"i8" => Ok(ValueType::Int8),
+		"i16" => Ok(ValueType::Int16),
+		"i32" => Ok(ValueType::Int32),
+		"i64" => Ok(ValueType::Int64),
+		"i128" => Ok(ValueType::Int128),
+		"u8" => Ok(ValueType::Uint8),
+		"u16" => Ok(ValueType::Uint16),
+		"u32" => Ok(ValueType::Uint32),
+		"u64" => Ok(ValueType::Uint64),
+		"u128" => Ok(ValueType::Uint128),
+		"usize" => Ok(ValueType::Usize),
+		_ => Err(Error::InvalidIntegerTypeSuffix),
 	}
 }
 

@@ -580,19 +580,22 @@ impl Resolvable for Expression
 				let _ = value_type?;
 				Ok(resolved::Expression::Unary { op, expression })
 			}
-			Expression::PrimitiveLiteral {
-				literal,
-				location: _,
-			} => Ok(resolved::Expression::PrimitiveLiteral(literal)),
-			Expression::NakedIntegerLiteral {
+			Expression::BooleanLiteral { value, location: _ } =>
+			{
+				Ok(resolved::Expression::BitIntegerLiteral {
+					value: u128::from(value),
+					value_type: resolved::ValueType::Bool,
+				})
+			}
+			Expression::SignedIntegerLiteral {
 				value,
 				value_type: Some(value_type),
 				location: _,
-			} => Ok(resolved::Expression::NakedIntegerLiteral {
+			} => Ok(resolved::Expression::SignedIntegerLiteral {
 				value,
 				value_type: value_type.resolve()?,
 			}),
-			Expression::NakedIntegerLiteral {
+			Expression::SignedIntegerLiteral {
 				value: _,
 				value_type: None,
 				location,
@@ -600,7 +603,7 @@ impl Resolvable for Expression
 			{
 				// Naked integer literals that can fit in an int should not
 				// cause type resolution errors; if they are assigned to a
-				// variable that that variable will error, if they are unused
+				// variable then that variable will error, if they are unused
 				// (e.g. excess function argument) then that is more relevant.
 				// But if we are here, no other error was raised, and we cannot
 				// continue to generation with a value of unknown (bit)size.

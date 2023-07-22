@@ -1,0 +1,7 @@
+fn main() -> i32
+{
+	var x = 0;
+	var y = x as i32;
+	x = 0u64;
+	return: 200 + y
+}

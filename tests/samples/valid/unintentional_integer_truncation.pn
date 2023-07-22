@@ -1,0 +1,12 @@
+fn main() -> i32
+{
+	var a: u8 = 256;
+	var b = 256u8;
+	var c = 0x100u8;
+	var d = 0b100000000u8;
+	var e = 256 as u8;
+	var f: i8 = 128;
+	var g = 128i8;
+	var h = 128 as i8;
+	return: 0
+}

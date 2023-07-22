@@ -572,10 +572,8 @@ impl Error
 			{
 				lexer::Error::UnexpectedZeroByteFile => 101,
 				lexer::Error::UnexpectedCharacter => 110,
-				lexer::Error::InvalidIntegerLiteral(..) => 140,
+				lexer::Error::InvalidIntegerLength => 140,
 				lexer::Error::InvalidIntegerTypeSuffix => 141,
-				lexer::Error::InvalidNakedIntegerLiteral => 142,
-				lexer::Error::InvalidBitIntegerLiteral => 143,
 				lexer::Error::MissingClosingQuote => 160,
 				lexer::Error::UnexpectedTrailingBackslash => 161,
 				lexer::Error::InvalidEscapeSequence => 162,
@@ -949,7 +947,7 @@ fn write<'a>(
 		),
 
 		Error::Lexical {
-			error: lexer::Error::InvalidIntegerLiteral(inner_error),
+			error: lexer::Error::InvalidIntegerLength,
 			expectation,
 			location,
 		} => report
@@ -960,54 +958,18 @@ fn write<'a>(
 					.with_message(expectation)
 					.with_color(PRIMARY),
 			)
-			.with_note(format!("{}", inner_error)),
-
-		Error::Lexical {
-			error: lexer::Error::InvalidBitIntegerLiteral,
-			expectation,
-			location,
-		} => report
-			.with_message("Invalid bit integer literal")
-			.with_label(
-				location
-					.label()
-					.with_message(expectation)
-					.with_color(PRIMARY),
-			)
-			.with_note(format!(
-				"Hexadecimal and binary integer literals have to fit {}.",
-				show_type(&ValueType::Uint64, colors.primary)
-			)),
-
-		Error::Lexical {
-			error: lexer::Error::InvalidNakedIntegerLiteral,
-			expectation,
-			location,
-		} => report
-			.with_message("Invalid untyped integer literal")
-			.with_label(
-				location
-					.label()
-					.with_message(expectation)
-					.with_color(PRIMARY),
-			)
-			.with_note(format!(
-				"Consider adding a type suffix like {}.",
-				show_type(&ValueType::Int128, colors.primary)
-			)),
+			.with_note("Integer literals can be at most 128 bits."),
 
 		Error::Lexical {
 			error: lexer::Error::InvalidIntegerTypeSuffix,
 			expectation,
 			location,
-		} => report
-			.with_message("Invalid integer literal type suffix")
-			.with_label(
-				location
-					.label()
-					.with_message(expectation)
-					.with_color(PRIMARY),
-			),
+		} => report.with_message("Invalid integer literal").with_label(
+			location
+				.label()
+				.with_message(expectation)
+				.with_color(PRIMARY),
+		),
 
 		Error::Lexical {
 			error: lexer::Error::InvalidEscapeSequence,

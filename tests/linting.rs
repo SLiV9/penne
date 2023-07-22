@@ -56,6 +56,15 @@ fn trigger_multiple_lints()
 	lint_to_fail(&[1800, 1800], "tests/samples/valid/multiple_lints.pn");
 }
 
+#[test]
+fn trigger_lint_for_unintentional_integer_truncation()
+{
+	lint_to_fail(
+		&[0, 0, 0, 0, 0, 0, 0, 0],
+		"tests/samples/valid/unintentional_integer_truncation.pn",
+	);
+}
+
 fn lint_to_nothing(filename: &str)
 {
 	let lints = lint(filename);

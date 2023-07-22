@@ -67,6 +67,15 @@ fn fail_to_type_member_assignment_type_mismatch()
 }
 
 #[test]
+fn fail_to_type_ambiguous_identity_casting()
+{
+	compile_to_fail(
+		&[504],
+		"tests/samples/invalid/ambiguous_identity_casting.pn",
+	)
+}
+
+#[test]
 fn fail_to_type_assignment_address_and_type_mismatch()
 {
 	compile_to_fail(

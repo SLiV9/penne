@@ -271,7 +271,7 @@ fn fail_to_parse_octal_suffix()
 #[test]
 fn fail_to_parse_integer_too_big()
 {
-	compile_to_fail(&[142], "tests/samples/invalid/integer_too_big.pn")
+	compile_to_fail(&[140], "tests/samples/invalid/integer_too_big.pn")
 }
 
 #[test]
@@ -289,19 +289,19 @@ fn fail_to_parse_i128_too_big()
 #[test]
 fn fail_to_parse_untyped_integer_too_big()
 {
-	compile_to_fail(&[142], "tests/samples/invalid/untyped_integer_too_big.pn")
+	compile_to_fail(&[581], "tests/samples/invalid/untyped_integer_too_big.pn")
 }
 
 #[test]
 fn fail_to_parse_bit_integer_too_big()
 {
-	compile_to_fail(&[143], "tests/samples/invalid/bit_integer_too_big.pn")
+	compile_to_fail(&[140], "tests/samples/invalid/bit_integer_too_big.pn")
 }
 
 #[test]
 fn fail_to_parse_binary_integer_too_big()
 {
-	compile_to_fail(&[143], "tests/samples/invalid/binary_integer_too_big.pn")
+	compile_to_fail(&[140], "tests/samples/invalid/binary_integer_too_big.pn")
 }
 
 #[test]

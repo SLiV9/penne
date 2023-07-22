@@ -789,7 +789,7 @@ fn parse_inner_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 					element_type: Box::new(element_type),
 				})
 			}
-			Some(Token::NakedInteger(x)) if *x >= 0 =>
+			Some(Token::NakedDecimal(x)) =>
 			{
 				let length = *x as usize;
 				tokens.pop_front();
@@ -1432,50 +1432,19 @@ fn parse_unary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 				location_of_op.clone().combined_with(expr.location());
 			match expr
 			{
-				Expression::NakedIntegerLiteral {
+				Expression::SignedIntegerLiteral {
 					value,
 					value_type,
 					location: _,
-				} => Ok(Expression::NakedIntegerLiteral {
-					value: -value,
-					value_type,
-					location,
-				}),
-				Expression::PrimitiveLiteral {
-					literal: PrimitiveLiteral::Int8(value),
-					location: _,
-				} => Ok(Expression::PrimitiveLiteral {
-					literal: PrimitiveLiteral::Int8(-value),
-					location,
-				}),
-				Expression::PrimitiveLiteral {
-					literal: PrimitiveLiteral::Int16(value),
-					location: _,
-				} => Ok(Expression::PrimitiveLiteral {
-					literal: PrimitiveLiteral::Int16(-value),
-					location,
-				}),
-				Expression::PrimitiveLiteral {
-					literal: PrimitiveLiteral::Int32(value),
-					location: _,
-				} => Ok(Expression::PrimitiveLiteral {
-					literal: PrimitiveLiteral::Int32(-value),
-					location,
-				}),
-				Expression::PrimitiveLiteral {
-					literal: PrimitiveLiteral::Int64(value),
-					location: _,
-				} => Ok(Expression::PrimitiveLiteral {
-					literal: PrimitiveLiteral::Int64(-value),
-					location,
-				}),
-				Expression::PrimitiveLiteral {
-					literal: PrimitiveLiteral::Int128(value),
-					location: _,
-				} => Ok(Expression::PrimitiveLiteral {
-					literal: PrimitiveLiteral::Int128(-value),
-					location,
-				}),
+				} if value > 0 =>
+				{
+					// All values 1..=2^(N-1) are valid as negatives.
+					Ok(Expression::SignedIntegerLiteral {
+						value: -value,
+						value_type,
+						location,
+					})
+				}
 				expr =>
 				{
 					let expression = Expression::Unary {
@@ -1497,7 +1466,15 @@ fn parse_primary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 	let (token, location) = extract("Expected literal or identifier.", tokens)?;
 	match token
 	{
-		Token::NakedInteger(value) => Ok(Expression::NakedIntegerLiteral {
+		Token::NakedDecimal(value) if value <= i128::MAX as u128 =>
+		{
+			Ok(Expression::SignedIntegerLiteral {
+				value: value as i128,
+				value_type: None,
+				location,
+			})
+		}
+		Token::NakedDecimal(value) => Ok(Expression::BitIntegerLiteral {
 			value,
 			value_type: None,
 			location,
@@ -1507,65 +1484,28 @@ fn parse_primary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 			value_type: None,
 			location,
 		}),
-		Token::Int8(value) =>
+		Token::SuffixedInteger { value, suffix_type } =>
 		{
-			let literal = PrimitiveLiteral::Int8(value);
-			Ok(Expression::PrimitiveLiteral { literal, location })
-		}
-		Token::Int16(value) =>
-		{
-			let literal = PrimitiveLiteral::Int16(value);
-			Ok(Expression::PrimitiveLiteral { literal, location })
-		}
-		Token::Int32(value) =>
-		{
-			let literal = PrimitiveLiteral::Int32(value);
-			Ok(Expression::PrimitiveLiteral { literal, location })
-		}
-		Token::Int64(value) =>
-		{
-			let literal = PrimitiveLiteral::Int64(value);
-			Ok(Expression::PrimitiveLiteral { literal, location })
-		}
-		Token::Int128(value) =>
-		{
-			let literal = PrimitiveLiteral::Int128(value);
-			Ok(Expression::PrimitiveLiteral { literal, location })
-		}
-		Token::Uint8(value) =>
-		{
-			let literal = PrimitiveLiteral::Uint8(value);
-			Ok(Expression::PrimitiveLiteral { literal, location })
-		}
-		Token::Uint16(value) =>
-		{
-			let literal = PrimitiveLiteral::Uint16(value);
-			Ok(Expression::PrimitiveLiteral { literal, location })
-		}
-		Token::Uint32(value) =>
-		{
-			let literal = PrimitiveLiteral::Uint32(value);
-			Ok(Expression::PrimitiveLiteral { literal, location })
-		}
-		Token::Uint64(value) =>
-		{
-			let literal = PrimitiveLiteral::Uint64(value);
-			Ok(Expression::PrimitiveLiteral { literal, location })
-		}
-		Token::Uint128(value) =>
-		{
-			let literal = PrimitiveLiteral::Uint128(value);
-			Ok(Expression::PrimitiveLiteral { literal, location })
-		}
-		Token::Usize(value) =>
-		{
-			let literal = PrimitiveLiteral::Usize(value);
-			Ok(Expression::PrimitiveLiteral { literal, location })
+			if suffix_type.is_signed() && value <= i128::MAX as u128
+			{
+				Ok(Expression::SignedIntegerLiteral {
+					value: value as i128,
+					value_type: Some(Ok(suffix_type)),
+					location,
+				})
+			}
+			else
+			{
+				Ok(Expression::BitIntegerLiteral {
+					value,
+					value_type: Some(Ok(suffix_type)),
+					location,
+				})
+			}
 		}
 		Token::Bool(value) =>
 		{
-			let literal = PrimitiveLiteral::Bool(value);
-			Ok(Expression::PrimitiveLiteral { literal, location })
+			Ok(Expression::BooleanLiteral { value, location })
 		}
 		Token::StringLiteral { bytes } =>
 		{

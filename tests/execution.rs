@@ -443,6 +443,25 @@ fn execute_minus_128() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_binary_integer_66_bit() -> Result<(), anyhow::Error>
+{
+	let result =
+		execute_calculation("tests/samples/valid/binary_integer_66_bit.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn execute_typed_integer_too_big_for_u64() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation(
+		"tests/samples/valid/typed_integer_too_big_for_u64.pn",
+	)?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_i32_to_le_bytes() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation("tests/samples/valid/i32_to_le_bytes.pn")?;

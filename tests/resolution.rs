@@ -165,6 +165,24 @@ fn compile_to_fail(codes: &[u16], filename: &str)
 }
 
 #[test]
+fn fail_to_resolve_comparison_without_types()
+{
+	compile_to_fail(
+		&[581, 581, 580, 580],
+		"tests/samples/invalid/comparison_without_types.pn",
+	)
+}
+
+#[test]
+fn fail_to_resolve_assignment_without_types()
+{
+	compile_to_fail(
+		&[581, 581, 581],
+		"tests/samples/invalid/assignment_without_types.pn",
+	)
+}
+
+#[test]
 fn fail_to_resolve_bitshift_without_types()
 {
 	compile_to_fail(&[581], "tests/samples/invalid/bitshift_without_types.pn")

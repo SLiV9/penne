@@ -630,11 +630,11 @@ impl Rebuildable for Expression
 				op,
 				expression.rebuild(&indentation.increased())?,
 			)),
-			Expression::PrimitiveLiteral {
-				literal,
-				location: _,
-			} => literal.rebuild(indentation),
-			Expression::NakedIntegerLiteral {
+			Expression::BooleanLiteral { value, location: _ } =>
+			{
+				Ok(format!("{}", value))
+			}
+			Expression::SignedIntegerLiteral {
 				value,
 				value_type: _,
 				location: _,
@@ -759,32 +759,6 @@ impl Rebuildable for Expression
 				Ok(buffer)
 			}
 			Expression::Poison(poison) => poison.rebuild(indentation),
-		}
-	}
-}
-
-impl Rebuildable for PrimitiveLiteral
-{
-	fn rebuild(
-		&self,
-		_indentation: &Indentation,
-	) -> Result<String, anyhow::Error>
-	{
-		match self
-		{
-			PrimitiveLiteral::Int8(value) => Ok(format!("{}i8", value)),
-			PrimitiveLiteral::Int16(value) => Ok(format!("{}i16", value)),
-			PrimitiveLiteral::Int32(value) => Ok(format!("{}i32", value)),
-			PrimitiveLiteral::Int64(value) => Ok(format!("{}i64", value)),
-			PrimitiveLiteral::Int128(value) => Ok(format!("{}i128", value)),
-			PrimitiveLiteral::Uint8(value) => Ok(format!("{}u8", value)),
-			PrimitiveLiteral::Uint16(value) => Ok(format!("{}u16", value)),
-			PrimitiveLiteral::Uint32(value) => Ok(format!("{}u32", value)),
-			PrimitiveLiteral::Uint64(value) => Ok(format!("{}u64", value)),
-			PrimitiveLiteral::Uint128(value) => Ok(format!("{}u128", value)),
-			PrimitiveLiteral::Usize(value) => Ok(format!("{}usize", value)),
-			PrimitiveLiteral::Bool(true) => Ok("true".to_string()),
-			PrimitiveLiteral::Bool(false) => Ok("false".to_string()),
 		}
 	}
 }

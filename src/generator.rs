@@ -237,14 +237,6 @@ impl Generator
 		Ok(ircode)
 	}
 
-	fn const_bool(&mut self, value: bool) -> LLVMValueRef
-	{
-		unsafe {
-			let bytetype = LLVMInt1TypeInContext(self.context);
-			LLVMConstInt(bytetype, value as u64, 0)
-		}
-	}
-
 	fn const_u8(&mut self, value: u8) -> LLVMValueRef
 	{
 		unsafe {
@@ -264,6 +256,19 @@ impl Generator
 	fn const_usize(&mut self, value: usize) -> LLVMValueRef
 	{
 		unsafe { LLVMConstInt(self.type_of_usize, value as u64, 0) }
+	}
+
+	fn const_128_bit_integer(
+		&mut self,
+		value_bits: u128,
+		inttype: LLVMTypeRef,
+	) -> LLVMValueRef
+	{
+		let words = [
+			((value_bits >> 64) & 0xFFFFFFFF) as u64,
+			(value_bits & 0xFFFFFFFF) as u64,
+		];
+		unsafe { LLVMConstIntOfArbitraryPrecision(inttype, 2, words.as_ptr()) }
 	}
 
 	/// Get the value of a constant of type `usize`,
@@ -873,15 +878,7 @@ impl Generatable for Comparison
 		llvm: &mut Generator,
 	) -> Result<Self::Item, anyhow::Error>
 	{
-		let is_signed = match self.compared_type
-		{
-			ValueType::Int8 => true,
-			ValueType::Int16 => true,
-			ValueType::Int32 => true,
-			ValueType::Int64 => true,
-			ValueType::Int128 => true,
-			_ => false,
-		};
+		let is_signed = self.compared_type.is_signed();
 		let left = self.left.generate(llvm)?;
 		let right = self.right.generate(llvm)?;
 		let name = CString::new("")?;
@@ -935,15 +932,7 @@ impl Generatable for Expression
 				value_type,
 			} =>
 			{
-				let is_signed = match value_type
-				{
-					ValueType::Int8 => true,
-					ValueType::Int16 => true,
-					ValueType::Int32 => true,
-					ValueType::Int64 => true,
-					ValueType::Int128 => true,
-					_ => false,
-				};
+				let is_signed = value_type.is_signed();
 				let left = left.generate(llvm)?;
 				let right = right.generate(llvm)?;
 				let name = CString::new("")?;
@@ -1017,41 +1006,56 @@ impl Generatable for Expression
 				};
 				Ok(result)
 			}
-			Expression::PrimitiveLiteral(literal) => literal.generate(llvm),
-			Expression::NakedIntegerLiteral { value, value_type } =>
+			Expression::SignedIntegerLiteral { value, value_type } =>
 			{
-				// Naked integers are allowed to be 64-bits,
-				// thus between i64::MIN and u64::MAX.
 				let value: i128 = *value;
-				let signed = value < 0;
-				let value_bits: u64 = if signed
-				{
-					(value as i64) as u64
-				}
-				else
-				{
-					value as u64
-				};
 				let inttype = value_type.generate(llvm)?;
-				unsafe { Ok(LLVMConstInt(inttype, value_bits, signed as i32)) }
+				const MIN: i128 = i64::MIN as i128;
+				const MAX: i128 = u64::MAX as i128;
+				match value
+				{
+					MIN..=-1 =>
+					{
+						let value_bits = (value as i64) as u64;
+						let signed = 1;
+						unsafe { Ok(LLVMConstInt(inttype, value_bits, signed)) }
+					}
+					0..=MAX =>
+					{
+						let value_bits = value as u64;
+						let signed = 0;
+						unsafe { Ok(LLVMConstInt(inttype, value_bits, signed)) }
+					}
+					value =>
+					{
+						let value_bits = value as u128;
+						Ok(llvm.const_128_bit_integer(value_bits, inttype))
+					}
+				}
 			}
 			Expression::BitIntegerLiteral { value, value_type } =>
 			{
-				let value_bits: u64 = *value;
+				let value: u128 = *value;
 				match value_type
 				{
 					ValueType::Pointer { deref_type: _ }
 					| ValueType::View { deref_type: _ } =>
 					{
 						let pointertype = value_type.generate(llvm)?;
-						let address = value_bits as usize;
+						let address = value as u64 as usize;
 						let value = llvm.const_usize(address);
 						unsafe { Ok(LLVMConstIntToPtr(value, pointertype)) }
+					}
+					_ if value <= u64::MAX as u128 =>
+					{
+						let inttype = value_type.generate(llvm)?;
+						let value_bits = value as u64;
+						unsafe { Ok(LLVMConstInt(inttype, value_bits, 0)) }
 					}
 					_ =>
 					{
 						let inttype = value_type.generate(llvm)?;
-						unsafe { Ok(LLVMConstInt(inttype, value_bits, 0)) }
+						Ok(llvm.const_128_bit_integer(value, inttype))
 					}
 				}
 			}
@@ -1178,85 +1182,6 @@ impl Generatable for Expression
 				};
 				Ok(result)
 			}
-		}
-	}
-}
-
-impl Generatable for PrimitiveLiteral
-{
-	type Item = LLVMValueRef;
-
-	fn generate(
-		&self,
-		llvm: &mut Generator,
-	) -> Result<Self::Item, anyhow::Error>
-	{
-		match self
-		{
-			PrimitiveLiteral::Int8(value) =>
-			unsafe {
-				let inttype = LLVMInt8TypeInContext(llvm.context);
-				Ok(LLVMConstInt(inttype, *value as u64, 1))
-			},
-			PrimitiveLiteral::Int16(value) =>
-			unsafe {
-				let inttype = LLVMInt16TypeInContext(llvm.context);
-				Ok(LLVMConstInt(inttype, *value as u64, 1))
-			},
-			PrimitiveLiteral::Int32(value) =>
-			unsafe {
-				let inttype = LLVMInt32TypeInContext(llvm.context);
-				Ok(LLVMConstInt(inttype, *value as u64, 1))
-			},
-			PrimitiveLiteral::Int64(value) =>
-			unsafe {
-				let inttype = LLVMInt64TypeInContext(llvm.context);
-				Ok(LLVMConstInt(inttype, *value as u64, 1))
-			},
-			PrimitiveLiteral::Int128(value) =>
-			unsafe {
-				let inttype = LLVMInt128TypeInContext(llvm.context);
-				let value: i128 = *value;
-				let value_bits: u128 = value as u128;
-				let words = [
-					((value_bits >> 64) & 0xFFFFFFFF) as u64,
-					(value_bits & 0xFFFFFFFF) as u64,
-				];
-				Ok(LLVMConstIntOfArbitraryPrecision(inttype, 2, words.as_ptr()))
-			},
-			PrimitiveLiteral::Uint8(value) =>
-			unsafe {
-				let inttype = LLVMInt8TypeInContext(llvm.context);
-				Ok(LLVMConstInt(inttype, *value as u64, 0))
-			},
-			PrimitiveLiteral::Uint16(value) =>
-			unsafe {
-				let inttype = LLVMInt16TypeInContext(llvm.context);
-				Ok(LLVMConstInt(inttype, *value as u64, 0))
-			},
-			PrimitiveLiteral::Uint32(value) =>
-			unsafe {
-				let inttype = LLVMInt32TypeInContext(llvm.context);
-				Ok(LLVMConstInt(inttype, *value as u64, 0))
-			},
-			PrimitiveLiteral::Uint64(value) =>
-			unsafe {
-				let inttype = LLVMInt64TypeInContext(llvm.context);
-				Ok(LLVMConstInt(inttype, *value as u64, 0))
-			},
-			PrimitiveLiteral::Uint128(value) =>
-			unsafe {
-				let inttype = LLVMInt128TypeInContext(llvm.context);
-				let value: u128 = *value;
-				let value_bits: u128 = value as u128;
-				let words = [
-					((value_bits >> 64) & 0xFFFFFFFF) as u64,
-					(value_bits & 0xFFFFFFFF) as u64,
-				];
-				Ok(LLVMConstIntOfArbitraryPrecision(inttype, 2, words.as_ptr()))
-			},
-			PrimitiveLiteral::Usize(value) => Ok(llvm.const_usize(*value)),
-			PrimitiveLiteral::Bool(value) => Ok(llvm.const_bool(*value)),
 		}
 	}
 }

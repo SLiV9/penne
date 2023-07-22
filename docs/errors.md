@@ -68,14 +68,14 @@ Penne source files must be US-ASCII or UTF-8 encoded. In addition, ASCII control
 
 ## Error code E140
 
-An integer literal is larger than the maximum value for its type, or smaller than the minimum value.
+An integer literal is too big to parse.
 
 ### Example of erroneous code
 
 ```penne
-fn main() -> i32
+fn main()
 {
-    return: 2138712987321987319321987317931831928i32
+    var x: u128 = 0xd4045dc99922412cb66d928de35d6ff91;
 }
 ```
 
@@ -88,53 +88,9 @@ An integer literal has a suffix that is not a valid integer type.
 ```penne
 fn main()
 {
-    var x = 123127312i63;
+    var x = 123127312asd;
 }
 ```
-
-## Error code E142
-
-An integer literal without type suffix is too big to parse.
-
-### Example of erroneous code
-
-```penne
-fn main()
-{
-    var x: i128 = 1180591620717411303424;
-}
-```
-
-To fix this, add an explicit type suffix.
-
-```penne
-fn main()
-{
-    var x: i128 = 1180591620717411303424i128;
-}
-```
-
-### Explanation
-
-An integer literal must have a type suffix if it fits neither an `i64` nor a `u64` --- that is, if it is smaller than `-(2^63 - 1)` or larger than `2^64 - 1`.
-This type suffix must be `i128` or `u128`.
-
-## Error code E143
-
-A hexadecimal or binary integer literal is too big to parse.
-
-### Example of erroneous code
-
-```penne
-fn main()
-{
-    var x: u128 = 0x46252a329482eaf72058e10b93e6f52;
-}
-```
-
-### Explanation
-
-Hexadecimal and binary integer literals have to fit a `u64` --- that is, they cannot be larger than `2^64 - 1`.
 
 ## Error code E160
 
