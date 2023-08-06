@@ -3,7 +3,8 @@ import "vendor:libc/string.pn";
 fn main() -> i32
 {
 	var buffer = "Hallo\0";
-	var ptr_into_buffer: &[...]u8 = strrchr(buffer, 108);
+	var m: u8 = 108;
+	var ptr_into_buffer: &[...]u8 = strrchr(buffer, m);
 	ptr_into_buffer[0] = 109;
 	var diff = strcmp(buffer, "Halmo\0");
 	return: diff

@@ -1,0 +1,18 @@
+extern fn square(x: u8) -> u32;
+
+fn main() -> i32
+{
+	var errorcode = 0;
+	var x = 0xAABBCC08u64 as u8;
+	garbage_label:
+	var z = x + x;
+	call_square_label:
+	var y = square(x);
+	if y == 64
+		goto return;
+	else
+	{
+		errorcode = 255;
+	}
+	return: errorcode
+}

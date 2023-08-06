@@ -293,7 +293,7 @@ impl Resolvable for Declaration
 					name,
 					parameters,
 					return_type,
-					flags,
+					flags: flags | DeclarationFlag::Forward,
 				})
 			}
 			Declaration::Structure {

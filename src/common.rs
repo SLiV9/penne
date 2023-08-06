@@ -72,6 +72,7 @@ pub enum DeclarationFlag
 	Public,
 	External,
 	Main,
+	Forward,
 	OpaqueStruct,
 }
 

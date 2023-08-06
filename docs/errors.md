@@ -506,6 +506,16 @@ extern fn foo(x: u128);
 
 For a detailed list of the types that allowed in `extern`, see the documentation about the [external ABI](features.html#interoperability-with-c).
 
+## Error code E359
+
+A type that does not have a statically known size is used in a size-of expression.
+
+### Example of erroneous code
+
+```penne
+const SIZE_OF_SLICE: usize = |:[]u8|;
+```
+
 ## Error code E360
 
 A constant expression contains an unsupported operation.
@@ -1275,6 +1285,32 @@ fn main()
     {
         b = true;
     }
+}
+```
+
+## Error code E553
+
+A bitcast is attempted between incompatible types.
+
+### Example of erroneous code
+
+```penne
+fn main()
+{
+    var a = 10;
+    var p: &i32 = &a;
+    var q: &u32 = cast p as &u32;
+}
+```
+
+In this case, we wanted to cast between pointer types, but we forgot an address operator.
+
+```penne
+fn main()
+{
+    var a = 10;
+    var p: &i32 = &a;
+    var q: &u32 = cast &p as &u32;
 }
 ```
 

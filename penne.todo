@@ -100,7 +100,9 @@ Functionality:
 		☐	vendor:libc
 			✔	malloc, calloc, realloc and free @done (2023-03-28 18:27)
 			✔	memchr, memcmp, memset, memcpy, memmove @done (2023-03-28 18:27)
-			☐	think about "u8 as i32" parameters, vs treating all extern u8 parameters as u64 in terms of zero initializing
+			✔	think about "u8 as i32" parameters, vs treating all extern u8 parameters as u64 in terms of zero initializing @done (2023-08-06 14:43)
+				For the Windows x64 calling convention, any integer up to 64 bits takes an entire 64 bits register, so zero initializing would be sane.
+				For System V is is the same, and LLVM inserts movzbl to do this already.
 		☐	panic()
 		☐	print(), eprint()
 		☐	fopen(), fclose()
@@ -192,7 +194,7 @@ Usability:
 		☐	Add note when referencing variable from an inner scope
 
 Performance:
-	☐	Think about calling convention (ccc for libc and extern, fastcc elsewhere?)
+	✔	Think about calling convention @done (2023-08-06 14:44)
 	☐	Add parameter attributes such as nonnull and readonly
 	☐	Take a look at issue #5
 
@@ -224,11 +226,10 @@ Documentation:
 
 Development:
 	☐	Release 0.4.0
-		☐	Add documentation for E359
-		☐	Add documentation for E553
 		☐	Flesh out core and vendor/libc
+		☐	Add/check documentation for E359, E553
 		☐	Describe core as "batteries included but not pre-installed"
-		☐	Mention that "as" is safe, "cast" is unsafe / platform dependent
+		☐	Mention that "as" is well-defined, "cast" is unsafe / platform dependent
 		☐	Deploy website
 
 Needed for Advent of Code:

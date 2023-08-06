@@ -83,6 +83,7 @@ pub extern fn something_with_pointers(u: &&i32)
 	var x: &i32 = &i;
 	var a: &&i32 = &&x;
 	&&a = &&u;
+	var y: &i32 = cast &x as &i32;
 	var text = "Save up to \u{20ac}50 or \xA350 or more!\0";
 }
 

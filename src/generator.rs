@@ -355,13 +355,13 @@ fn declare(
 			parameters,
 			body: _,
 			return_type,
-			flags: _,
+			flags,
 		}
 		| Declaration::FunctionHead {
 			name,
 			parameters,
 			return_type,
-			flags: _,
+			flags,
 		} =>
 		{
 			let return_type = match return_type
@@ -395,6 +395,28 @@ fn declare(
 				);
 				function
 			};
+
+			let linkage = if flags.contains(DeclarationFlag::Public)
+				|| flags.contains(DeclarationFlag::Main)
+				|| flags.contains(DeclarationFlag::Forward)
+			{
+				LLVMLinkage::LLVMExternalLinkage
+			}
+			else
+			{
+				LLVMLinkage::LLVMPrivateLinkage
+			};
+			unsafe { LLVMSetLinkage(function, linkage) };
+
+			let callconv = if flags.contains(DeclarationFlag::External)
+			{
+				LLVMCallConv::LLVMCCallConv
+			}
+			else
+			{
+				LLVMCallConv::LLVMFastCallConv
+			};
+			unsafe { LLVMSetFunctionCallConv(function, callconv as u32) };
 
 			llvm.global_functions.insert(name.resolution_id, function);
 
@@ -477,7 +499,7 @@ impl Generatable for Declaration
 				parameters,
 				body,
 				return_type: _,
-				flags,
+				flags: _,
 			} =>
 			{
 				let function = llvm.global_functions.get(&name.resolution_id);
@@ -486,17 +508,6 @@ impl Generatable for Declaration
 					Some(function) => *function,
 					None => unreachable!(),
 				};
-
-				let linkage = if flags.contains(DeclarationFlag::Public)
-					|| flags.contains(DeclarationFlag::Main)
-				{
-					LLVMLinkage::LLVMExternalLinkage
-				}
-				else
-				{
-					LLVMLinkage::LLVMPrivateLinkage
-				};
-				unsafe { LLVMSetLinkage(function, linkage) };
 
 				let entry_block_name = CString::new("entry")?;
 				unsafe {
@@ -525,21 +536,9 @@ impl Generatable for Declaration
 
 				Ok(())
 			}
-			Declaration::FunctionHead {
-				name,
-				parameters: _,
-				return_type: _,
-				flags: _,
-			} =>
+			Declaration::FunctionHead { .. } =>
 			{
-				let function = llvm.global_functions.get(&name.resolution_id);
-				let function = match function
-				{
-					Some(function) => *function,
-					None => unreachable!(),
-				};
-				let linkage = LLVMLinkage::LLVMExternalLinkage;
-				unsafe { LLVMSetLinkage(function, linkage) };
+				// We already declared this.
 				Ok(())
 			}
 			Declaration::Structure { .. } =>
