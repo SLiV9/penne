@@ -352,7 +352,16 @@ impl Lintable for Expression
 			{
 				expression.lint(linter);
 			}
-			Expression::PrimitiveCast {
+			Expression::BitCast {
+				expression,
+				coerced_type: _,
+				location: _,
+				location_of_keyword: _,
+			} =>
+			{
+				expression.lint(linter);
+			}
+			Expression::TypeCast {
 				expression,
 				coerced_type: _,
 				location: _,

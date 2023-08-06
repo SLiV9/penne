@@ -465,7 +465,22 @@ impl Analyzable for Expression
 					coerced_type,
 				}
 			}
-			Expression::PrimitiveCast {
+			Expression::BitCast {
+				expression,
+				coerced_type,
+				location,
+				location_of_keyword,
+			} =>
+			{
+				let expression = expression.analyze(analyzer);
+				Expression::BitCast {
+					expression: Box::new(expression),
+					coerced_type,
+					location,
+					location_of_keyword,
+				}
+			}
+			Expression::TypeCast {
 				expression,
 				coerced_type,
 				location,
@@ -473,7 +488,7 @@ impl Analyzable for Expression
 			} =>
 			{
 				let expression = expression.analyze(analyzer);
-				Expression::PrimitiveCast {
+				Expression::TypeCast {
 					expression: Box::new(expression),
 					coerced_type,
 					location,

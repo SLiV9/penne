@@ -1,0 +1,9 @@
+fn main()
+{
+	var a: bool = cast 1i32;
+	var x: i32 = cast "hallo";
+	var y: [100]i32 = cast 3000i32;
+	var z: usize = cast [80i32];
+	var p: &bool = cast [0i32];
+	var u: [100]i32 = cast &p;
+}

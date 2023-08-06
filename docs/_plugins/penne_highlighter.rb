@@ -35,7 +35,7 @@ Jekyll::Hooks.register :site, :pre_render do |site|
 
 		def self.hard_keywords
 			@hard_keywords ||= %w(
-				fn var const if goto loop else as import pub extern
+				fn var const if goto loop else cast as import pub extern
 			)
 		end
 
@@ -75,7 +75,7 @@ Jekyll::Hooks.register :site, :pre_render do |site|
 
 		state :main do
 			rule %r/\b(var)\b/, Keyword::Pseudo, :var_identifier
-			rule %r/\b(as)\b/, Operator::Word
+			rule %r/\b(cast|as)\b/, Operator::Word
 			rule %r/\b(#{Penne.type_keywords.join('|')})\b/, Keyword::Type
 			rule %r/\b(pub|extern)\b/, Keyword::Pseudo
 			rule %r/\b(#{Penne.keywords.join('|')})\b/, Keyword

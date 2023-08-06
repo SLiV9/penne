@@ -192,6 +192,11 @@ pub enum Expression
 		expression: Box<Expression>,
 		coerced_type: ValueType,
 	},
+	BitCast
+	{
+		expression: Box<Expression>,
+		coerced_type: ValueType,
+	},
 	PrimitiveCast
 	{
 		expression: Box<Expression>,

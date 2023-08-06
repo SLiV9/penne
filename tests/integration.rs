@@ -56,6 +56,16 @@ fn emit_call_memcpy()
 }
 
 #[test]
+fn emit_call_malloc_array_of_i64()
+{
+	let mut cmd = Command::cargo_bin("penne").unwrap();
+	cmd.arg("emit");
+	cmd.arg("examples/libc/call_malloc_array_of_i64.pn");
+	cmd.arg("vendor:libc");
+	cmd.assert().success();
+}
+
+#[test]
 fn emit_wasm4_hello_from_penne()
 {
 	let mut cmd = Command::cargo_bin("penne").unwrap();

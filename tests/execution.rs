@@ -355,6 +355,14 @@ fn execute_identity_casting() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_cast_without_as() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation("tests/samples/valid/cast_without_as.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_structs_and_words() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation("examples/structs_and_words.pn")?;

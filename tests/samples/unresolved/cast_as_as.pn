@@ -1,0 +1,13 @@
+
+fn main() -> i32
+{
+	// These are all valud.
+	var p: &i32 = 0x0 as &i32;
+	var q1: &u32 = cast (&p as &i32) as &u32;
+	var r1: &u32 = cast &p;
+	// The following makes some sense without inner parentheses.
+	var q2: &u32 = cast &p as &i32 as &u32;
+	// But then that suggests that the following is also valid, which it isn't.
+	var r2: &u32 = cast &p as &i32;
+	return: 200
+}

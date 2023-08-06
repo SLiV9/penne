@@ -713,14 +713,36 @@ impl Resolvable for Expression
 					coerced_type,
 				})
 			}
-			Expression::PrimitiveCast {
+			Expression::BitCast {
+				expression,
+				coerced_type,
+				location,
+				location_of_keyword,
+			} =>
+			{
+				let coerced_type = analyze_bit_cast_and_get_coerced_type(
+					&expression,
+					coerced_type,
+					&location,
+					&location_of_keyword,
+				);
+				let expression = expression.resolve()?;
+				// If the expression contains errors, type inference will
+				// fail, but there is not much point in reporting that.
+				let coerced_type = coerced_type?;
+				Ok(resolved::Expression::BitCast {
+					expression,
+					coerced_type,
+				})
+			}
+			Expression::TypeCast {
 				expression,
 				coerced_type,
 				location: _,
 				location_of_type,
 			} =>
 			{
-				let expression_type = analyze_primitive_cast(
+				let expression_type = analyze_primitive_cast_and_get_value_type(
 					&expression,
 					coerced_type.clone(),
 					&location_of_type,
@@ -730,11 +752,18 @@ impl Resolvable for Expression
 				// If the expression contains errors, type inference will
 				// fail, but there is not much point in reporting that.
 				let expression_type = expression_type?;
-				Ok(resolved::Expression::PrimitiveCast {
-					expression,
-					expression_type,
-					coerced_type,
-				})
+				if let Some(expression_type) = expression_type
+				{
+					Ok(resolved::Expression::PrimitiveCast {
+						expression,
+						expression_type,
+						coerced_type,
+					})
+				}
+				else
+				{
+					Ok(*expression)
+				}
 			}
 			Expression::LengthOfArray {
 				reference,
@@ -1182,10 +1211,11 @@ fn analyze_operand_type(
 	}
 }
 
-fn analyze_primitive_cast(
+fn analyze_bit_cast_and_get_coerced_type(
 	expression: &Expression,
-	coerced_type: ValueType,
-	location_of_type: &Location,
+	coerced_type: Option<Poisonable<ValueType>>,
+	location_of_combined_expression: &Location,
+	location_of_keyword: &Location,
 ) -> Result<resolved::ValueType, Errors>
 {
 	let value_type = match expression.value_type()
@@ -1196,29 +1226,85 @@ fn analyze_primitive_cast(
 			location: expression.location().clone(),
 		})?,
 	};
-	if is_valid_primitive_cast(&value_type, &coerced_type)
+	let coerced_type = match coerced_type
 	{
-		value_type.resolve()
+		Some(Ok(vt)) => vt,
+		Some(Err(poison)) => Err(poison)?,
+		None => Err(Error::AmbiguousType {
+			location: location_of_combined_expression.clone(),
+		})?,
+	};
+	if is_valid_bit_cast(&value_type, &coerced_type)
+	{
+		coerced_type.resolve()
+	}
+	else
+	{
+		Err(Error::InvalidBitCast {
+			value_type,
+			coerced_type,
+			location_of_operand: expression.location().clone(),
+			location_of_type: location_of_keyword.clone(),
+		})?
+	}
+}
+
+fn analyze_primitive_cast_and_get_value_type(
+	expression: &Expression,
+	coerced_type: ValueType,
+	location_of_type: &Location,
+) -> Result<Option<resolved::ValueType>, Errors>
+{
+	let value_type = match expression.value_type()
+	{
+		Some(Ok(vt)) => vt,
+		Some(Err(poison)) => Err(poison)?,
+		None => Err(Error::AmbiguousType {
+			location: expression.location().clone(),
+		})?,
+	};
+	if value_type == coerced_type
+	{
+		// The "as" keyword is used both for type hints and for primitive casts.
+		// Type hints should not generate any code.
+		Ok(None)
+	}
+	else if is_valid_primitive_conversion(&value_type, &coerced_type)
+	{
+		value_type.resolve().map(Some)
+	}
+	else if is_valid_bit_cast(&value_type, &coerced_type)
+	{
+		Err(Error::InvalidPrimitiveConversion {
+			value_type,
+			coerced_type,
+			possible_value_types: Vec::default(),
+			possible_coerced_types: Vec::default(),
+			is_valid_bit_cast: true,
+			location_of_operand: expression.location().clone(),
+			location_of_type: location_of_type.clone(),
+		})?
 	}
 	else
 	{
 		let possible_value_types = VALID_PRIMITIVE_TYPES
 			.iter()
 			.filter(|vt| vt != &&coerced_type)
-			.filter(|vt| is_valid_primitive_cast(vt, &coerced_type))
+			.filter(|vt| is_valid_primitive_conversion(vt, &coerced_type))
 			.map(|x| OperandValueType::ValueType(x.clone()))
 			.collect();
 		let possible_coerced_types = VALID_PRIMITIVE_TYPES
 			.iter()
 			.filter(|ct| ct != &&value_type)
-			.filter(|ct| is_valid_primitive_cast(&value_type, ct))
+			.filter(|ct| is_valid_primitive_conversion(&value_type, ct))
 			.map(|x| OperandValueType::ValueType(x.clone()))
 			.collect();
-		Err(Error::InvalidPrimitiveCast {
+		Err(Error::InvalidPrimitiveConversion {
 			value_type,
 			coerced_type,
 			possible_value_types,
 			possible_coerced_types,
+			is_valid_bit_cast: false,
 			location_of_operand: expression.location().clone(),
 			location_of_type: location_of_type.clone(),
 		})?
@@ -1240,14 +1326,49 @@ const VALID_PRIMITIVE_TYPES: &[ValueType] = &[
 	ValueType::Bool,
 ];
 
-fn is_valid_primitive_cast(
+fn is_valid_bit_cast(value_type: &ValueType, coerced_type: &ValueType) -> bool
+{
+	match (value_type, coerced_type)
+	{
+		(x, y) if x == y => true,
+		(
+			ValueType::Pointer { deref_type: _ },
+			ValueType::Pointer { deref_type: _ },
+		) => true,
+		(
+			ValueType::Word {
+				identifier: _,
+				size_in_bytes,
+			},
+			other,
+		)
+		| (
+			other,
+			ValueType::Word {
+				identifier: _,
+				size_in_bytes,
+			},
+		) =>
+		{
+			let can_be_generated = false;
+			other.is_integral()
+				&& !other.is_signed()
+				&& other.known_size_in_bytes_as_word_member()
+					== Some(*size_in_bytes)
+				&& can_be_generated
+		}
+		(_, _) => false,
+	}
+}
+
+fn is_valid_primitive_conversion(
 	value_type: &ValueType,
 	coerced_type: &ValueType,
 ) -> bool
 {
 	match (value_type, coerced_type)
 	{
-		(x, y) if x == y => true,
+		(x, y) if x == y => false,
 		(vt, ct) if vt.is_integral() && ct.is_integral() => true,
 		(ValueType::Bool, ct) if ct.is_integral() => true,
 		(_, _) => false,

@@ -53,6 +53,7 @@ pub enum Token
 	Goto,
 	Loop,
 	Else,
+	Cast,
 	As,
 	Import,
 	Pub,
@@ -108,8 +109,10 @@ impl Location
 {
 	pub fn combined_with(self, other: &Location) -> Location
 	{
+		let start = std::cmp::min(self.span.start, other.span.start);
+		let end = std::cmp::max(self.span.end, other.span.end);
 		Location {
-			span: self.span.start..other.span.end,
+			span: start..end,
 			..self
 		}
 	}
@@ -296,6 +299,7 @@ fn lex_line(
 					"goto" => Token::Goto,
 					"loop" => Token::Loop,
 					"else" => Token::Else,
+					"cast" => Token::Cast,
 					"as" => Token::As,
 					"true" => Token::Bool(true),
 					"false" => Token::Bool(false),

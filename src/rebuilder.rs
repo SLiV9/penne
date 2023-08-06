@@ -707,7 +707,23 @@ impl Rebuildable for Expression
 				expression.rebuild(indentation)?,
 				coerced_type.rebuild(indentation)?,
 			)),
-			Expression::PrimitiveCast {
+			Expression::BitCast {
+				expression,
+				coerced_type: None,
+				location: _,
+				location_of_keyword: _,
+			} => Ok(format!("cast {}", expression.rebuild(indentation)?,)),
+			Expression::BitCast {
+				expression,
+				coerced_type: Some(coerced_type),
+				location: _,
+				location_of_keyword: _,
+			} => Ok(format!(
+				"cast<{}, {}>",
+				expression.rebuild(indentation)?,
+				coerced_type.rebuild(indentation)?,
+			)),
+			Expression::TypeCast {
 				expression,
 				coerced_type,
 				location: _,

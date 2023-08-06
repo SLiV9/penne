@@ -1127,6 +1127,10 @@ impl Generatable for Expression
 				expression,
 				coerced_type,
 			} => generate_autocoerce(expression, coerced_type, llvm),
+			Expression::BitCast {
+				expression,
+				coerced_type,
+			} => generate_bitcast(expression, coerced_type, llvm),
 			Expression::PrimitiveCast {
 				expression,
 				expression_type,
@@ -1935,6 +1939,21 @@ fn generate_tmp_address(
 	Ok(tmp)
 }
 
+fn generate_bitcast(
+	expression: &Expression,
+	coerced_type: &ValueType,
+	llvm: &mut Generator,
+) -> Result<LLVMValueRef, anyhow::Error>
+{
+	let value = expression.generate(llvm)?;
+	let dest_type = coerced_type.generate(llvm)?;
+	let tmpname = CString::new("")?;
+	let result = unsafe {
+		LLVMBuildBitCast(llvm.builder, value, dest_type, tmpname.as_ptr())
+	};
+	Ok(result)
+}
+
 fn generate_primitive_cast(
 	expression: &Expression,
 	expression_type: &ValueType,
@@ -1943,10 +1962,10 @@ fn generate_primitive_cast(
 ) -> Result<LLVMValueRef, anyhow::Error>
 {
 	let value = expression.generate(llvm)?;
-	generate_cast(value, expression_type, coerced_type, llvm)
+	generate_conversion(value, expression_type, coerced_type, llvm)
 }
 
-fn generate_cast(
+fn generate_conversion(
 	value: LLVMValueRef,
 	value_type: &ValueType,
 	coerced_type: &ValueType,
@@ -1955,7 +1974,7 @@ fn generate_cast(
 {
 	match (value_type, coerced_type)
 	{
-		(x, y) if x == y => Ok(value),
+		(x, y) if x == y => unreachable!(),
 		(vt, ct) if vt.is_integral() && ct.is_integral() =>
 		{
 			let src_type = value_type.generate(llvm)?;

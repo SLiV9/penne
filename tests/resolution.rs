@@ -237,6 +237,15 @@ fn fail_to_resolve_invalid_casts()
 }
 
 #[test]
+fn fail_to_resolve_invalid_bitcasts()
+{
+	compile_to_fail(
+		&[553, 553, 553, 553, 553, 553],
+		"tests/samples/invalid/invalid_bitcasts.pn",
+	)
+}
+
+#[test]
 fn fail_to_resolve_multiple_errors()
 {
 	compile_to_fail(

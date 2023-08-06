@@ -1349,27 +1349,48 @@ fn parse_multiplication(tokens: &mut Tokens) -> Result<Expression, Error>
 
 fn parse_singular_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 {
+	let location_of_bitcast = if let Some(Token::Cast) = peek(tokens)
+	{
+		let start = tokens.start_location_span();
+		tokens.pop_front();
+		Some(tokens.location_of_span(start))
+	}
+	else
+	{
+		None
+	};
+
 	let mut expression = parse_unary_expression(tokens)?;
 	let mut location = expression.location().clone();
 
+	if let Some(location_of_keyword) = location_of_bitcast
+	{
+		location = location.combined_with(&location_of_keyword);
+		expression = Expression::BitCast {
+			expression: Box::new(expression),
+			coerced_type: None,
+			location: location.clone(),
+			location_of_keyword,
+		}
+	}
+
 	loop
 	{
-		match peek(tokens)
+		if let Some(Token::As) = peek(tokens)
 		{
-			Some(Token::As) => (),
-			_ =>
-			{
-				return Ok(expression);
-			}
-		};
-		tokens.pop_front();
+			tokens.pop_front();
+		}
+		else
+		{
+			return Ok(expression);
+		}
 
 		let start = tokens.start_location_span();
 		let coerced_type = parse_wellformed_type(tokens)?;
 		let location_of_type = tokens.location_of_span(start);
 		location = location.combined_with(&location_of_type);
 
-		expression = Expression::PrimitiveCast {
+		expression = Expression::TypeCast {
 			expression: Box::new(expression),
 			coerced_type,
 			location: location.clone(),

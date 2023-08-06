@@ -3,6 +3,7 @@ Features:
 	✔	Pointers with automatic dereference @done (2022-09-20 14:56)
 	☐	If-statement-based pattern matching
 	☐	Tagged unions for error handling
+		☐	Basically sum types with | and flow typing
 
 Functionality:
 	✔	Void functions @done (2022-09-20 16:13)
@@ -17,8 +18,8 @@ Functionality:
 			☐	printf()/format() needs a %p
 			✘	builtin function (&T, usize) -> &T @cancelled (2023-07-10 15:14)
 				Not needed if you can cast &[]u8 to &T and &[]T
-			☐	Cast between pointer types (specifically from &T to &[]u8 and back)
-				☐	And check that the alignment is safe (i.e. no &[3]u8 to &u32)
+			✔	Cast between pointer types (specifically from &T to &[]u8 and back) @done (2023-08-05 17:40)
+				✘	And check that the alignment is safe (i.e. no &[3]u8 to &u32) @cancelled (2023-08-06 12:12)
 			☐	Error if using 0x0 to initialize a view or non-optional pointer
 	✔	Pass array by const-reference (slice) by default @done (2022-09-04 18:06)
 		☐	A [3]i32 parameter is typechecked as [3]i32 but implemented as []i32
@@ -52,10 +53,10 @@ Functionality:
 		✔	Think about difference between usize and upointer @done (2022-12-24 18:51)
 		✔	Allow integer type suffixes for 0x123 and 0b101 @done (2023-07-22 12:02)
 			✔ Make sure they default to u128 and do not cause E582 with "as" @done (2023-07-22 12:02)
-			☐	Sublime syntax highlighting
-			☐	Ruby syntax highlighting
 		☐	Think about size of bool again (especially generator.rs)
 	☐	Strong enums
+		☐	Convert enum to backing integer using `as`
+		☐	Bitcast (`cast`) backing integer as enum
 	☐	Optional
 		☐	Niches for pointers and enums
 		☐	Niches in non-extern structs that have one or more bytes of padding
@@ -74,6 +75,7 @@ Functionality:
 			Padding bits are undefined.
 		✔	Think about repr(C) and (disallowing) cast between word/struct/u128 @done (2022-12-15 18:16)
 			All structs and words are repr(C). There are no casts except transmute().
+		☐	Transmute ("cast") between wordX and uX (without LLVM bitcast)
 		✘	Reorder non-extern words and structs to shrink their size @cancelled (2022-12-15 20:50)
 		☐	Allow extern struct and words in externalize_type()
 			☐	Think about explicit view translated to "const T* const"
@@ -105,11 +107,6 @@ Functionality:
 		☐	memcpy(), memset()
 			☐	wasm4 basic-drawing.md code sample versimplen
 			☐	Write fix examples in error code reference for E531 through E533
-		☐	transmute() implemented met bitcast
-			☐	cast keyword gecombineerd met type hint ("cast x as &[10]i32")
-			☐	Alleen tussen pointers, tussen words en primitives, en tussen enums en primitives
-			☐	Check equal size of structs (even through pointers)
-			☐	wasm4 saving-data.md code sample versimpelen
 	☐	Compile-time string and byte-array inclusion from file
 	☐	Tuples
 		☐ var [x, y] = [123i64, true];
@@ -195,6 +192,7 @@ Usability:
 		☐	Add note when referencing variable from an inner scope
 
 Performance:
+	☐	Think about calling convention (ccc for libc and extern, fastcc elsewhere?)
 	☐	Add parameter attributes such as nonnull and readonly
 	☐	Take a look at issue #5
 
@@ -207,7 +205,6 @@ Documentation:
 		* Windows 64-bit (using Microsoft x64 ABI);
 		* the WASM-4 fantasy console (using WASI SDK).
 	☐	Changelog.md
-	☐	Fix mis-highlighting of parameters in pages
 	☐	Tags for crates.io
 	☐	Replace "total lines" github shield with "cloc src/"
 	☐	Improve test coverage
@@ -223,10 +220,12 @@ Documentation:
 		☐	Rethink necessity of is_immediate_parameter in generate_storage_address()
 		☐	Add tests that fully cover generate_autocoerce()
 			☐	Remove need for unimplemented!() somehow?
+	☐	Simplify wasm4 saving-data.md using cast
 
 Development:
 	☐	Release 0.4.0
 		☐	Add documentation for E359
+		☐	Add documentation for E553
 		☐	Flesh out core and vendor/libc
 		☐	Describe core as "batteries included but not pre-installed"
 		☐	Mention that "as" is safe, "cast" is unsafe / platform dependent
@@ -234,6 +233,8 @@ Development:
 
 Needed for Advent of Code:
 	☐	Equivalent of format!() using builtin magic
+		☐	stb_sprintf.h?
+		☐	Allocate on the stack with len = snprintf(1) and BuildArrayAlloca
 	☐	Equivalent of dbg!()
 		☐	file!() and line!() using builtin magic
 	☐	Equivalent of assert!()
@@ -246,7 +247,7 @@ Needed for Advent of Code:
 		☐	Optionals
 	☐	Heap allocation
 	✘	Vec, HashMap, HashSet, VecDeque, String @cancelled (2023-07-09 22:59)
-	☐	Tuples (for fmt and dbg, and for error handling)
+	✘	Tuples (for fmt and dbg, and for error handling) @cancelled (2023-08-05 11:49)
 	✘	Generic functions (for fmt and dbg) @cancelled (2023-07-09 22:58)
 	✘	Generic structs (for Vec and String and fmt) @cancelled (2023-07-09 22:58)
 	☐	Regex?

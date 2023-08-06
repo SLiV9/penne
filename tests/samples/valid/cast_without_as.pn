@@ -1,0 +1,13 @@
+
+fn main() -> i32
+{
+	var p: &i32 = 0x0;
+	// The variable type is mandatory, which makes the type hint optional.
+	var q: &u32 = cast &p;
+	var result = 200;
+	if &q != 0x0
+	{
+		result = -1;
+	}
+	return: result
+}

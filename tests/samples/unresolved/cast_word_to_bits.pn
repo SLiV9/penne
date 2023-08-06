@@ -1,0 +1,45 @@
+word32 Address {
+	a: u8,
+	b: u8,
+	c: u8,
+	d: u8,
+}
+
+fn main() -> i32
+{
+	var a = 0xAA;
+	var b = 0xBB;
+	var c = 0xCC;
+	var d = 0xDD;
+	var address = Address {
+		a, b, c, d
+	};
+	var bits = cast address as u32;
+	var result = -1;
+	if bits == 0xAABBCCDD
+	{
+		result = 200;
+	}
+	else if bits == 0xDDCCBBAA
+	{
+		result = 200;
+	}
+	var address2 = cast bits as Address;
+	if address2.a != address.a
+	{
+		result = -1;
+	}
+	if address2.b != address.b
+	{
+		result = -1;
+	}
+	if address2.c != address.c
+	{
+		result = -1;
+	}
+	if address2.d != address.d
+	{
+		result = -1;
+	}
+	return: result
+}

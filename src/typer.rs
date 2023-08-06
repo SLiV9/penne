@@ -1508,7 +1508,8 @@ impl Typed for Expression
 			{
 				Some(Ok(coerced_type.clone()))
 			}
-			Expression::PrimitiveCast { coerced_type, .. } =>
+			Expression::BitCast { coerced_type, .. } => coerced_type.clone(),
+			Expression::TypeCast { coerced_type, .. } =>
 			{
 				Some(Ok(coerced_type.clone()))
 			}
@@ -1679,7 +1680,32 @@ impl Analyzable for Expression
 				expression: _,
 				coerced_type: _,
 			} => self,
-			Expression::PrimitiveCast {
+			Expression::BitCast {
+				expression,
+				coerced_type,
+				location,
+				location_of_keyword,
+			} =>
+			{
+				// We cannot infer the type of `expression` from context,
+				// because it will always be `coerced_type`.
+				let contextual_type = typer.contextual_type.take();
+				let expr = expression.analyze(typer);
+				// But we can infer the coerced type from context.
+				let coerced_type = match coerced_type
+				{
+					Some(Ok(vt)) => Some(analyze_type(vt, typer)),
+					Some(err) => Some(err),
+					None => contextual_type,
+				};
+				Expression::BitCast {
+					expression: Box::new(expr),
+					coerced_type,
+					location,
+					location_of_keyword,
+				}
+			}
+			Expression::TypeCast {
 				expression,
 				coerced_type,
 				location,
@@ -1690,11 +1716,10 @@ impl Analyzable for Expression
 				{
 					// We cannot infer the type of `expression` from context,
 					// because it will always be `coerced_type`.
-					typer.contextual_type = None;
 					// But we can resolve ambiguities with a type hint.
 					typer.contextual_type = Some(Ok(coerced_type.clone()));
 					let expr = expression.analyze(typer);
-					Expression::PrimitiveCast {
+					Expression::TypeCast {
 						expression: Box::new(expr),
 						coerced_type,
 						location,

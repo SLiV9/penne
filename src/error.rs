@@ -538,12 +538,20 @@ pub enum Error
 		location_of_op: Location,
 		location_of_operand: Location,
 	},
-	InvalidPrimitiveCast
+	InvalidPrimitiveConversion
 	{
 		value_type: ValueType,
 		coerced_type: ValueType,
 		possible_value_types: Vec<OperandValueType>,
 		possible_coerced_types: Vec<OperandValueType>,
+		is_valid_bit_cast: bool,
+		location_of_operand: Location,
+		location_of_type: Location,
+	},
+	InvalidBitCast
+	{
+		value_type: ValueType,
+		coerced_type: ValueType,
 		location_of_operand: Location,
 		location_of_type: Location,
 	},
@@ -645,7 +653,8 @@ impl Error
 			Error::AddressOfTemporaryAddress { .. } => 538,
 			Error::InvalidOperandType { .. } => 550,
 			Error::MismatchedOperandTypes { .. } => 551,
-			Error::InvalidPrimitiveCast { .. } => 552,
+			Error::InvalidPrimitiveConversion { .. } => 552,
+			Error::InvalidBitCast { .. } => 553,
 			Error::AmbiguousType { .. } => 580,
 			Error::AmbiguousTypeOfDeclaration { .. } => 581,
 			Error::AmbiguousTypeOfNakedIntegerLiteral { .. } => 582,
@@ -769,7 +778,11 @@ impl Error
 			{
 				&location_of_op
 			}
-			Error::InvalidPrimitiveCast {
+			Error::InvalidPrimitiveConversion {
+				location_of_operand,
+				..
+			} => &location_of_operand,
+			Error::InvalidBitCast {
 				location_of_operand,
 				..
 			} => &location_of_operand,
@@ -2412,15 +2425,16 @@ fn write<'a>(
 					.with_color(SECONDARY),
 			),
 
-		Error::InvalidPrimitiveCast {
+		Error::InvalidPrimitiveConversion {
 			value_type,
 			coerced_type,
 			possible_value_types,
 			possible_coerced_types,
+			is_valid_bit_cast,
 			location_of_operand,
 			location_of_type,
 		} => report
-			.with_message("Invalid primitive cast")
+			.with_message("Invalid primitive conversion")
 			.with_label(
 				location_of_operand
 					.label()
@@ -2434,19 +2448,47 @@ fn write<'a>(
 				location_of_type
 					.label()
 					.with_message(format!(
-						"Cannot cast {} into {}.",
+						"Cannot convert {} into {}.",
 						show_type(value_type, colors.primary),
 						show_type(coerced_type, colors.secondary),
 					))
 					.with_color(SECONDARY),
 			)
-			.with_note(note_for_possible_casts(
+			.with_note(note_for_possible_conversions(
 				value_type,
 				coerced_type,
 				possible_value_types,
 				possible_coerced_types,
+				*is_valid_bit_cast,
 				colors,
 			)),
+
+		Error::InvalidBitCast {
+			value_type,
+			coerced_type,
+			location_of_operand,
+			location_of_type,
+		} => report
+			.with_message("Invalid bitcast")
+			.with_label(
+				location_of_operand
+					.label()
+					.with_message(format!(
+						"This has type {}.",
+						show_type(value_type, colors.primary)
+					))
+					.with_color(PRIMARY),
+			)
+			.with_label(
+				location_of_type
+					.label()
+					.with_message(format!(
+						"Cannot bitcast {} as {}.",
+						show_type(value_type, colors.primary),
+						show_type(coerced_type, colors.secondary),
+					))
+					.with_color(SECONDARY),
+			),
 
 		// Lints:
 		Error::LoopAsFirstStatement {
@@ -2529,22 +2571,30 @@ fn write<'a>(
 
 #[cfg_attr(coverage, no_coverage)]
 #[cfg(not(tarpaulin_include))]
-fn note_for_possible_casts(
+fn note_for_possible_conversions(
 	value_type: &ValueType,
 	coerced_type: &ValueType,
 	possible_value_types: &[OperandValueType],
 	possible_coerced_types: &[OperandValueType],
+	is_valid_bit_cast: bool,
 	colors: Colors,
 ) -> String
 {
-	if possible_coerced_types.is_empty()
+	if is_valid_bit_cast
 	{
-		"Can only cast between primitive types.".to_string()
+		format!(
+			"Prepend `{}` to bitcast between these types.",
+			"cast".fg(colors.primary)
+		)
+	}
+	else if possible_coerced_types.is_empty()
+	{
+		"Can only convert between primitive types.".to_string()
 	}
 	else if possible_value_types.is_empty()
 	{
 		format!(
-			"Can cast {} into {}.",
+			"Can convert {} into {}.",
 			show_type(value_type, colors.primary),
 			show_possible_types(possible_coerced_types, colors.secondary),
 		)
@@ -2552,7 +2602,7 @@ fn note_for_possible_casts(
 	else
 	{
 		format!(
-			"Can cast {} into {}, or {} into {}.",
+			"Can convert {} into {}, or {} into {}.",
 			show_type(value_type, colors.primary),
 			show_possible_types(possible_coerced_types, colors.secondary),
 			show_possible_types(possible_value_types, colors.primary),

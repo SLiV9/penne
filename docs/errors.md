@@ -520,7 +520,7 @@ const X: &i32 = &A;
 ### Explanation
 
 The value assigned to a constant must be evaluated at compile time.
-In addition to literals and other constants, constant expressions may use basic arithmetic, bitwise operations and primitive casts.
+In addition to literals and other constants, constant expressions may use basic arithmetic, bitwise operations and primitive conversions.
 
 ## Error code E361
 
@@ -1236,7 +1236,7 @@ fn main(data: []u8)
 }
 ```
 
-If the operands are primitives types, you can use primitive casting to do the conversion.
+If the operands are primitives types, you can use a primitive conversion.
 
 ```penne
 fn main(data: []u8)
@@ -1248,7 +1248,7 @@ fn main(data: []u8)
 
 ## Error code E552
 
-A primitive cast is attempted between incompatible types.
+A primitive conversion is attempted between incompatible types.
 
 ### Example of erroneous code
 

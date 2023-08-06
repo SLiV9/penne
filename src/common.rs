@@ -306,7 +306,14 @@ pub enum Expression
 		expression: Box<Expression>,
 		coerced_type: ValueType,
 	},
-	PrimitiveCast
+	BitCast
+	{
+		expression: Box<Expression>,
+		coerced_type: Option<Poisonable<ValueType>>,
+		location: Location,
+		location_of_keyword: Location,
+	},
+	TypeCast
 	{
 		expression: Box<Expression>,
 		coerced_type: ValueType,
@@ -349,7 +356,8 @@ impl Expression
 			Expression::Parenthesized { location, .. } => location,
 			Expression::Deref { reference, .. } => &reference.location,
 			Expression::Autocoerce { expression, .. } => expression.location(),
-			Expression::PrimitiveCast { location, .. } => location,
+			Expression::BitCast { location, .. } => location,
+			Expression::TypeCast { location, .. } => location,
 			Expression::LengthOfArray { location, .. } => &location,
 			Expression::SizeOf { location, .. } => &location,
 			Expression::FunctionCall { name, .. } => &name.location,

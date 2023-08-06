@@ -3,10 +3,10 @@ import "vendor:libc/stdlib.pn";
 fn main() -> u8
 {
 	var result = -1;
-	var ptr: &[10]i64 = malloc(10 * |:i64|) as &[10]i64;
+	var ptr: &[10]i64 = cast malloc(10 * |:i64|);
 	if &ptr == 0x0
 		goto after_free;
-	var i = 0;
+	var i: usize = 0;
 	{
 		if i == 10
 			goto done;
@@ -19,7 +19,7 @@ fn main() -> u8
 	done:
 	result = ptr[5];
 	error_occurred:
-	free(&ptr as &[...]u8);
+	free(cast &ptr as &[...]u8);
 	after_free:
 	return: result as u8
 }
