@@ -12,6 +12,7 @@ The following codesample displays a broad range of syntax.
 /// Example doc-style comment.
 
 const COLOR: u32 = 0xfb4934ff;
+const BIG_NUMBER: i32 = 500_000_000;
 
 const TRIPLE_BUFFER: [3]u32 = [128, 256, 512];
 

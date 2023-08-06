@@ -347,6 +347,11 @@ fn lex_line(
 								iter.next();
 								source_offset_end += 1;
 							}
+							else if y == '_'
+							{
+								iter.next();
+								source_offset_end += 1;
+							}
 							else
 							{
 								break;
@@ -372,6 +377,11 @@ fn lex_line(
 							if y.is_digit(2)
 							{
 								literal.push(y);
+								iter.next();
+								source_offset_end += 1;
+							}
+							else if y == '_'
+							{
 								iter.next();
 								source_offset_end += 1;
 							}
@@ -437,6 +447,11 @@ fn lex_line(
 					if y.is_ascii_digit()
 					{
 						literal.push(y);
+						iter.next();
+						source_offset_end += 1;
+					}
+					else if y == '_'
+					{
 						iter.next();
 						source_offset_end += 1;
 					}

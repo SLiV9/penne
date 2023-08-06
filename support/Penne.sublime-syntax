@@ -27,15 +27,15 @@ contexts:
     - match: "'"
       scope: punctuation.definition.string.begin.penne
       push: single_quoted_string
-    - match: '\b((-)?[0-9][.0-9]*)({{int_suffixes}})?\b'
+    - match: '\b((-)?[0-9][.0-9_]*)({{int_suffixes}})?\b'
       captures:
         1: constant.numeric.penne
         3: storage.type.numeric.penne
-    - match: '\b(0x[0-9a-fA-F]+)({{int_suffixes}})?\b'
+    - match: '\b(0x[0-9a-fA-F_]+)({{int_suffixes}})?\b'
       captures:
         1: constant.numeric.penne
         2: storage.type.numeric.penne
-    - match: '\b(0b[01]+)({{int_suffixes}})?\b'
+    - match: '\b(0b[01_]+)({{int_suffixes}})?\b'
       captures:
         1: constant.numeric.penne
         2: storage.type.numeric.penne

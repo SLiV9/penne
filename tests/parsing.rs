@@ -263,6 +263,12 @@ fn fail_to_parse_invalid_integer_suffix()
 }
 
 #[test]
+fn fail_to_parse_octal_literal()
+{
+	compile_to_fail(&[141], "tests/samples/invalid/octal_literal.pn")
+}
+
+#[test]
 fn fail_to_parse_octal_suffix()
 {
 	compile_to_fail(&[141], "tests/samples/invalid/octal_suffix.pn")
