@@ -93,6 +93,7 @@ Functionality:
 	☐	Heap allocation
 		☐	const X: &Foo = $static_alloc Foo { ... }; as a replacement for static globals
 			Do not allow dereffing X in const context.
+			Cannot be a compile-time const because the address itself can only be determined at linktime at best. This is the same in C.
 		☐	Build and document replacements for malloc, calloc, realloc and free
 			E.g. "var ptr: &[10]i64 = $something" is shorthand for
 			var ptr: &[10]i64 = cast malloc(10 * |:i64|);

@@ -10,6 +10,8 @@ pub trait Identifier: Clone + PartialEq {}
 
 impl Identifier for String {}
 
+impl Identifier for &'static str {}
+
 /// The maximum alignment of structure members is 8 bytes.
 pub const MAXIMUM_ALIGNMENT: usize = 8;
 
@@ -570,6 +572,7 @@ where
 	{
 		match self
 		{
+			ValueType::Void => false,
 			ValueType::Array { .. } => self.is_wellformed_inner(),
 			ValueType::ArrayWithNamedLength { .. } =>
 			{
@@ -589,6 +592,7 @@ where
 	{
 		match self
 		{
+			ValueType::Void => false,
 			ValueType::Array {
 				element_type,
 				length: _,

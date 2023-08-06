@@ -8,6 +8,7 @@
 //! from the common AST, potentially annotated with extra-syntactical markers.
 
 use crate::common::*;
+use crate::value_type;
 
 use std::fmt::Write;
 
@@ -54,7 +55,7 @@ impl std::fmt::Display for Indentation
 	}
 }
 
-trait Rebuildable
+pub trait Rebuildable
 {
 	fn rebuild(
 		&self,
@@ -779,13 +780,16 @@ impl Rebuildable for Expression
 	}
 }
 
-impl Rebuildable for ValueType
+impl<I> Rebuildable for value_type::ValueType<I>
+where
+	I: value_type::Identifier + Rebuildable,
 {
 	fn rebuild(
 		&self,
 		indentation: &Indentation,
 	) -> Result<String, anyhow::Error>
 	{
+		use value_type::ValueType;
 		match self
 		{
 			ValueType::Void => Ok("void".to_string()),
@@ -814,7 +818,7 @@ impl Rebuildable for ValueType
 				named_length,
 			} => Ok(format!(
 				"[{}]{}",
-				identify(named_length),
+				named_length.rebuild(indentation)?,
 				element_type.rebuild(indentation)?
 			)),
 			ValueType::Slice { element_type } =>
@@ -833,18 +837,21 @@ impl Rebuildable for ValueType
 			{
 				Ok(format!("[]{}", element_type.rebuild(indentation)?))
 			}
-			ValueType::Struct { identifier } => Ok(identify(identifier)),
+			ValueType::Struct { identifier } =>
+			{
+				Ok(identifier.rebuild(indentation)?)
+			}
 			ValueType::Word {
 				identifier,
 				size_in_bytes: _,
-			} => Ok(identify(identifier)),
+			} => Ok(identifier.rebuild(indentation)?),
 			ValueType::UnresolvedStructOrWord { identifier } =>
 			{
 				match identifier
 				{
 					Some(identifier) =>
 					{
-						Ok(format!("{}#?", identify(identifier)))
+						Ok(format!("{}#?", identifier.rebuild(indentation)?))
 					}
 					None => Ok("structure".to_string()),
 				}
@@ -950,6 +957,17 @@ fn identify(identifier: &Identifier) -> String
 	else
 	{
 		identifier.name.to_string()
+	}
+}
+
+impl Rebuildable for &'static str
+{
+	fn rebuild(
+		&self,
+		_indentation: &Indentation,
+	) -> Result<String, anyhow::Error>
+	{
+		Ok(self.to_string())
 	}
 }
 
