@@ -183,7 +183,11 @@ impl Lintable for Statement
 				reference.lint(linter);
 				value.lint(linter);
 			}
-			Statement::MethodCall { name: _, arguments } =>
+			Statement::MethodCall {
+				name: _,
+				builtin: _,
+				arguments,
+			} =>
 			{
 				for argument in arguments
 				{
@@ -387,6 +391,7 @@ impl Lintable for Expression
 			Expression::SizeOf { .. } => (),
 			Expression::FunctionCall {
 				name: _,
+				builtin: _,
 				arguments,
 				return_type: _,
 			} =>

@@ -318,10 +318,26 @@ impl Analyzable for Statement
 					location,
 				}
 			}
-			Statement::MethodCall { name, arguments } =>
+			Statement::MethodCall {
+				name,
+				builtin,
+				arguments,
+			} =>
 			{
-				let recoverable_error =
-					analyzer.use_function(&name, &arguments);
+				let recoverable_error = if let Some(builtin) = &builtin
+				{
+					analyze_builtin(
+						&name,
+						builtin,
+						&arguments,
+						&ValueType::Void,
+						analyzer,
+					)
+				}
+				else
+				{
+					analyzer.use_function(&name, &arguments)
+				};
 				let arguments = arguments
 					.into_iter()
 					.map(|argument| {
@@ -333,7 +349,11 @@ impl Analyzable for Statement
 
 				match recoverable_error
 				{
-					Ok(()) => Statement::MethodCall { name, arguments },
+					Ok(()) => Statement::MethodCall {
+						name,
+						builtin,
+						arguments,
+					},
 					Err(error) => Statement::Poison(Poison::Error(error)),
 				}
 			}
@@ -607,12 +627,25 @@ impl Analyzable for Expression
 			Expression::SizeOf { .. } => self,
 			Expression::FunctionCall {
 				name,
+				builtin,
 				arguments,
 				return_type,
 			} =>
 			{
-				let recoverable_error =
-					analyzer.use_function(&name, &arguments);
+				let recoverable_error = if let Some(builtin) = &builtin
+				{
+					analyze_builtin(
+						&name,
+						builtin,
+						&arguments,
+						&ValueType::Void,
+						analyzer,
+					)
+				}
+				else
+				{
+					analyzer.use_function(&name, &arguments)
+				};
 				let arguments = arguments
 					.into_iter()
 					.map(|argument| {
@@ -626,6 +659,7 @@ impl Analyzable for Expression
 				{
 					Ok(()) => Expression::FunctionCall {
 						name,
+						builtin,
 						arguments,
 						return_type,
 					},
@@ -693,5 +727,22 @@ impl Analyzable for Reference
 			location: self.location,
 			location_of_unaddressed: self.location_of_unaddressed,
 		}
+	}
+}
+
+fn analyze_builtin(
+	name: &Identifier,
+	builtin: &Builtin,
+	arguments: &[Expression],
+	return_type: &ValueType,
+	analyzer: &mut Analyzer,
+) -> Result<(), Error>
+{
+	match builtin
+	{
+		Builtin::GeneratorBuiltin(GeneratorBuiltin::Format) => todo!(),
+		Builtin::GeneratorBuiltin(GeneratorBuiltin::Abort) => todo!(),
+		Builtin::TyperBuiltin(_) => unreachable!(),
+		Builtin::ParserMacro(_) => unreachable!(),
 	}
 }

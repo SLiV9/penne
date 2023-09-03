@@ -1,15 +1,8 @@
 const C: &[500_000_000]u8 = alloc!();
 
-fn foo(x: &&u8)
-{
-	// This should not be allowed because pointees are mutable.
-	&x = &C;
-}
-
 fn main() -> u8
 {
-	var a: u8 = 17;
-	var x: &u8 = &a;
-	foo(&&x);
-	return: x
+	C[0] = 40;
+	C[14_856_737] = C[0] * C[0];
+	return: C[0] + C[14_856_737]
 }

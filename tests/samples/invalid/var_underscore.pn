@@ -1,0 +1,6 @@
+
+fn main() -> i32
+{
+	var _ = 400;
+	return: _
+}

@@ -1274,7 +1274,11 @@ impl Analyzable for Statement
 					location,
 				}
 			}
-			Statement::MethodCall { name, arguments } =>
+			Statement::MethodCall {
+				name,
+				builtin: None,
+				arguments,
+			} =>
 			{
 				let arguments: Vec<Expression> = arguments
 					.into_iter()
@@ -1282,8 +1286,28 @@ impl Analyzable for Statement
 					.collect();
 				match analyzer.use_function(name)
 				{
-					Ok(name) => Statement::MethodCall { name, arguments },
+					Ok(name) => Statement::MethodCall {
+						name,
+						builtin: None,
+						arguments,
+					},
 					Err(error) => Statement::Poison(Poison::Error(error)),
+				}
+			}
+			Statement::MethodCall {
+				name,
+				builtin: Some(builtin),
+				arguments,
+			} =>
+			{
+				let arguments: Vec<Expression> = arguments
+					.into_iter()
+					.map(|a| a.analyze(analyzer))
+					.collect();
+				Statement::MethodCall {
+					name,
+					builtin: Some(builtin),
+					arguments,
 				}
 			}
 			Statement::Loop { .. } => self,
@@ -1536,6 +1560,7 @@ impl Analyzable for Expression
 			},
 			Expression::FunctionCall {
 				name,
+				builtin: None,
 				arguments,
 				return_type,
 			} =>
@@ -1548,10 +1573,29 @@ impl Analyzable for Expression
 				{
 					Ok(name) => Expression::FunctionCall {
 						name,
+						builtin: None,
 						arguments,
 						return_type,
 					},
 					Err(error) => Expression::Poison(Poison::Error(error)),
+				}
+			}
+			Expression::FunctionCall {
+				name,
+				builtin: Some(builtin),
+				arguments,
+				return_type,
+			} =>
+			{
+				let arguments: Vec<Expression> = arguments
+					.into_iter()
+					.map(|a| a.analyze(analyzer))
+					.collect();
+				Expression::FunctionCall {
+					name,
+					builtin: Some(builtin),
+					arguments,
+					return_type,
 				}
 			}
 			Expression::Poison(_) => self,

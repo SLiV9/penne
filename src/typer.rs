@@ -433,17 +433,27 @@ impl Typer
 			};
 		let parameter_hints = parameter_types
 			.into_iter()
-			.chain(std::iter::repeat(Err(Poison::Poisoned)));
+			.chain(std::iter::repeat(Err(Poison::Poisoned)))
+			.map(Some);
+		self.analyze_hinted_arguments(parameter_hints, arguments)
+	}
+
+	fn analyze_hinted_arguments(
+		&mut self,
+		parameter_hints: impl Iterator<Item = Option<Poisonable<ValueType>>>,
+		arguments: Vec<Expression>,
+	) -> Vec<Expression>
+	{
 		let arguments: Vec<Expression> = arguments
 			.into_iter()
 			.zip(parameter_hints)
 			.map(|(argument, parameter_hint)| {
-				self.contextual_type = Some(parameter_hint.clone());
+				self.contextual_type = parameter_hint.clone();
 				let expr = argument.analyze(self);
 				match (expr.value_type(), parameter_hint)
 				{
-					(Some(Ok(vt)), Ok(pt)) if vt == pt => expr,
-					(Some(Ok(vt)), Ok(pt)) if vt.can_coerce_into(&pt) =>
+					(Some(Ok(vt)), Some(Ok(pt))) if vt == pt => expr,
+					(Some(Ok(vt)), Some(Ok(pt))) if vt.can_coerce_into(&pt) =>
 					{
 						Expression::Autocoerce {
 							expression: Box::new(expr),
@@ -1359,11 +1369,49 @@ impl Analyzable for Statement
 					location,
 				}
 			}
-			Statement::MethodCall { name, arguments } =>
+			Statement::MethodCall {
+				name,
+				builtin: None,
+				arguments,
+			} =>
 			{
 				let arguments =
 					typer.analyze_function_arguments(&name, arguments);
-				Statement::MethodCall { name, arguments }
+				Statement::MethodCall {
+					name,
+					builtin: None,
+					arguments,
+				}
+			}
+			Statement::MethodCall {
+				name,
+				builtin: Some(builtin),
+				arguments,
+			} =>
+			{
+				let (arguments, return_type) = analyze_builtin(
+					&name,
+					&builtin,
+					arguments,
+					Some(Ok(ValueType::Void)),
+					typer,
+				);
+				match return_type
+				{
+					Some(Ok(_)) => Statement::MethodCall {
+						name,
+						builtin: Some(builtin),
+						arguments,
+					},
+					Some(Err(err)) => Statement::Poison(err),
+					None =>
+					{
+						let err = Error::AmbiguousType {
+							location: name.location,
+						};
+						Statement::Poison(Poison::Error(err))
+					}
+				}
 			}
 			Statement::Loop { .. } => self,
 			Statement::Goto { .. } => self,
@@ -1858,6 +1906,7 @@ impl Analyzable for Expression
 			},
 			Expression::FunctionCall {
 				name,
+				builtin: None,
 				arguments,
 				return_type,
 			} =>
@@ -1870,6 +1919,7 @@ impl Analyzable for Expression
 					typer.analyze_function_arguments(&name, arguments);
 				let expr = Expression::FunctionCall {
 					name,
+					builtin: None,
 					arguments,
 					return_type,
 				};
@@ -1877,6 +1927,27 @@ impl Analyzable for Expression
 				{
 					Ok(()) => expr,
 					Err(error) => Expression::Poison(Poison::Error(error)),
+				}
+			}
+			Expression::FunctionCall {
+				name,
+				builtin: Some(builtin),
+				arguments,
+				return_type,
+			} =>
+			{
+				let (arguments, return_type) = analyze_builtin(
+					&name,
+					&builtin,
+					arguments,
+					return_type,
+					typer,
+				);
+				Expression::FunctionCall {
+					name,
+					builtin: Some(builtin),
+					arguments,
+					return_type,
 				}
 			}
 			Expression::Poison(_) => self,
@@ -3245,5 +3316,33 @@ fn externalize_type(
 			location_of_type: location_of_type.clone(),
 			location_of_declaration: location_of_declaration.clone(),
 		}),
+	}
+}
+
+fn analyze_builtin(
+	name: &Identifier,
+	builtin: &Builtin,
+	arguments: Vec<Expression>,
+	return_type: Option<Poisonable<ValueType>>,
+	typer: &mut Typer,
+) -> (Vec<Expression>, Option<Poisonable<ValueType>>)
+{
+	match builtin
+	{
+		Builtin::GeneratorBuiltin(GeneratorBuiltin::Format) => todo!(),
+		Builtin::GeneratorBuiltin(GeneratorBuiltin::Abort) => todo!(),
+		Builtin::TyperBuiltin(TyperBuiltin::PointerOf) =>
+		{
+			todo!()
+		}
+		Builtin::TyperBuiltin(TyperBuiltin::InferTypeOf) =>
+		{
+			todo!()
+		}
+		Builtin::TyperBuiltin(TyperBuiltin::SizeOfInferredType) =>
+		{
+			todo!()
+		}
+		Builtin::ParserMacro(_) => unreachable!(),
 	}
 }

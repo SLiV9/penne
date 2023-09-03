@@ -7,6 +7,7 @@
 //! Most compiler stages share a common AST.
 
 use enumset::{EnumSet, EnumSetType};
+use serde::{Deserialize, Serialize};
 
 pub use crate::error::{Poison, Poisonable};
 pub use crate::lexer::Location;
@@ -131,6 +132,7 @@ pub enum Statement
 	MethodCall
 	{
 		name: Identifier,
+		builtin: Option<Builtin>,
 		arguments: Vec<Expression>,
 	},
 	Loop
@@ -334,6 +336,7 @@ pub enum Expression
 	FunctionCall
 	{
 		name: Identifier,
+		builtin: Option<Builtin>,
 		arguments: Vec<Expression>,
 		return_type: Option<Poisonable<ValueType>>,
 	},
@@ -359,8 +362,8 @@ impl Expression
 			Expression::Autocoerce { expression, .. } => expression.location(),
 			Expression::BitCast { location, .. } => location,
 			Expression::TypeCast { location, .. } => location,
-			Expression::LengthOfArray { location, .. } => &location,
-			Expression::SizeOf { location, .. } => &location,
+			Expression::LengthOfArray { location, .. } => location,
+			Expression::SizeOf { location, .. } => location,
 			Expression::FunctionCall { name, .. } => &name.location,
 			Expression::Poison(Poison::Error { .. }) => unreachable!(),
 			Expression::Poison(Poison::Poisoned) => unreachable!(),
@@ -516,4 +519,57 @@ impl PartialEq for Identifier
 			self.location == other.location
 		}
 	}
+}
+
+#[must_use]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged, rename_all = "snake_case")]
+pub enum Builtin
+{
+	GeneratorBuiltin(GeneratorBuiltin),
+	TyperBuiltin(TyperBuiltin),
+	ParserMacro(ParserMacro),
+}
+
+#[must_use]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GeneratorBuiltin
+{
+	Format,
+	Abort,
+}
+
+#[must_use]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TyperBuiltin
+{
+	PointerOf,
+	InferTypeOf,
+	SizeOfInferredType,
+}
+
+#[must_use]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ParserMacro
+{
+	NameOfInferredType,
+	File,
+	Line,
+	IncludeBytes,
+	Write,
+	Print,
+	Eprint,
+	Println,
+	Eprintln,
+	#[serde(rename = "dbg")]
+	Debug,
+	Panic,
+	Assert,
+	Unimplemented,
+	Todo,
+	Alloc,
+	Free,
 }

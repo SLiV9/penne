@@ -717,6 +717,23 @@ impl Generatable for Statement
 				}
 				Ok(())
 			}
+			Statement::Builtin { builtin, arguments } =>
+			{
+				let values: Result<Vec<LLVMValueRef>, anyhow::Error> =
+					arguments
+						.iter()
+						.map(|argument| argument.generate(llvm))
+						.collect();
+				let values: Vec<LLVMValueRef> = values?;
+				generate_builtin(
+					builtin,
+					arguments,
+					values,
+					&ValueType::Void,
+					llvm,
+				)?;
+				Ok(())
+			}
 			Statement::Loop { .. } => unreachable!(),
 			Statement::Goto { label } =>
 			{
@@ -1190,6 +1207,20 @@ impl Generatable for Expression
 					)
 				};
 				Ok(result)
+			}
+			Expression::Builtin {
+				builtin,
+				arguments,
+				return_type,
+			} =>
+			{
+				let values: Result<Vec<LLVMValueRef>, anyhow::Error> =
+					arguments
+						.iter()
+						.map(|argument| argument.generate(llvm))
+						.collect();
+				let values: Vec<LLVMValueRef> = values?;
+				generate_builtin(builtin, arguments, values, return_type, llvm)
 			}
 		}
 	}
@@ -2032,6 +2063,21 @@ fn generate_conversion(
 			Ok(result)
 		}
 		(_, _) => unreachable!(),
+	}
+}
+
+fn generate_builtin(
+	builtin: &GeneratorBuiltin,
+	arguments: &[Expression],
+	values: Vec<LLVMValueRef>,
+	return_type: &ValueType,
+	llvm: &mut Generator,
+) -> Result<LLVMValueRef, anyhow::Error>
+{
+	match builtin
+	{
+		GeneratorBuiltin::Format => todo!(),
+		GeneratorBuiltin::Abort => todo!(),
 	}
 }
 

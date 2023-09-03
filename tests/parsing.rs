@@ -311,7 +311,7 @@ fn fail_to_parse_binary_integer_too_big()
 }
 
 #[test]
-fn unfinished_function_signature()
+fn fail_to_parse_unfinished_function_signature()
 {
 	compile_to_fail(
 		&[300],
@@ -464,4 +464,10 @@ fn fail_to_parse_expression_in_array_length()
 		&[300, 300, 300],
 		"tests/samples/invalid/expression_in_array_length.pn",
 	)
+}
+
+#[test]
+fn fail_to_parse_var_underscore()
+{
+	compile_to_fail(&[300], "tests/samples/invalid/var_underscore.pn")
 }

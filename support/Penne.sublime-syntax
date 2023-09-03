@@ -65,6 +65,12 @@ contexts:
       push: structural
     - match: '\b({{identifier}})\s*(?=\{)'
       push: structural
+    - match: '\b({{keyword}})\!'
+      scope: invalid.illegal.penne
+    - match: '\b({{identifier}})\!'
+      scope: support.function
+    - match: '\b_\b'
+      scope: invalid.illegal.penne
     - include: keywords
 
   keywords:

@@ -496,10 +496,21 @@ impl Rebuildable for Statement
 				reference.rebuild(&indentation.increased())?,
 				value.rebuild(&indentation.increased())?
 			)),
-			Statement::MethodCall { name, arguments } =>
+			Statement::MethodCall {
+				name,
+				builtin,
+				arguments,
+			} =>
 			{
 				let mut buffer = String::new();
-				write!(&mut buffer, "{}{}(", indentation, identify(name))?;
+				if let Some(builtin) = builtin
+				{
+					write!(&mut buffer, "{}{}!#!(", indentation, name.name)?;
+				}
+				else
+				{
+					write!(&mut buffer, "{}{}(", indentation, identify(name))?;
+				}
 				if let Some((first, others)) = arguments.split_first()
 				{
 					write!(
@@ -750,12 +761,20 @@ impl Rebuildable for Expression
 			)),
 			Expression::FunctionCall {
 				name,
+				builtin,
 				arguments,
 				return_type: _,
 			} =>
 			{
 				let mut buffer = String::new();
-				write!(&mut buffer, "{}(", identify(name))?;
+				if let Some(builtin) = builtin
+				{
+					write!(&mut buffer, "{}!#!(", name.name)?;
+				}
+				else
+				{
+					write!(&mut buffer, "{}(", identify(name))?;
+				}
 				if let Some((first, others)) = arguments.split_first()
 				{
 					write!(

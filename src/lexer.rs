@@ -24,6 +24,7 @@ pub enum Token
 	Ampersand,
 	Caret,
 	Exclamation,
+	Placeholder,
 	Plus,
 	Minus,
 	Times,
@@ -67,6 +68,7 @@ pub enum Token
 
 	// Literals.
 	Identifier(String),
+	Builtin(String),
 	NakedDecimal(u128),
 	BitInteger(u128),
 	SuffixedInteger
@@ -325,7 +327,20 @@ fn lex_line(
 					"word32" => Token::Word32,
 					"word64" => Token::Word64,
 					"word128" => Token::Word128,
-					_ => Token::Identifier(identifier),
+					"_" => Token::Placeholder,
+					_identifier =>
+					{
+						if let Some(&(_, '!')) = iter.peek()
+						{
+							iter.next();
+							source_offset_end += 1;
+							Token::Builtin(identifier)
+						}
+						else
+						{
+							Token::Identifier(identifier)
+						}
+					}
 				};
 				Ok(token)
 			}

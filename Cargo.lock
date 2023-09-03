@@ -491,6 +491,7 @@ dependencies = [
  "llvm-sys",
  "pretty_assertions",
  "serde",
+ "serde_plain",
  "tempfile",
  "termcolor",
  "toml",
@@ -659,6 +660,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.10",
+]
+
+[[package]]
+name = "serde_plain"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ce1fc6db65a611022b23a0dec6975d63fb80a302cb3388835ff02c097258d50"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

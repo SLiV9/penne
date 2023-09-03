@@ -430,10 +430,29 @@ impl Resolvable for Statement
 			} => Err(Error::AmbiguousType {
 				location: value.location().clone(),
 			})?,
-			Statement::MethodCall { name, arguments } =>
+			Statement::MethodCall {
+				name,
+				builtin: None,
+				arguments,
+			} =>
 			{
 				let (name, arguments) = (name, arguments).resolve()?;
 				Ok(resolved::Statement::MethodCall { name, arguments })
+			}
+			Statement::MethodCall {
+				name: _,
+				builtin: Some(builtin),
+				arguments,
+			} =>
+			{
+				let arguments = arguments.resolve()?;
+				let builtin = match builtin
+				{
+					Builtin::GeneratorBuiltin(builtin) => builtin,
+					Builtin::TyperBuiltin(_) => unreachable!(),
+					Builtin::ParserMacro(_) => unreachable!(),
+				};
+				Ok(resolved::Statement::Builtin { builtin, arguments })
 			}
 			Statement::Loop { .. } => Ok(resolved::Statement::Loop),
 			Statement::Goto { label, location: _ } =>
@@ -781,6 +800,7 @@ impl Resolvable for Expression
 			}
 			Expression::FunctionCall {
 				name,
+				builtin: None,
 				arguments,
 				return_type,
 			} =>
@@ -795,6 +815,37 @@ impl Resolvable for Expression
 						name,
 						arguments,
 						return_type: return_type.resolve()?,
+					})
+				}
+				else
+				{
+					Err(Error::AmbiguousType { location })?
+				}
+			}
+			Expression::FunctionCall {
+				name,
+				builtin: Some(builtin),
+				arguments,
+				return_type,
+			} =>
+			{
+				// If the arguments fail to resolve, there is no point in
+				// reporting about type inference.
+				let location = name.location;
+				let arguments = arguments.resolve()?;
+				if let Some(return_type) = return_type
+				{
+					let builtin = match builtin
+					{
+						Builtin::GeneratorBuiltin(builtin) => builtin,
+						Builtin::TyperBuiltin(_) => unreachable!(),
+						Builtin::ParserMacro(_) => unreachable!(),
+					};
+					let return_type = return_type.resolve()?;
+					Ok(resolved::Expression::Builtin {
+						builtin,
+						arguments,
+						return_type,
 					})
 				}
 				else

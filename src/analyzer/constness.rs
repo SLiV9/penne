@@ -247,6 +247,7 @@ impl Analyzable for Expression
 			Expression::SizeOf { .. } => self,
 			Expression::FunctionCall {
 				name,
+				builtin: _,
 				arguments: _,
 				return_type: _,
 			} =>

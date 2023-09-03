@@ -1070,6 +1070,7 @@ fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 				let arguments = parse_arguments(tokens)?;
 				let statement = Statement::MethodCall {
 					name: identifier,
+					builtin: None,
 					arguments,
 				};
 				consume(Token::Semicolon, tokens)?;
@@ -1097,6 +1098,24 @@ fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 			};
 			consume(Token::Semicolon, tokens)?;
 			Ok(statement)
+		}
+		Token::Builtin(name) =>
+		{
+			let (name, builtin) = find_builtin(name);
+			let identifier = Identifier {
+				name,
+				location,
+				resolution_id: 0,
+				is_authoritative: false,
+			};
+			let arguments = parse_arguments(tokens)?;
+			let statement = Statement::MethodCall {
+				name: identifier,
+				builtin,
+				arguments,
+			};
+			consume(Token::Semicolon, tokens)?;
+			return Ok(statement);
 		}
 		Token::Ampersand =>
 		{
@@ -1569,6 +1588,7 @@ fn parse_primary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 				let arguments = parse_arguments(tokens)?;
 				Ok(Expression::FunctionCall {
 					name: identifier,
+					builtin: None,
 					arguments,
 					return_type: None,
 				})
@@ -1601,6 +1621,23 @@ fn parse_primary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 					deref_type: None,
 				})
 			}
+		}
+		Token::Builtin(name) =>
+		{
+			let (name, builtin) = find_builtin(name);
+			let identifier = Identifier {
+				name,
+				location,
+				resolution_id: 0,
+				is_authoritative: false,
+			};
+			let arguments = parse_arguments(tokens)?;
+			Ok(Expression::FunctionCall {
+				name: identifier,
+				builtin,
+				arguments,
+				return_type: None,
+			})
 		}
 		Token::Ampersand =>
 		{
@@ -1886,4 +1923,14 @@ fn parse_rest_of_reference(
 		location,
 		location_of_unaddressed,
 	})
+}
+
+fn find_builtin(mut name: String) -> (String, Option<Builtin>)
+{
+	let builtin = serde_plain::from_str(&name).ok();
+	if builtin.is_none()
+	{
+		name.push_str("!");
+	}
+	(name, builtin)
 }

@@ -101,15 +101,14 @@ Functionality:
 		☐	vendor:libc
 			✔	malloc, calloc, realloc and free @done (2023-03-28 18:27)
 			✔	memchr, memcmp, memset, memcpy, memmove @done (2023-03-28 18:27)
+				☐	wasm4 basic-drawing.md code sample versimplen
+				☐	Write fix examples in error code reference for E531 through E533
 			✔	think about "u8 as i32" parameters, vs treating all extern u8 parameters as u64 in terms of zero initializing @done (2023-08-06 14:43)
 				For the Windows x64 calling convention, any integer up to 64 bits takes an entire 64 bits register, so zero initializing would be sane.
 				For System V is is the same, and LLVM inserts movzbl to do this already.
 		☐	panic()
 		☐	print(), eprint()
 		☐	fopen(), fclose()
-		☐	memcpy(), memset()
-			☐	wasm4 basic-drawing.md code sample versimplen
-			☐	Write fix examples in error code reference for E531 through E533
 	☐	Compile-time string and byte-array inclusion from file
 	☐	Tuples
 		☐ var [x, y] = [123i64, true];
@@ -235,7 +234,8 @@ Development:
 
 Needed for Advent of Code:
 	☐	Equivalent of format!() using builtin magic
-		☐	stb_sprintf.h?
+		✘	stb_sprintf.h? @cancelled (2023-08-26 15:24)
+			We need to link with libc anyway for any real program
 		☐	Allocate on the stack with len = snprintf(1) and BuildArrayAlloca
 	☐	Equivalent of dbg!()
 		☐	file!() and line!() using builtin magic

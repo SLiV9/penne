@@ -8,6 +8,7 @@
 //! IR generation.
 
 pub use crate::common::DeclarationFlag;
+pub use crate::common::GeneratorBuiltin;
 pub use crate::common::{BinaryOp, ComparisonOp, UnaryOp};
 
 use crate::value_type;
@@ -112,6 +113,11 @@ pub enum Statement
 		name: Identifier,
 		arguments: Vec<Expression>,
 	},
+	Builtin
+	{
+		builtin: GeneratorBuiltin,
+		arguments: Vec<Expression>,
+	},
 	Loop,
 	Goto
 	{
@@ -214,6 +220,12 @@ pub enum Expression
 	FunctionCall
 	{
 		name: Identifier,
+		arguments: Vec<Expression>,
+		return_type: ValueType,
+	},
+	Builtin
+	{
+		builtin: GeneratorBuiltin,
 		arguments: Vec<Expression>,
 		return_type: ValueType,
 	},

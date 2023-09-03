@@ -293,13 +293,21 @@ impl Analyzable for Statement
 					Err(poison) => Statement::Poison(poison),
 				}
 			}
-			Statement::MethodCall { name, arguments } =>
+			Statement::MethodCall {
+				name,
+				builtin,
+				arguments,
+			} =>
 			{
 				let arguments = arguments
 					.into_iter()
 					.map(|x| x.analyze(analyzer))
 					.collect();
-				Statement::MethodCall { name, arguments }
+				Statement::MethodCall {
+					name,
+					builtin,
+					arguments,
+				}
 			}
 			Statement::Loop { .. } => self,
 			Statement::Goto { .. } => self,
@@ -530,6 +538,7 @@ impl Analyzable for Expression
 			Expression::SizeOf { .. } => self,
 			Expression::FunctionCall {
 				name,
+				builtin,
 				arguments,
 				return_type,
 			} =>
@@ -540,6 +549,7 @@ impl Analyzable for Expression
 					.collect();
 				Expression::FunctionCall {
 					name,
+					builtin,
 					arguments,
 					return_type,
 				}

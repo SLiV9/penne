@@ -1,0 +1,110 @@
+/// BUILTINS PROCESSED BY GENERATOR ///
+
+{}  =>  // ???
+format!("...", ...)  ==>  generated code
+
+abort!()  ==>  llvm.trap intrinsic
+
+
+
+/// BUILTINS PROCESSED BY REBUILDER ///
+
+#X  =>  // rebuilder.rebuild()
+
+
+
+/// BUILTINS PROCESSED BY TYPER ///
+
+// Set resolution_id during scoping, but change address_depth during typing.
+pointer_of!(X)  :&...B  ==>  &...X
+
+// Infers the type of X (using context if necessary), stores it as the type
+// of an anonymous variable (let's say @__ANONYMOUS_INFERRED_TYPE__),
+// then runs type inference again on X.
+infer_type_of!(X)  ==>  X
+size_of_inferred_type!()  ==>  |:@__ANONYMOUS_INFERRED_TYPE__|
+
+
+
+/// MACROS EXPANDED BY PARSER ///
+
+name_of_inferred_type!()  ==>  #(@__ANONYMOUS_INFERRED_TYPE__)
+
+file!()  ==>  location.source_filename as []u8
+line!()  ==>  location.line_number as usize
+
+// The file has to be added as an command line argument "bytes:filename".
+// The macro itself references a constant that will be created by the expander.
+include_bytes!(filename)  ==>  Constant("@include_bytes!(filename)")
+
+
+write!(f, X)  ==>  {
+	fprintf(f, X);
+}
+
+print!(X)  ==>  {
+	printf("%s", X);
+}
+
+eprint!(X)  ==>  {
+	// Auto-include stderr somehow?
+	write!(stderr, X);
+}
+
+println!()  ==>  {
+	print!("\n");
+}
+println!(X)  ==>  {
+	print!("%s\n", X);
+}
+
+eprintln!()  ==>  {
+	eprint!("\n");
+}
+eprintln!(X)  ==>  {
+	eprint!("%s\n", X);
+}
+
+dbg!()  ==>  {
+	eprint!(format!("[{}:{}]\n", file!(), line!()));
+}
+dbg!(X)  ==>  {
+	eprint!(format!("[{}:{}] {} = {}\n", file!(), line!(), #X, X));
+	return: X
+}
+
+panic!("...", ...)  =>  {
+	eprintln!(format!("panicked at [{}:{}]: ...", file!(), line!(), ...));
+	abort!();
+}
+
+assert!(comparison, "...", ...)  =>  {
+	if comparison
+	{
+		// nothing
+	}
+	else
+	{
+		panic!("...", ...);
+	}
+}
+
+assert!(comparison)  =>  {
+	assert!(comparison, "assertion `{}` failed", #comparison);
+}
+
+unimplemented!()  =>  {
+	panic!("unimplemented");
+}
+
+todo!()  =>  {
+	panic!("todo");
+}
+
+alloc!()  :&T  =>  {
+	infer_type_of!(cast calloc(size_of_inferred_type!()))
+}
+
+free!(X)  :&...B  =>  {
+	free(cast pointer_of!(X))
+}
