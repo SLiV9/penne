@@ -1106,7 +1106,7 @@ fn parse_statement(tokens: &mut Tokens) -> Result<Statement, Error>
 				name,
 				location,
 				resolution_id: 0,
-				is_authoritative: false,
+				is_authoritative: builtin.is_some(),
 			};
 			let arguments = parse_arguments(tokens)?;
 			let statement = Statement::MethodCall {
@@ -1629,7 +1629,7 @@ fn parse_primary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 				name,
 				location,
 				resolution_id: 0,
-				is_authoritative: false,
+				is_authoritative: builtin.is_some(),
 			};
 			let arguments = parse_arguments(tokens)?;
 			Ok(Expression::FunctionCall {

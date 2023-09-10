@@ -545,9 +545,12 @@ pub enum GeneratorBuiltin
 #[serde(rename_all = "snake_case")]
 pub enum TyperBuiltin
 {
-	PointerOf,
 	InferTypeOf,
-	SizeOfInferredType,
+	InferredType,
+	ElementTypeOf,
+	PointeeTypeOf,
+	SizeOf,
+	TypenameOf,
 }
 
 #[must_use]

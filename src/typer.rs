@@ -438,6 +438,14 @@ impl Typer
 		self.analyze_hinted_arguments(parameter_hints, arguments)
 	}
 
+	fn analyze_unhinted_arguments(
+		&mut self,
+		arguments: Vec<Expression>,
+	) -> Vec<Expression>
+	{
+		self.analyze_hinted_arguments(std::iter::repeat(None), arguments)
+	}
+
 	fn analyze_hinted_arguments(
 		&mut self,
 		parameter_hints: impl Iterator<Item = Option<Poisonable<ValueType>>>,
@@ -882,7 +890,7 @@ impl Analyzable for Declaration
 			{
 				// All parameters are analyzed before any function bodies.
 
-				// Do not use Void as the contextual type becaue we want an
+				// Do not use Void as the contextual type because we want an
 				// unbiased suggestion for the type of the return value.
 				let contextual_return_type = match &return_type
 				{
@@ -1389,28 +1397,21 @@ impl Analyzable for Statement
 				arguments,
 			} =>
 			{
-				let (arguments, return_type) = analyze_builtin(
+				let result = analyze_builtin(
 					&name,
 					&builtin,
 					arguments,
 					Some(Ok(ValueType::Void)),
 					typer,
 				);
-				match return_type
+				match result
 				{
-					Some(Ok(_)) => Statement::MethodCall {
+					Ok((arguments, _, _)) => Statement::MethodCall {
 						name,
 						builtin: Some(builtin),
 						arguments,
 					},
-					Some(Err(err)) => Statement::Poison(err),
-					None =>
-					{
-						let err = Error::AmbiguousType {
-							location: name.location,
-						};
-						Statement::Poison(Poison::Error(err))
-					}
+					Err(err) => Statement::Poison(err),
 				}
 			}
 			Statement::Loop { .. } => self,
@@ -1936,13 +1937,22 @@ impl Analyzable for Expression
 				return_type,
 			} =>
 			{
-				let (arguments, return_type) = analyze_builtin(
+				let result = analyze_builtin(
 					&name,
 					&builtin,
 					arguments,
 					return_type,
 					typer,
 				);
+				let (arguments, return_type) = match result
+				{
+					Ok((arguments, Some(return_type), expr)) =>
+					{
+						(arguments, Some(Ok(return_type)))
+					}
+					Ok((arguments, None, expr)) => (arguments, None),
+					Err(err) => (Vec::new(), Some(Err(err))),
+				};
 				Expression::FunctionCall {
 					name,
 					builtin: Some(builtin),
@@ -3325,24 +3335,145 @@ fn analyze_builtin(
 	arguments: Vec<Expression>,
 	return_type: Option<Poisonable<ValueType>>,
 	typer: &mut Typer,
-) -> (Vec<Expression>, Option<Poisonable<ValueType>>)
+) -> Result<(Vec<Expression>, Option<ValueType>, Option<Expression>), Poison>
 {
+	let location = &name.location;
+
+	let return_type: Option<ValueType> = match return_type
+	{
+		Some(Ok(return_type)) => Some(return_type),
+		Some(Err(err)) => Err(err)?,
+		None => None,
+	};
+	let contextual_return_type = typer.contextual_type.take();
+
 	match builtin
 	{
-		Builtin::GeneratorBuiltin(GeneratorBuiltin::Format) => todo!(),
-		Builtin::GeneratorBuiltin(GeneratorBuiltin::Abort) => todo!(),
-		Builtin::TyperBuiltin(TyperBuiltin::PointerOf) =>
+		Builtin::GeneratorBuiltin(GeneratorBuiltin::Format) =>
 		{
-			todo!()
+			let arguments = typer.analyze_unhinted_arguments(arguments);
+			Ok((arguments, Some(ValueType::Void), None))
+		}
+		Builtin::GeneratorBuiltin(GeneratorBuiltin::Abort) =>
+		{
+			let arguments = accept_zero_arguments(arguments, location)?;
+			Ok((arguments, Some(ValueType::Void), None))
 		}
 		Builtin::TyperBuiltin(TyperBuiltin::InferTypeOf) =>
 		{
-			todo!()
+			let argument = accept_one_argument(arguments, location)?;
+			typer.contextual_type = contextual_return_type;
+			let argument = argument.analyze(typer);
+			let argument_type = argument.value_type().transpose()?;
+			if argument_type.is_some()
+			{
+				Ok((Vec::new(), argument_type, Some(argument)))
+			}
+			else
+			{
+				Ok((vec![argument], None, None))
+			}
 		}
-		Builtin::TyperBuiltin(TyperBuiltin::SizeOfInferredType) =>
+		Builtin::TyperBuiltin(TyperBuiltin::InferredType) =>
 		{
-			todo!()
+			let arguments = accept_zero_arguments(arguments, location)?;
+			let inferred_type = typer.get_symbol(&name).transpose()?;
+			Ok((arguments, inferred_type, None))
+		}
+		Builtin::TyperBuiltin(TyperBuiltin::ElementTypeOf) =>
+		{
+			let argument = accept_one_argument(arguments, location)?;
+			typer.contextual_type = None;
+			let argument = argument.analyze(typer);
+			let argument_type = argument.value_type().transpose()?;
+			let element_type = argument_type.and_then(|x| x.get_element_type());
+			Ok((vec![argument], element_type, None))
+		}
+		Builtin::TyperBuiltin(TyperBuiltin::PointeeTypeOf) =>
+		{
+			let argument = accept_one_argument(arguments, location)?;
+			typer.contextual_type = None;
+			let argument = argument.analyze(typer);
+			let argument_type = argument.value_type().transpose()?;
+			let pointee_type = argument_type.and_then(|x| x.get_pointee_type());
+			Ok((vec![argument], pointee_type, None))
+		}
+		Builtin::TyperBuiltin(TyperBuiltin::SizeOf) =>
+		{
+			let argument = accept_one_argument(arguments, location)?;
+			let argument = argument.analyze(typer);
+			let argument_type = argument.value_type().transpose()?;
+			match argument_type
+			{
+				Some(value_type) =>
+				{
+					let expr = Expression::SizeOf {
+						queried_type: value_type,
+						location: location.clone(),
+					};
+					let expr = expr.analyze(typer);
+					Ok((vec![], Some(ValueType::Usize), Some(expr)))
+				}
+				None => Ok((vec![argument], None, None)),
+			}
+		}
+		Builtin::TyperBuiltin(TyperBuiltin::TypenameOf) =>
+		{
+			let argument = accept_one_argument(arguments, location)?;
+			let argument = argument.analyze(typer);
+			let argument_type = argument.value_type().transpose()?;
+			match argument_type
+			{
+				Some(value_type) =>
+				{
+					// TODO rebuild name using rebuilder
+					todo!()
+				}
+				None => Ok((vec![argument], None, None)),
+			}
 		}
 		Builtin::ParserMacro(_) => unreachable!(),
+	}
+}
+
+fn accept_zero_arguments(
+	arguments: Vec<Expression>,
+	location: &Location,
+) -> Result<Vec<Expression>, Poison>
+{
+	if !arguments.is_empty()
+	{
+		Err(Error::TooManyArguments {
+			location: location.clone(),
+			location_of_declaration: location.clone(),
+		})?
+	}
+	Ok(arguments)
+}
+
+fn accept_one_argument(
+	arguments: Vec<Expression>,
+	location: &Location,
+) -> Result<Expression, Poison>
+{
+	let mut arguments = arguments.into_iter();
+	let head = arguments.next();
+	if arguments.next().is_some()
+	{
+		Err(Error::TooManyArguments {
+			location: location.clone(),
+			location_of_declaration: location.clone(),
+		})?
+	}
+	if let Some(argument) = head
+	{
+		Ok(argument)
+	}
+	else
+	{
+		Err(Error::TooFewArguments {
+			location: location.clone(),
+			location_of_declaration: location.clone(),
+		})?
 	}
 }

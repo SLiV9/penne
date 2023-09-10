@@ -213,6 +213,7 @@ Documentation:
 		✔	Is E163 unreachable? @done (2023-03-04 17:25)
 		✔	Is E332 unreachable? @done (2023-03-04 18:35)
 		✔	Is E580 unreachable? @done (2023-03-04 18:35)
+			☐	Not anymore with builtins
 		☐	Think about a better way to solve "ambiguous" errors (E332 and E580)
 			☐	Separate typed AST at the end of typing stage?
 		✘	Isn't it better to consume E582 into other errors if possible? @cancelled (2023-03-15 22:15)

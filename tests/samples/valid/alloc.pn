@@ -1,0 +1,10 @@
+fn main() -> u8
+{
+	var x: &&i32 = alloc!();
+	&x = alloc!();
+	x = 200;
+	var result: i32 = x;
+	free!(&x);
+	free!(&&x);
+	return: result
+}

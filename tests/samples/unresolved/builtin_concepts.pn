@@ -15,20 +15,21 @@ abort!()  ==>  llvm.trap intrinsic
 
 /// BUILTINS PROCESSED BY TYPER ///
 
-// Set resolution_id during scoping, but change address_depth during typing.
-pointer_of!(X)  :&...B  ==>  &...X
-
 // Infers the type of X (using context if necessary), stores it as the type
 // of an anonymous variable (let's say @__ANONYMOUS_INFERRED_TYPE__),
 // then runs type inference again on X.
 infer_type_of!(X)  ==>  X
-size_of_inferred_type!()  ==>  |:@__ANONYMOUS_INFERRED_TYPE__|
+inferred_type!()  ==>  1 as __ANONYMOUS_INFERRED_TYPE__
+
+element_type_of!(X)  :[]T  ==>  1 as T
+pointee_type_of!(X)  :&T  ==>  1 as T
+
+size_of!(X)  :T  ==>  |:X|
+typename_of!(X)  :T  ==>  #(T)
 
 
 
 /// MACROS EXPANDED BY PARSER ///
-
-name_of_inferred_type!()  ==>  #(@__ANONYMOUS_INFERRED_TYPE__)
 
 file!()  ==>  location.source_filename as []u8
 line!()  ==>  location.line_number as usize
@@ -102,9 +103,9 @@ todo!()  =>  {
 }
 
 alloc!()  :&T  =>  {
-	infer_type_of!(cast calloc(size_of_inferred_type!()))
+	infer_type_of!(cast calloc(size_of!(pointee_type_of!(inferred_type!()))))
 }
 
-free!(X)  :&...B  =>  {
-	free(cast pointer_of!(X))
+free!(X)  =>  {
+	free(cast X)
 }
