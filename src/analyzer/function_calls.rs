@@ -738,11 +738,5 @@ fn analyze_builtin(
 	analyzer: &mut Analyzer,
 ) -> Result<(), Error>
 {
-	match builtin
-	{
-		Builtin::GeneratorBuiltin(GeneratorBuiltin::Format) => todo!(),
-		Builtin::GeneratorBuiltin(GeneratorBuiltin::Abort) => todo!(),
-		Builtin::TyperBuiltin(_) => unreachable!(),
-		Builtin::ParserMacro(_) => unreachable!(),
-	}
+	todo!()
 }

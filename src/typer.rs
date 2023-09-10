@@ -1406,7 +1406,7 @@ impl Analyzable for Statement
 				);
 				match result
 				{
-					Ok((arguments, _, _)) => Statement::MethodCall {
+					Ok((arguments, _)) => Statement::MethodCall {
 						name,
 						builtin: Some(builtin),
 						arguments,
@@ -1946,11 +1946,11 @@ impl Analyzable for Expression
 				);
 				let (arguments, return_type) = match result
 				{
-					Ok((arguments, Some(return_type), expr)) =>
+					Ok((arguments, Some(return_type))) =>
 					{
 						(arguments, Some(Ok(return_type)))
 					}
-					Ok((arguments, None, expr)) => (arguments, None),
+					Ok((arguments, None)) => (arguments, None),
 					Err(err) => (Vec::new(), Some(Err(err))),
 				};
 				Expression::FunctionCall {
@@ -3335,104 +3335,74 @@ fn analyze_builtin(
 	arguments: Vec<Expression>,
 	return_type: Option<Poisonable<ValueType>>,
 	typer: &mut Typer,
-) -> Result<(Vec<Expression>, Option<ValueType>, Option<Expression>), Poison>
+) -> Result<(Vec<Expression>, Option<ValueType>), Poison>
 {
 	let location = &name.location;
+	let contextual_type = typer.contextual_type.take();
 
-	let return_type: Option<ValueType> = match return_type
+	match return_type
 	{
-		Some(Ok(return_type)) => Some(return_type),
+		Some(Ok(_return_type)) => (),
 		Some(Err(err)) => Err(err)?,
-		None => None,
-	};
-	let contextual_return_type = typer.contextual_type.take();
+		None => (),
+	}
 
 	match builtin
 	{
-		Builtin::GeneratorBuiltin(GeneratorBuiltin::Format) =>
+		Builtin::Format =>
 		{
 			let arguments = typer.analyze_unhinted_arguments(arguments);
-			Ok((arguments, Some(ValueType::Void), None))
+			let string_type = ValueType::Slice {
+				element_type: Box::new(ValueType::Uint8),
+			};
+			Ok((arguments, Some(string_type)))
 		}
-		Builtin::GeneratorBuiltin(GeneratorBuiltin::Abort) =>
+		Builtin::Print | Builtin::Eprint =>
+		{
+			let arguments = typer.analyze_unhinted_arguments(arguments);
+			Ok((arguments, Some(ValueType::Void)))
+		}
+		Builtin::Panic =>
+		{
+			let arguments = typer.analyze_unhinted_arguments(arguments);
+			let return_type = contextual_type.transpose()?;
+			Ok((arguments, return_type))
+		}
+		Builtin::Abort =>
 		{
 			let arguments = accept_zero_arguments(arguments, location)?;
-			Ok((arguments, Some(ValueType::Void), None))
+			Ok((arguments, Some(ValueType::Void)))
 		}
-		Builtin::TyperBuiltin(TyperBuiltin::InferTypeOf) =>
-		{
-			let argument = accept_one_argument(arguments, location)?;
-			typer.contextual_type = contextual_return_type;
-			let argument = argument.analyze(typer);
-			let argument_type = argument.value_type().transpose()?;
-			if argument_type.is_some()
-			{
-				Ok((Vec::new(), argument_type, Some(argument)))
-			}
-			else
-			{
-				Ok((vec![argument], None, None))
-			}
-		}
-		Builtin::TyperBuiltin(TyperBuiltin::InferredType) =>
+		Builtin::File =>
 		{
 			let arguments = accept_zero_arguments(arguments, location)?;
-			let inferred_type = typer.get_symbol(&name).transpose()?;
-			Ok((arguments, inferred_type, None))
+			let string_type = ValueType::Slice {
+				element_type: Box::new(ValueType::Uint8),
+			};
+			Ok((arguments, Some(string_type)))
 		}
-		Builtin::TyperBuiltin(TyperBuiltin::ElementTypeOf) =>
+		Builtin::Line =>
+		{
+			let arguments = accept_zero_arguments(arguments, location)?;
+			Ok((arguments, Some(ValueType::Usize)))
+		}
+		Builtin::Dbg =>
 		{
 			let argument = accept_one_argument(arguments, location)?;
-			typer.contextual_type = None;
+			typer.contextual_type = contextual_type;
 			let argument = argument.analyze(typer);
 			let argument_type = argument.value_type().transpose()?;
-			let element_type = argument_type.and_then(|x| x.get_element_type());
-			Ok((vec![argument], element_type, None))
+			Ok((vec![argument], argument_type))
 		}
-		Builtin::TyperBuiltin(TyperBuiltin::PointeeTypeOf) =>
-		{
-			let argument = accept_one_argument(arguments, location)?;
-			typer.contextual_type = None;
-			let argument = argument.analyze(typer);
-			let argument_type = argument.value_type().transpose()?;
-			let pointee_type = argument_type.and_then(|x| x.get_pointee_type());
-			Ok((vec![argument], pointee_type, None))
-		}
-		Builtin::TyperBuiltin(TyperBuiltin::SizeOf) =>
+		Builtin::IncludeBytes =>
 		{
 			let argument = accept_one_argument(arguments, location)?;
 			let argument = argument.analyze(typer);
-			let argument_type = argument.value_type().transpose()?;
-			match argument_type
-			{
-				Some(value_type) =>
-				{
-					let expr = Expression::SizeOf {
-						queried_type: value_type,
-						location: location.clone(),
-					};
-					let expr = expr.analyze(typer);
-					Ok((vec![], Some(ValueType::Usize), Some(expr)))
-				}
-				None => Ok((vec![argument], None, None)),
-			}
+			let string_type = ValueType::Slice {
+				element_type: Box::new(ValueType::Uint8),
+			};
+			Ok((vec![argument], Some(string_type)))
 		}
-		Builtin::TyperBuiltin(TyperBuiltin::TypenameOf) =>
-		{
-			let argument = accept_one_argument(arguments, location)?;
-			let argument = argument.analyze(typer);
-			let argument_type = argument.value_type().transpose()?;
-			match argument_type
-			{
-				Some(value_type) =>
-				{
-					// TODO rebuild name using rebuilder
-					todo!()
-				}
-				None => Ok((vec![argument], None, None)),
-			}
-		}
-		Builtin::ParserMacro(_) => unreachable!(),
 	}
 }
 

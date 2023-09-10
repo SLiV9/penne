@@ -446,12 +446,7 @@ impl Resolvable for Statement
 			} =>
 			{
 				let arguments = arguments.resolve()?;
-				let builtin = match builtin
-				{
-					Builtin::GeneratorBuiltin(builtin) => builtin,
-					Builtin::TyperBuiltin(_) => unreachable!(),
-					Builtin::ParserMacro(_) => unreachable!(),
-				};
+				let builtin = todo!();
 				Ok(resolved::Statement::Builtin { builtin, arguments })
 			}
 			Statement::Loop { .. } => Ok(resolved::Statement::Loop),
@@ -835,12 +830,7 @@ impl Resolvable for Expression
 				let arguments = arguments.resolve()?;
 				if let Some(return_type) = return_type
 				{
-					let builtin = match builtin
-					{
-						Builtin::GeneratorBuiltin(builtin) => builtin,
-						Builtin::TyperBuiltin(_) => unreachable!(),
-						Builtin::ParserMacro(_) => unreachable!(),
-					};
+					let builtin = todo!();
 					let return_type = return_type.resolve()?;
 					Ok(resolved::Expression::Builtin {
 						builtin,

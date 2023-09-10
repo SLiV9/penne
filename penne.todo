@@ -95,8 +95,8 @@ Functionality:
 			Do not allow dereffing X in const context.
 			Cannot be a compile-time const because the address itself can only be determined at linktime at best. This is the same in C.
 		☐	Build and document replacements for malloc, calloc, realloc and free
-			E.g. "var ptr: &[10]i64 = $something" is shorthand for
-			var ptr: &[10]i64 = cast malloc(10 * |:i64|);
+			E.g. "var ptr: &[10]i64 = allocs!()" is shorthand for
+			var ptr: &[10]i64 = cast calloc(10 * |:i64|);
 	☐	stdlib
 		☐	vendor:libc
 			✔	malloc, calloc, realloc and free @done (2023-03-28 18:27)
@@ -213,7 +213,6 @@ Documentation:
 		✔	Is E163 unreachable? @done (2023-03-04 17:25)
 		✔	Is E332 unreachable? @done (2023-03-04 18:35)
 		✔	Is E580 unreachable? @done (2023-03-04 18:35)
-			☐	Not anymore with builtins
 		☐	Think about a better way to solve "ambiguous" errors (E332 and E580)
 			☐	Separate typed AST at the end of typing stage?
 		✘	Isn't it better to consume E582 into other errors if possible? @cancelled (2023-03-15 22:15)
@@ -238,17 +237,18 @@ Needed for Advent of Code:
 		✘	stb_sprintf.h? @cancelled (2023-08-26 15:24)
 			We need to link with libc anyway for any real program
 		☐	Allocate on the stack with len = snprintf(1) and BuildArrayAlloca
-	☐	Equivalent of dbg!()
-		☐	file!() and line!() using builtin magic
-	☐	Equivalent of assert!()
-		☐	panic!() using builtin magic
+	☐	dbg!() using builtin magic
+	☐	file!() and line!() using builtin magic
+	✘	Equivalent of assert!() @cancelled (2023-09-10 19:55)
+		✘	Parser macros @cancelled (2023-09-10 19:41)
+	☐	panic!() using builtin magic
 	☐	File IO
 		☐	Basically everything mentioned under stdlib
 	☐	Somewhat nice deserialization (no joke)
 	☐	Somewhat nice serialization (for dbg)
 	☐	Error handling
 		☐	Optionals
-	☐	Heap allocation
+	✔	Heap allocation @done (2023-09-10 19:49)
 	✘	Vec, HashMap, HashSet, VecDeque, String @cancelled (2023-07-09 22:59)
 	✘	Tuples (for fmt and dbg, and for error handling) @cancelled (2023-08-05 11:49)
 	✘	Generic functions (for fmt and dbg) @cancelled (2023-07-09 22:58)

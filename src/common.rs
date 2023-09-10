@@ -526,53 +526,13 @@ impl PartialEq for Identifier
 #[serde(untagged, rename_all = "snake_case")]
 pub enum Builtin
 {
-	GeneratorBuiltin(GeneratorBuiltin),
-	TyperBuiltin(TyperBuiltin),
-	ParserMacro(ParserMacro),
-}
-
-#[must_use]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum GeneratorBuiltin
-{
 	Format,
-	Abort,
-}
-
-#[must_use]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum TyperBuiltin
-{
-	InferTypeOf,
-	InferredType,
-	ElementTypeOf,
-	PointeeTypeOf,
-	SizeOf,
-	TypenameOf,
-}
-
-#[must_use]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ParserMacro
-{
-	NameOfInferredType,
-	File,
-	Line,
-	IncludeBytes,
-	Write,
 	Print,
 	Eprint,
-	Println,
-	Eprintln,
-	#[serde(rename = "dbg")]
-	Debug,
+	Abort,
+	File,
+	Line,
+	Dbg,
 	Panic,
-	Assert,
-	Unimplemented,
-	Todo,
-	Alloc,
-	Free,
+	IncludeBytes,
 }

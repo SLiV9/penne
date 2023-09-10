@@ -2066,6 +2066,14 @@ fn generate_conversion(
 	}
 }
 
+#[must_use]
+#[derive(Debug, Clone, Copy)]
+pub enum GeneratorBuiltin
+{
+	Format,
+	Abort,
+}
+
 fn generate_builtin(
 	builtin: &GeneratorBuiltin,
 	arguments: &[Expression],
