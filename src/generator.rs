@@ -689,49 +689,9 @@ impl Generatable for Statement
 				}
 				Ok(())
 			}
-			Statement::MethodCall { name, arguments } =>
+			Statement::EvaluateAndDiscard { value } =>
 			{
-				let function = llvm.global_functions.get(&name.resolution_id);
-				let function = match function
-				{
-					Some(function) => *function,
-					None => unreachable!(),
-				};
-
-				let arguments: Result<Vec<LLVMValueRef>, anyhow::Error> =
-					arguments
-						.iter()
-						.map(|argument| argument.generate(llvm))
-						.collect();
-				let mut arguments: Vec<LLVMValueRef> = arguments?;
-
-				let tmpname = CString::new("")?;
-				unsafe {
-					LLVMBuildCall(
-						llvm.builder,
-						function,
-						arguments.as_mut_ptr(),
-						arguments.len() as u32,
-						tmpname.as_ptr(),
-					);
-				}
-				Ok(())
-			}
-			Statement::Builtin { builtin, arguments } =>
-			{
-				let values: Result<Vec<LLVMValueRef>, anyhow::Error> =
-					arguments
-						.iter()
-						.map(|argument| argument.generate(llvm))
-						.collect();
-				let values: Vec<LLVMValueRef> = values?;
-				generate_builtin(
-					builtin,
-					arguments,
-					values,
-					&ValueType::Void,
-					llvm,
-				)?;
+				let _discarded = value.generate(llvm)?;
 				Ok(())
 			}
 			Statement::Loop { .. } => unreachable!(),
@@ -1176,11 +1136,7 @@ impl Generatable for Expression
 				let value = llvm.const_usize(size_in_bits / 8);
 				Ok(value)
 			}
-			Expression::FunctionCall {
-				name,
-				arguments,
-				return_type: _,
-			} =>
+			Expression::FunctionCall { name, arguments } =>
 			{
 				let function = llvm.global_functions.get(&name.resolution_id);
 				let function = match function
@@ -1208,20 +1164,15 @@ impl Generatable for Expression
 				};
 				Ok(result)
 			}
-			Expression::Builtin {
-				builtin,
-				arguments,
-				return_type,
-			} =>
+			Expression::InlineBlock { statements, value } =>
 			{
-				let values: Result<Vec<LLVMValueRef>, anyhow::Error> =
-					arguments
-						.iter()
-						.map(|argument| argument.generate(llvm))
-						.collect();
-				let values: Vec<LLVMValueRef> = values?;
-				generate_builtin(builtin, arguments, values, return_type, llvm)
+				for statement in statements
+				{
+					statement.generate(llvm)?;
+				}
+				value.generate(llvm)
 			}
+			Expression::Builtin(builtin) => builtin.generate(llvm),
 		}
 	}
 }
@@ -2067,25 +2018,108 @@ fn generate_conversion(
 }
 
 #[must_use]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum GeneratorBuiltin
 {
-	Format,
 	Abort,
+	Format
+	{
+		arguments: Vec<Expression>,
+	},
+	Write
+	{
+		fd: builtin::Fd,
+		buffer: Box<Expression>,
+	},
 }
 
-fn generate_builtin(
-	builtin: &GeneratorBuiltin,
-	arguments: &[Expression],
-	values: Vec<LLVMValueRef>,
-	return_type: &ValueType,
-	llvm: &mut Generator,
-) -> Result<LLVMValueRef, anyhow::Error>
+impl Generatable for GeneratorBuiltin
 {
-	match builtin
+	type Item = LLVMValueRef;
+
+	fn generate(
+		&self,
+		llvm: &mut Generator,
+	) -> Result<Self::Item, anyhow::Error>
 	{
-		GeneratorBuiltin::Format => todo!(),
-		GeneratorBuiltin::Abort => todo!(),
+		match self
+		{
+			GeneratorBuiltin::Abort => todo!(),
+			GeneratorBuiltin::Format { arguments } =>
+			{
+				let arguments = arguments.into_iter();
+				let format_string = arguments.next().unwrap().generate(llvm)?;
+				if arguments.next().is_none()
+				{
+					Ok(format_string)
+				}
+				else
+				{
+					// TODO snprintf
+					todo!()
+				}
+			}
+			GeneratorBuiltin::Write { fd, buffer } =>
+			{
+				let buffer_slice = buffer.generate(llvm)?;
+				let slice_ptr = {
+					let tmpname = CString::new("buffer")?;
+					unsafe {
+						LLVMBuildExtractValue(
+							llvm.builder,
+							buffer_slice,
+							0u32,
+							tmpname.as_ptr(),
+						)
+					}
+				};
+				let slice_len = {
+					let tmpname = CString::new("buffer_len")?;
+					unsafe {
+						LLVMBuildExtractValue(
+							llvm.builder,
+							buffer_slice,
+							1u32,
+							tmpname.as_ptr(),
+						)
+					}
+				};
+
+				let fd = fd.generate(llvm)?;
+				let mut arguments: Vec<LLVMValueRef> =
+					vec![fd, slice_ptr, slice_len];
+
+				let function = llvm.get_write_intrinsic();
+				let tmpname = CString::new("write")?;
+				let result = unsafe {
+					LLVMBuildCall(
+						llvm.builder,
+						function,
+						arguments.as_mut_ptr(),
+						arguments.len() as u32,
+						tmpname.as_ptr(),
+					)
+				};
+				Ok(result)
+			}
+		}
+	}
+}
+
+impl Generatable for builtin::Fd
+{
+	type Item = LLVMValueRef;
+
+	fn generate(
+		&self,
+		llvm: &mut Generator,
+	) -> Result<Self::Item, anyhow::Error>
+	{
+		match self
+		{
+			Self::Stdout => Ok(llvm.const_i32(1)),
+			Self::Stderr => Ok(llvm.const_i32(2)),
+		}
 	}
 }
 

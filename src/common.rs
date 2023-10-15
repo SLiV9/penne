@@ -526,10 +526,10 @@ impl PartialEq for Identifier
 #[serde(untagged, rename_all = "snake_case")]
 pub enum Builtin
 {
+	Abort,
 	Format,
 	Print,
 	Eprint,
-	Abort,
 	File,
 	Line,
 	Dbg,

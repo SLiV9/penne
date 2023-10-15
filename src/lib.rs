@@ -19,11 +19,13 @@
 //! [lexer], [parser], [expander], [scoper], [typer], [analyzer],
 //! [linter], [resolver] and [generator].
 //! The [rebuilder] module allows turning the AST back into (annotated) code.
+//! The [builtin] module contains compiler builtins.
 //! The [stdout] module contains helper code for the command line interface.
 //! The [included] module contains Penne source code for core and vendor
 //! libraries.
 
 pub mod analyzer;
+pub mod builtin;
 pub mod common;
 pub mod error;
 pub mod expander;

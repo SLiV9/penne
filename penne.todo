@@ -243,6 +243,7 @@ Needed for Advent of Code:
 		✘	Parser macros @cancelled (2023-09-10 19:41)
 	☐	panic!() using builtin magic
 	☐	File IO
+		☐	print!() and eprint!() using builtin magic and write() syscalls
 		☐	Basically everything mentioned under stdlib
 	☐	Somewhat nice deserialization (no joke)
 	☐	Somewhat nice serialization (for dbg)

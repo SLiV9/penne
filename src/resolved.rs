@@ -7,6 +7,7 @@
 //! The resolved AST contain no syntax or semantic errors and is ready for
 //! IR generation.
 
+pub use crate::builtin;
 pub use crate::common::DeclarationFlag;
 pub use crate::common::{BinaryOp, ComparisonOp, UnaryOp};
 pub use crate::generator::GeneratorBuiltin;
@@ -108,15 +109,9 @@ pub enum Statement
 		reference: Reference,
 		value: Expression,
 	},
-	MethodCall
+	EvaluateAndDiscard
 	{
-		name: Identifier,
-		arguments: Vec<Expression>,
-	},
-	Builtin
-	{
-		builtin: GeneratorBuiltin,
-		arguments: Vec<Expression>,
+		value: Expression,
 	},
 	Loop,
 	Goto
@@ -164,15 +159,17 @@ pub enum Expression
 	},
 	SignedIntegerLiteral
 	{
-		value: i128, value_type: ValueType
+		value: i128,
+		value_type: ValueType,
 	},
 	BitIntegerLiteral
 	{
-		value: u128, value_type: ValueType
+		value: u128,
+		value_type: ValueType,
 	},
 	StringLiteral
 	{
-		bytes: Vec<u8>
+		bytes: Vec<u8>,
 	},
 	ArrayLiteral
 	{
@@ -186,7 +183,7 @@ pub enum Expression
 	},
 	Parenthesized
 	{
-		inner: Box<Expression>
+		inner: Box<Expression>,
 	},
 	Deref
 	{
@@ -211,24 +208,23 @@ pub enum Expression
 	},
 	LengthOfArray
 	{
-		reference: Reference
+		reference: Reference,
 	},
 	SizeOf
 	{
-		queried_type: ValueType
+		queried_type: ValueType,
 	},
 	FunctionCall
 	{
 		name: Identifier,
 		arguments: Vec<Expression>,
-		return_type: ValueType,
 	},
-	Builtin
+	InlineBlock
 	{
-		builtin: GeneratorBuiltin,
-		arguments: Vec<Expression>,
-		return_type: ValueType,
+		statements: Vec<Statement>,
+		value: Box<Expression>,
 	},
+	Builtin(GeneratorBuiltin),
 }
 
 #[must_use]
