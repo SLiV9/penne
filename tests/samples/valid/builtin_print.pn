@@ -1,0 +1,7 @@
+fn main() -> u8
+{
+	var world = "world";
+	var newline = "\n";
+	print!("Hello ", world, "!", newline);
+	return: 0
+}

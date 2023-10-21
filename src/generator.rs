@@ -324,9 +324,74 @@ impl Generator
 		*function
 	}
 
-	fn get_write_intrinsic(&mut self) -> LLVMValueRef
+	fn get_snprintf_intrinsic(&mut self) -> (LLVMValueRef, LLVMTypeRef)
 	{
-		todo!()
+		let return_type = unsafe { LLVMInt32TypeInContext(self.context) };
+		let name = "snprintf";
+		let function = self.used_intrinsics.entry(name).or_insert_with(|| {
+			let linkage = LLVMLinkage::LLVMExternalLinkage;
+			let callconv = LLVMCallConv::LLVMCCallConv;
+			let function_name = CString::new(name.as_bytes()).unwrap();
+			let is_var_args = 1;
+
+			unsafe {
+				let char_type = LLVMInt8TypeInContext(self.context);
+				let char_ptr_type = LLVMPointerType(char_type, 0u32);
+				let out_ptr_type = char_ptr_type;
+				let size_type = self.type_of_usize;
+				let format_ptr_type = char_ptr_type;
+				let mut args = [out_ptr_type, size_type, format_ptr_type];
+				let function_type = LLVMFunctionType(
+					return_type,
+					args.as_mut_ptr(),
+					args.len() as u32,
+					is_var_args,
+				);
+				let function = LLVMAddFunction(
+					self.module,
+					function_name.as_ptr(),
+					function_type,
+				);
+				LLVMSetLinkage(function, linkage);
+				LLVMSetFunctionCallConv(function, callconv as u32);
+				function
+			}
+		});
+		(*function, return_type)
+	}
+
+	fn get_write_intrinsic(&mut self) -> (LLVMValueRef, LLVMTypeRef)
+	{
+		let return_type = unsafe { LLVMInt64TypeInContext(self.context) };
+		let name = "write";
+		let function = self.used_intrinsics.entry(name).or_insert_with(|| {
+			let linkage = LLVMLinkage::LLVMExternalLinkage;
+			let callconv = LLVMCallConv::LLVMCCallConv;
+			let function_name = CString::new(name.as_bytes()).unwrap();
+
+			unsafe {
+				let fd_type = LLVMInt32TypeInContext(self.context);
+				let char_type = LLVMInt8TypeInContext(self.context);
+				let char_ptr_type = LLVMPointerType(char_type, 0u32);
+				let size_type = self.type_of_usize;
+				let mut args = [fd_type, char_ptr_type, size_type];
+				let function_type = LLVMFunctionType(
+					return_type,
+					args.as_mut_ptr(),
+					args.len() as u32,
+					0,
+				);
+				let function = LLVMAddFunction(
+					self.module,
+					function_name.as_ptr(),
+					function_type,
+				);
+				LLVMSetLinkage(function, linkage);
+				LLVMSetFunctionCallConv(function, callconv as u32);
+				function
+			}
+		});
+		(*function, return_type)
 	}
 }
 
@@ -996,7 +1061,11 @@ impl Generatable for Expression
 				};
 				Ok(result)
 			}
-			Expression::Unary { op, expression } =>
+			Expression::Unary {
+				op,
+				expression,
+				value_type: _,
+			} =>
 			{
 				let expr = expression.generate(llvm)?;
 				let name = CString::default();
@@ -1167,7 +1236,11 @@ impl Generatable for Expression
 				let value = llvm.const_usize(size_in_bits / 8);
 				Ok(value)
 			}
-			Expression::FunctionCall { name, arguments } =>
+			Expression::FunctionCall {
+				name,
+				arguments,
+				return_type: _,
+			} =>
 			{
 				let function = llvm.global_functions.get(&name.resolution_id);
 				let function = match function
@@ -1263,10 +1336,7 @@ impl Generatable for ValueType
 				let length: u32 = length.try_into()?;
 				unsafe { LLVMArrayType(element_type, length) }
 			}
-			ValueType::ArrayWithNamedLength { .. } =>
-			{
-				unreachable!()
-			}
+			ValueType::ArrayWithNamedLength { .. } => unreachable!(),
 			ValueType::Slice { element_type }
 			| ValueType::SlicePointer { element_type } =>
 			{
@@ -2092,17 +2162,7 @@ impl Generatable for GeneratorBuiltin
 			}
 			GeneratorBuiltin::Format { arguments } =>
 			{
-				let mut arguments = arguments.into_iter();
-				let format_string = arguments.next().unwrap().generate(llvm)?;
-				if arguments.next().is_none()
-				{
-					Ok(format_string)
-				}
-				else
-				{
-					// TODO snprintf
-					todo!()
-				}
+				generate_format(arguments, llvm)
 			}
 			GeneratorBuiltin::Write { fd, buffer } =>
 			{
@@ -2118,6 +2178,14 @@ impl Generatable for GeneratorBuiltin
 						)
 					}
 				};
+				debug_print_value_and_type("buffer_slice", buffer_slice);
+				debug_print_value_and_type("slice_ptr", slice_ptr);
+				let slice_ptr = generate_ext_array_view(
+					slice_ptr,
+					&ValueType::Uint8,
+					llvm,
+				)?;
+				debug_print_value_and_type("slice_ptr", slice_ptr);
 				let slice_len = {
 					let tmpname = CString::new("buffer_len")?;
 					unsafe {
@@ -2131,10 +2199,9 @@ impl Generatable for GeneratorBuiltin
 				};
 
 				let fd = fd.generate(llvm)?;
-				let mut arguments: Vec<LLVMValueRef> =
-					vec![fd, slice_ptr, slice_len];
+				let mut arguments = [fd, slice_ptr, slice_len];
 
-				let function = llvm.get_write_intrinsic();
+				let (function, return_type) = llvm.get_write_intrinsic();
 				let tmpname = CString::default();
 				let result = unsafe {
 					LLVMBuildCall(
@@ -2145,10 +2212,184 @@ impl Generatable for GeneratorBuiltin
 						tmpname.as_ptr(),
 					)
 				};
+				// TODO error handling with return type
+				let _ = return_type;
 				Ok(result)
 			}
 		}
 	}
+}
+
+impl Typed for GeneratorBuiltin
+{
+	fn value_type(&self) -> ValueType
+	{
+		match self
+		{
+			GeneratorBuiltin::Abort => ValueType::Void,
+			GeneratorBuiltin::Format { .. } => ValueType::Slice {
+				element_type: Box::new(ValueType::Uint8),
+			},
+			GeneratorBuiltin::Write { .. } => ValueType::Usize,
+		}
+	}
+}
+
+fn generate_format(
+	arguments: &[Expression],
+	llvm: &mut Generator,
+) -> Result<LLVMValueRef, anyhow::Error>
+{
+	let is_snprintf_safe = |&byte| match byte
+	{
+		b'%' => false,
+		b'\0' => false,
+		_ => true,
+	};
+
+	let mut format_buffer = Vec::new();
+	let mut inserted_arguments = Vec::new();
+	for argument in arguments
+	{
+		match argument
+		{
+			Expression::StringLiteral { bytes }
+				if bytes.iter().all(is_snprintf_safe) =>
+			{
+				format_buffer.extend(&bytes[..]);
+			}
+			_ =>
+			{
+				let (specifier, value) = generate_format_arg(argument, llvm)?;
+				format_buffer.extend(specifier.as_bytes());
+				inserted_arguments.push(value);
+			}
+		}
+	}
+
+	if inserted_arguments.is_empty()
+	{
+		let bytes = &format_buffer[..];
+		let address = generate_global_string_literal(bytes, llvm)?;
+		let char_type = ValueType::Uint8;
+		let length = bytes.len();
+		return generate_array_slice(address, &char_type, length, llvm);
+	}
+
+	let format_string = CString::new(format_buffer)?;
+	let format_string_as_argument = todo!();
+
+	let output_buffer = todo!();
+
+	let mut snprintf_arguments = vec![
+		output_buffer,
+		llvm.const_usize(0),
+		format_string_as_argument,
+	];
+	snprintf_arguments.extend(inserted_arguments);
+
+	let (function, return_type) = llvm.get_snprintf_intrinsic();
+	let tmpname = CString::default();
+	let result = unsafe {
+		LLVMBuildCall(
+			llvm.builder,
+			function,
+			snprintf_arguments.as_mut_ptr(),
+			snprintf_arguments.len() as u32,
+			tmpname.as_ptr(),
+		)
+	};
+	Ok(result)
+}
+
+fn generate_format_arg(
+	argument: &Expression,
+	llvm: &mut Generator,
+) -> Result<(&'static str, LLVMValueRef), anyhow::Error>
+{
+	match argument.value_type()
+	{
+		ValueType::Void => unreachable!(),
+		ValueType::Int8 => generate_format_arg_as_i64(argument, llvm),
+		ValueType::Int16 => generate_format_arg_as_i64(argument, llvm),
+		ValueType::Int32 => generate_format_arg_as_i64(argument, llvm),
+		ValueType::Int64 => generate_format_arg_as_i64(argument, llvm),
+		ValueType::Int128 => todo!(),
+		ValueType::Uint8 => generate_format_arg_as_u64(argument, llvm),
+		ValueType::Uint16 => generate_format_arg_as_u64(argument, llvm),
+		ValueType::Uint32 => generate_format_arg_as_u64(argument, llvm),
+		ValueType::Uint64 => generate_format_arg_as_u64(argument, llvm),
+		ValueType::Uint128 => todo!(),
+		ValueType::Usize => todo!(),
+		ValueType::Bool => todo!(),
+		ValueType::Array { .. } => generate_format_slice(argument, llvm),
+		ValueType::ArrayWithNamedLength { .. } => unreachable!(),
+		ValueType::Slice { .. } => generate_format_slice(argument, llvm),
+		ValueType::SlicePointer { .. } => generate_format_slice(argument, llvm),
+		ValueType::EndlessArray { .. } => generate_format_slice(argument, llvm),
+		ValueType::Arraylike { .. } => generate_format_slice(argument, llvm),
+		ValueType::Struct { identifier } =>
+		{
+			generate_format_struct(argument, &identifier, llvm)
+		}
+		ValueType::Word {
+			identifier,
+			size_in_bytes: _,
+		} => generate_format_struct(argument, &identifier, llvm),
+		ValueType::UnresolvedStructOrWord { .. } => unreachable!(),
+		ValueType::Pointer { .. } =>
+		{
+			let argument = argument.generate(llvm)?;
+			let void_type = unsafe { LLVMVoidTypeInContext(llvm.context) };
+			let void_ptr_type = unsafe { LLVMPointerType(void_type, 0) };
+			let tmpname = CString::default();
+			let result = unsafe {
+				LLVMBuildBitCast(
+					llvm.builder,
+					argument,
+					void_ptr_type,
+					tmpname.as_ptr(),
+				)
+			};
+			Ok(("%p", result))
+		}
+		ValueType::View { .. } => unreachable!(),
+	}
+}
+
+fn generate_format_arg_as_i64(
+	argument: &Expression,
+	llvm: &mut Generator,
+) -> Result<(&'static str, LLVMValueRef), anyhow::Error>
+{
+	todo!()
+}
+
+fn generate_format_arg_as_u64(
+	argument: &Expression,
+	llvm: &mut Generator,
+) -> Result<(&'static str, LLVMValueRef), anyhow::Error>
+{
+	todo!()
+}
+
+fn generate_format_slice(
+	argument: &Expression,
+	llvm: &mut Generator,
+) -> Result<(&'static str, LLVMValueRef), anyhow::Error>
+{
+	// TODO if char then %s else pretty print
+	todo!()
+}
+
+fn generate_format_struct(
+	argument: &Expression,
+	struct_name: &Identifier,
+	llvm: &mut Generator,
+) -> Result<(&'static str, LLVMValueRef), anyhow::Error>
+{
+	// TODO pretty print
+	todo!()
 }
 
 impl Generatable for builtin::Fd

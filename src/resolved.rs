@@ -141,6 +141,12 @@ pub struct Comparison
 	pub compared_type: ValueType,
 }
 
+/// Helper trait that extracts the resolved type from a value expression.
+pub trait Typed
+{
+	fn value_type(&self) -> ValueType;
+}
+
 #[must_use]
 #[derive(Debug, Clone)]
 pub enum Expression
@@ -156,6 +162,7 @@ pub enum Expression
 	{
 		op: UnaryOp,
 		expression: Box<Expression>,
+		value_type: ValueType,
 	},
 	SignedIntegerLiteral
 	{
@@ -218,6 +225,7 @@ pub enum Expression
 	{
 		name: Identifier,
 		arguments: Vec<Expression>,
+		return_type: ValueType,
 	},
 	InlineBlock
 	{
@@ -225,6 +233,53 @@ pub enum Expression
 		value: Box<Expression>,
 	},
 	Builtin(GeneratorBuiltin),
+}
+
+impl Typed for Expression
+{
+	fn value_type(&self) -> ValueType
+	{
+		match self
+		{
+			Expression::Binary { value_type, .. } => value_type.clone(),
+			Expression::Unary { value_type, .. } => value_type.clone(),
+			Expression::SignedIntegerLiteral { value_type, .. } =>
+			{
+				value_type.clone()
+			}
+			Expression::BitIntegerLiteral { value_type, .. } =>
+			{
+				value_type.clone()
+			}
+			Expression::StringLiteral { bytes } => ValueType::Array {
+				element_type: Box::new(ValueType::Uint8),
+				length: bytes.len(),
+			},
+			Expression::ArrayLiteral {
+				elements,
+				element_type,
+			} => ValueType::Array {
+				element_type: Box::new(element_type.clone()),
+				length: elements.len(),
+			},
+			Expression::Structural {
+				structural_type, ..
+			} => structural_type.clone(),
+			Expression::Parenthesized { inner } => inner.value_type(),
+			Expression::Deref { deref_type, .. } => deref_type.clone(),
+			Expression::Autocoerce { coerced_type, .. } => coerced_type.clone(),
+			Expression::BitCast { coerced_type, .. } => coerced_type.clone(),
+			Expression::PrimitiveCast { coerced_type, .. } =>
+			{
+				coerced_type.clone()
+			}
+			Expression::LengthOfArray { .. } => ValueType::Usize,
+			Expression::SizeOf { .. } => ValueType::Usize,
+			Expression::FunctionCall { return_type, .. } => return_type.clone(),
+			Expression::InlineBlock { value, .. } => value.value_type(),
+			Expression::Builtin(builtin) => builtin.value_type(),
+		}
+	}
 }
 
 #[must_use]

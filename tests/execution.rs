@@ -6,6 +6,7 @@
 
 use penne::*;
 
+use anyhow::anyhow;
 use anyhow::Context;
 use pretty_assertions::assert_eq;
 use std::io::Write;
@@ -598,19 +599,40 @@ fn execute_import_sum_of_squares() -> Result<(), anyhow::Error>
 }
 
 #[test]
-fn execute_and_crash_abort() -> Result<(), anyhow::Error>
+fn execute_hello_world() -> Result<(), anyhow::Error>
 {
-	let result = execute_calculation("tests/samples/valid/abort.pn");
-	match result
-	{
-		Ok(_) => panic!("broken test"),
-		Err(err) if format!("{err}").contains("No status code") => Ok(()),
-		Err(err) => Err(err),
-	}
+	let output = execute("examples/hello_world.pn")?;
+	let stdout = stdout_from_output(output)?;
+	assert_eq!(stdout, "Hello world!\n");
+	Ok(())
 }
 
 #[test]
-fn fail_to_execute_pointer_escape_ub() -> Result<(), anyhow::Error>
+fn execute_builtin_print() -> Result<(), anyhow::Error>
+{
+	let output = execute("tests/samples/valid/builtin_print.pn")?;
+	let stdout = stdout_from_output(output)?;
+	assert_eq!(stdout, "Hello world!\n");
+	Ok(())
+}
+
+#[test]
+fn execute_and_crash_builtin_abort() -> Result<(), anyhow::Error>
+{
+	const POSIX_SIGABRT: i32 = 6;
+	let output = execute("tests/samples/valid/builtin_abort.pn")?;
+	if cfg!(target_os = "unix")
+	{
+		use std::os::unix::process::ExitStatusExt;
+		let signal = output.status.signal().expect("Expected signal");
+		assert_eq!(signal, POSIX_SIGABRT);
+	}
+	assert!(!output.status.success());
+	Ok(())
+}
+
+#[test]
+fn execute_invalid_pointer_escape_ub() -> Result<(), anyhow::Error>
 {
 	let result =
 		execute_calculation("tests/samples/invalid/pointer_escape_ub.pn")?;
@@ -620,6 +642,12 @@ fn fail_to_execute_pointer_escape_ub() -> Result<(), anyhow::Error>
 }
 
 fn execute_calculation(filename: &str) -> Result<i32, anyhow::Error>
+{
+	let output = execute(filename)?;
+	calculation_result_from_output(output)
+}
+
+fn execute(filename: &str) -> Result<std::process::Output, anyhow::Error>
 {
 	let source = std::fs::read_to_string(filename)?;
 	let tokens = lexer::lex(&source, filename);
@@ -648,6 +676,14 @@ fn execute_calculation(filename: &str) -> Result<i32, anyhow::Error>
 fn execute_calculation_with_imports(
 	filenames: &[&str],
 ) -> Result<i32, anyhow::Error>
+{
+	let output = execute_with_imports(filenames)?;
+	calculation_result_from_output(output)
+}
+
+fn execute_with_imports(
+	filenames: &[&str],
+) -> Result<std::process::Output, anyhow::Error>
 {
 	let mut modules = Vec::new();
 	for filename in filenames
@@ -687,7 +723,7 @@ fn execute_calculation_with_imports(
 	execute_ir(&ir)
 }
 
-fn execute_ir(ir: &str) -> Result<i32, anyhow::Error>
+fn execute_ir(ir: &str) -> Result<std::process::Output, anyhow::Error>
 {
 	let llistr: std::borrow::Cow<str> = match std::env::var("PENNE_LLI")
 	{
@@ -699,7 +735,38 @@ fn execute_ir(ir: &str) -> Result<i32, anyhow::Error>
 		.stdin(std::process::Stdio::piped())
 		.spawn()?;
 	cmd.stdin.as_mut().unwrap().write_all(ir.as_bytes())?;
-	let status = cmd.wait()?;
-	let exitcode = status.code().context("No status code")?;
-	Ok(exitcode)
+	let output = cmd.wait_with_output()?;
+	Ok(output)
+}
+
+fn calculation_result_from_output(
+	output: std::process::Output,
+) -> Result<i32, anyhow::Error>
+{
+	if output.stderr.is_empty()
+	{
+		let exitcode = output.status.code().context("No status code")?;
+		Ok(exitcode)
+	}
+	else
+	{
+		let stderr = std::str::from_utf8(&output.stderr);
+		Err(anyhow!("Unexpected stderr: {:?}", stderr))
+	}
+}
+
+fn stdout_from_output(
+	output: std::process::Output,
+) -> Result<String, anyhow::Error>
+{
+	if output.stderr.is_empty()
+	{
+		let stdout = String::from_utf8(output.stdout)?;
+		Ok(stdout)
+	}
+	else
+	{
+		let stderr = std::str::from_utf8(&output.stderr);
+		Err(anyhow!("Unexpected stderr: {:?}", stderr))
+	}
 }

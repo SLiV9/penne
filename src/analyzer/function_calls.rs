@@ -326,7 +326,7 @@ impl Analyzable for Statement
 			{
 				let recoverable_error = if let Some(builtin) = &builtin
 				{
-					analyze_builtin(&name, builtin, &arguments, analyzer)
+					analyze_builtin(&name, builtin, &arguments)
 				}
 				else
 				{
@@ -628,7 +628,7 @@ impl Analyzable for Expression
 			{
 				let recoverable_error = if let Some(builtin) = &builtin
 				{
-					analyze_builtin(&name, builtin, &arguments, analyzer)
+					analyze_builtin(&name, builtin, &arguments)
 				}
 				else
 				{
@@ -722,7 +722,6 @@ fn analyze_builtin(
 	name: &Identifier,
 	builtin: &Builtin,
 	arguments: &[Expression],
-	analyzer: &mut Analyzer,
 ) -> Result<(), Error>
 {
 	match builtin
@@ -741,6 +740,26 @@ fn analyze_builtin(
 				})
 			}
 		}
-		_ => todo!(),
+		Builtin::Format => Ok(()),
+		Builtin::Print => Ok(()),
+		Builtin::Eprint => Ok(()),
+		Builtin::File => Ok(()),
+		Builtin::Line => Ok(()),
+		Builtin::Dbg =>
+		{
+			if arguments.len() <= 1
+			{
+				Ok(())
+			}
+			else
+			{
+				Err(Error::TooManyArguments {
+					location: name.location.clone(),
+					location_of_declaration: name.location.clone(),
+				})
+			}
+		}
+		Builtin::Panic => Ok(()),
+		Builtin::IncludeBytes => todo!(),
 	}
 }

@@ -21,6 +21,7 @@ pub fn resolve(
 	builtin: Builtin,
 	location: &Location,
 	arguments: Vec<resolved::Expression>,
+	return_type: resolved::ValueType,
 ) -> resolved::Expression
 {
 	match builtin
@@ -47,13 +48,13 @@ pub fn resolve(
 		Builtin::Dbg if arguments.len() == 0 =>
 		{
 			let arguments = vec![
-				resolved::Expression::StringLiteral {
-					bytes: "[{}:{}]\n".as_bytes().to_vec(),
-				},
-				resolve(Builtin::File, location, Vec::new()),
-				resolve(Builtin::Line, location, Vec::new()),
+				string_literal("["),
+				file(location),
+				string_literal(":"),
+				line(location),
+				string_literal("]\n"),
 			];
-			resolve(Builtin::Eprint, location, arguments)
+			resolve(Builtin::Eprint, location, arguments, return_type)
 		}
 		Builtin::Dbg =>
 		{
@@ -62,16 +63,23 @@ pub fn resolve(
 			let value = arguments.next().unwrap();
 			let value_source_code_string_literal = arguments.next().unwrap();
 			let arguments = vec![
-				resolved::Expression::StringLiteral {
-					bytes: "[{}:{}] {} = {}\n".as_bytes().to_vec(),
-				},
-				resolve(Builtin::File, location, Vec::new()),
-				resolve(Builtin::Line, location, Vec::new()),
+				string_literal("["),
+				file(location),
+				string_literal(":"),
+				line(location),
+				string_literal("] "),
 				value_source_code_string_literal,
+				string_literal(" = "),
 				value,
+				string_literal("\n"),
 			];
 			todo!();
-			let eprint = resolve(Builtin::Eprint, location, arguments);
+			let eprint = resolve(
+				Builtin::Eprint,
+				location,
+				arguments,
+				resolved::ValueType::Void,
+			);
 			let statements =
 				vec![resolved::Statement::EvaluateAndDiscard { value: eprint }];
 			let value = Box::new(value);
@@ -79,7 +87,12 @@ pub fn resolve(
 		}
 		Builtin::Panic =>
 		{
-			let eprint = resolve(Builtin::Eprint, location, arguments);
+			let eprint = resolve(
+				Builtin::Eprint,
+				location,
+				arguments,
+				resolved::ValueType::Void,
+			);
 			let statements =
 				vec![resolved::Statement::EvaluateAndDiscard { value: eprint }];
 			let value = Box::new(resolved::Expression::Builtin(
@@ -91,16 +104,44 @@ pub fn resolve(
 	}
 }
 
+fn file(location: &Location) -> resolved::Expression
+{
+	let str_type = resolved::ValueType::Slice {
+		element_type: Box::new(resolved::ValueType::Uint8),
+	};
+	resolve(Builtin::File, location, Vec::new(), str_type)
+}
+
+fn line(location: &Location) -> resolved::Expression
+{
+	resolve(
+		Builtin::Line,
+		location,
+		Vec::new(),
+		resolved::ValueType::Usize,
+	)
+}
+
 fn write(
 	fd: Fd,
 	location: &Location,
 	arguments: Vec<resolved::Expression>,
 ) -> resolved::Expression
 {
-	let buffer = resolve(Builtin::Format, location, arguments);
+	let str_type = resolved::ValueType::Slice {
+		element_type: Box::new(resolved::ValueType::Uint8),
+	};
+	let buffer = resolve(Builtin::Format, location, arguments, str_type);
 	let write = resolved::GeneratorBuiltin::Write {
 		fd,
 		buffer: Box::new(buffer),
 	};
 	resolved::Expression::Builtin(write)
+}
+
+fn string_literal(literal: &str) -> resolved::Expression
+{
+	resolved::Expression::StringLiteral {
+		bytes: literal.as_bytes().to_vec(),
+	}
 }

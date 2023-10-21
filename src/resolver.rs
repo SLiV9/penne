@@ -588,8 +588,12 @@ impl Resolvable for Expression
 				let expression = expression.resolve()?;
 				// If the expression contains errors, type inference will
 				// fail, but there is not much point in reporting that.
-				let _ = value_type?;
-				Ok(resolved::Expression::Unary { op, expression })
+				let value_type = value_type?;
+				Ok(resolved::Expression::Unary {
+					op,
+					expression,
+					value_type,
+				})
 			}
 			Expression::BooleanLiteral { value, location: _ } =>
 			{
@@ -803,8 +807,12 @@ impl Resolvable for Expression
 				let (name, arguments) = (name, arguments).resolve()?;
 				if let Some(return_type) = return_type
 				{
-					let _return_type = return_type.resolve()?;
-					Ok(resolved::Expression::FunctionCall { name, arguments })
+					let return_type = return_type.resolve()?;
+					Ok(resolved::Expression::FunctionCall {
+						name,
+						arguments,
+						return_type,
+					})
 				}
 				else
 				{
@@ -824,9 +832,13 @@ impl Resolvable for Expression
 				let arguments = arguments.resolve()?;
 				if let Some(return_type) = return_type
 				{
-					let _return_type = return_type.resolve()?;
-					let resolved =
-						builtin::resolve(builtin, &location, arguments);
+					let return_type = return_type.resolve()?;
+					let resolved = builtin::resolve(
+						builtin,
+						&location,
+						arguments,
+						return_type,
+					);
 					Ok(resolved)
 				}
 				else

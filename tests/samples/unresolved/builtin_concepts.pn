@@ -10,27 +10,27 @@ STDOUT  =>  // ???
 
 abort!()  ==>  libc abort
 
-format!("...", ...)  ==>  generated code as []u8
+format!(...)  ==>  generated code as []u8
 
-__write!(fd, "...", ...)  ==>  {
-	var buffer = format!("...", ...);
+__write!(fd, ...)  ==>  {
+	var buffer = format!(...);
 	var result = write(fd, buffer, |buffer|);
 	return: result
 }
 
-print!("...", ...)  ==>  __write!(STDIO, "...", ...)
-eprint!("...", ...)  ==>  __write!(STDERR, "...", ...)
+print!(...)  ==>  __write!(STDIO, ...)
+eprint!(...)  ==>  __write!(STDERR, ...)
 
 file!()  ==>  location.source_filename as []u8
 line!()  ==>  location.line_number as usize
 
 dbg!(X)  ==>  {
-	eprint!("[{}:{}] {} = {}\n", file!(), line!(), #X, X);
+	eprint!("[", file!(), ":", line!(), "] ", #X, " = ", X, "\n");
 	return: X
 }
 
-panic!("...", ...)  ==>  {
-	eprint!("panicked at [{}:{}]: ...\n", file!(), line!(), ...);
+panic!(...)  ==>  {
+	eprint!("panicked at [", file!(), ":", line!(), "]: ", ..., "\n");
 	abort!();
 }
 
