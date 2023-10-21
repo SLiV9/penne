@@ -1,0 +1,13 @@
+fn main() -> u8
+{
+	var x: u8 = 2 + 2;
+
+	// oops
+	x = x + 1;
+
+	if x != 4
+	{
+		abort!();
+	}
+	return: 0
+}

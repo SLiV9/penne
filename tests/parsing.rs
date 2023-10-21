@@ -471,3 +471,9 @@ fn fail_to_parse_var_underscore()
 {
 	compile_to_fail(&[300], "tests/samples/invalid/var_underscore.pn")
 }
+
+#[test]
+fn fail_to_parse_declare_builtin()
+{
+	compile_to_fail(&[300], "tests/samples/invalid/declare_builtin.pn")
+}

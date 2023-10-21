@@ -8,7 +8,7 @@ STDOUT  =>  // ???
 
 /// BUILTINS ///
 
-abort!()  ==>  llvm.trap intrinsic
+abort!()  ==>  libc abort
 
 format!("...", ...)  ==>  generated code as []u8
 

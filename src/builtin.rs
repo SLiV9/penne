@@ -58,8 +58,9 @@ pub fn resolve(
 		Builtin::Dbg =>
 		{
 			assert_eq!(arguments.len(), 2);
-			let value = arguments[0];
-			let value_source_code_string_literal = arguments[1];
+			let mut arguments = arguments.into_iter();
+			let value = arguments.next().unwrap();
+			let value_source_code_string_literal = arguments.next().unwrap();
 			let arguments = vec![
 				resolved::Expression::StringLiteral {
 					bytes: "[{}:{}] {} = {}\n".as_bytes().to_vec(),
@@ -69,6 +70,7 @@ pub fn resolve(
 				value_source_code_string_literal,
 				value,
 			];
+			todo!();
 			let eprint = resolve(Builtin::Eprint, location, arguments);
 			let statements =
 				vec![resolved::Statement::EvaluateAndDiscard { value: eprint }];

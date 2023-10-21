@@ -78,6 +78,12 @@ fn fail_to_analyze_too_many_arguments()
 }
 
 #[test]
+fn fail_to_analyze_abort_with_arguments()
+{
+	compile_to_fail(&[511], "tests/samples/invalid/abort_with_arguments.pn");
+}
+
+#[test]
 fn fail_to_analyze_assign_array_to_array()
 {
 	compile_to_fail(&[531], "tests/samples/invalid/assign_array_to_array.pn");

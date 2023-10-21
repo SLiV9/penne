@@ -803,11 +803,8 @@ impl Resolvable for Expression
 				let (name, arguments) = (name, arguments).resolve()?;
 				if let Some(return_type) = return_type
 				{
-					Ok(resolved::Expression::FunctionCall {
-						name,
-						arguments,
-						return_type: return_type.resolve()?,
-					})
+					let _return_type = return_type.resolve()?;
+					Ok(resolved::Expression::FunctionCall { name, arguments })
 				}
 				else
 				{

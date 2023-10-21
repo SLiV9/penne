@@ -33,6 +33,7 @@ pub struct Generator
 	local_parameters: std::collections::HashMap<u32, LLVMValueRef>,
 	local_variables: std::collections::HashMap<u32, LLVMValueRef>,
 	local_labeled_blocks: std::collections::HashMap<u32, LLVMBasicBlockRef>,
+	used_intrinsics: std::collections::HashMap<&'static str, LLVMValueRef>,
 	target_triple: CString,
 	data_layout: CString,
 	type_of_usize: LLVMTypeRef,
@@ -73,6 +74,7 @@ impl Generator
 				local_parameters: std::collections::HashMap::new(),
 				local_variables: std::collections::HashMap::new(),
 				local_labeled_blocks: std::collections::HashMap::new(),
+				used_intrinsics: std::collections::HashMap::new(),
 				target_triple,
 				data_layout,
 				type_of_usize,
@@ -296,6 +298,35 @@ impl Generator
 			)
 		};
 		size_in_bits as usize
+	}
+
+	fn get_trap_like_intrinsic(&mut self, name: &'static str) -> LLVMValueRef
+	{
+		let function = self.used_intrinsics.entry(name).or_insert_with(|| {
+			let linkage = LLVMLinkage::LLVMExternalLinkage;
+			let callconv = LLVMCallConv::LLVMCCallConv;
+			let function_name = CString::new(name.as_bytes()).unwrap();
+
+			unsafe {
+				let return_type = LLVMVoidTypeInContext(self.context);
+				let function_type =
+					LLVMFunctionType(return_type, std::ptr::null_mut(), 0, 0);
+				let function = LLVMAddFunction(
+					self.module,
+					function_name.as_ptr(),
+					function_type,
+				);
+				LLVMSetLinkage(function, linkage);
+				LLVMSetFunctionCallConv(function, callconv as u32);
+				function
+			}
+		});
+		*function
+	}
+
+	fn get_write_intrinsic(&mut self) -> LLVMValueRef
+	{
+		todo!()
 	}
 }
 
@@ -857,7 +888,7 @@ impl Generatable for Comparison
 		let is_signed = self.compared_type.is_signed();
 		let left = self.left.generate(llvm)?;
 		let right = self.right.generate(llvm)?;
-		let name = CString::new("")?;
+		let name = CString::default();
 		let pred = match self.op
 		{
 			ComparisonOp::Equals => llvm_sys::LLVMIntPredicate::LLVMIntEQ,
@@ -911,7 +942,7 @@ impl Generatable for Expression
 				let is_signed = value_type.is_signed();
 				let left = left.generate(llvm)?;
 				let right = right.generate(llvm)?;
-				let name = CString::new("")?;
+				let name = CString::default();
 				let result = match op
 				{
 					BinaryOp::Add =>
@@ -968,7 +999,7 @@ impl Generatable for Expression
 			Expression::Unary { op, expression } =>
 			{
 				let expr = expression.generate(llvm)?;
-				let name = CString::new("")?;
+				let name = CString::default();
 				let result = match op
 				{
 					UnaryOp::Negative =>
@@ -1073,7 +1104,7 @@ impl Generatable for Expression
 				};
 				for (i, v) in inserts.into_iter()
 				{
-					let tmpname = CString::new("")?;
+					let tmpname = CString::default();
 					result = unsafe {
 						LLVMBuildInsertValue(
 							llvm.builder,
@@ -1152,14 +1183,14 @@ impl Generatable for Expression
 						.collect();
 				let mut arguments: Vec<LLVMValueRef> = arguments?;
 
-				let function_name = CString::new(&name.name as &str)?;
+				let tmpname = CString::default();
 				let result = unsafe {
 					LLVMBuildCall(
 						llvm.builder,
 						function,
 						arguments.as_mut_ptr(),
 						arguments.len() as u32,
-						function_name.as_ptr(),
+						tmpname.as_ptr(),
 					)
 				};
 				Ok(result)
@@ -1314,7 +1345,7 @@ impl Reference
 		}
 		else
 		{
-			let tmpname = CString::new("")?;
+			let tmpname = CString::default();
 			unsafe { LLVMBuildLoad(llvm.builder, address, tmpname.as_ptr()) }
 		};
 		Ok(result)
@@ -1333,7 +1364,7 @@ impl Reference
 			{
 				ReferenceStep::Autodeslice { offset } =>
 				{
-					let tmpname = CString::new("")?;
+					let tmpname = CString::default();
 					let addr = value;
 					let offset: u8 = *offset;
 					let offset: u32 = offset.into();
@@ -1348,7 +1379,7 @@ impl Reference
 				}
 				ReferenceStep::Member { offset } =>
 				{
-					let tmpname = CString::new("")?;
+					let tmpname = CString::default();
 					let addr = value;
 					let offset: usize = *offset;
 					let offset: u32 = offset.try_into()?;
@@ -1384,7 +1415,7 @@ impl Reference
 			{
 				// We assume that the parameter is ValueType::Slice(Pointer).
 				let param = *value;
-				let tmpname = CString::new("")?;
+				let tmpname = CString::default();
 				let tmp = unsafe {
 					LLVMBuildExtractValue(
 						llvm.builder,
@@ -1495,7 +1526,7 @@ impl Reference
 					}
 					if !indices.is_empty()
 					{
-						let tmpname = CString::new("")?;
+						let tmpname = CString::default();
 						addr = unsafe {
 							LLVMBuildGEP(
 								llvm.builder,
@@ -1506,7 +1537,7 @@ impl Reference
 							)
 						};
 					}
-					let tmpname = CString::new("")?;
+					let tmpname = CString::default();
 					addr = unsafe {
 						LLVMBuildLoad(llvm.builder, addr, tmpname.as_ptr())
 					};
@@ -1520,7 +1551,7 @@ impl Reference
 				{
 					if indices.is_empty()
 					{
-						let tmpname = CString::new("")?;
+						let tmpname = CString::default();
 						addr = unsafe {
 							LLVMBuildExtractValue(
 								llvm.builder,
@@ -1533,7 +1564,7 @@ impl Reference
 					else
 					{
 						indices.push(llvm.const_i32(0));
-						let tmpname = CString::new("")?;
+						let tmpname = CString::default();
 						addr = unsafe {
 							LLVMBuildGEP(
 								llvm.builder,
@@ -1543,7 +1574,7 @@ impl Reference
 								tmpname.as_ptr(),
 							)
 						};
-						let tmpname = CString::new("")?;
+						let tmpname = CString::default();
 						addr = unsafe {
 							LLVMBuildLoad(llvm.builder, addr, tmpname.as_ptr())
 						};
@@ -1561,7 +1592,7 @@ impl Reference
 
 		if !indices.is_empty()
 		{
-			let tmpname = CString::new("")?;
+			let tmpname = CString::default();
 			addr = unsafe {
 				LLVMBuildGEP(
 					llvm.builder,
@@ -1596,7 +1627,7 @@ fn generate_view(
 	llvm: &mut Generator,
 ) -> Result<LLVMValueRef, anyhow::Error>
 {
-	let tmpname = CString::new("")?;
+	let tmpname = CString::default();
 	let pointee_type = viewed_type.generate(llvm)?;
 	let pointer_type = unsafe { LLVMPointerType(pointee_type, 0u32) };
 	let address_value = unsafe {
@@ -1616,7 +1647,7 @@ fn generate_ext_array_view(
 	llvm: &mut Generator,
 ) -> Result<LLVMValueRef, anyhow::Error>
 {
-	let tmpname = CString::new("")?;
+	let tmpname = CString::default();
 	let element_type = element_type.generate(llvm)?;
 	let pointertype = unsafe { LLVMPointerType(element_type, 0u32) };
 	let address_value = unsafe {
@@ -1637,7 +1668,7 @@ fn generate_array_slice(
 	llvm: &mut Generator,
 ) -> Result<LLVMValueRef, anyhow::Error>
 {
-	let tmpname = CString::new("")?;
+	let tmpname = CString::default();
 	let element_type = element_type.generate(llvm)?;
 	let storagetype = unsafe { LLVMArrayType(element_type, 0u32) };
 	let pointertype = unsafe { LLVMPointerType(storagetype, 0u32) };
@@ -1735,7 +1766,7 @@ fn generate_structure_literal(
 	llvm: &mut Generator,
 ) -> Result<LLVMValueRef, anyhow::Error>
 {
-	let tmpname = CString::new("")?;
+	let tmpname = CString::default();
 	let structure_type = structural_type.generate(llvm)?;
 	let mut structure = unsafe { LLVMGetUndef(structure_type) };
 	for member in members
@@ -1912,7 +1943,7 @@ fn generate_tmp_address(
 	llvm: &mut Generator,
 ) -> Result<LLVMValueRef, anyhow::Error>
 {
-	let tmpname = CString::new("")?;
+	let tmpname = CString::default();
 	let tmp = unsafe { LLVMBuildAlloca(llvm.builder, vtype, tmpname.as_ptr()) };
 	unsafe {
 		LLVMBuildStore(llvm.builder, value, tmp);
@@ -1928,7 +1959,7 @@ fn generate_bitcast(
 {
 	let value = expression.generate(llvm)?;
 	let dest_type = coerced_type.generate(llvm)?;
-	let tmpname = CString::new("")?;
+	let tmpname = CString::default();
 	let result = unsafe {
 		LLVMBuildBitCast(llvm.builder, value, dest_type, tmpname.as_ptr())
 	};
@@ -1962,7 +1993,7 @@ fn generate_conversion(
 			let src_size_in_bits = llvm.size_in_bits(src_type);
 			let dest_type = coerced_type.generate(llvm)?;
 			let dest_size_in_bits = llvm.size_in_bits(dest_type);
-			let tmpname = CString::new("")?;
+			let tmpname = CString::default();
 			let is_truncated = dest_size_in_bits < src_size_in_bits;
 			let result = if is_truncated
 			{
@@ -2002,7 +2033,7 @@ fn generate_conversion(
 		(ValueType::Bool, ct) if ct.is_integral() =>
 		{
 			let dest_type = coerced_type.generate(llvm)?;
-			let tmpname = CString::new("")?;
+			let tmpname = CString::default();
 			let result = unsafe {
 				LLVMBuildZExtOrBitCast(
 					llvm.builder,
@@ -2044,10 +2075,24 @@ impl Generatable for GeneratorBuiltin
 	{
 		match self
 		{
-			GeneratorBuiltin::Abort => todo!(),
+			GeneratorBuiltin::Abort =>
+			{
+				let function = llvm.get_trap_like_intrinsic("abort");
+				let tmpname = CString::default();
+				let result = unsafe {
+					LLVMBuildCall(
+						llvm.builder,
+						function,
+						std::ptr::null_mut(),
+						0u32,
+						tmpname.as_ptr(),
+					)
+				};
+				Ok(result)
+			}
 			GeneratorBuiltin::Format { arguments } =>
 			{
-				let arguments = arguments.into_iter();
+				let mut arguments = arguments.into_iter();
 				let format_string = arguments.next().unwrap().generate(llvm)?;
 				if arguments.next().is_none()
 				{
@@ -2090,7 +2135,7 @@ impl Generatable for GeneratorBuiltin
 					vec![fd, slice_ptr, slice_len];
 
 				let function = llvm.get_write_intrinsic();
-				let tmpname = CString::new("write")?;
+				let tmpname = CString::default();
 				let result = unsafe {
 					LLVMBuildCall(
 						llvm.builder,

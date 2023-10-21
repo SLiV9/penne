@@ -6,6 +6,7 @@
 
 use penne::*;
 
+use anyhow::Context;
 use pretty_assertions::assert_eq;
 use std::io::Write;
 
@@ -597,6 +598,18 @@ fn execute_import_sum_of_squares() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_and_crash_abort() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation("tests/samples/valid/abort.pn");
+	match result
+	{
+		Ok(_) => panic!("broken test"),
+		Err(err) if format!("{err}").contains("No status code") => Ok(()),
+		Err(err) => Err(err),
+	}
+}
+
+#[test]
 fn fail_to_execute_pointer_escape_ub() -> Result<(), anyhow::Error>
 {
 	let result =
@@ -687,6 +700,6 @@ fn execute_ir(ir: &str) -> Result<i32, anyhow::Error>
 		.spawn()?;
 	cmd.stdin.as_mut().unwrap().write_all(ir.as_bytes())?;
 	let status = cmd.wait()?;
-	let exitcode = status.code().unwrap();
+	let exitcode = status.code().context("No status code")?;
 	Ok(exitcode)
 }

@@ -503,7 +503,7 @@ impl Rebuildable for Statement
 			} =>
 			{
 				let mut buffer = String::new();
-				if let Some(builtin) = builtin
+				if let Some(_builtin) = builtin
 				{
 					write!(&mut buffer, "{}{}!#!(", indentation, name.name)?;
 				}
@@ -767,7 +767,7 @@ impl Rebuildable for Expression
 			} =>
 			{
 				let mut buffer = String::new();
-				if let Some(builtin) = builtin
+				if let Some(_builtin) = builtin
 				{
 					write!(&mut buffer, "{}!#!(", name.name)?;
 				}

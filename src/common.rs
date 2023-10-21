@@ -523,7 +523,7 @@ impl PartialEq for Identifier
 
 #[must_use]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(untagged, rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum Builtin
 {
 	Abort,
