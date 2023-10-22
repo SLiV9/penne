@@ -1,0 +1,23 @@
+
+fn foo(value: u8, data: []u8, ptr: &u8, out: &[]u8)
+{
+	// Nothing.
+}
+
+fn bar(c: char8, text: []char8, cptr: &char8, out: &[]char8)
+{
+	// Nothing.
+}
+
+fn main() -> i32
+{
+	var x: u8 = 108;
+	var c = x as char8;
+	var data = [96, x];
+	var text = "Hallo";
+	foo(x, data, &x, &data);
+	bar(x as char8, data, cast &x, &data);
+	foo(c as u8, text, cast &c, &text);
+	bar(c, text, &c, &text);
+	return: 200
+}

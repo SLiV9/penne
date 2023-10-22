@@ -365,6 +365,14 @@ fn execute_cast_without_as() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_char8_cast() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation("tests/samples/valid/char8_cast.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_structs_and_words() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation("examples/structs_and_words.pn")?;

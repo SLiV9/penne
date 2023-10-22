@@ -37,29 +37,29 @@ where
 	Bool,
 	Array
 	{
-		element_type: Box<ValueType<I>>,
+		element_type: Box<Self>,
 		length: usize,
 	},
 	ArrayWithNamedLength
 	{
-		element_type: Box<ValueType<I>>,
+		element_type: Box<Self>,
 		named_length: I,
 	},
 	Slice
 	{
-		element_type: Box<ValueType<I>>,
+		element_type: Box<Self>,
 	},
 	SlicePointer
 	{
-		element_type: Box<ValueType<I>>,
+		element_type: Box<Self>,
 	},
 	EndlessArray
 	{
-		element_type: Box<ValueType<I>>,
+		element_type: Box<Self>,
 	},
 	Arraylike
 	{
-		element_type: Box<ValueType<I>>,
+		element_type: Box<Self>,
 	},
 	Struct
 	{
@@ -76,11 +76,11 @@ where
 	},
 	Pointer
 	{
-		deref_type: Box<ValueType<I>>,
+		deref_type: Box<Self>,
 	},
 	View
 	{
-		deref_type: Box<ValueType<I>>,
+		deref_type: Box<Self>,
 	},
 }
 
@@ -196,7 +196,7 @@ where
 		}
 	}
 
-	fn is_alias_of(&self, other: &ValueType<I>) -> bool
+	fn is_alias_of(&self, other: &Self) -> bool
 	{
 		match (self, other)
 		{
@@ -205,7 +205,74 @@ where
 		}
 	}
 
-	fn can_be_used_as(&self, other: &ValueType<I>) -> bool
+	fn equals(&self, other: &Self) -> bool
+	{
+		match self
+		{
+			ValueType::Array {
+				element_type: a,
+				length: la,
+			} => match other
+			{
+				ValueType::Array {
+					element_type: b,
+					length: lb,
+				} => la == lb && a.equals(b),
+				_ => false,
+			},
+			ValueType::ArrayWithNamedLength {
+				element_type: a,
+				named_length: x,
+			} => match other
+			{
+				ValueType::ArrayWithNamedLength {
+					element_type: b,
+					named_length: y,
+				} => x == y && a.equals(b),
+				_ => false,
+			},
+			ValueType::Slice { element_type: a } => match other
+			{
+				ValueType::Slice { element_type: b } => a.equals(b),
+				_ => false,
+			},
+			ValueType::SlicePointer { element_type: a } => match other
+			{
+				ValueType::SlicePointer { element_type: b } => a.equals(b),
+				_ => false,
+			},
+			ValueType::EndlessArray { element_type: a } => match other
+			{
+				ValueType::EndlessArray { element_type: b } => a.equals(b),
+				_ => false,
+			},
+			ValueType::Arraylike { element_type: a } => match other
+			{
+				ValueType::Arraylike { element_type: b } => a.equals(b),
+				_ => false,
+			},
+			ValueType::Struct { .. } => self == other,
+			ValueType::Word { .. } => self == other,
+			ValueType::View { deref_type: a } => match other
+			{
+				ValueType::View { deref_type: b } => a.equals(b),
+				_ => false,
+			},
+			ValueType::Pointer { deref_type: a } => match other
+			{
+				ValueType::Pointer { deref_type: b } => a.equals(b),
+				_ => false,
+			},
+			_ =>
+			{
+				self == other
+					|| self.is_alias_of(other)
+					|| other.is_alias_of(self)
+			}
+		}
+	}
+
+	fn is_like(&self, other: &Self) -> bool
 	{
 		match self
 		{
@@ -214,7 +281,7 @@ where
 				length: _,
 			} => match other
 			{
-				ValueType::Arraylike { element_type: b } => a.can_be_used_as(b),
+				ValueType::Arraylike { element_type: b } => a.is_like(b),
 				_ => self == other,
 			},
 			ValueType::ArrayWithNamedLength {
@@ -222,19 +289,19 @@ where
 				named_length: _,
 			} => match other
 			{
-				ValueType::Arraylike { element_type: b } => a.can_be_used_as(b),
+				ValueType::Arraylike { element_type: b } => a.is_like(b),
 				_ => self == other,
 			},
 			ValueType::EndlessArray { element_type: a } => match other
 			{
-				ValueType::Arraylike { element_type: b } => a.can_be_used_as(b),
+				ValueType::Arraylike { element_type: b } => a.is_like(b),
 				_ => self == other,
 			},
 			_ => self == other,
 		}
 	}
 
-	pub fn can_be_declared_as(&self, other: &ValueType<I>) -> bool
+	pub fn can_be_declared_as(&self, other: &Self) -> bool
 	{
 		match self
 		{
@@ -272,7 +339,7 @@ where
 		}
 	}
 
-	pub fn can_be_concretization_of(&self, other: &ValueType<I>) -> bool
+	pub fn can_be_concretization_of(&self, other: &Self) -> bool
 	{
 		match self
 		{
@@ -285,7 +352,7 @@ where
 					element_type: b,
 					length: lb,
 				} => la == lb && a.can_be_concretization_of(b),
-				_ => self.can_be_used_as(other),
+				_ => self.is_like(other),
 			},
 			ValueType::ArrayWithNamedLength {
 				element_type: a,
@@ -296,7 +363,7 @@ where
 					element_type: b,
 					named_length: y,
 				} => x == y && a.can_be_concretization_of(b),
-				_ => self.can_be_used_as(other),
+				_ => self.is_like(other),
 			},
 			ValueType::Slice { element_type: a } => match other
 			{
@@ -304,8 +371,8 @@ where
 				{
 					a.can_be_concretization_of(b)
 				}
-				ValueType::Arraylike { element_type: b } => a.can_be_used_as(b),
-				_ => self.can_be_used_as(other),
+				ValueType::Arraylike { element_type: b } => a.is_like(b),
+				_ => self == other,
 			},
 			ValueType::SlicePointer { element_type: a } => match other
 			{
@@ -313,16 +380,13 @@ where
 				{
 					a.can_be_concretization_of(b)
 				}
-				ValueType::Arraylike { element_type: b } => a.can_be_used_as(b),
+				ValueType::Arraylike { element_type: b } => a.is_like(b),
 				ValueType::Pointer { deref_type } => match deref_type.as_ref()
 				{
-					ValueType::Arraylike { element_type: b } =>
-					{
-						a.can_be_used_as(b)
-					}
-					_ => self.can_be_used_as(other),
+					ValueType::Arraylike { element_type: b } => a.is_like(b),
+					_ => self == other,
 				},
-				_ => self.can_be_used_as(other),
+				_ => self == other,
 			},
 			ValueType::EndlessArray { element_type: a } => match other
 			{
@@ -330,7 +394,7 @@ where
 				{
 					a.can_be_concretization_of(b)
 				}
-				_ => self.can_be_used_as(other),
+				_ => self.is_like(other),
 			},
 			ValueType::Arraylike { element_type: a } => match other
 			{
@@ -338,7 +402,7 @@ where
 				{
 					a.can_be_concretization_of(b)
 				}
-				_ => self.can_be_used_as(other),
+				_ => self == other,
 			},
 			ValueType::Struct { identifier: a, .. } => match other
 			{
@@ -362,7 +426,7 @@ where
 				{
 					a.can_be_concretization_of(b)
 				}
-				_ => self.can_be_used_as(other),
+				_ => self == other,
 			},
 			ValueType::Pointer { deref_type: a } => match other
 			{
@@ -370,13 +434,13 @@ where
 				{
 					a.can_be_concretization_of(b)
 				}
-				_ => self.can_be_used_as(other),
+				_ => self == other,
 			},
-			_ => self.can_be_used_as(other),
+			_ => self == other,
 		}
 	}
 
-	pub fn can_coerce_into(&self, other: &ValueType<I>) -> bool
+	pub fn can_coerce_into(&self, other: &Self) -> bool
 	{
 		match self
 		{
@@ -385,10 +449,10 @@ where
 				length: _,
 			} => match other
 			{
-				ValueType::Slice { element_type: b } => a == b,
+				ValueType::Slice { element_type: b } => a.equals(b),
 				ValueType::View { deref_type } => match deref_type.as_ref()
 				{
-					ValueType::EndlessArray { element_type: b } => a == b,
+					ValueType::EndlessArray { element_type: b } => a.equals(b),
 					_ => false,
 				},
 				_ => false,
@@ -398,10 +462,10 @@ where
 				named_length: _,
 			} => match other
 			{
-				ValueType::Slice { element_type: b } => a == b,
+				ValueType::Slice { element_type: b } => a.equals(b),
 				ValueType::View { deref_type } => match deref_type.as_ref()
 				{
-					ValueType::EndlessArray { element_type: b } => a == b,
+					ValueType::EndlessArray { element_type: b } => a.equals(b),
 					_ => false,
 				},
 				_ => false,
@@ -410,7 +474,7 @@ where
 			{
 				ValueType::View { deref_type } => match deref_type.as_ref()
 				{
-					ValueType::EndlessArray { element_type: b } => a == b,
+					ValueType::EndlessArray { element_type: b } => a.equals(b),
 					_ => false,
 				},
 				_ => false,
@@ -419,7 +483,7 @@ where
 			{
 				ValueType::Pointer { deref_type } => match deref_type.as_ref()
 				{
-					ValueType::EndlessArray { element_type: b } => a == b,
+					ValueType::EndlessArray { element_type: b } => a.equals(b),
 					_ => false,
 				},
 				_ => false,
@@ -433,7 +497,7 @@ where
 		}
 	}
 
-	pub fn can_coerce_address_into(&self, other: &ValueType<I>) -> bool
+	pub fn can_coerce_address_into(&self, other: &Self) -> bool
 	{
 		match self
 		{
@@ -442,10 +506,10 @@ where
 				length: _,
 			} => match other
 			{
-				ValueType::SlicePointer { element_type: b } => a == b,
+				ValueType::SlicePointer { element_type: b } => a.equals(b),
 				ValueType::Pointer { deref_type } => match deref_type.as_ref()
 				{
-					ValueType::EndlessArray { element_type: b } => a == b,
+					ValueType::EndlessArray { element_type: b } => a.equals(b),
 					_ => false,
 				},
 				_ => false,
@@ -455,10 +519,10 @@ where
 				named_length: _,
 			} => match other
 			{
-				ValueType::SlicePointer { element_type: b } => a == b,
+				ValueType::SlicePointer { element_type: b } => a.equals(b),
 				ValueType::Pointer { deref_type } => match deref_type.as_ref()
 				{
-					ValueType::EndlessArray { element_type: b } => a == b,
+					ValueType::EndlessArray { element_type: b } => a.equals(b),
 					_ => false,
 				},
 				_ => false,
@@ -467,38 +531,38 @@ where
 		}
 	}
 
-	pub fn can_autoderef_into(&self, other: &ValueType<I>) -> bool
+	pub fn can_autoderef_into(&self, other: &Self) -> bool
 	{
 		match self
 		{
 			ValueType::Array { .. } =>
 			{
-				self == other || self.can_coerce_into(other)
+				self.equals(other) || self.can_coerce_into(other)
 			}
 			ValueType::ArrayWithNamedLength { .. } =>
 			{
-				self == other || self.can_coerce_into(other)
+				self.equals(other) || self.can_coerce_into(other)
 			}
 			ValueType::Slice { .. } =>
 			{
-				self == other || self.can_coerce_into(other)
+				self.equals(other) || self.can_coerce_into(other)
 			}
 			ValueType::SlicePointer { .. } =>
 			{
-				self == other || self.can_coerce_into(other)
+				self.equals(other) || self.can_coerce_into(other)
 			}
 			ValueType::EndlessArray { .. } =>
 			{
-				self == other || self.can_coerce_into(other)
+				self.equals(other) || self.can_coerce_into(other)
 			}
 			ValueType::Struct { .. } =>
 			{
-				self == other || self.can_coerce_into(other)
+				self.equals(other) || self.can_coerce_into(other)
 			}
 			ValueType::View { deref_type } =>
 			{
-				self == other
-					|| deref_type.as_ref() == other
+				self.equals(other)
+					|| deref_type.as_ref().equals(other)
 					|| deref_type.can_subautoderef_into(other)
 					|| other
 						.get_viewee_type()
@@ -506,8 +570,8 @@ where
 			}
 			ValueType::Pointer { deref_type } =>
 			{
-				self == other
-					|| deref_type.as_ref() == other
+				self.equals(other)
+					|| deref_type.as_ref().equals(other)
 					|| deref_type.can_coerce_address_into(other)
 					|| deref_type.can_subautoderef_into(other)
 					|| other
@@ -518,13 +582,13 @@ where
 		}
 	}
 
-	fn can_subautoderef_into(&self, other: &ValueType<I>) -> bool
+	fn can_subautoderef_into(&self, other: &Self) -> bool
 	{
 		match self
 		{
 			ValueType::View { deref_type } =>
 			{
-				deref_type.as_ref() == other
+				deref_type.as_ref().equals(other)
 					|| deref_type.can_subautoderef_into(other)
 					|| other
 						.get_viewee_type()
@@ -532,7 +596,7 @@ where
 			}
 			ValueType::Pointer { deref_type } =>
 			{
-				deref_type.as_ref() == other
+				deref_type.as_ref().equals(other)
 					|| deref_type.can_subautoderef_into(other)
 					|| other
 						.get_pointee_type()
@@ -715,7 +779,7 @@ where
 		}
 	}
 
-	pub fn get_element_type(&self) -> Option<ValueType<I>>
+	pub fn get_element_type(&self) -> Option<Self>
 	{
 		match self
 		{
@@ -747,7 +811,7 @@ where
 		}
 	}
 
-	pub fn get_pointee_type(&self) -> Option<ValueType<I>>
+	pub fn get_pointee_type(&self) -> Option<Self>
 	{
 		match self
 		{
@@ -759,7 +823,7 @@ where
 		}
 	}
 
-	pub fn get_viewee_type(&self) -> Option<ValueType<I>>
+	pub fn get_viewee_type(&self) -> Option<Self>
 	{
 		match self
 		{
@@ -768,7 +832,7 @@ where
 		}
 	}
 
-	pub fn fully_dereferenced(&self) -> ValueType<I>
+	pub fn fully_dereferenced(&self) -> Self
 	{
 		match self
 		{
