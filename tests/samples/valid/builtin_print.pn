@@ -1,13 +1,20 @@
 
 fn main() -> u8
 {
-	var world = "world";
-	var newline = "\n";
-	print!("Hello ", world, "!\n");
+	hello_world:
+	print!("Hello world!\n");
+	with_name:
+	var name = "Alice";
+	print!("Hello ", name, "!\n");
+	oeps:
 	print!("Oeps!\n");
+	with_newline:
+	var newline = "\n";
 	//print!("a", newline, "b", newline);
+	with_integer:
 	var x: i32 = 1337;
+	with_pointer:
 	var ptr: &i32 = &x;
-	print!("Ptr: ", &ptr, "!\n");
+	//print!("Ptr: ", &ptr, "!\n");
 	return: 0
 }

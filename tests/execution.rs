@@ -625,6 +625,14 @@ fn execute_builtin_print() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_builtin_format() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation("tests/samples/valid/builtin_format.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_and_crash_builtin_abort() -> Result<(), anyhow::Error>
 {
 	const POSIX_SIGABRT: i32 = 6;

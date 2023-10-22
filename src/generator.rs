@@ -17,6 +17,12 @@ use llvm_sys::target_machine::LLVMGetDefaultTargetTriple;
 use llvm_sys::*;
 use llvm_sys::{LLVMBuilder, LLVMContext, LLVMModule};
 
+macro_rules! cstr {
+	($s:literal) => {
+		(concat!($s, "\0").as_bytes().as_ptr() as *const ::libc::c_char)
+	};
+}
+
 /// The LLVM data layout specification for the default target.
 pub const DEFAULT_DATA_LAYOUT: &str = "e-m:e-p:64:64-i64:64-n8:16:32:64-S64";
 
@@ -51,13 +57,10 @@ impl Generator
 {
 	fn new() -> Generator
 	{
-		let module_name = CString::new("combined").unwrap();
 		let generator = unsafe {
 			let context = LLVMContextCreate();
-			let module = LLVMModuleCreateWithNameInContext(
-				module_name.as_ptr(),
-				context,
-			);
+			let module =
+				LLVMModuleCreateWithNameInContext(cstr!("combined"), context);
 			let target_triple =
 				CStr::from_ptr(LLVMGetDefaultTargetTriple()).to_owned();
 			let data_layout = CString::new(DEFAULT_DATA_LAYOUT).unwrap();
@@ -87,8 +90,7 @@ impl Generator
 	pub fn for_wasm(&mut self) -> Result<(), anyhow::Error>
 	{
 		unsafe {
-			self.target_triple = CString::new("wasm32-unknown-wasi")?;
-			LLVMSetTarget(self.module, self.target_triple.as_ptr());
+			LLVMSetTarget(self.module, cstr!("wasm32-unknown-wasi"));
 			let data_layout = "e-p:32:32-i64:64-n32:64-S64";
 			self.data_layout = CString::new(data_layout)?;
 			self.type_of_usize = LLVMInt32TypeInContext(self.context);
@@ -607,12 +609,11 @@ impl Generatable for Declaration
 					None => unreachable!(),
 				};
 
-				let entry_block_name = CString::new("entry")?;
 				unsafe {
 					let entry_block = LLVMAppendBasicBlockInContext(
 						llvm.context,
 						function,
-						entry_block_name.as_ptr(),
+						cstr!("entry"),
 					);
 					LLVMPositionBuilderAtEnd(llvm.builder, entry_block);
 				};
@@ -691,14 +692,13 @@ impl Generatable for Block
 	{
 		if let Some(&Statement::Loop { .. }) = self.statements.last()
 		{
-			let cname = CString::new("looped-block")?;
 			let inner_block = unsafe {
 				let current_block = LLVMGetInsertBlock(llvm.builder);
 				let function = LLVMGetBasicBlockParent(current_block);
 				let inner_block = LLVMAppendBasicBlockInContext(
 					llvm.context,
 					function,
-					cname.as_ptr(),
+					cstr!("looped-block"),
 				);
 				LLVMPositionBuilderAtEnd(llvm.builder, current_block);
 				LLVMBuildBr(llvm.builder, inner_block);
@@ -712,14 +712,13 @@ impl Generatable for Block
 				statement.generate(llvm)?;
 			}
 
-			let cname = CString::new("after-looped-block")?;
 			unsafe {
 				let function = LLVMGetBasicBlockParent(inner_block);
 				LLVMBuildBr(llvm.builder, inner_block);
 				let after_block = LLVMAppendBasicBlockInContext(
 					llvm.context,
 					function,
-					cname.as_ptr(),
+					cstr!("after-looped-block"),
 				);
 				LLVMPositionBuilderAtEnd(llvm.builder, after_block);
 			}
@@ -796,13 +795,12 @@ impl Generatable for Statement
 			Statement::Goto { label } =>
 			{
 				let current_block = unsafe { LLVMGetInsertBlock(llvm.builder) };
-				let cname = CString::new("unreachable-after-goto")?;
 				let unreachable_block = unsafe {
 					let function = LLVMGetBasicBlockParent(current_block);
 					let unreachable_block = LLVMAppendBasicBlockInContext(
 						llvm.context,
 						function,
-						cname.as_ptr(),
+						cstr!("unreachable-after-goto"),
 					);
 					unreachable_block
 				};
@@ -835,12 +833,11 @@ impl Generatable for Statement
 				let cond_block = unsafe { LLVMGetInsertBlock(llvm.builder) };
 				let function = unsafe { LLVMGetBasicBlockParent(cond_block) };
 
-				let cname = CString::new("then")?;
 				let then_start_block = unsafe {
 					let then_block = LLVMAppendBasicBlockInContext(
 						llvm.context,
 						function,
-						cname.as_ptr(),
+						cstr!("then"),
 					);
 					LLVMPositionBuilderAtEnd(llvm.builder, then_block);
 					then_block
@@ -853,12 +850,11 @@ impl Generatable for Statement
 
 				let else_blocks = if let Some(else_branch) = else_branch
 				{
-					let cname = CString::new("else")?;
 					let start_block = unsafe {
 						let else_block = LLVMAppendBasicBlockInContext(
 							llvm.context,
 							function,
-							cname.as_ptr(),
+							cstr!("else"),
 						);
 						LLVMPositionBuilderAtEnd(llvm.builder, else_block);
 						else_block
@@ -875,12 +871,11 @@ impl Generatable for Statement
 					None
 				};
 
-				let cname = CString::new("after")?;
 				let after_block = unsafe {
 					let after_block = LLVMAppendBasicBlockInContext(
 						llvm.context,
 						function,
-						cname.as_ptr(),
+						cstr!("after"),
 					);
 					after_block
 				};
@@ -955,34 +950,24 @@ impl Generatable for Comparison
 		let is_signed = self.compared_type.is_signed();
 		let left = self.left.generate(llvm)?;
 		let right = self.right.generate(llvm)?;
-		let name = CString::default();
 		let pred = match self.op
 		{
-			ComparisonOp::Equals => llvm_sys::LLVMIntPredicate::LLVMIntEQ,
-			ComparisonOp::DoesNotEqual => llvm_sys::LLVMIntPredicate::LLVMIntNE,
+			ComparisonOp::Equals => LLVMIntPredicate::LLVMIntEQ,
+			ComparisonOp::DoesNotEqual => LLVMIntPredicate::LLVMIntNE,
 			ComparisonOp::IsGreater if is_signed =>
 			{
-				llvm_sys::LLVMIntPredicate::LLVMIntSGT
+				LLVMIntPredicate::LLVMIntSGT
 			}
-			ComparisonOp::IsGreater => llvm_sys::LLVMIntPredicate::LLVMIntUGT,
-			ComparisonOp::IsLess if is_signed =>
-			{
-				llvm_sys::LLVMIntPredicate::LLVMIntSLT
-			}
-			ComparisonOp::IsLess => llvm_sys::LLVMIntPredicate::LLVMIntULT,
-			ComparisonOp::IsGE if is_signed =>
-			{
-				llvm_sys::LLVMIntPredicate::LLVMIntSGE
-			}
-			ComparisonOp::IsGE => llvm_sys::LLVMIntPredicate::LLVMIntUGE,
-			ComparisonOp::IsLE if is_signed =>
-			{
-				llvm_sys::LLVMIntPredicate::LLVMIntSLE
-			}
-			ComparisonOp::IsLE => llvm_sys::LLVMIntPredicate::LLVMIntULE,
+			ComparisonOp::IsGreater => LLVMIntPredicate::LLVMIntUGT,
+			ComparisonOp::IsLess if is_signed => LLVMIntPredicate::LLVMIntSLT,
+			ComparisonOp::IsLess => LLVMIntPredicate::LLVMIntULT,
+			ComparisonOp::IsGE if is_signed => LLVMIntPredicate::LLVMIntSGE,
+			ComparisonOp::IsGE => LLVMIntPredicate::LLVMIntUGE,
+			ComparisonOp::IsLE if is_signed => LLVMIntPredicate::LLVMIntSLE,
+			ComparisonOp::IsLE => LLVMIntPredicate::LLVMIntULE,
 		};
 		let result = unsafe {
-			LLVMBuildICmp(llvm.builder, pred, left, right, name.as_ptr())
+			LLVMBuildICmp(llvm.builder, pred, left, right, cstr!(""))
 		};
 		Ok(result)
 	}
@@ -1009,56 +994,55 @@ impl Generatable for Expression
 				let is_signed = value_type.is_signed();
 				let left = left.generate(llvm)?;
 				let right = right.generate(llvm)?;
-				let name = CString::default();
 				let result = match op
 				{
 					BinaryOp::Add =>
 					unsafe {
-						LLVMBuildAdd(llvm.builder, left, right, name.as_ptr())
+						LLVMBuildAdd(llvm.builder, left, right, cstr!(""))
 					},
 					BinaryOp::Subtract =>
 					unsafe {
-						LLVMBuildSub(llvm.builder, left, right, name.as_ptr())
+						LLVMBuildSub(llvm.builder, left, right, cstr!(""))
 					},
 					BinaryOp::Multiply =>
 					unsafe {
-						LLVMBuildMul(llvm.builder, left, right, name.as_ptr())
+						LLVMBuildMul(llvm.builder, left, right, cstr!(""))
 					},
 					BinaryOp::Divide if is_signed =>
 					unsafe {
-						LLVMBuildSDiv(llvm.builder, left, right, name.as_ptr())
+						LLVMBuildSDiv(llvm.builder, left, right, cstr!(""))
 					},
 					BinaryOp::Divide =>
 					unsafe {
-						LLVMBuildUDiv(llvm.builder, left, right, name.as_ptr())
+						LLVMBuildUDiv(llvm.builder, left, right, cstr!(""))
 					},
 					BinaryOp::Modulo if is_signed =>
 					unsafe {
-						LLVMBuildSRem(llvm.builder, left, right, name.as_ptr())
+						LLVMBuildSRem(llvm.builder, left, right, cstr!(""))
 					},
 					BinaryOp::Modulo =>
 					unsafe {
-						LLVMBuildURem(llvm.builder, left, right, name.as_ptr())
+						LLVMBuildURem(llvm.builder, left, right, cstr!(""))
 					},
 					BinaryOp::BitwiseAnd =>
 					unsafe {
-						LLVMBuildAnd(llvm.builder, left, right, name.as_ptr())
+						LLVMBuildAnd(llvm.builder, left, right, cstr!(""))
 					},
 					BinaryOp::BitwiseOr =>
 					unsafe {
-						LLVMBuildOr(llvm.builder, left, right, name.as_ptr())
+						LLVMBuildOr(llvm.builder, left, right, cstr!(""))
 					},
 					BinaryOp::BitwiseXor =>
 					unsafe {
-						LLVMBuildXor(llvm.builder, left, right, name.as_ptr())
+						LLVMBuildXor(llvm.builder, left, right, cstr!(""))
 					},
 					BinaryOp::ShiftLeft =>
 					unsafe {
-						LLVMBuildShl(llvm.builder, left, right, name.as_ptr())
+						LLVMBuildShl(llvm.builder, left, right, cstr!(""))
 					},
 					BinaryOp::ShiftRight =>
 					unsafe {
-						LLVMBuildLShr(llvm.builder, left, right, name.as_ptr())
+						LLVMBuildLShr(llvm.builder, left, right, cstr!(""))
 					},
 				};
 				Ok(result)
@@ -1070,16 +1054,15 @@ impl Generatable for Expression
 			} =>
 			{
 				let expr = expression.generate(llvm)?;
-				let name = CString::default();
 				let result = match op
 				{
 					UnaryOp::Negative =>
 					unsafe {
-						LLVMBuildNeg(llvm.builder, expr, name.as_ptr())
+						LLVMBuildNeg(llvm.builder, expr, cstr!(""))
 					},
 					UnaryOp::BitwiseComplement =>
 					unsafe {
-						LLVMBuildNot(llvm.builder, expr, name.as_ptr())
+						LLVMBuildNot(llvm.builder, expr, cstr!(""))
 					},
 				};
 				Ok(result)
@@ -1175,14 +1158,13 @@ impl Generatable for Expression
 				};
 				for (i, v) in inserts.into_iter()
 				{
-					let tmpname = CString::default();
 					result = unsafe {
 						LLVMBuildInsertValue(
 							llvm.builder,
 							result,
 							v,
 							i,
-							tmpname.as_ptr(),
+							cstr!(""),
 						)
 					};
 				}
@@ -1221,7 +1203,8 @@ impl Generatable for Expression
 			),
 			Expression::LengthOfArray { reference } =>
 			{
-				reference.generate_array_len(llvm)
+				let address = reference.generate_storage_address(llvm)?;
+				generate_array_len(address, llvm)
 			}
 			Expression::SizeOf {
 				queried_type: ValueType::Bool,
@@ -1258,14 +1241,13 @@ impl Generatable for Expression
 						.collect();
 				let mut arguments: Vec<LLVMValueRef> = arguments?;
 
-				let tmpname = CString::default();
 				let result = unsafe {
 					LLVMBuildCall(
 						llvm.builder,
 						function,
 						arguments.as_mut_ptr(),
 						arguments.len() as u32,
-						tmpname.as_ptr(),
+						cstr!(""),
 					)
 				};
 				Ok(result)
@@ -1419,8 +1401,7 @@ impl Reference
 		}
 		else
 		{
-			let tmpname = CString::default();
-			unsafe { LLVMBuildLoad(llvm.builder, address, tmpname.as_ptr()) }
+			unsafe { LLVMBuildLoad(llvm.builder, address, cstr!("")) }
 		};
 		Ok(result)
 	}
@@ -1438,7 +1419,6 @@ impl Reference
 			{
 				ReferenceStep::Autodeslice { offset } =>
 				{
-					let tmpname = CString::default();
 					let addr = value;
 					let offset: u8 = *offset;
 					let offset: u32 = offset.into();
@@ -1447,13 +1427,12 @@ impl Reference
 							llvm.builder,
 							addr,
 							offset,
-							tmpname.as_ptr(),
+							cstr!(""),
 						)
 					};
 				}
 				ReferenceStep::Member { offset } =>
 				{
-					let tmpname = CString::default();
 					let addr = value;
 					let offset: usize = *offset;
 					let offset: u32 = offset.try_into()?;
@@ -1462,7 +1441,7 @@ impl Reference
 							llvm.builder,
 							addr,
 							offset,
-							tmpname.as_ptr(),
+							cstr!(""),
 						)
 					};
 				}
@@ -1489,14 +1468,8 @@ impl Reference
 			{
 				// We assume that the parameter is ValueType::Slice(Pointer).
 				let param = *value;
-				let tmpname = CString::default();
 				let tmp = unsafe {
-					LLVMBuildExtractValue(
-						llvm.builder,
-						param,
-						0u32,
-						tmpname.as_ptr(),
-					)
+					LLVMBuildExtractValue(llvm.builder, param, 0u32, cstr!(""))
 				};
 				tmp
 			}
@@ -1600,21 +1573,18 @@ impl Reference
 					}
 					if !indices.is_empty()
 					{
-						let tmpname = CString::default();
 						addr = unsafe {
 							LLVMBuildGEP(
 								llvm.builder,
 								addr,
 								indices.as_mut_ptr(),
 								indices.len() as u32,
-								tmpname.as_ptr(),
+								cstr!(""),
 							)
 						};
 					}
-					let tmpname = CString::default();
-					addr = unsafe {
-						LLVMBuildLoad(llvm.builder, addr, tmpname.as_ptr())
-					};
+					addr =
+						unsafe { LLVMBuildLoad(llvm.builder, addr, cstr!("")) };
 					indices.clear();
 					if is_followed_by_access
 					{
@@ -1625,32 +1595,29 @@ impl Reference
 				{
 					if indices.is_empty()
 					{
-						let tmpname = CString::default();
 						addr = unsafe {
 							LLVMBuildExtractValue(
 								llvm.builder,
 								addr,
 								0,
-								tmpname.as_ptr(),
+								cstr!(""),
 							)
 						};
 					}
 					else
 					{
 						indices.push(llvm.const_i32(0));
-						let tmpname = CString::default();
 						addr = unsafe {
 							LLVMBuildGEP(
 								llvm.builder,
 								addr,
 								indices.as_mut_ptr(),
 								indices.len() as u32,
-								tmpname.as_ptr(),
+								cstr!(""),
 							)
 						};
-						let tmpname = CString::default();
 						addr = unsafe {
-							LLVMBuildLoad(llvm.builder, addr, tmpname.as_ptr())
+							LLVMBuildLoad(llvm.builder, addr, cstr!(""))
 						};
 						indices.clear();
 					}
@@ -1666,33 +1633,31 @@ impl Reference
 
 		if !indices.is_empty()
 		{
-			let tmpname = CString::default();
 			addr = unsafe {
 				LLVMBuildGEP(
 					llvm.builder,
 					addr,
 					indices.as_mut_ptr(),
 					indices.len() as u32,
-					tmpname.as_ptr(),
+					cstr!(""),
 				)
 			};
 		}
 
 		Ok(addr)
 	}
+}
 
-	fn generate_array_len(
-		&self,
-		llvm: &mut Generator,
-	) -> Result<LLVMValueRef, anyhow::Error>
-	{
-		let address = self.generate_storage_address(llvm)?;
-		let pointer_type = unsafe { LLVMTypeOf(address) };
-		let array_type = unsafe { LLVMGetElementType(pointer_type) };
-		let length: u32 = unsafe { LLVMGetArrayLength(array_type) };
-		let result = llvm.const_usize(length as usize);
-		Ok(result)
-	}
+fn generate_array_len(
+	address: LLVMValueRef,
+	llvm: &mut Generator,
+) -> Result<LLVMValueRef, anyhow::Error>
+{
+	let pointer_type = unsafe { LLVMTypeOf(address) };
+	let array_type = unsafe { LLVMGetElementType(pointer_type) };
+	let length: u32 = unsafe { LLVMGetArrayLength(array_type) };
+	let result = llvm.const_usize(length as usize);
+	Ok(result)
 }
 
 fn generate_view(
@@ -1701,16 +1666,10 @@ fn generate_view(
 	llvm: &mut Generator,
 ) -> Result<LLVMValueRef, anyhow::Error>
 {
-	let tmpname = CString::default();
 	let pointee_type = viewed_type.generate(llvm)?;
 	let pointer_type = unsafe { LLVMPointerType(pointee_type, 0u32) };
 	let address_value = unsafe {
-		LLVMBuildPointerCast(
-			llvm.builder,
-			address,
-			pointer_type,
-			tmpname.as_ptr(),
-		)
+		LLVMBuildPointerCast(llvm.builder, address, pointer_type, cstr!(""))
 	};
 	Ok(address_value)
 }
@@ -1721,16 +1680,10 @@ fn generate_ext_array_view(
 	llvm: &mut Generator,
 ) -> Result<LLVMValueRef, anyhow::Error>
 {
-	let tmpname = CString::default();
 	let element_type = element_type.generate(llvm)?;
 	let pointertype = unsafe { LLVMPointerType(element_type, 0u32) };
 	let address_value = unsafe {
-		LLVMBuildPointerCast(
-			llvm.builder,
-			address,
-			pointertype,
-			tmpname.as_ptr(),
-		)
+		LLVMBuildPointerCast(llvm.builder, address, pointertype, cstr!(""))
 	};
 	Ok(address_value)
 }
@@ -1753,7 +1706,6 @@ fn generate_slice_from_ptr_and_len(
 	llvm: &mut Generator,
 ) -> Result<LLVMValueRef, anyhow::Error>
 {
-	let tmpname = CString::default();
 	let element_type = element_type.generate(llvm)?;
 	let storagetype = unsafe { LLVMArrayType(element_type, 0u32) };
 	let pointertype = unsafe { LLVMPointerType(storagetype, 0u32) };
@@ -1769,12 +1721,7 @@ fn generate_slice_from_ptr_and_len(
 	};
 	let mut slice = unsafe { LLVMGetUndef(slice_type) };
 	let address_value = unsafe {
-		LLVMBuildPointerCast(
-			llvm.builder,
-			address,
-			pointertype,
-			tmpname.as_ptr(),
-		)
+		LLVMBuildPointerCast(llvm.builder, address, pointertype, cstr!(""))
 	};
 	slice = unsafe {
 		LLVMBuildInsertValue(
@@ -1782,17 +1729,11 @@ fn generate_slice_from_ptr_and_len(
 			slice,
 			address_value,
 			0u32,
-			tmpname.as_ptr(),
+			cstr!(""),
 		)
 	};
 	slice = unsafe {
-		LLVMBuildInsertValue(
-			llvm.builder,
-			slice,
-			length_value,
-			1u32,
-			tmpname.as_ptr(),
-		)
+		LLVMBuildInsertValue(llvm.builder, slice, length_value, 1u32, cstr!(""))
 	};
 	Ok(slice)
 }
@@ -1802,20 +1743,12 @@ fn generate_ptr_and_len_from_slice(
 	llvm: &mut Generator,
 ) -> Result<(LLVMValueRef, LLVMValueRef), anyhow::Error>
 {
-	let slice_ptr = {
-		let tmpname = CString::new(".buf")?;
-		unsafe {
-			LLVMBuildExtractValue(llvm.builder, slice, 0u32, tmpname.as_ptr())
-		}
-	};
+	let slice_ptr =
+		unsafe { LLVMBuildExtractValue(llvm.builder, slice, 0u32, cstr!("")) };
 	let slice_ptr =
 		generate_ext_array_view(slice_ptr, &ValueType::Char8, llvm)?;
-	let slice_len = {
-		let tmpname = CString::new(".buflen")?;
-		unsafe {
-			LLVMBuildExtractValue(llvm.builder, slice, 1u32, tmpname.as_ptr())
-		}
-	};
+	let slice_len =
+		unsafe { LLVMBuildExtractValue(llvm.builder, slice, 1u32, cstr!("")) };
 	Ok((slice_ptr, slice_len))
 }
 
@@ -1854,9 +1787,8 @@ fn generate_global_string_literal(
 	let element_type: LLVMTypeRef = ValueType::Char8.generate(llvm)?;
 	let num_elements = bytes.len() as u32;
 	let array_type = unsafe { LLVMArrayType(element_type, num_elements) };
-	let strname = CString::new(".str")?;
 	let global =
-		unsafe { LLVMAddGlobal(llvm.module, array_type, strname.as_ptr()) };
+		unsafe { LLVMAddGlobal(llvm.module, array_type, cstr!(".str")) };
 	unsafe {
 		LLVMSetGlobalConstant(global, 1);
 		LLVMSetUnnamedAddr(global, 1);
@@ -1872,7 +1804,6 @@ fn generate_structure_literal(
 	llvm: &mut Generator,
 ) -> Result<LLVMValueRef, anyhow::Error>
 {
-	let tmpname = CString::default();
 	let structure_type = structural_type.generate(llvm)?;
 	let mut structure = unsafe { LLVMGetUndef(structure_type) };
 	for member in members
@@ -1885,7 +1816,7 @@ fn generate_structure_literal(
 				structure,
 				value,
 				offset,
-				tmpname.as_ptr(),
+				cstr!(""),
 			)
 		};
 	}
@@ -2049,8 +1980,7 @@ fn generate_tmp_address(
 	llvm: &mut Generator,
 ) -> Result<LLVMValueRef, anyhow::Error>
 {
-	let tmpname = CString::default();
-	let tmp = unsafe { LLVMBuildAlloca(llvm.builder, vtype, tmpname.as_ptr()) };
+	let tmp = unsafe { LLVMBuildAlloca(llvm.builder, vtype, cstr!("")) };
 	unsafe {
 		LLVMBuildStore(llvm.builder, value, tmp);
 	}
@@ -2065,10 +1995,8 @@ fn generate_bitcast(
 {
 	let value = expression.generate(llvm)?;
 	let dest_type = coerced_type.generate(llvm)?;
-	let tmpname = CString::default();
-	let result = unsafe {
-		LLVMBuildBitCast(llvm.builder, value, dest_type, tmpname.as_ptr())
-	};
+	let result =
+		unsafe { LLVMBuildBitCast(llvm.builder, value, dest_type, cstr!("")) };
 	Ok(result)
 }
 
@@ -2099,17 +2027,11 @@ fn generate_conversion(
 			let src_size_in_bits = llvm.size_in_bits(src_type);
 			let dest_type = coerced_type.generate(llvm)?;
 			let dest_size_in_bits = llvm.size_in_bits(dest_type);
-			let tmpname = CString::default();
 			let is_truncated = dest_size_in_bits < src_size_in_bits;
 			let result = if is_truncated
 			{
 				unsafe {
-					LLVMBuildTrunc(
-						llvm.builder,
-						value,
-						dest_type,
-						tmpname.as_ptr(),
-					)
+					LLVMBuildTrunc(llvm.builder, value, dest_type, cstr!(""))
 				}
 			}
 			else if vt.is_signed()
@@ -2119,7 +2041,7 @@ fn generate_conversion(
 						llvm.builder,
 						value,
 						dest_type,
-						tmpname.as_ptr(),
+						cstr!(""),
 					)
 				}
 			}
@@ -2130,7 +2052,7 @@ fn generate_conversion(
 						llvm.builder,
 						value,
 						dest_type,
-						tmpname.as_ptr(),
+						cstr!(""),
 					)
 				}
 			};
@@ -2141,13 +2063,12 @@ fn generate_conversion(
 		(ValueType::Bool, ct) if ct.is_integral() =>
 		{
 			let dest_type = coerced_type.generate(llvm)?;
-			let tmpname = CString::default();
 			let result = unsafe {
 				LLVMBuildZExtOrBitCast(
 					llvm.builder,
 					value,
 					dest_type,
-					tmpname.as_ptr(),
+					cstr!(""),
 				)
 			};
 			Ok(result)
@@ -2186,14 +2107,13 @@ impl Generatable for GeneratorBuiltin
 			GeneratorBuiltin::Abort =>
 			{
 				let function = llvm.get_trap_like_intrinsic("abort");
-				let tmpname = CString::default();
 				let result = unsafe {
 					LLVMBuildCall(
 						llvm.builder,
 						function,
 						std::ptr::null_mut(),
 						0u32,
-						tmpname.as_ptr(),
+						cstr!(""),
 					)
 				};
 				Ok(result)
@@ -2212,14 +2132,13 @@ impl Generatable for GeneratorBuiltin
 				let mut arguments = [fd, slice_ptr, slice_len];
 
 				let (function, return_type) = llvm.get_write_intrinsic();
-				let tmpname = CString::default();
 				let result = unsafe {
 					LLVMBuildCall(
 						llvm.builder,
 						function,
 						arguments.as_mut_ptr(),
 						arguments.len() as u32,
-						tmpname.as_ptr(),
+						cstr!(""),
 					)
 				};
 				// TODO error handling with return type
@@ -2305,7 +2224,6 @@ fn generate_format(
 		let char_type = LLVMInt8TypeInContext(llvm.context);
 		LLVMPointerType(char_type, 0)
 	};
-	let tmpname = CString::default();
 
 	let format = CString::new(format_buffer.format)?;
 	let format = generate_global_string_literal(format.as_bytes(), llvm)?;
@@ -2316,7 +2234,7 @@ fn generate_format(
 			format,
 			indices.as_mut_ptr(),
 			indices.len() as u32,
-			tmpname.as_ptr(),
+			cstr!(""),
 		)
 	};
 
@@ -2331,7 +2249,7 @@ fn generate_format(
 			function,
 			snprintf_arguments.as_mut_ptr(),
 			snprintf_arguments.len() as u32,
-			tmpname.as_ptr(),
+			cstr!(""),
 		)
 	};
 	// TODO error handling if length < 0
@@ -2341,20 +2259,19 @@ fn generate_format(
 		&ValueType::Usize,
 		llvm,
 	)?;
-	let lenname = CString::new(".fmtlen")?;
+	unsafe { LLVMSetValueName(length_without_nul, cstr!(".fmtlen")) };
 	let length = unsafe {
 		LLVMBuildAdd(
 			llvm.builder,
 			length_without_nul,
 			llvm.const_usize(1),
-			lenname.as_ptr(),
+			cstr!(".fmtbuflen"),
 		)
 	};
 
-	let outname = CString::new(".fmt")?;
 	let output_buffer = unsafe {
 		let char_type = LLVMInt8TypeInContext(llvm.context);
-		LLVMBuildArrayAlloca(llvm.builder, char_type, length, outname.as_ptr())
+		LLVMBuildArrayAlloca(llvm.builder, char_type, length, cstr!(".fmt"))
 	};
 
 	snprintf_arguments[0] = output_buffer;
@@ -2366,11 +2283,11 @@ fn generate_format(
 			function,
 			snprintf_arguments.as_mut_ptr(),
 			snprintf_arguments.len() as u32,
-			tmpname.as_ptr(),
+			cstr!(""),
 		)
 	};
-	// TODO error handling if length_result + 1 != length
-	let _ = (return_type, length_result);
+	// TODO error handling if length_result + 1 != length)
+	let _ = length_result;
 
 	generate_slice_from_ptr_and_len(
 		output_buffer,
@@ -2410,7 +2327,7 @@ fn format_arg(
 		ValueType::Array { .. } => format_slice(argument, llvm, buffer),
 		ValueType::ArrayWithNamedLength { .. } => unreachable!(),
 		ValueType::Slice { .. } => format_slice(argument, llvm, buffer),
-		ValueType::SlicePointer { .. } => format_slice(argument, llvm, buffer),
+		ValueType::SlicePointer { .. } => unreachable!(),
 		ValueType::EndlessArray { .. } => unreachable!(),
 		ValueType::Arraylike { .. } => unreachable!(),
 		ValueType::Struct { identifier } =>

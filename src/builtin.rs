@@ -7,8 +7,11 @@
 //! The Penne compiler supports various built-in functions that cannot be
 //! expressed in normal Penne source code, unlike those in the core library).
 
-use crate::common::*;
-use crate::resolved;
+use crate::common::Builtin;
+use crate::common::Location;
+use crate::resolved::GeneratorBuiltin;
+use crate::resolved::ValueType;
+use crate::resolved::{Expression, Statement};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Fd
@@ -20,31 +23,21 @@ pub enum Fd
 pub fn resolve(
 	builtin: Builtin,
 	location: &Location,
-	arguments: Vec<resolved::Expression>,
-	return_type: resolved::ValueType,
-) -> resolved::Expression
+	arguments: Vec<Expression>,
+	_return_type: ValueType,
+) -> Expression
 {
 	match builtin
 	{
-		Builtin::Abort =>
-		{
-			resolved::Expression::Builtin(resolved::GeneratorBuiltin::Abort)
-		}
+		Builtin::Abort => Expression::Builtin(GeneratorBuiltin::Abort),
 		Builtin::Format =>
 		{
-			resolved::Expression::Builtin(resolved::GeneratorBuiltin::Format {
-				arguments,
-			})
+			Expression::Builtin(GeneratorBuiltin::Format { arguments })
 		}
-		Builtin::File => resolved::Expression::StringLiteral {
-			bytes: location.source_filename.as_bytes().to_vec(),
-		},
-		Builtin::Line => resolved::Expression::BitIntegerLiteral {
-			value: u128::try_from(location.line_number).unwrap(),
-			value_type: resolved::ValueType::Usize,
-		},
-		Builtin::Print => write(Fd::Stdout, location, arguments),
-		Builtin::Eprint => write(Fd::Stderr, location, arguments),
+		Builtin::File => file(location),
+		Builtin::Line => line(location),
+		Builtin::Print => write(Fd::Stdout, arguments),
+		Builtin::Eprint => write(Fd::Stderr, arguments),
 		Builtin::Dbg if arguments.len() == 0 =>
 		{
 			let arguments = vec![
@@ -54,7 +47,8 @@ pub fn resolve(
 				line(location),
 				string_literal("]\n"),
 			];
-			resolve(Builtin::Eprint, location, arguments, return_type)
+			let eprint = write(Fd::Stderr, arguments);
+			eprint
 		}
 		Builtin::Dbg =>
 		{
@@ -70,74 +64,55 @@ pub fn resolve(
 				string_literal("] "),
 				value_source_code_string_literal,
 				string_literal(" = "),
-				value,
+				// TODO value,
 				string_literal("\n"),
 			];
-			todo!();
-			let eprint = resolve(
-				Builtin::Eprint,
-				location,
-				arguments,
-				resolved::ValueType::Void,
-			);
+			let eprint = write(Fd::Stderr, arguments);
 			let statements =
-				vec![resolved::Statement::EvaluateAndDiscard { value: eprint }];
+				vec![Statement::EvaluateAndDiscard { value: eprint }];
 			let value = Box::new(value);
-			resolved::Expression::InlineBlock { statements, value }
+			Expression::InlineBlock { statements, value }
 		}
 		Builtin::Panic =>
 		{
-			let eprint = resolve(
-				Builtin::Eprint,
-				location,
-				arguments,
-				resolved::ValueType::Void,
-			);
+			let eprint = write(Fd::Stderr, arguments);
 			let statements =
-				vec![resolved::Statement::EvaluateAndDiscard { value: eprint }];
-			let value = Box::new(resolved::Expression::Builtin(
-				resolved::GeneratorBuiltin::Abort,
-			));
-			resolved::Expression::InlineBlock { statements, value }
+				vec![Statement::EvaluateAndDiscard { value: eprint }];
+			let value = Box::new(Expression::Builtin(GeneratorBuiltin::Abort));
+			Expression::InlineBlock { statements, value }
 		}
 		Builtin::IncludeBytes => unreachable!(),
 	}
 }
 
-fn file(location: &Location) -> resolved::Expression
+fn file(location: &Location) -> Expression
 {
-	let str_type = resolved::ValueType::for_string_slice();
-	resolve(Builtin::File, location, Vec::new(), str_type)
+	Expression::StringLiteral {
+		bytes: location.source_filename.as_bytes().to_vec(),
+	}
 }
 
-fn line(location: &Location) -> resolved::Expression
+fn line(location: &Location) -> Expression
 {
-	resolve(
-		Builtin::Line,
-		location,
-		Vec::new(),
-		resolved::ValueType::Usize,
-	)
+	Expression::BitIntegerLiteral {
+		value: u128::try_from(location.line_number).unwrap(),
+		value_type: ValueType::Usize,
+	}
 }
 
-fn write(
-	fd: Fd,
-	location: &Location,
-	arguments: Vec<resolved::Expression>,
-) -> resolved::Expression
+fn write(fd: Fd, arguments: Vec<Expression>) -> Expression
 {
-	let str_type = resolved::ValueType::for_string_slice();
-	let buffer = resolve(Builtin::Format, location, arguments, str_type);
-	let write = resolved::GeneratorBuiltin::Write {
+	let buffer = Expression::Builtin(GeneratorBuiltin::Format { arguments });
+	let write = GeneratorBuiltin::Write {
 		fd,
 		buffer: Box::new(buffer),
 	};
-	resolved::Expression::Builtin(write)
+	Expression::Builtin(write)
 }
 
-fn string_literal(literal: &str) -> resolved::Expression
+fn string_literal(literal: &str) -> Expression
 {
-	resolved::Expression::StringLiteral {
+	Expression::StringLiteral {
 		bytes: literal.as_bytes().to_vec(),
 	}
 }
