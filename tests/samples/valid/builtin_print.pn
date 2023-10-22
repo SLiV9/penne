@@ -1,7 +1,13 @@
+
 fn main() -> u8
 {
 	var world = "world";
 	var newline = "\n";
-	print!("Hello ", world, "!", newline);
+	print!("Hello ", world, "!\n");
+	print!("Oeps!\n");
+	//print!("a", newline, "b", newline);
+	var x: i32 = 1337;
+	var ptr: &i32 = &x;
+	print!("Ptr: ", &ptr, "!\n");
 	return: 0
 }

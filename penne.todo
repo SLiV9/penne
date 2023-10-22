@@ -28,6 +28,7 @@ Functionality:
 	✔	Byte string literals @done (2022-09-22 15:22)
 		☐	ASCII character literals ('a', '\n', '\0')
 			✔	Char8 type @done (2023-10-22 09:57)
+			☐	Think about interior nul ("hallo\0world")
 	✔	FFI @done (2022-09-22 15:22)
 		✔	extern C fn(); @done (2022-09-05 18:38)
 		✔	pub extern C fn() {...} @done (2022-09-05 16:51)
