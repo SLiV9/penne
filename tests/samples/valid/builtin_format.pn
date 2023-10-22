@@ -6,19 +6,27 @@ fn strlen(text: []char8) -> usize
 
 fn main() -> usize
 {
+	var result;
 	var world = "world";
 	var name = "Alice";
-	first:
+	format1:
 	// var text = format!("Hello ", world, "!\n");
 	// var len1 = |text|;
 	var len1 = strlen(format!("Hello ", world, "!\n"));
-	second:
-	var len2 = strlen(format!("Hello ", name, "!\n"));
-	check:
-	var result = len1 + len2;
-	if result == 26
+	check1:
+	if len1 != 13
 	{
-		result = 200;
+		result = 41;
+		goto return;
 	}
+	format2:
+	var len2 = strlen(format!("Hello ", name, "!\n"));
+	check2:
+	if len2 != 13
+	{
+		result = 41;
+		goto return;
+	}
+	result = 200;
 	return: result
 }

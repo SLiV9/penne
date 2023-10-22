@@ -620,7 +620,10 @@ fn execute_builtin_print() -> Result<(), anyhow::Error>
 {
 	let output = execute("tests/samples/valid/builtin_print.pn")?;
 	let stdout = stdout_from_output(output)?;
-	assert_eq!(stdout, "Hello world!\n");
+	assert_eq!(
+		stdout,
+		"Hello world!\nHello Alice!\nHello a\nb!\nHello 0x7f00!\n"
+	);
 	Ok(())
 }
 

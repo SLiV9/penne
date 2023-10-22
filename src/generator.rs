@@ -2226,7 +2226,8 @@ fn generate_format(
 	};
 
 	let format = CString::new(format_buffer.format)?;
-	let format = generate_global_string_literal(format.as_bytes(), llvm)?;
+	let format =
+		generate_global_string_literal(format.as_bytes_with_nul(), llvm)?;
 	let format = unsafe {
 		let mut indices = [llvm.const_i32(0), llvm.const_i32(0)];
 		LLVMBuildGEP(
@@ -2252,7 +2253,7 @@ fn generate_format(
 			cstr!(""),
 		)
 	};
-	// TODO error handling if length < 0
+	// TODO error handling if length_result < 0
 	let length_without_nul = generate_conversion(
 		length_result,
 		&return_type,
@@ -2271,7 +2272,7 @@ fn generate_format(
 
 	let output_buffer = unsafe {
 		let char_type = LLVMInt8TypeInContext(llvm.context);
-		LLVMBuildArrayAlloca(llvm.builder, char_type, length, cstr!(".fmt"))
+		LLVMBuildArrayAlloca(llvm.builder, char_type, length, cstr!(".fmtbuf"))
 	};
 
 	snprintf_arguments[0] = output_buffer;
@@ -2286,8 +2287,14 @@ fn generate_format(
 			cstr!(""),
 		)
 	};
-	// TODO error handling if length_result + 1 != length)
-	let _ = length_result;
+	// TODO error handling if length_result < 0
+	let length_without_nul = generate_conversion(
+		length_result,
+		&return_type,
+		&ValueType::Usize,
+		llvm,
+	)?;
+	unsafe { LLVMSetValueName(length_without_nul, cstr!(".outlen")) };
 
 	generate_slice_from_ptr_and_len(
 		output_buffer,
