@@ -611,7 +611,7 @@ fn execute_hello_world() -> Result<(), anyhow::Error>
 {
 	let output = execute("examples/hello_world.pn")?;
 	let stdout = stdout_from_output(output)?;
-	assert_eq!(stdout, "Hello world!\n");
+	assert_eq!(stdout, "Hello wolrd!\n");
 	Ok(())
 }
 

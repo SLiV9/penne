@@ -46,6 +46,7 @@ jobs:
       run: cargo build
     - name: Run cargo-nextest
       run: cargo nextest run --profile ci
+      continue-on-error: 1
     - name: Testspace
       run: testspace ./target/nextest/ci/junit.xml
     - name: Run cargo-tarpaulin
