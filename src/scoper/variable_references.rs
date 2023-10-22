@@ -452,6 +452,7 @@ impl Analyzer
 				ValueType::Uint64 => Ok(value_type),
 				ValueType::Uint128 => Ok(value_type),
 				ValueType::Usize => Ok(value_type),
+				ValueType::Char8 => Ok(value_type),
 				ValueType::Bool => Ok(value_type),
 				ValueType::Array {
 					element_type,
@@ -1710,6 +1711,7 @@ fn analyze_type(
 		ValueType::Uint64 => Ok(ValueType::Uint64),
 		ValueType::Uint128 => Ok(ValueType::Uint128),
 		ValueType::Usize => Ok(ValueType::Usize),
+		ValueType::Char8 => Ok(ValueType::Char8),
 		ValueType::Bool => Ok(ValueType::Bool),
 		ValueType::Array {
 			element_type,

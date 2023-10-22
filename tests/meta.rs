@@ -28,6 +28,7 @@ fn sample_types_0() -> impl std::iter::Iterator<Item = ValueType>
 		ValueType::Uint64,
 		ValueType::Uint128,
 		ValueType::Usize,
+		ValueType::Char8,
 		ValueType::Bool,
 		ValueType::Struct {
 			identifier: "State",

@@ -1537,10 +1537,7 @@ impl Typed for Expression
 			},
 			Expression::StringLiteral { bytes, location: _ } =>
 			{
-				Some(Ok(ValueType::Array {
-					element_type: Box::new(ValueType::Uint8),
-					length: bytes.len(),
-				}))
+				Some(Ok(ValueType::for_string_literal(bytes.len())))
 			}
 			Expression::Structural {
 				structural_type, ..
@@ -3019,6 +3016,7 @@ fn filter_for_naked_integer(
 		Some(Ok(ValueType::Uint64)) => value_type,
 		Some(Ok(ValueType::Uint128)) => value_type,
 		Some(Ok(ValueType::Usize)) => value_type,
+		Some(Ok(ValueType::Char8)) => value_type,
 		Some(Ok(_)) => Some(Ok(ValueType::Int32)),
 		Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
 		None => None,
@@ -3086,6 +3084,7 @@ fn analyze_type(
 		ValueType::Uint64 => Ok(ValueType::Uint64),
 		ValueType::Uint128 => Ok(ValueType::Uint128),
 		ValueType::Usize => Ok(ValueType::Usize),
+		ValueType::Char8 => Ok(ValueType::Char8),
 		ValueType::Bool => Ok(ValueType::Bool),
 		ValueType::Array {
 			element_type,
@@ -3320,6 +3319,7 @@ fn externalize_type(
 		ValueType::Uint64 => Ok(value_type),
 		//ValueType::Uint128 is not ok
 		ValueType::Usize => Ok(value_type),
+		ValueType::Char8 => Ok(value_type),
 		//ValueType::Bool is not ok
 		_ => Err(Error::TypeNotAllowedInExtern {
 			value_type,
@@ -3352,9 +3352,7 @@ fn analyze_builtin(
 		Builtin::Format =>
 		{
 			let arguments = typer.analyze_unhinted_arguments(arguments);
-			let string_type = ValueType::Slice {
-				element_type: Box::new(ValueType::Uint8),
-			};
+			let string_type = ValueType::for_string_slice();
 			Ok((arguments, Some(string_type)))
 		}
 		Builtin::Print | Builtin::Eprint =>
@@ -3376,9 +3374,7 @@ fn analyze_builtin(
 		Builtin::File =>
 		{
 			let arguments = accept_zero_arguments(arguments, location)?;
-			let string_type = ValueType::Slice {
-				element_type: Box::new(ValueType::Uint8),
-			};
+			let string_type = ValueType::for_string_slice();
 			Ok((arguments, Some(string_type)))
 		}
 		Builtin::Line =>
@@ -3398,9 +3394,7 @@ fn analyze_builtin(
 		{
 			let argument = accept_one_argument(arguments, location)?;
 			let argument = argument.analyze(typer);
-			let string_type = ValueType::Slice {
-				element_type: Box::new(ValueType::Uint8),
-			};
+			let string_type = ValueType::for_string_slice();
 			Ok((vec![argument], Some(string_type)))
 		}
 	}

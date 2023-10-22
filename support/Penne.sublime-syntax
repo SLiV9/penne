@@ -8,10 +8,11 @@ scope: source.penne
 
 variables:
   identifier: '[[:alpha:]][_[:alnum:]]*|_[_[:alnum:]]+'
-  int_suffixes: '[iu](8|16|32|64|128|size)'
+  int_suffixes: '[iu](8|16|32|64|128)|usize'
   float_suffixes: 'f(32|64)'
   word_x: 'word8|word16|word32|word64|word128'
-  type_keyword: 'void|{{int_suffixes}}|{{float_suffixes}}|bool|struct|{{word_x}}'
+  num_type_keyword: '{{int_suffixes}}|char8|{{float_suffixes}}'
+  type_keyword: 'void|{{num_type_keyword}}|bool|struct|{{word_x}}'
   literal_keyword: 'true|false'
   hard_keyword: 'fn|var|const|if|goto|loop|else|cast|as|import|pub|extern'
   keyword: '{{hard_keyword}}|{{type_keyword}}|{{literal_keyword}}'
@@ -74,7 +75,7 @@ contexts:
     - include: keywords
 
   keywords:
-    - match: \b({{int_suffixes}}|{{float_suffixes}})\b
+    - match: \b({{num_type_keyword}})\b
       scope: storage.type.numeric.penne
     - match: \b(bool|void)\b
       scope: storage.type.penne

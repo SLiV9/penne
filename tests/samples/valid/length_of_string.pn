@@ -5,7 +5,7 @@ fn length_of(x: []u8) -> usize
 }
 
 const DATA: [12]u8 = [0x48,0x65,0x6c,0x6c,0x6f,0x20,0x77,0x6f,0x72,0x6c,0x64,0x21];
-const TEXT: [12]u8 = "Hello world!";
+const TEXT: [12]char8 = "Hello world!";
 
 fn main() -> usize
 {

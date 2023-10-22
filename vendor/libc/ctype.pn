@@ -1,71 +1,71 @@
-pub fn is_alnum(x: u8) -> bool
+pub fn is_alnum(x: char8) -> bool
 {
-    return: check(isalnum(x as i32))
+    return: check(isalnum(x as u8 as i32))
 }
 
-pub fn is_alpha(x: u8) -> bool
+pub fn is_alpha(x: char8) -> bool
 {
-    return: check(isalpha(x as i32))
+    return: check(isalpha(x as u8 as i32))
 }
 
-pub fn is_blank(x: u8) -> bool
+pub fn is_blank(x: char8) -> bool
 {
-    return: check(isblank(x as i32))
+    return: check(isblank(x as u8 as i32))
 }
 
-pub fn is_cntrl(x: u8) -> bool
+pub fn is_cntrl(x: char8) -> bool
 {
-    return: check(iscntrl(x as i32))
+    return: check(iscntrl(x as u8 as i32))
 }
 
-pub fn is_digit(x: u8) -> bool
+pub fn is_digit(x: char8) -> bool
 {
-    return: check(isdigit(x as i32))
+    return: check(isdigit(x as u8 as i32))
 }
 
-pub fn is_graph(x: u8) -> bool
+pub fn is_graph(x: char8) -> bool
 {
-    return: check(isgraph(x as i32))
+    return: check(isgraph(x as u8 as i32))
 }
 
-pub fn is_lower(x: u8) -> bool
+pub fn is_lower(x: char8) -> bool
 {
-    return: check(islower(x as i32))
+    return: check(islower(x as u8 as i32))
 }
 
-pub fn is_print(x: u8) -> bool
+pub fn is_print(x: char8) -> bool
 {
-    return: check(isprint(x as i32))
+    return: check(isprint(x as u8 as i32))
 }
 
-pub fn is_punct(x: u8) -> bool
+pub fn is_punct(x: char8) -> bool
 {
-    return: check(ispunct(x as i32))
+    return: check(ispunct(x as u8 as i32))
 }
 
-pub fn is_space(x: u8) -> bool
+pub fn is_space(x: char8) -> bool
 {
-    return: check(isspace(x as i32))
+    return: check(isspace(x as u8 as i32))
 }
 
-pub fn is_upper(x: u8) -> bool
+pub fn is_upper(x: char8) -> bool
 {
-    return: check(isupper(x as i32))
+    return: check(isupper(x as u8 as i32))
 }
 
-pub fn is_xdigit(x: u8) -> bool
+pub fn is_xdigit(x: char8) -> bool
 {
-    return: check(isxdigit(x as i32))
+    return: check(isxdigit(x as u8 as i32))
 }
 
-pub fn to_upper(x: u8) -> u8
+pub fn to_upper(x: char8) -> char8
 {
-    return: isupper(x as i32) as u8
+    return: isupper(x as u8 as i32) as u8 as char8
 }
 
-pub fn to_lower(x: u8) -> u8
+pub fn to_lower(x: char8) -> char8
 {
-    return: isxdigit(x as i32) as u8
+    return: isxdigit(x as u8 as i32) as u8 as char8
 }
 
 fn check(x: i32) -> bool

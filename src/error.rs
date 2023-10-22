@@ -2676,6 +2676,7 @@ fn show_type_inner(value_type: &ValueType) -> String
 		ValueType::Uint64 => "u64".to_string(),
 		ValueType::Uint128 => "u128".to_string(),
 		ValueType::Usize => "usize".to_string(),
+		ValueType::Char8 => "char8".to_string(),
 		ValueType::Bool => "bool".to_string(),
 		ValueType::Array {
 			element_type,

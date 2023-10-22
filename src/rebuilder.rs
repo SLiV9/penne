@@ -823,6 +823,7 @@ where
 			ValueType::Uint64 => Ok("u64".to_string()),
 			ValueType::Uint128 => Ok("u128".to_string()),
 			ValueType::Usize => Ok("usize".to_string()),
+			ValueType::Char8 => Ok("char8".to_string()),
 			ValueType::Bool => Ok("bool".to_string()),
 			ValueType::Array {
 				element_type,

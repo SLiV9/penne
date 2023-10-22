@@ -946,6 +946,7 @@ impl Resolvable for ValueType
 			ValueType::Uint64 => Ok(resolved::ValueType::Uint64),
 			ValueType::Uint128 => Ok(resolved::ValueType::Uint128),
 			ValueType::Usize => Ok(resolved::ValueType::Usize),
+			ValueType::Char8 => Ok(resolved::ValueType::Char8),
 			ValueType::Bool => Ok(resolved::ValueType::Bool),
 			ValueType::Array {
 				element_type,
@@ -1037,6 +1038,7 @@ const VALID_TYPES_FOR_EQUALITY: &[OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Uint64),
 	OperandValueType::ValueType(ValueType::Uint128),
 	OperandValueType::ValueType(ValueType::Usize),
+	OperandValueType::ValueType(ValueType::Char8),
 	OperandValueType::ValueType(ValueType::Bool),
 	OperandValueType::Pointer,
 ];
@@ -1053,6 +1055,7 @@ const VALID_TYPES_FOR_IS_GREATER: &[OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Uint64),
 	OperandValueType::ValueType(ValueType::Uint128),
 	OperandValueType::ValueType(ValueType::Usize),
+	OperandValueType::ValueType(ValueType::Char8),
 	OperandValueType::ValueType(ValueType::Bool),
 ];
 
@@ -1136,6 +1139,7 @@ const VALID_TYPES_FOR_ARITHMETIC: &[OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Uint64),
 	OperandValueType::ValueType(ValueType::Uint128),
 	OperandValueType::ValueType(ValueType::Usize),
+	OperandValueType::ValueType(ValueType::Char8),
 ];
 const VALID_TYPES_FOR_BITWISE: &[OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Uint8),
@@ -1367,6 +1371,7 @@ const VALID_PRIMITIVE_TYPES: &[ValueType] = &[
 	ValueType::Uint64,
 	ValueType::Uint128,
 	ValueType::Usize,
+	ValueType::Char8,
 	ValueType::Bool,
 ];
 
@@ -1375,10 +1380,12 @@ fn is_valid_bit_cast(value_type: &ValueType, coerced_type: &ValueType) -> bool
 	match (value_type, coerced_type)
 	{
 		(x, y) if x == y => true,
+
 		(
 			ValueType::Pointer { deref_type: _ },
 			ValueType::Pointer { deref_type: _ },
 		) => true,
+
 		(
 			ValueType::Word {
 				identifier: _,
@@ -1401,6 +1408,7 @@ fn is_valid_bit_cast(value_type: &ValueType, coerced_type: &ValueType) -> bool
 					== Some(*size_in_bytes)
 				&& can_be_generated
 		}
+
 		(_, _) => false,
 	}
 }
@@ -1414,6 +1422,8 @@ fn is_valid_primitive_conversion(
 	{
 		(x, y) if x == y => false,
 		(vt, ct) if vt.is_integral() && ct.is_integral() => true,
+		(ValueType::Uint8, ValueType::Char8) => true,
+		(ValueType::Char8, ValueType::Uint8) => true,
 		(ValueType::Bool, ct) if ct.is_integral() => true,
 		(_, _) => false,
 	}

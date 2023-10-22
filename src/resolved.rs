@@ -251,10 +251,10 @@ impl Typed for Expression
 			{
 				value_type.clone()
 			}
-			Expression::StringLiteral { bytes } => ValueType::Array {
-				element_type: Box::new(ValueType::Uint8),
-				length: bytes.len(),
-			},
+			Expression::StringLiteral { bytes } =>
+			{
+				ValueType::for_string_literal(bytes.len())
+			}
 			Expression::ArrayLiteral {
 				elements,
 				element_type,

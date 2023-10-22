@@ -33,6 +33,7 @@ where
 	Uint64,
 	Uint128,
 	Usize,
+	Char8,
 	Bool,
 	Array
 	{
@@ -121,6 +122,7 @@ where
 			ValueType::Uint64 => true,
 			ValueType::Uint128 => true,
 			ValueType::Usize => true,
+			ValueType::Char8 => false,
 			ValueType::Bool => false,
 			ValueType::Array { .. } => false,
 			ValueType::ArrayWithNamedLength { .. } => false,
@@ -152,6 +154,7 @@ where
 			ValueType::Uint64 => Some(8),
 			ValueType::Uint128 => Some(16),
 			ValueType::Usize => None,
+			ValueType::Char8 => Some(1),
 			ValueType::Bool => Some(1),
 			ValueType::Array { .. } => None,
 			ValueType::ArrayWithNamedLength { .. } => None,
@@ -189,6 +192,15 @@ where
 			ValueType::Uint32 => true,
 			ValueType::Uint64 => true,
 			ValueType::Uint128 => true,
+			_ => false,
+		}
+	}
+
+	fn is_alias_of(&self, other: &ValueType<I>) -> bool
+	{
+		match (self, other)
+		{
+			(ValueType::Char8, ValueType::Uint8) => true,
 			_ => false,
 		}
 	}
@@ -811,6 +823,7 @@ where
 			ValueType::Uint64 => u64::MIN as i128,
 			ValueType::Uint128 => u128::MIN as i128,
 			ValueType::Usize => u64::MIN as i128,
+			ValueType::Char8 => u8::MIN as i128,
 			ValueType::Pointer { .. } => u64::MIN as i128,
 			ValueType::View { .. } => u64::MIN as i128,
 			_ => 0,
@@ -832,9 +845,25 @@ where
 			ValueType::Uint64 => u64::MAX as u128,
 			ValueType::Uint128 => u128::MAX as u128,
 			ValueType::Usize => u64::MAX as u128,
+			ValueType::Char8 => u8::MAX as u128,
 			ValueType::Pointer { .. } => u64::MAX as u128,
 			ValueType::View { .. } => u64::MAX as u128,
 			_ => 0,
+		}
+	}
+
+	pub fn for_string_literal(length: usize) -> Self
+	{
+		ValueType::Array {
+			element_type: Box::new(ValueType::Char8),
+			length,
+		}
+	}
+
+	pub fn for_string_slice() -> Self
+	{
+		ValueType::Slice {
+			element_type: Box::new(ValueType::Char8),
 		}
 	}
 }

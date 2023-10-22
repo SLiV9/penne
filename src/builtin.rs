@@ -106,9 +106,7 @@ pub fn resolve(
 
 fn file(location: &Location) -> resolved::Expression
 {
-	let str_type = resolved::ValueType::Slice {
-		element_type: Box::new(resolved::ValueType::Uint8),
-	};
+	let str_type = resolved::ValueType::for_string_slice();
 	resolve(Builtin::File, location, Vec::new(), str_type)
 }
 
@@ -128,9 +126,7 @@ fn write(
 	arguments: Vec<resolved::Expression>,
 ) -> resolved::Expression
 {
-	let str_type = resolved::ValueType::Slice {
-		element_type: Box::new(resolved::ValueType::Uint8),
-	};
+	let str_type = resolved::ValueType::for_string_slice();
 	let buffer = resolve(Builtin::Format, location, arguments, str_type);
 	let write = resolved::GeneratorBuiltin::Write {
 		fd,

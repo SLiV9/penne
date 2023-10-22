@@ -11,4 +11,4 @@ fn main()
 	}
 }
 
-fn trace(message: []u8);
+fn trace(message: []char8);

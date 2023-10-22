@@ -1324,6 +1324,8 @@ impl Generatable for ValueType
 				LLVMInt128TypeInContext(llvm.context)
 			},
 			ValueType::Usize => llvm.type_of_usize,
+			ValueType::Char8 =>
+			unsafe { LLVMInt8TypeInContext(llvm.context) },
 			ValueType::Bool =>
 			unsafe { LLVMInt1TypeInContext(llvm.context) },
 			ValueType::Array {
@@ -1800,7 +1802,7 @@ fn generate_inplace_string_literal(
 	llvm: &mut Generator,
 ) -> Result<LLVMValueRef, anyhow::Error>
 {
-	let element_type: LLVMTypeRef = ValueType::Uint8.generate(llvm)?;
+	let element_type: LLVMTypeRef = ValueType::Char8.generate(llvm)?;
 	let mut values: Vec<LLVMValueRef> =
 		bytes.iter().map(|b| llvm.const_u8(*b)).collect();
 	let initializer = unsafe {
@@ -1815,7 +1817,7 @@ fn generate_global_string_literal(
 ) -> Result<LLVMValueRef, anyhow::Error>
 {
 	let initializer = generate_inplace_string_literal(bytes, llvm)?;
-	let element_type: LLVMTypeRef = ValueType::Uint8.generate(llvm)?;
+	let element_type: LLVMTypeRef = ValueType::Char8.generate(llvm)?;
 	let num_elements = bytes.len() as u32;
 	let array_type = unsafe { LLVMArrayType(element_type, num_elements) };
 	let strname = CString::new(".str")?;
@@ -2100,6 +2102,8 @@ fn generate_conversion(
 			};
 			Ok(result)
 		}
+		(ValueType::Uint8, ValueType::Char8) => Ok(value),
+		(ValueType::Char8, ValueType::Uint8) => Ok(value),
 		(ValueType::Bool, ct) if ct.is_integral() =>
 		{
 			let dest_type = coerced_type.generate(llvm)?;
@@ -2178,14 +2182,11 @@ impl Generatable for GeneratorBuiltin
 						)
 					}
 				};
-				debug_print_value_and_type("buffer_slice", buffer_slice);
-				debug_print_value_and_type("slice_ptr", slice_ptr);
 				let slice_ptr = generate_ext_array_view(
 					slice_ptr,
-					&ValueType::Uint8,
+					&ValueType::Char8,
 					llvm,
 				)?;
-				debug_print_value_and_type("slice_ptr", slice_ptr);
 				let slice_len = {
 					let tmpname = CString::new("buffer_len")?;
 					unsafe {
@@ -2227,9 +2228,7 @@ impl Typed for GeneratorBuiltin
 		match self
 		{
 			GeneratorBuiltin::Abort => ValueType::Void,
-			GeneratorBuiltin::Format { .. } => ValueType::Slice {
-				element_type: Box::new(ValueType::Uint8),
-			},
+			GeneratorBuiltin::Format { .. } => ValueType::for_string_slice(),
 			GeneratorBuiltin::Write { .. } => ValueType::Usize,
 		}
 	}
@@ -2271,7 +2270,7 @@ fn generate_format(
 	{
 		let bytes = &format_buffer[..];
 		let address = generate_global_string_literal(bytes, llvm)?;
-		let char_type = ValueType::Uint8;
+		let char_type = ValueType::Char8;
 		let length = bytes.len();
 		return generate_array_slice(address, &char_type, length, llvm);
 	}
@@ -2321,6 +2320,7 @@ fn generate_format_arg(
 		ValueType::Uint64 => generate_format_arg_as_u64(argument, llvm),
 		ValueType::Uint128 => todo!(),
 		ValueType::Usize => todo!(),
+		ValueType::Char8 => todo!(),
 		ValueType::Bool => todo!(),
 		ValueType::Array { .. } => generate_format_slice(argument, llvm),
 		ValueType::ArrayWithNamedLength { .. } => unreachable!(),

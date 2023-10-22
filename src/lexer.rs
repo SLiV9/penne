@@ -317,6 +317,7 @@ fn lex_line(
 					"u64" => Token::Type(ValueType::Uint64),
 					"u128" => Token::Type(ValueType::Uint128),
 					"usize" => Token::Type(ValueType::Usize),
+					"char8" => Token::Type(ValueType::Char8),
 					"bool" => Token::Type(ValueType::Bool),
 					"import" => Token::Import,
 					"pub" => Token::Pub,
@@ -443,7 +444,7 @@ fn lex_line(
 					{
 						Ok(Token::BitInteger(value))
 					}
-					Ok(value) => match parse_integer_type(&suffix)
+					Ok(value) => match parse_integer_suffix(&suffix)
 					{
 						Ok(suffix_type) =>
 						{
@@ -497,7 +498,7 @@ fn lex_line(
 					{
 						Ok(Token::NakedDecimal(value))
 					}
-					Ok(value) => match parse_integer_type(&suffix)
+					Ok(value) => match parse_integer_suffix(&suffix)
 					{
 						Ok(suffix_type) =>
 						{
@@ -739,7 +740,7 @@ fn lex_line(
 	}
 }
 
-fn parse_integer_type(suffix: &str) -> Result<ValueType, Error>
+fn parse_integer_suffix(suffix: &str) -> Result<ValueType, Error>
 {
 	match suffix
 	{

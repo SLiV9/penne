@@ -11,6 +11,7 @@ fn run_addition()
 {
 	let mut cmd = Command::cargo_bin("penne").unwrap();
 	cmd.arg("run");
+	cmd.arg("--color=never");
 	cmd.arg("examples/addition.pn");
 	cmd.assert().success();
 }
@@ -20,6 +21,7 @@ fn build_addition()
 {
 	let outdir = tempfile::tempdir().unwrap();
 	let mut cmd = Command::cargo_bin("penne").unwrap();
+	cmd.arg("--color=never");
 	cmd.arg("--out-dir");
 	cmd.arg(outdir.path());
 	cmd.arg("examples/addition.pn");
@@ -31,6 +33,7 @@ fn emit_addition()
 {
 	let mut cmd = Command::cargo_bin("penne").unwrap();
 	cmd.arg("emit");
+	cmd.arg("--color=never");
 	cmd.arg("examples/addition.pn");
 	cmd.assert().success();
 }
@@ -40,6 +43,7 @@ fn run_import_core()
 {
 	let mut cmd = Command::cargo_bin("penne").unwrap();
 	cmd.arg("run");
+	cmd.arg("--color=never");
 	cmd.arg("examples/import_core.pn");
 	cmd.arg("core:text");
 	cmd.assert().success();
@@ -50,6 +54,7 @@ fn emit_call_memcpy()
 {
 	let mut cmd = Command::cargo_bin("penne").unwrap();
 	cmd.arg("emit");
+	cmd.arg("--color=never");
 	cmd.arg("examples/libc/call_memcpy.pn");
 	cmd.arg("vendor:libc");
 	cmd.assert().success();
@@ -60,6 +65,7 @@ fn emit_call_malloc_array_of_i64()
 {
 	let mut cmd = Command::cargo_bin("penne").unwrap();
 	cmd.arg("emit");
+	cmd.arg("--color=never");
 	cmd.arg("examples/libc/call_malloc_array_of_i64.pn");
 	cmd.arg("vendor:libc");
 	cmd.assert().success();
@@ -70,6 +76,7 @@ fn emit_call_strrchr()
 {
 	let mut cmd = Command::cargo_bin("penne").unwrap();
 	cmd.arg("emit");
+	cmd.arg("--color=never");
 	cmd.arg("examples/libc/call_strrchr.pn");
 	cmd.arg("vendor:libc");
 	cmd.assert().success();
@@ -80,6 +87,7 @@ fn emit_wasm4_hello_from_penne()
 {
 	let mut cmd = Command::cargo_bin("penne").unwrap();
 	cmd.arg("emit");
+	cmd.arg("--color=never");
 	cmd.arg("--wasm");
 	cmd.arg("examples/wasm4/hello_from_penne.pn");
 	cmd.arg("vendor:wasm4");
@@ -91,6 +99,7 @@ fn emit_wasm4_write_with_custom_font()
 {
 	let mut cmd = Command::cargo_bin("penne").unwrap();
 	cmd.arg("emit");
+	cmd.arg("--color=never");
 	cmd.arg("--wasm");
 	cmd.arg("examples/wasm4/write_with_custom_font.pn");
 	cmd.arg("vendor:wasm4");
@@ -108,9 +117,9 @@ fn emit_colorless_ascii()
 	let result = cmd.assert().failure();
 	let output = result.get_output();
 	assert!(is_colorless_ascii(&output.stdout));
-	println!("@@@");
+	println!("STDERR");
 	println!("{}", std::str::from_utf8(&output.stderr).unwrap());
-	println!("@@@");
+	println!("STDERR");
 	assert!(is_colorless_ascii(&output.stderr));
 }
 
@@ -126,6 +135,7 @@ fn fail_to_build_loop_in_naked_branch()
 {
 	let outdir = tempfile::tempdir().unwrap();
 	let mut cmd = Command::cargo_bin("penne").unwrap();
+	cmd.arg("--color=never");
 	cmd.arg("--out-dir");
 	cmd.arg(outdir.path());
 	cmd.arg("tests/samples/invalid/loop_in_naked_branch.pn");

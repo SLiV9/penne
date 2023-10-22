@@ -25,8 +25,10 @@ Jekyll::Hooks.register :site, :pre_render do |site|
 		end
 
 		def self.type_keywords
-			@type_keywords ||= %w(void bool struct) + Penne.word_keywords +
-				Penne.int_suffixes + Penne.float_suffixes
+			@type_keywords ||= %w(void bool char8 struct) +
+				Penne.word_keywords +
+				Penne.int_suffixes +
+				Penne.float_suffixes
 		end
 
 		def self.literal_keywords

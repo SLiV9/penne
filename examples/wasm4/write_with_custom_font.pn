@@ -3,7 +3,7 @@ import "vendor:wasm4/wasm4.pn";
 const FONT_WIDTH: u32 = 208;
 const CHAR_WIDTH: u32 = 8;
 const CHAR_HEIGHT: u32 = 8;
-const CHARSET: [26]u8 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const CHARSET: [26]char8 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const FONT: [208]u8 = [
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -60,7 +60,7 @@ fn draw_char(char_index: u32, x: i32, y: i32, column: u32, line: u32)
     );
 }
 
-fn write_with_custom_font(text: []u8, x: i32, y: i32, colors: u16)
+fn write_with_custom_font(text: []char8, x: i32, y: i32, colors: u16)
 {
     // Set draw colors...
     DRAW_COLORS = colors;
@@ -75,7 +75,7 @@ fn write_with_custom_font(text: []u8, x: i32, y: i32, colors: u16)
         if i == |text|
             goto end;
 
-        var char_code: u8 = text[i];
+        var char_code: char8 = text[i];
 
         // Break into next line when encounter a "\n" (newline)...
         if char_code == 10
