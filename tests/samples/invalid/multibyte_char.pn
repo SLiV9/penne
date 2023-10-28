@@ -1,0 +1,5 @@
+fn main() -> u8
+{
+	var x = '€';
+	return: x as u8
+}

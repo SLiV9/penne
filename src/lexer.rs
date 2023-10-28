@@ -76,6 +76,7 @@ pub enum Token
 		value: u128,
 		suffix_type: ValueType,
 	},
+	CharLiteral(u8),
 	Bool(bool),
 	StringLiteral
 	{
@@ -96,6 +97,7 @@ pub enum Error
 	InvalidEscapeSequence,
 	UnexpectedTrailingBackslash,
 	MissingClosingQuote,
+	InvalidCharLiteral,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -509,8 +511,9 @@ fn lex_line(
 					Err(_) => Err(Error::InvalidIntegerLength),
 				}
 			}
-			'"' =>
+			'"' | '\'' =>
 			{
+				let opening_quote = x;
 				let mut bytes = Vec::new();
 				let mut closed = false;
 				let mut first_error_token = None;
@@ -667,7 +670,7 @@ fn lex_line(
 							}
 						}
 					}
-					else if x == '\"'
+					else if x == opening_quote
 					{
 						closed = true;
 						break;
@@ -722,7 +725,18 @@ fn lex_line(
 					source_offset_start = source_offset_end;
 					continue;
 				}
-				Ok(Token::StringLiteral { bytes })
+				if opening_quote == '"'
+				{
+					Ok(Token::StringLiteral { bytes })
+				}
+				else if bytes.len() == 1
+				{
+					Ok(Token::CharLiteral(bytes[0]))
+				}
+				else
+				{
+					Err(Error::InvalidCharLiteral)
+				}
 			}
 			' ' | '\t' =>
 			{

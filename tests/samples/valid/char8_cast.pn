@@ -12,7 +12,7 @@ fn bar(c: char8, text: []char8, cptr: &char8, out: &[]char8)
 fn main() -> i32
 {
 	var x: u8 = 108;
-	var c = x as char8;
+	var c = 'l';
 	var data = [96, x];
 	var text = "Hallo";
 	foo(x, data, &x, &data);

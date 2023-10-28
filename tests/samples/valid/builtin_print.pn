@@ -7,10 +7,14 @@ fn main() -> u8
 	var name = "Alice";
 	print!("Hello ", name, "!\n");
 	with_newline:
-	var newline = "\n";
+	var newline = '\n';
 	print!("Hello a", newline, "b!", newline);
+	with_byte:
+	var b: u8 = 255;
+	//print!("Hello ", b, "!\n");
 	with_integer:
-	var x: i32 = 1337;
+	var x: i32 = -173;
+	//print!("Hello ", x, "!\n");
 	with_pointer:
 	var ptr: &i32 = 0x7f00;
 	print!("Hello ", &ptr, "!\n");

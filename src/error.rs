@@ -590,6 +590,7 @@ impl Error
 				lexer::Error::MissingClosingQuote => 160,
 				lexer::Error::UnexpectedTrailingBackslash => 161,
 				lexer::Error::InvalidEscapeSequence => 162,
+				lexer::Error::InvalidCharLiteral => 163,
 			},
 			Error::UnexpectedToken { .. } => 300,
 			Error::UnexpectedSemicolonAfterIdentifier { .. } => 301,
@@ -1037,6 +1038,22 @@ fn write<'a>(
 			.with_note(
 				"To continue a string across multiple lines, close it and \
 				 then reopen it on the next line.",
+			),
+
+		Error::Lexical {
+			error: lexer::Error::InvalidCharLiteral,
+			expectation: _,
+			location,
+		} => report
+			.with_message("Invalid character literal")
+			.with_label(
+				location
+					.label()
+					.with_message("Invalid character literal")
+					.with_color(PRIMARY),
+			)
+			.with_note(
+				"Character literals must contain exactly one ASCII character.",
 			),
 
 		Error::UnexpectedToken {

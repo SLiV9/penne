@@ -230,6 +230,18 @@ fn fail_to_parse_missing_closing_quote()
 }
 
 #[test]
+fn fail_to_parse_empty_char()
+{
+	compile_to_fail(&[163], "tests/samples/invalid/empty_char.pn")
+}
+
+#[test]
+fn fail_to_parse_multibyte_char()
+{
+	compile_to_fail(&[163], "tests/samples/invalid/multibyte_char.pn")
+}
+
+#[test]
 fn fail_to_parse_missing_quotes_after_import()
 {
 	compile_to_fail(

@@ -1543,6 +1543,11 @@ fn parse_primary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 				})
 			}
 		}
+		Token::CharLiteral(value) => Ok(Expression::BitIntegerLiteral {
+			value: u128::from(value),
+			value_type: Some(Ok(ValueType::Char8)),
+			location,
+		}),
 		Token::Bool(value) =>
 		{
 			Ok(Expression::BooleanLiteral { value, location })
