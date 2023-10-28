@@ -2316,12 +2316,12 @@ fn format_arg(
 		ValueType::Int8 => format_arg_as_i64(argument, llvm, buffer),
 		ValueType::Int16 => format_arg_as_i64(argument, llvm, buffer),
 		ValueType::Int32 => format_arg_as_i64(argument, llvm, buffer),
-		ValueType::Int64 => format_arg_as_i64(argument, llvm, buffer),
+		ValueType::Int64 => format_i64(argument, llvm, buffer),
 		ValueType::Int128 => todo!(),
 		ValueType::Uint8 => format_arg_as_u64(argument, llvm, buffer),
 		ValueType::Uint16 => format_arg_as_u64(argument, llvm, buffer),
 		ValueType::Uint32 => format_arg_as_u64(argument, llvm, buffer),
-		ValueType::Uint64 => format_arg_as_u64(argument, llvm, buffer),
+		ValueType::Uint64 => format_u64(argument, llvm, buffer),
 		ValueType::Uint128 => todo!(),
 		ValueType::Usize => todo!(),
 		ValueType::Char8 =>
@@ -2330,7 +2330,7 @@ fn format_arg(
 			buffer.insert(argument.generate(llvm)?);
 			Ok(())
 		}
-		ValueType::Bool => todo!(),
+		ValueType::Bool => format_bool(argument, llvm, buffer),
 		ValueType::Array { .. } => format_slice(argument, llvm, buffer),
 		ValueType::ArrayWithNamedLength { .. } => unreachable!(),
 		ValueType::Slice { .. } => format_slice(argument, llvm, buffer),
@@ -2359,13 +2359,43 @@ fn format_arg(
 	}
 }
 
+fn format_i64(
+	argument: &Expression,
+	llvm: &mut Generator,
+	buffer: &mut FormatBuffer,
+) -> Result<(), anyhow::Error>
+{
+	let value = argument.generate(llvm)?;
+	buffer.add_specifier("%lld");
+	buffer.insert(value);
+	Ok(())
+}
+
+fn format_u64(
+	argument: &Expression,
+	llvm: &mut Generator,
+	buffer: &mut FormatBuffer,
+) -> Result<(), anyhow::Error>
+{
+	let value = argument.generate(llvm)?;
+	buffer.add_specifier("%llu");
+	buffer.insert(value);
+	Ok(())
+}
+
 fn format_arg_as_i64(
 	argument: &Expression,
 	llvm: &mut Generator,
 	buffer: &mut FormatBuffer,
 ) -> Result<(), anyhow::Error>
 {
-	todo!()
+	let value_type = argument.value_type();
+	let value = argument.generate(llvm)?;
+	let value =
+		generate_conversion(value, &value_type, &ValueType::Int64, llvm)?;
+	buffer.add_specifier("%lld");
+	buffer.insert(value);
+	Ok(())
 }
 
 fn format_arg_as_u64(
@@ -2374,7 +2404,13 @@ fn format_arg_as_u64(
 	buffer: &mut FormatBuffer,
 ) -> Result<(), anyhow::Error>
 {
-	todo!()
+	let value_type = argument.value_type();
+	let value = argument.generate(llvm)?;
+	let value =
+		generate_conversion(value, &value_type, &ValueType::Uint64, llvm)?;
+	buffer.add_specifier("%llu");
+	buffer.insert(value);
+	Ok(())
 }
 
 fn format_slice(
@@ -2402,6 +2438,38 @@ fn format_slice(
 		// TODO pretty print
 		todo!()
 	}
+}
+
+fn format_bool(
+	argument: &Expression,
+	llvm: &mut Generator,
+	buffer: &mut FormatBuffer,
+) -> Result<(), anyhow::Error>
+{
+	let value_type = argument.value_type();
+	let value = argument.generate(llvm)?;
+	let value =
+		generate_conversion(value, &value_type, &ValueType::Uint32, llvm)?;
+
+	let three = llvm.const_i32(3);
+	let offset = unsafe { LLVMBuildShl(llvm.builder, value, three, cstr!("")) };
+
+	let bytes = b"false\0\0\0true\0\0\0\0";
+	let special_str = generate_global_string_literal(bytes, llvm)?;
+	let mut indices = [llvm.const_i32(0), offset];
+	unsafe { LLVMSetValueName(special_str, cstr!(".falsetrue")) };
+	let offset_str = unsafe {
+		LLVMBuildGEP(
+			llvm.builder,
+			special_str,
+			indices.as_mut_ptr(),
+			indices.len() as u32,
+			cstr!(""),
+		)
+	};
+	buffer.add_specifier("%s");
+	buffer.insert(offset_str);
+	Ok(())
 }
 
 #[allow(unused_unsafe)]
