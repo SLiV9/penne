@@ -180,6 +180,14 @@ fn execute_multidimensional_array() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_reassign_array() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation("tests/samples/valid/reassign_array.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_pointers() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation("examples/pointers.pn")?;

@@ -1,0 +1,10 @@
+fn main() -> usize
+{
+	var alice = "Alice";
+	var x: []char8 = format!("Hello ", alice);
+	var result = |x|;
+	var bob = "Bob";
+	x = format!("Hello ", bob);
+	result = result + |x|;
+	return: 200 - 11 - 9 + result
+}

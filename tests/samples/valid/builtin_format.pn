@@ -10,9 +10,8 @@ fn main() -> usize
 	var world = "world";
 	var name = "Alice";
 	format1:
-	// var text = format!("Hello ", world, "!\n");
-	// var len1 = |text|;
-	var len1 = strlen(format!("Hello ", world, "!\n"));
+	var text = format!("Hello ", world, "!\n");
+	var len1 = |text|;
 	check1:
 	if len1 != 13
 	{

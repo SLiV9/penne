@@ -739,7 +739,6 @@ where
 		match self
 		{
 			ValueType::Void => false,
-			ValueType::Slice { .. } => false,
 			ValueType::SlicePointer { .. } => false,
 			ValueType::EndlessArray { .. } => false,
 			ValueType::Arraylike { .. } => false,

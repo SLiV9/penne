@@ -1,0 +1,15 @@
+fn main() -> i32
+{
+	var x: []i32 = [
+		1,
+		51,
+		151,
+	];
+	x = [
+		3,
+		50,
+		150,
+	];
+	var result = x[1] + x[2];
+	return: result
+}
