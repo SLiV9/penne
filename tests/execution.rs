@@ -631,7 +631,7 @@ fn execute_builtin_print() -> Result<(), anyhow::Error>
 	assert_eq!(
 		stdout,
 		"Hello world!\nHello Alice!\nHello a\nb!\nHello 255!\nHello \
-		 -173\nHello true!\nHello false!\nHello 0x7f00!\n"
+		 -173!\nHello true!\nHello false!\nHello 0x7f00!\n"
 	);
 	Ok(())
 }
@@ -641,6 +641,44 @@ fn execute_builtin_format() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation("tests/samples/valid/builtin_format.pn")?;
 	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
+fn execute_builtin_format_i128() -> Result<(), anyhow::Error>
+{
+	let mut x: i128 = -170141183460469231731687303715884105723;
+	let output = execute("tests/samples/valid/builtin_format_i128.pn")?;
+	let stdout = stdout_from_output(output)?;
+	for line in stdout.lines()
+	{
+		assert_eq!(line, format!("{x}"));
+		x /= 10;
+	}
+	assert_eq!(x, 0);
+	Ok(())
+}
+
+#[test]
+fn execute_builtin_format_u128() -> Result<(), anyhow::Error>
+{
+	let mut x: u128 = 245897425987205987254872359832589484829;
+	let output = execute("tests/samples/valid/builtin_format_u128.pn")?;
+	let stdout = stdout_from_output(output)?;
+	for line in stdout.lines()
+	{
+		assert_eq!(line, format!("{x}"));
+		x /= 10;
+	}
+	assert_eq!(x, 0);
+	Ok(())
+}
+
+#[test]
+fn execute_log_10_u128() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation("tests/samples/valid/log_10_u128.pn")?;
+	assert_eq!(result, 39);
 	Ok(())
 }
 

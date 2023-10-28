@@ -268,9 +268,10 @@ impl Generator
 		inttype: LLVMTypeRef,
 	) -> LLVMValueRef
 	{
+		let mask = u128::from(u64::MAX);
 		let words = [
-			((value_bits >> 64) & 0xFFFFFFFF) as u64,
-			(value_bits & 0xFFFFFFFF) as u64,
+			(value_bits & mask) as u64,
+			((value_bits >> 64) & mask) as u64,
 		];
 		unsafe { LLVMConstIntOfArbitraryPrecision(inttype, 2, words.as_ptr()) }
 	}
@@ -1798,6 +1799,26 @@ fn generate_global_string_literal(
 	Ok(global)
 }
 
+fn generate_global_cstr(
+	cstr: CString,
+	llvm: &mut Generator,
+) -> Result<LLVMValueRef, anyhow::Error>
+{
+	let bytes = cstr.as_bytes_with_nul();
+	let string = generate_global_string_literal(bytes, llvm)?;
+	let result = unsafe {
+		let mut indices = [llvm.const_i32(0), llvm.const_i32(0)];
+		LLVMBuildGEP(
+			llvm.builder,
+			string,
+			indices.as_mut_ptr(),
+			indices.len() as u32,
+			cstr!(""),
+		)
+	};
+	Ok(result)
+}
+
 fn generate_structure_literal(
 	structural_type: &ValueType,
 	members: &[MemberExpression],
@@ -2226,18 +2247,7 @@ fn generate_format(
 	};
 
 	let format = CString::new(format_buffer.format)?;
-	let format =
-		generate_global_string_literal(format.as_bytes_with_nul(), llvm)?;
-	let format = unsafe {
-		let mut indices = [llvm.const_i32(0), llvm.const_i32(0)];
-		LLVMBuildGEP(
-			llvm.builder,
-			format,
-			indices.as_mut_ptr(),
-			indices.len() as u32,
-			cstr!(""),
-		)
-	};
+	let format = generate_global_cstr(format, llvm)?;
 
 	let null_ptr = unsafe { LLVMConstNull(char_ptr_type) };
 	let mut snprintf_arguments = vec![null_ptr, llvm.const_usize(0), format];
@@ -2317,12 +2327,12 @@ fn format_arg(
 		ValueType::Int16 => format_arg_as_i64(argument, llvm, buffer),
 		ValueType::Int32 => format_arg_as_i64(argument, llvm, buffer),
 		ValueType::Int64 => format_i64(argument, llvm, buffer),
-		ValueType::Int128 => todo!(),
+		ValueType::Int128 => format_d128(argument, true, llvm, buffer),
 		ValueType::Uint8 => format_arg_as_u64(argument, llvm, buffer),
 		ValueType::Uint16 => format_arg_as_u64(argument, llvm, buffer),
 		ValueType::Uint32 => format_arg_as_u64(argument, llvm, buffer),
 		ValueType::Uint64 => format_u64(argument, llvm, buffer),
-		ValueType::Uint128 => todo!(),
+		ValueType::Uint128 => format_d128(argument, false, llvm, buffer),
 		ValueType::Usize => todo!(),
 		ValueType::Char8 =>
 		{
@@ -2413,6 +2423,148 @@ fn format_arg_as_u64(
 	Ok(())
 }
 
+fn format_d128(
+	argument: &Expression,
+	is_signed: bool,
+	llvm: &mut Generator,
+	buffer: &mut FormatBuffer,
+) -> Result<(), anyhow::Error>
+{
+	let value_type = argument.value_type().generate(llvm)?;
+	let value = argument.generate(llvm)?;
+
+	let i64_type = unsafe { LLVMInt64TypeInContext(llvm.context) };
+	let i32_type = unsafe { LLVMInt32TypeInContext(llvm.context) };
+
+	let (head, num_digits_tail, high, mid, low, nonneg) = unsafe {
+		let zero = LLVMConstInt(value_type, 0u64, i32::from(is_signed));
+		let (absvalue, nonneg) = if is_signed
+		{
+			let ge = LLVMIntPredicate::LLVMIntSGE;
+			let n = LLVMBuildICmp(llvm.builder, ge, value, zero, cstr!(""));
+			let absvalue = LLVMBuildSelect(
+				llvm.builder,
+				n,
+				value,
+				LLVMBuildNeg(llvm.builder, value, cstr!("")),
+				cstr!(""),
+			);
+			let nonneg = LLVMBuildZExt(llvm.builder, n, i32_type, cstr!(""));
+			(absvalue, nonneg)
+		}
+		else
+		{
+			(value, llvm.const_i32(1))
+		};
+		let ten16 = LLVMConstInt(i64_type, 10u64.pow(16), 1);
+		let ten16 = LLVMBuildSExt(llvm.builder, ten16, value_type, cstr!(""));
+		let q = LLVMBuildUDiv(llvm.builder, absvalue, ten16, cstr!(""));
+		let l = LLVMBuildURem(llvm.builder, absvalue, ten16, cstr!(""));
+		let eq = LLVMIntPredicate::LLVMIntEQ;
+		let only_l = LLVMBuildICmp(llvm.builder, eq, q, zero, cstr!(""));
+		let h = LLVMBuildUDiv(llvm.builder, q, ten16, cstr!(""));
+		let m = LLVMBuildURem(llvm.builder, q, ten16, cstr!(""));
+		let only_ml = LLVMBuildICmp(llvm.builder, eq, h, zero, cstr!(""));
+		let h = LLVMBuildTrunc(llvm.builder, h, i64_type, cstr!(".high"));
+		let m = LLVMBuildTrunc(llvm.builder, m, i64_type, cstr!(".mid"));
+		let l = LLVMBuildTrunc(llvm.builder, l, i64_type, cstr!(".low"));
+		let head = LLVMBuildSelect(
+			llvm.builder,
+			only_l,
+			l,
+			LLVMBuildSelect(llvm.builder, only_ml, m, h, cstr!("")),
+			cstr!(".head"),
+		);
+		let offset = LLVMBuildSelect(
+			llvm.builder,
+			only_ml,
+			llvm.const_i32(16),
+			llvm.const_i32(32),
+			cstr!(""),
+		);
+		let offset = LLVMBuildSelect(
+			llvm.builder,
+			only_l,
+			llvm.const_i32(0),
+			offset,
+			cstr!(".offset"),
+		);
+		(head, offset, h, m, l, nonneg)
+	};
+
+	let buf_len = llvm.const_usize(41);
+	let intermediate = unsafe {
+		let char_type = LLVMInt8TypeInContext(llvm.context);
+		LLVMBuildArrayAlloca(llvm.builder, char_type, buf_len, cstr!(".buf128"))
+	};
+	let var_num_characters_written_head =
+		unsafe { LLVMBuildAlloca(llvm.builder, i32_type, cstr!(".n")) };
+
+	let bytes = b"-%llu%n\0\0\0\0\0\0\0\0\0\
+	              -%llu%n%016llu\0\0\
+	              -%llu%n%4$016llu%3$016llu\0";
+	let special_str = generate_global_string_literal(bytes, llvm)?;
+	unsafe { LLVMSetValueName(special_str, cstr!(".fmt128l0ml0hml")) };
+	let format = unsafe {
+		let offset = LLVMBuildAdd(
+			llvm.builder,
+			num_digits_tail,
+			nonneg,
+			cstr!(".offset"),
+		);
+		let mut indices = [llvm.const_i32(0), offset];
+		LLVMBuildGEP(
+			llvm.builder,
+			special_str,
+			indices.as_mut_ptr(),
+			indices.len() as u32,
+			cstr!(""),
+		)
+	};
+
+	let mut snprintf_arguments = vec![
+		intermediate,
+		buf_len,
+		format,
+		head,
+		var_num_characters_written_head,
+		low,
+		mid,
+	];
+
+	let (function, return_type) = llvm.get_snprintf_intrinsic();
+	let length_result = unsafe {
+		LLVMBuildCall(
+			llvm.builder,
+			function,
+			snprintf_arguments.as_mut_ptr(),
+			snprintf_arguments.len() as u32,
+			cstr!(""),
+		)
+	};
+	// TODO error handling if length_result < 0
+	let _ = (length_result, return_type);
+
+	let num_characters = unsafe {
+		let num_characters_written_head = LLVMBuildLoad(
+			llvm.builder,
+			var_num_characters_written_head,
+			cstr!(".num_characters_written_head"),
+		);
+		LLVMBuildAdd(
+			llvm.builder,
+			num_characters_written_head,
+			num_digits_tail,
+			cstr!(""),
+		)
+	};
+
+	buffer.add_specifier("%.*s");
+	buffer.insert(num_characters);
+	buffer.insert(intermediate);
+	Ok(())
+}
+
 fn format_slice(
 	argument: &Expression,
 	llvm: &mut Generator,
@@ -2451,13 +2603,16 @@ fn format_bool(
 	let value =
 		generate_conversion(value, &value_type, &ValueType::Uint32, llvm)?;
 
+	// Calculate offset = value ? 8 : 0 using bitshift.
 	let three = llvm.const_i32(3);
 	let offset = unsafe { LLVMBuildShl(llvm.builder, value, three, cstr!("")) };
 
-	let bytes = b"false\0\0\0true\0\0\0\0";
+	// A little hack to have "true" start at offset 8.
+	let bytes = b"false\0\0\0true\0";
 	let special_str = generate_global_string_literal(bytes, llvm)?;
-	let mut indices = [llvm.const_i32(0), offset];
 	unsafe { LLVMSetValueName(special_str, cstr!(".falsetrue")) };
+
+	let mut indices = [llvm.const_i32(0), offset];
 	let offset_str = unsafe {
 		LLVMBuildGEP(
 			llvm.builder,
@@ -2467,6 +2622,7 @@ fn format_bool(
 			cstr!(""),
 		)
 	};
+
 	buffer.add_specifier("%s");
 	buffer.insert(offset_str);
 	Ok(())

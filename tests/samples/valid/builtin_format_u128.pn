@@ -1,0 +1,15 @@
+
+fn main() -> u8
+{
+	var x: u128 = 245897425987205987254872359832589484829;
+	{
+		print:
+		print!(x, "\n");
+		x = x / 10;
+		check:
+		if x == 0
+			goto return;
+		loop;
+	}
+	return: 0
+}

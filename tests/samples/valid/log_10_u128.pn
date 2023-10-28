@@ -1,0 +1,16 @@
+
+fn main() -> u32
+{
+	var x: u128 = 123456789012345678901234567890123456789;
+	var n: u32 = 0;
+	{
+		divide:
+		x = x / 10;
+		n = n + 1;
+		check:
+		if x == 0
+			goto return;
+		loop;
+	}
+	return: n
+}
