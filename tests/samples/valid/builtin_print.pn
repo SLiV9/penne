@@ -19,8 +19,14 @@ fn main() -> u8
 	print!("Hello ", is_ok, "!\n");
 	with_inline_value:
 	print!("Hello ", false, "!\n");
+	with_usize:
+	print!("Hello ", 32000usize, "!\n");
 	with_pointer:
 	var ptr: &i32 = 0x7f00;
 	print!("Hello ", &ptr, "!\n");
+	with_c_string:
+	var world_with_nul = "world\0";
+	var cstr: &[...]char8 = cast &world_with_nul;
+	print!("Hello ", cstr, "!\n");
 	return: 0
 }

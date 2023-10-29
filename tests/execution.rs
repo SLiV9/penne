@@ -631,7 +631,8 @@ fn execute_builtin_print() -> Result<(), anyhow::Error>
 	assert_eq!(
 		stdout,
 		"Hello world!\nHello Alice!\nHello a\nb!\nHello 255!\nHello \
-		 -173!\nHello true!\nHello false!\nHello 0x7f00!\n"
+		 -173!\nHello true!\nHello false!\nHello 32000!\nHello 0x7f00!\nHello \
+		 world!\n"
 	);
 	Ok(())
 }

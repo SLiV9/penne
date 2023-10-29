@@ -2333,7 +2333,7 @@ fn format_arg(
 		ValueType::Uint32 => format_arg_as_u64(argument, llvm, buffer),
 		ValueType::Uint64 => format_u64(argument, llvm, buffer),
 		ValueType::Uint128 => format_d128(argument, false, llvm, buffer),
-		ValueType::Usize => todo!(),
+		ValueType::Usize => format_arg_as_u64(argument, llvm, buffer),
 		ValueType::Char8 =>
 		{
 			buffer.add_specifier("%c");
@@ -2345,7 +2345,10 @@ fn format_arg(
 		ValueType::ArrayWithNamedLength { .. } => unreachable!(),
 		ValueType::Slice { .. } => format_slice(argument, llvm, buffer),
 		ValueType::SlicePointer { .. } => unreachable!(),
-		ValueType::EndlessArray { .. } => unreachable!(),
+		ValueType::EndlessArray { .. } =>
+		{
+			format_endless(argument, llvm, buffer)
+		}
 		ValueType::Arraylike { .. } => unreachable!(),
 		ValueType::Struct { identifier } =>
 		{
@@ -2358,8 +2361,6 @@ fn format_arg(
 		ValueType::UnresolvedStructOrWord { .. } => unreachable!(),
 		ValueType::Pointer { .. } =>
 		{
-			// TODO &[...]char8
-
 			let address = argument.generate(llvm)?;
 			buffer.add_specifier("%p");
 			buffer.insert(address);
@@ -2436,7 +2437,7 @@ fn format_d128(
 	let i64_type = unsafe { LLVMInt64TypeInContext(llvm.context) };
 	let i32_type = unsafe { LLVMInt32TypeInContext(llvm.context) };
 
-	let (head, num_digits_tail, high, mid, low, nonneg) = unsafe {
+	let (head, num_digits_tail, mid, low, nonneg) = unsafe {
 		let zero = LLVMConstInt(value_type, 0u64, i32::from(is_signed));
 		let (absvalue, nonneg) = if is_signed
 		{
@@ -2489,7 +2490,7 @@ fn format_d128(
 			offset,
 			cstr!(".offset"),
 		);
-		(head, offset, h, m, l, nonneg)
+		(head, offset, m, l, nonneg)
 	};
 
 	let buf_len = llvm.const_usize(41);
@@ -2629,18 +2630,68 @@ fn format_bool(
 }
 
 #[allow(unused_unsafe)]
-unsafe fn format_cstr(
+fn format_endless(
 	argument: &Expression,
 	llvm: &mut Generator,
 	buffer: &mut FormatBuffer,
 ) -> Result<(), anyhow::Error>
 {
-	let address = argument.generate(llvm)?;
-	// Assume that &[...]char8 is nul terminated;
-	let nul_terminated_cstr = unsafe { address };
-	buffer.add_specifier("%s");
-	buffer.insert(nul_terminated_cstr);
-	Ok(())
+	let cstr_address = match argument
+	{
+		Expression::Deref {
+			reference: Reference { base, steps, .. },
+			deref_type: ValueType::EndlessArray { element_type },
+		} =>
+		{
+			if **element_type == ValueType::Char8
+			{
+				match steps.iter().last()
+				{
+					Some(ReferenceStep::Autoderef) =>
+					{
+						let n = steps.len() - 1;
+						let steps = steps[..n].iter().cloned().collect();
+						let expression = Expression::Deref {
+							reference: Reference {
+								base: base.clone(),
+								steps,
+								take_address: false,
+							},
+							deref_type: ValueType::Pointer {
+								deref_type: Box::new(ValueType::EndlessArray {
+									element_type: Box::new(ValueType::Char8),
+								}),
+							},
+						};
+						let address = expression.generate(llvm)?;
+						Some(address)
+					}
+					_ => None,
+				}
+			}
+			else
+			{
+				None
+			}
+		}
+		_ => None,
+	};
+	if let Some(address) = cstr_address
+	{
+		// Assume that [...]char8 is nul terminated.
+		let nul_terminated_cstr = unsafe { address };
+		buffer.add_specifier("%s");
+		buffer.insert(nul_terminated_cstr);
+		Ok(())
+	}
+	else
+	{
+		let text = CString::new("...")?;
+		let placeholder = generate_global_cstr(text, llvm)?;
+		buffer.add_specifier("%s");
+		buffer.insert(placeholder);
+		Ok(())
+	}
 }
 
 fn format_struct(
