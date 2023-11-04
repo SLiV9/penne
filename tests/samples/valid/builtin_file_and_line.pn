@@ -1,0 +1,6 @@
+
+fn main() -> u8
+{
+	print!("Hello from ", file!(), ":", line!(), "!\n");
+	return: 0
+}

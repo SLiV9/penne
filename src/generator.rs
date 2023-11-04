@@ -1819,6 +1819,27 @@ fn generate_global_cstr(
 	Ok(result)
 }
 
+fn generate_global_nstr_and_len(
+	nstr: &str,
+	llvm: &mut Generator,
+) -> Result<(LLVMValueRef, usize), anyhow::Error>
+{
+	let bytes = nstr.as_bytes();
+	let len = bytes.len();
+	let string = generate_global_string_literal(bytes, llvm)?;
+	let result = unsafe {
+		let mut indices = [llvm.const_i32(0), llvm.const_i32(0)];
+		LLVMBuildGEP(
+			llvm.builder,
+			string,
+			indices.as_mut_ptr(),
+			indices.len() as u32,
+			cstr!(""),
+		)
+	};
+	Ok((result, len))
+}
+
 fn generate_structure_literal(
 	structural_type: &ValueType,
 	members: &[MemberExpression],
@@ -2192,6 +2213,34 @@ struct FormatBuffer
 
 impl FormatBuffer
 {
+	fn add_user_text(
+		&mut self,
+		text: &str,
+		llvm: &mut Generator,
+	) -> Result<(), anyhow::Error>
+	{
+		let bytes = text.as_bytes();
+		if bytes.iter().all(is_snprintf_safe)
+		{
+			self.format.extend(bytes);
+		}
+		else
+		{
+			let (value, len) = generate_global_nstr_and_len(text, llvm)?;
+			self.add_specifier("%.*s");
+			self.insert(llvm.const_usize(len));
+			self.insert(value);
+		}
+		Ok(())
+	}
+
+	fn add_text(&mut self, text: &'static str)
+	{
+		let bytes = text.as_bytes();
+		assert!(bytes.iter().all(is_snprintf_safe));
+		self.format.extend(bytes);
+	}
+
 	fn add_specifier(&mut self, specifier: &'static str)
 	{
 		self.format.extend(specifier.as_bytes());
@@ -2203,18 +2252,21 @@ impl FormatBuffer
 	}
 }
 
+fn is_snprintf_safe(byte: &u8) -> bool
+{
+	match byte
+	{
+		b'%' => false,
+		b'\0' => false,
+		_ => true,
+	}
+}
+
 fn generate_format(
 	arguments: &[Expression],
 	llvm: &mut Generator,
 ) -> Result<LLVMValueRef, anyhow::Error>
 {
-	let is_snprintf_safe = |&byte| match byte
-	{
-		b'%' => false,
-		b'\0' => false,
-		_ => true,
-	};
-
 	let mut format_buffer = FormatBuffer::default();
 	for argument in arguments
 	{
@@ -2686,9 +2738,10 @@ fn format_endless(
 	}
 	else
 	{
-		let text = CString::new("...")?;
-		let placeholder = generate_global_cstr(text, llvm)?;
-		buffer.add_specifier("%s");
+		let text = "...";
+		let (placeholder, len) = generate_global_nstr_and_len(&text, llvm)?;
+		buffer.add_specifier("%.*s");
+		buffer.insert(llvm.const_usize(len));
 		buffer.insert(placeholder);
 		Ok(())
 	}
@@ -2701,8 +2754,14 @@ fn format_struct(
 	buffer: &mut FormatBuffer,
 ) -> Result<(), anyhow::Error>
 {
-	// TODO pretty print
-	todo!()
+	buffer.add_user_text(&struct_name.name, llvm)?;
+	buffer.add_text(" {");
+
+	let sname = CString::new(&struct_name.name as &str)?;
+	let struct_type = unsafe { LLVMGetTypeByName(llvm.module, sname.as_ptr()) };
+
+	buffer.add_text("}");
+	Ok(())
 }
 
 impl Generatable for builtin::Fd

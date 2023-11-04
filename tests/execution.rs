@@ -632,8 +632,18 @@ fn execute_builtin_print() -> Result<(), anyhow::Error>
 		stdout,
 		"Hello world!\nHello Alice!\nHello a\nb!\nHello 255!\nHello \
 		 -173!\nHello true!\nHello false!\nHello 32000!\nHello 0x7f00!\nHello \
-		 world!\n"
+		 world!\nHello ...!\n"
 	);
+	Ok(())
+}
+
+#[test]
+fn execute_builtin_file_and_line() -> Result<(), anyhow::Error>
+{
+	let filename = "tests/samples/valid/builtin_file_and_line.pn";
+	let output = execute(filename)?;
+	let stdout = stdout_from_output(output)?;
+	assert_eq!(stdout, format!("Hello from {filename}:4!\n"));
 	Ok(())
 }
 

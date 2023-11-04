@@ -28,5 +28,8 @@ fn main() -> u8
 	var world_with_nul = "world\0";
 	var cstr: &[...]char8 = cast &world_with_nul;
 	print!("Hello ", cstr, "!\n");
+	with_endless_placeholder:
+	var endless: &[...]u8 = cast &world_with_nul;
+	print!("Hello ", endless, "!\n");
 	return: 0
 }
