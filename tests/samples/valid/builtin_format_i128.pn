@@ -5,6 +5,7 @@ fn main() -> u8
 	{
 		print:
 		print!(x, "\n");
+		reduce:
 		x = x / 10;
 		check:
 		if x == 0

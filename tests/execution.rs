@@ -694,6 +694,27 @@ fn execute_log_10_u128() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_builtin_format_array() -> Result<(), anyhow::Error>
+{
+	let output = execute("tests/samples/valid/builtin_format_array.pn")?;
+	let stdout = stdout_from_output(output)?;
+	let expected = "[]\n[200]\n[12, 34]\n[1, 22, 333, 4444, 55555, -6]\n";
+	assert_eq!(stdout, expected);
+	Ok(())
+}
+
+#[test]
+fn execute_builtin_format_struct() -> Result<(), anyhow::Error>
+{
+	let output = execute("tests/samples/valid/builtin_format_struct.pn")?;
+	let stdout = stdout_from_output(output)?;
+	let expected = "Empty {}\nPoint { x: 12, y: 34 }\nFoo { point: Point { x: \
+	                12, y: 34 }, length: 128, other: 0x0 }\n";
+	assert_eq!(stdout, expected);
+	Ok(())
+}
+
+#[test]
 fn execute_and_crash_builtin_abort() -> Result<(), anyhow::Error>
 {
 	const POSIX_SIGABRT: i32 = 6;

@@ -1,0 +1,30 @@
+
+struct Empty {}
+
+word64 Point
+{
+	x: i32,
+	y: i32,
+}
+
+struct Foo
+{
+	point: Point,
+	length: usize,
+	other: &Foo,
+}
+
+fn main() -> u8
+{
+	var empty = Empty {};
+	var point = Point { x: 12, y: 34 };
+	var length = 128;
+	var foo = Foo { point, length, other: 0x0 };
+	print_empty:
+	print!(empty, "\n");
+	print_point:
+	print!(point, "\n");
+	print_foo:
+	print!(foo, "\n");
+	return: 0
+}

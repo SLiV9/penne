@@ -144,6 +144,8 @@ Syntactic sugar:
 		// x and y are not in scope here
 		(Or perhaps "with" instead of "var"?)
 	✔	C-style string literal concatenation @done (2021-07-10 13:26)
+	☐	Automatic enforced RVO by turning "-> BigStruct" into "out: &mut BigStruct"
+		But not for primitives and words, similar to parameter passing
 	☐	Herb Sutter's cppfront style multiple return types?
 		☐	With tuples this becomes -> [x: i32, y: i32] which automatically declares these inside the function scope
 		☐	Use -> [x: i32, y: ?MyError] for error handling?
@@ -239,16 +241,19 @@ Needed for Advent of Code:
 		✘	stb_sprintf.h? @cancelled (2023-08-26 15:24)
 			We need to link with libc anyway for any real program
 		✔	Allocate on the stack with len = snprintf(1) and BuildArrayAlloca @done (2023-10-22 18:16)
-		☐	Allow assigning to variable
+		✔	Allow assigning to variable @done (2023-11-05 09:25)
+		☐	Functions fmt_u128, fmt_i128, fmt_Struct1, fmt_array_u64, etcetera (in separate module?)
+			But that doesn't quite work because they would return a temporary.
 	☐	dbg!() using builtin magic
 	✔	file!() and line!() using builtin magic @done (2023-11-04 20:27)
 	✘	Equivalent of assert!() @cancelled (2023-09-10 19:55)
 		✘	Parser macros @cancelled (2023-09-10 19:41)
-	☐	panic!() using builtin magic
+	✔	panic!() using builtin magic @done (2023-11-05 09:25)
 	☐	File IO
-		☐	print!() and eprint!() using builtin magic and write() syscalls
+		✔	print!() and eprint!() using builtin magic and write() syscalls @done (2023-11-05 09:25)
 		☐	Basically everything mentioned under stdlib
 	☐	Somewhat nice deserialization (no joke)
+		☐	How would parsing an array/slice work?
 	☐	Somewhat nice serialization (for dbg)
 	☐	Error handling
 		☐	Optionals

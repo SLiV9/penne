@@ -145,7 +145,7 @@ impl Generator
 	}
 
 	/// Link the current module into the previous module.
-	/// The result is the new current module.
+	/// The result becomes the new current module.
 	pub fn link_modules(&mut self) -> Result<(), anyhow::Error>
 	{
 		if let Some(combined) = self.combined_module.take()
@@ -2640,8 +2640,10 @@ fn format_slice(
 	}
 	else
 	{
-		// TODO pretty print
-		todo!()
+		buffer.add_text("[");
+		// TODO print elements
+		buffer.add_text("]");
+		Ok(())
 	}
 }
 
@@ -2759,6 +2761,7 @@ fn format_struct(
 
 	let sname = CString::new(&struct_name.name as &str)?;
 	let struct_type = unsafe { LLVMGetTypeByName(llvm.module, sname.as_ptr()) };
+	// TODO print members
 
 	buffer.add_text("}");
 	Ok(())

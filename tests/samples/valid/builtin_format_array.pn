@@ -1,0 +1,17 @@
+
+fn main() -> u8
+{
+	var empty: []i32 = [];
+	var one: []i32 = [200];
+	var two: []i32 = [12, 34];
+	var data: []i32 = [1, 22, 333, 4444, 55555, -6];
+	print_empty:
+	print!(empty, "\n");
+	print_one:
+	print!(one, "\n");
+	print_two:
+	print!(two, "\n");
+	print_array:
+	print!(data, "\n");
+	return: 0
+}
