@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - ghworkflow
+      - gh-workflow
   workflow_dispatch:
 
 env:
@@ -21,6 +21,21 @@ jobs:
     - uses: testspace-com/setup-testspace@v1
       with:
         domain: ${{github.repository_owner}}
+    - name: Count LOC
+      uses: djdefi/cloc-action@6
+      with:
+        options: --json --out cloc-report.json --read-lang-def support/cloc_penne_definitions.txt
+    - name: Commit to gh-arifacts
+      run: |
+        git config --local user.name 'github-actions[bot]'
+        git config --local user.email 'github-actions[bot]@users.noreply.github.com'
+        git add ./cloc-report.json
+        git commit -m "Latest cloc report"
+    - name: Push to gh-artifacts
+      uses: ad-m/github-push-action@v0.8.0
+      with:
+        branch: gh-artifacts
+        force: true
     - name: Restore LLVM
       id: restore-llvm
       uses: actions/cache/restore@v3

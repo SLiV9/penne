@@ -202,6 +202,11 @@ Performance:
 	☐	Add parameter attributes such as nonnull and readonly
 	☐	Take a look at issue #5
 
+Compilation speed:
+	- Tracking: very roughly 4 KLOC (4325 Penne LOC in 1.0 seconds)
+	(cloc --read-lang-def support/cloc_penne_definitions.txt core/ vendor/ examples/ src/ tests/)
+	(cargo nextest run --no-fail-fast --release)
+
 Documentation:
 	(cd docs && bundle exec jekyll serve --open-url --livereload)
 	(cd docs/_site/ && git status)

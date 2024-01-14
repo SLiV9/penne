@@ -4,18 +4,19 @@
 
 # The Penne Programming Language
 
-[![Latest](https://img.shields.io/github/v/release/SLiV9/penne)](https://github.com/SLiV9/penne/releases/latest)
-[![Crate](https://img.shields.io/crates/v/penne.svg?colorB=319e8c)](https://crates.io/crates/penne)
-[![License](https://img.shields.io/github/license/SLiV9/penne)](https://github.com/SLiV9/penne/blob/main/LICENSE)
-[![Stars](https://img.shields.io/github/stars/SLiV9/penne)](https://github.com/SLiV9/penne/stargazers)
-[![GitHub repo size](https://img.shields.io/github/repo-size/SLiV9/penne)](https://github.com/SLiV9/penne/releases)
-[![Lines of code](https://img.shields.io/tokei/lines/github/SLiV9/penne)](https://github.com/SLiV9/penne/tree/main/src)
+[![Latest](https://img.shields.io/github/v/release/SLiV9/penne?style=flat)](https://github.com/SLiV9/penne/releases/latest)
+[![Crate](https://img.shields.io/crates/v/penne.svg?style=flat&colorB=319e8c)](https://crates.io/crates/penne)
+[![License](https://img.shields.io/github/license/SLiV9/penne?style=flat)](https://github.com/SLiV9/penne/blob/main/LICENSE)
+[![Stars](https://img.shields.io/github/stars/SLiV9/penne?style=flat)](https://github.com/SLiV9/penne/stargazers)
+[![GitHub repo size](https://img.shields.io/github/repo-size/SLiV9/penne?style=flat)](https://github.com/SLiV9/penne/releases)
+[![Lines of code (Rust)](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fgithub.com%2FSLiV9%2Fpenne%2Fraw%2Fgh-artifacts%2Fcloc-report.json&query=%24.Rust.code&style=flat&label=rust%20loc)](https://github.com/SLiV9/penne/tree/main/src)
+[![Lines of code (Penne)](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fgithub.com%2FSLiV9%2Fpenne%2Fraw%2Fgh-artifacts%2Fcloc-report.json&query=%24.Penne.code&style=flat&label=penne%20loc&color=ff951c)](https://github.com/SLiV9/penne/blob/gh-artifacts/cloc-report.json)
 
-[![Build](https://github.com/SLiV9/penne/actions/workflows/build.yml/badge.svg?event=push)](https://github.com/SLiV9/penne/actions)
-[![Release](https://github.com/SLiV9/penne/actions/workflows/release.yml/badge.svg?event=push)](https://github.com/SLiV9/penne/actions/workflows/release.yml)
-[![Tests](https://img.shields.io/testspace/tests/SLiV9/SLiV9:penne/main)](https://sliv9.testspace.com/spaces/204870/current)
-[![Coverage](https://img.shields.io/coveralls/github/SLiV9/penne)](https://coveralls.io/github/SLiV9/penne)
-[![Issues](https://img.shields.io/github/issues/SLiV9/penne)](https://github.com/SLiV9/penne/issues)
+[![Build](https://github.com/SLiV9/penne/actions/workflows/build.yml/badge.svg?event=push&style=flat)](https://github.com/SLiV9/penne/actions)
+[![Release](https://github.com/SLiV9/penne/actions/workflows/release.yml/badge.svg?event=push&stlye=flat)](https://github.com/SLiV9/penne/actions/workflows/release.yml)
+[![Tests](https://img.shields.io/testspace/tests/SLiV9/SLiV9:penne/main?style=flat)](https://sliv9.testspace.com/spaces/204870/current)
+[![Coverage](https://img.shields.io/coveralls/github/SLiV9/penne?style=flat)](https://coveralls.io/github/SLiV9/penne)
+[![Issues](https://img.shields.io/github/issues/SLiV9/penne?style=flat)](https://github.com/SLiV9/penne/issues)
 
 </div>
 

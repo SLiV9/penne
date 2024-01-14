@@ -1,0 +1,6 @@
+Penne
+    filter remove_matches ^\s*//
+    filter remove_inline //.*$
+    extension pn
+    extension penne
+    3rd_gen_scale 1.00
