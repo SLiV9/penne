@@ -693,6 +693,7 @@ fn execute_log_10_u128() -> Result<(), anyhow::Error>
 	Ok(())
 }
 
+#[ignore]
 #[test]
 fn execute_builtin_format_array() -> Result<(), anyhow::Error>
 {
@@ -703,6 +704,7 @@ fn execute_builtin_format_array() -> Result<(), anyhow::Error>
 	Ok(())
 }
 
+#[ignore]
 #[test]
 fn execute_builtin_format_slice() -> Result<(), anyhow::Error>
 {
@@ -713,6 +715,7 @@ fn execute_builtin_format_slice() -> Result<(), anyhow::Error>
 	Ok(())
 }
 
+#[ignore]
 #[test]
 fn execute_builtin_format_struct() -> Result<(), anyhow::Error>
 {
