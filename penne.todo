@@ -229,6 +229,7 @@ Documentation:
 	☐	Simplify wasm4 saving-data.md using cast
 
 Development:
+	☐	Drop llvm-sys and generate LLVM BC and textual IR by hand
 	☐	Release 0.4.0
 		☐	Flesh out core and vendor/libc
 		☐	Add/check documentation for E359, E553

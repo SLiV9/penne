@@ -704,6 +704,16 @@ fn execute_builtin_format_array() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_builtin_format_slice() -> Result<(), anyhow::Error>
+{
+	let output = execute("tests/samples/valid/builtin_format_slice.pn")?;
+	let stdout = stdout_from_output(output)?;
+	let expected = "[]\n[200]\n[12, 34]\n[1, 22, 333, 4444, 55555, -6]\n";
+	assert_eq!(stdout, expected);
+	Ok(())
+}
+
+#[test]
 fn execute_builtin_format_struct() -> Result<(), anyhow::Error>
 {
 	let output = execute("tests/samples/valid/builtin_format_struct.pn")?;

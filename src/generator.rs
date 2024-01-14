@@ -2640,8 +2640,20 @@ fn format_slice(
 	}
 	else
 	{
+		// let n = ?
+		// for i in 0..n {
+		//
+		// }
+		// create format string that is n times %.*s
+		// for i in 0..n {
+		// TODO call the same llvm IR snippet for multiple Expressions
+		// TODO my Generator currently doesn't have a nice way to do that
+		// }
 		buffer.add_text("[");
 		// TODO print elements
+		// buffer.add_specifier("%.*s");
+		// buffer.insert(formatted_elements_len);
+		// buffer.insert(formatted_elements_ptr);
 		buffer.add_text("]");
 		Ok(())
 	}

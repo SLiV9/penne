@@ -1,0 +1,17 @@
+
+fn main() -> u8
+{
+	var empty: []i32 = [];
+	var one: []i32 = [200];
+	var two: []i32 = [12, 34];
+	print_slice(empty);
+	print_slice(one);
+	print_slice(two);
+	print_slice([1, 22, 333, 4444, 55555, -6]);
+	return: 0
+}
+
+fn print_slice(data: []i32)
+{
+	print!(data, "\n");
+}
