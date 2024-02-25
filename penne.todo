@@ -183,6 +183,8 @@ Usability:
 	✔	Error recovery @done (2022-10-09 22:24)
 		☐	Better error recovery when an opening brace is consumed
 			☐	Experiment with structural pre-parsing phase?
+			☐	Balancing pairs during lexing like in Chandler Carruth's talk
+				Modernizing Compiler Design for Carbon Toolchain
 		✘	Better error recovery for unmatched parentheses @cancelled (2023-01-07 20:08)
 		☐	Prevent duplicate "reference to undefined struct" errors?
 		☐	Prevent duplicate "ambiguous type" errors
@@ -206,6 +208,10 @@ Compilation speed:
 	- Tracking: very roughly 4 KLOC (4325 Penne LOC in 1.0 seconds)
 	(cloc --read-lang-def support/cloc_penne_definitions.txt core/ vendor/ examples/ src/ tests/)
 	(cargo nextest run --no-fail-fast --release)
+	- Ultimate target:
+		☐	1MLOC for lexing and parsing
+		☐	100KLOC for semantic analysis
+		No target for code generation because LLVM does hard work
 
 Documentation:
 	(cd docs && bundle exec jekyll serve --open-url --livereload)
@@ -233,6 +239,37 @@ Documentation:
 			☐	Remove need for unimplemented!() somehow?
 	☐	Simplify wasm4 saving-data.md using cast
 
+Rewrite using Data-Oriented Compiler Design for 0.5.0:
+	"Modernizing Compiler Design for Carbon Toolchain" by Chandler Carruth
+	☐	Lexer
+		✔	Load all the source files into memory at once and keep them in scope @done (2024-02-25 17:37)
+			I already do this for ariadne.
+			For reference the entire LLVM source code is 20MB and modern L3 cache is also around 20MB, so this is silly but not 100x silly.
+			For reference the LLVM source code contains 2000 files.
+		☐	Tokens are u32 indices into Lexer's SOA smallvecs
+			All tokens from one source file are contiguous so just need first (last)
+			One array is line number in its source file, another byte number
+			Extent of token is just line_number[i]..line_number[i+1]
+		☐	Keep whitespace and comments as tokens
+		☐	Add end of file token
+		☐	Add unbalanced/missing closing braces as tokens
+	☐	Parser
+		☐	Number of parse tree nodes <= number of tokens
+			☐	Increase capacity of (small)vec ahead of time
+		☐	Store parse tree nodes as postorder traversed array
+	☐	Rebuilder
+	- Everything above at 1MLOC/s (10% of Carbon's goals) to allow formatting
+	☐	Expander
+		☐	Somehow insert scoped and typed AST instead of
+	☐	Scoper
+	☐	Typer
+		☐	But this single-pass approach becomes kind of silly when I have type inference within function bodies
+		☐	Separate surface level typing with no inference and function body type inference?
+	☐	Analyzer
+	☐	Linter
+	☐	Resolver
+	- Everything above at 100KLOC/s for responsive language server
+
 Development:
 	☐	Drop llvm-sys and generate LLVM BC and textual IR by hand
 	☐	Release 0.4.0
@@ -241,6 +278,9 @@ Development:
 		☐	Describe core as "batteries included but not pre-installed"
 		☐	Mention that "as" is well-defined, "cast" is unsafe / platform dependent
 		☐	Deploy website
+	☐	Rewrite from scratch using data-oriented compiler design
+		☐	Do this as a separate compiler with 0.4.0 as the reference
+	☐	Language server and IDE integrations
 
 Needed for Advent of Code:
 	☐	Equivalent of format!() using builtin magic
