@@ -127,7 +127,7 @@ fn get_key_offset(
 	keys.iter().position(|x| x == filepath).or_else(|| {
 		path_of_includer
 			.parent()
-			.map(|path| path.join(filepath.clone()))
+			.map(|path| path.join(filepath))
 			.and_then(|path| keys.iter().position(|x| x == &path))
 	})
 }

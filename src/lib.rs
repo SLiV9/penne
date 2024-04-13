@@ -44,7 +44,10 @@ pub mod value_type;
 
 pub use error::Error;
 pub use error::Errors;
+pub use generator::DefaultGenerator;
 pub use resolved::Declaration;
+
+use generator::Generator;
 
 /// Convenience method that parses source code and runs it through each of the
 /// compiler stages, except full IR generation.
@@ -58,7 +61,7 @@ pub fn compile_source(
 	let declarations = expander::expand_one(filename, declarations);
 	resolver::check_surface_level_errors(&declarations)?;
 	let declarations = scoper::analyze(declarations);
-	let mut compiler = Compiler::default();
+	let mut compiler = Compiler::<DefaultGenerator>::default();
 	compiler.add_module(filename).unwrap();
 	compiler
 		.analyze_and_resolve(declarations)
@@ -69,15 +72,15 @@ pub fn compile_source(
 /// and IR generation for individual declarations is managed by a Compiler.
 /// This allows compile-time constants to be used during type inference.
 #[derive(Default)]
-pub struct Compiler
+pub struct Compiler<G: Generator + Default>
 {
 	typer: typer::Typer,
 	analyzer: analyzer::Analyzer,
 	linter: linter::Linter,
-	generator: generator::Generator,
+	generator: G,
 }
 
-impl Compiler
+impl<G: Generator> Compiler<G>
 {
 	/// Change the target triple from the current OS to WebAssembly.
 	pub fn for_wasm(&mut self) -> Result<(), anyhow::Error>

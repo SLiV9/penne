@@ -11,6 +11,7 @@ use penne::parser;
 use penne::resolver;
 use penne::scoper;
 use penne::Compiler;
+use penne::DefaultGenerator;
 
 use pretty_assertions::assert_eq;
 
@@ -27,7 +28,7 @@ fn lint(filename: &str) -> Vec<Lint>
 		Err(errors) => match errors.panic() {},
 	}
 	let declarations = scoper::analyze(declarations);
-	let mut compiler = Compiler::default();
+	let mut compiler = Compiler::<DefaultGenerator>::default();
 	match compiler.analyze_and_resolve(declarations).unwrap()
 	{
 		Ok(_) => (),

@@ -608,7 +608,7 @@ impl Analyzer
 			.expect("containee must be predeclared");
 
 		// The same goes for the container.
-		let mut container = self
+		let container = self
 			.containers
 			.iter_mut()
 			.find(|x| x.identifier.resolution_id == container_id)

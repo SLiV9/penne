@@ -20,7 +20,7 @@ serde_plain = "1.0"
 toml = "0.5"
 clap = { version = "4.0", features = ["derive"] }
 libc = "0.2"
-llvm-sys = "60"
+llvm-sys = { version = "60", optional = true }
 
 [dev-dependencies]
 pretty_assertions = "1.3"
@@ -31,3 +31,8 @@ comfy-table = "7.0"
 [[bin]]
 name = "penne"
 path = "src/main.rs"
+
+[features]
+default = ["textual-ir", "llvm-sys"]
+textual-ir = []
+llvm-sys = ["dep:llvm-sys"]

@@ -269,9 +269,11 @@ Rewrite using Data-Oriented Compiler Design for 0.5.0:
 	☐	Linter
 	☐	Resolver
 	- Everything above at 100KLOC/s for responsive language server
+	☐	Textual LLVM IR Generator
+	- Everything above at 10KLOC/s for fun
 
 Development:
-	☐	Drop llvm-sys and generate LLVM BC and textual IR by hand
+	☐	Drop llvm-sys and generate textual LLVM IR by hand
 	☐	Release 0.4.0
 		☐	Flesh out core and vendor/libc
 		☐	Add/check documentation for E359, E553

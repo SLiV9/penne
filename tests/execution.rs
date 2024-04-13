@@ -771,7 +771,7 @@ fn execute(filename: &str) -> Result<std::process::Output, anyhow::Error>
 		Err(errors) => match errors.panic() {},
 	}
 	let declarations = scoper::analyze(declarations);
-	let mut compiler = Compiler::default();
+	let mut compiler = Compiler::<DefaultGenerator>::default();
 	compiler.add_module(&filename)?;
 	let declarations = match compiler.analyze_and_resolve(declarations)?
 	{
@@ -815,7 +815,7 @@ fn execute_with_imports(
 			Err(errors) => match errors.panic() {},
 		};
 	}
-	let mut compiler = Compiler::default();
+	let mut compiler = Compiler::<DefaultGenerator>::default();
 	for (filepath, declarations) in modules
 	{
 		let filename = filepath.to_str().unwrap();

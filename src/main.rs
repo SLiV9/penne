@@ -10,6 +10,7 @@ use penne::lexer;
 use penne::parser;
 use penne::resolver;
 use penne::scoper;
+use penne::DefaultGenerator;
 
 use std::io::Write;
 
@@ -374,7 +375,7 @@ fn do_main() -> Result<(), anyhow::Error>
 		}
 	}
 
-	let mut compiler = penne::Compiler::default();
+	let mut compiler = penne::Compiler::<DefaultGenerator>::default();
 	if wasm
 	{
 		compiler.for_wasm()?;
