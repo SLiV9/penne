@@ -95,7 +95,7 @@ pub fn expand(modules: &mut [(std::path::PathBuf, Vec<Declaration>)])
 	}
 }
 
-/// Convenience method that calls [expand](expand) with a single module.
+/// Convenience method that calls [expand] with a single module.
 pub fn expand_one(
 	filename: &str,
 	declarations: Vec<Declaration>,

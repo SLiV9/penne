@@ -492,6 +492,7 @@ dependencies = [
  "pretty_assertions",
  "serde",
  "serde_plain",
+ "target-triple",
  "tempfile",
  "termcolor",
  "toml",
@@ -753,6 +754,12 @@ dependencies = [
  "quote",
  "unicode-ident",
 ]
+
+[[package]]
+name = "target-triple"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ea67965c3f2666e59325eec14b6f0e296d27044051e65fc2a7d77ed3a3eff82d"
 
 [[package]]
 name = "tempfile"

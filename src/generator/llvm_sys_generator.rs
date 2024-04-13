@@ -4,7 +4,7 @@
 // License: MIT
 //
 
-//! The IR generation stage turns the resolved AST into LLVM IR.
+//! This implementation of the Generator uses llvm-sys.
 
 use super::GeneratorBuiltin;
 use super::DEFAULT_DATA_LAYOUT;
@@ -28,7 +28,6 @@ use llvm_sys::target_machine::LLVMGetDefaultTargetTriple;
 use llvm_sys::*;
 use llvm_sys::{LLVMBuilder, LLVMContext, LLVMModule};
 
-/// The Generator generates LLVM IR.
 pub struct Generator
 {
 	context: *mut LLVMContext,

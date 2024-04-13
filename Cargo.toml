@@ -21,6 +21,7 @@ toml = "0.5"
 clap = { version = "4.0", features = ["derive"] }
 libc = "0.2"
 llvm-sys = { version = "60", optional = true }
+target-triple = { version = "0.1", optional = true }
 
 [dev-dependencies]
 pretty_assertions = "1.3"
@@ -34,5 +35,5 @@ path = "src/main.rs"
 
 [features]
 default = ["textual-ir", "llvm-sys"]
-textual-ir = []
+textual-ir = ["dep:target-triple"]
 llvm-sys = ["dep:llvm-sys"]

@@ -9,10 +9,16 @@
 #[cfg(feature = "llvm-sys")]
 pub mod llvm_sys_generator;
 
+#[cfg(feature = "textual-ir")]
+pub mod textual_ir_generator;
+
 use crate::resolved::*;
 
 #[cfg(feature = "llvm-sys")]
-pub type DefaultGenerator = llvm_sys_generator::Generator;
+pub(crate) type DefaultGenerator = llvm_sys_generator::Generator;
+
+#[cfg(not(feature = "llvm-sys"))]
+pub(crate) type DefaultGenerator = textual_ir_generator::Generator;
 
 /// The LLVM data layout specification for the default target.
 pub const DEFAULT_DATA_LAYOUT: &str = "e-m:e-p:64:64-i64:64-n8:16:32:64-S64";
@@ -68,7 +74,7 @@ pub trait Generator: Default
 
 #[must_use]
 #[derive(Debug, Clone)]
-pub enum GeneratorBuiltin
+pub(crate) enum GeneratorBuiltin
 {
 	Abort,
 	Format

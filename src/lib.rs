@@ -42,10 +42,9 @@ pub mod stdout;
 pub mod typer;
 pub mod value_type;
 
-pub use error::Error;
-pub use error::Errors;
-pub use generator::DefaultGenerator;
-pub use resolved::Declaration;
+pub(crate) use error::Errors;
+pub(crate) use generator::DefaultGenerator;
+pub(crate) use resolved::Declaration;
 
 use generator::Generator;
 

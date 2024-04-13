@@ -10,7 +10,8 @@
 pub use crate::builtin;
 pub use crate::common::DeclarationFlag;
 pub use crate::common::{BinaryOp, ComparisonOp, UnaryOp};
-pub use crate::generator::GeneratorBuiltin;
+
+pub(crate) use crate::generator::GeneratorBuiltin;
 
 use crate::value_type;
 
