@@ -271,7 +271,10 @@ Rewrite using Data-Oriented Compiler Design for 0.5.0:
 	- Everything above at 100KLOC/s for responsive language server
 
 Development:
-	☐	Drop llvm-sys and generate LLVM BC and textual IR by hand
+	✘	Drop llvm-sys and generate textual LLVM IR by hand @cancelled (2024-04-13 21:44)
+		Requires calculating struct sizes by hand.
+		Means we lose constant folding.
+		Means we lose expression folding which means textual IR is much larger.
 	☐	Release 0.4.0
 		☐	Flesh out core and vendor/libc
 		☐	Add/check documentation for E359, E553

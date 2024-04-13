@@ -95,7 +95,7 @@ pub fn expand(modules: &mut [(std::path::PathBuf, Vec<Declaration>)])
 	}
 }
 
-/// Convenience method that calls [expand](expand) with a single module.
+/// Convenience method that calls [expand] with a single module.
 pub fn expand_one(
 	filename: &str,
 	declarations: Vec<Declaration>,
@@ -127,7 +127,7 @@ fn get_key_offset(
 	keys.iter().position(|x| x == filepath).or_else(|| {
 		path_of_includer
 			.parent()
-			.map(|path| path.join(filepath.clone()))
+			.map(|path| path.join(filepath))
 			.and_then(|path| keys.iter().position(|x| x == &path))
 	})
 }
