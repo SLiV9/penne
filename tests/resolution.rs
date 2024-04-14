@@ -109,6 +109,12 @@ fn allow_explicit_view_constant()
 }
 
 #[test]
+fn allow_autoderef_edge_cases()
+{
+	allow_to_compile("tests/samples/valid/autoderef_edge_cases.pn")
+}
+
+#[test]
 fn allow_sketch_of_listen_to_client()
 {
 	allow_to_compile("examples/listen_to_client.pn")
@@ -124,6 +130,12 @@ fn allow_multiline_strings()
 fn allow_wasm4_header()
 {
 	allow_to_compile("vendor/wasm4/wasm4.pn")
+}
+
+#[test]
+fn allow_sketch_of_format_slice_implementation()
+{
+	allow_to_compile("examples/format_slice_implementation.pn")
 }
 
 #[test]

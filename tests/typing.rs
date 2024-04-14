@@ -335,3 +335,12 @@ fn fail_to_type_size_of_slice()
 {
 	compile_to_fail(&[359], "tests/samples/invalid/size_of_slice.pn")
 }
+
+#[test]
+fn fail_to_type_pointer_to_coerced()
+{
+	compile_to_fail(
+		&[512, 512, 512],
+		"tests/samples/invalid/pointer_to_coerced.pn",
+	)
+}

@@ -1,0 +1,66 @@
+
+// Of course print_slice needs to be generic over the element type (here i32).
+fn print_slice(data: []i32)
+{
+	if |data| == 0
+	{
+		print!("[]\n");
+		goto end;
+	}
+
+	var buf: &&[]char8 = 0x0;
+	var buflen: usize = 0;
+	var real: usize = 0;
+
+	{
+		var i: usize = 0;
+		var writlen: usize = 0;
+		{
+			var fmt0 = "[%d\0\0";
+			var fmt1 = ", %d\0";
+			var fmt: &[5]char8 = &fmt1;
+			if i == 0
+			{
+				&fmt = &fmt0;
+			}
+			var head: &[...]char8 = add_offset(&buf, real * writlen);
+			var len: usize = buflen - real * writlen;
+			writlen = writlen + snprintf(&head, len, fmt, data[i]);
+
+			if i == |data|
+			{
+				goto terminator;
+			}
+			loop;
+		}
+
+		terminator:
+		var head: &[...]char8 = add_offset(&buf, real * writlen);
+		var len: usize = buflen - real * writlen;
+		writlen = writlen + snprintf(&head, len, "]\0", 0);
+
+		if real > 0
+		{
+			goto print;
+		}
+
+		buflen = writlen;
+		&&buf = alloc(buflen);
+		real = 1;
+		loop;
+	}
+
+	print:
+	print!(buf, "\n");
+
+	end:
+}
+
+// This is not the correct signature because variadics.
+extern fn snprintf(buf: &[]char8, buflen: usize, fmt: []char8, value: i32) -> usize;
+
+// This is not a real function.
+fn alloc(len: usize) -> &&[]char8;
+
+// This is not a real function.
+extern fn add_offset(buf: &[]char8, offset: usize) -> &[]char8;

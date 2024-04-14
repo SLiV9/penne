@@ -1,0 +1,25 @@
+
+fn all_valid()
+{
+	var five_zeroes: [5]i32 = [0, 0, 0, 0, 0];
+	use_ptr_to_endless(&five_zeroes);
+	use_slice_ptr(&five_zeroes);
+	var ptr_to_five_zeroes: &[5]i32 = &five_zeroes;
+	use_ptr_to_endless(&ptr_to_five_zeroes);
+	use_slice_ptr(&ptr_to_five_zeroes);
+	var ptr_to_ptr_to_five_zeroes: &&[5]i32 = &&ptr_to_five_zeroes;
+	use_ptr_to_endless(&ptr_to_ptr_to_five_zeroes);
+	use_slice_ptr(&ptr_to_ptr_to_five_zeroes);
+}
+
+fn use_slice_ptr(data: &[]i32)
+{
+	use_slice(data);
+	use_slice_ptr_2(&data);
+	use_ptr_to_endless(&data);
+}
+
+fn use_slice(data: []i32);
+fn use_slice_ptr_2(data: &[]i32);
+
+extern fn use_ptr_to_endless(data: &[]i32);

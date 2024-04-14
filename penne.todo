@@ -21,6 +21,7 @@ Functionality:
 			✔	Cast between pointer types (specifically from &T to &[]u8 and back) @done (2023-08-05 17:40)
 				✘	And check that the alignment is safe (i.e. no &[3]u8 to &u32) @cancelled (2023-08-06 12:12)
 			☐	Error if using 0x0 to initialize a view or non-optional pointer
+		☐	Think about storing a pointer to a view in a variable, then reassigning with a pointer to a different view
 	✔	Pass array by const-reference (slice) by default @done (2022-09-04 18:06)
 		☐	A [3]i32 parameter is typechecked as [3]i32 but implemented as []i32
 		✔	In extern functions, use pointers instead of slice structs @done (2022-09-08 12:09)

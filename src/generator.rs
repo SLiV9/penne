@@ -2640,6 +2640,9 @@ fn format_slice(
 	}
 	else
 	{
+		let slice = argument.generate(llvm)?;
+		let (slice_ptr, slice_len) =
+			generate_ptr_and_len_from_slice(slice, llvm)?;
 		// let n = ?
 		// for i in 0..n {
 		//
@@ -2649,6 +2652,7 @@ fn format_slice(
 		// TODO call the same llvm IR snippet for multiple Expressions
 		// TODO my Generator currently doesn't have a nice way to do that
 		// }
+		// LLVMBuildArrayAlloca
 		buffer.add_text("[");
 		// TODO print elements
 		// buffer.add_specifier("%.*s");

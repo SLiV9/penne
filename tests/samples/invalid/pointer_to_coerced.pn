@@ -1,0 +1,15 @@
+
+fn all_uses_invalid()
+{
+	var five_zeroes: [5]i32 = [0, 0, 0, 0, 0];
+	var ptr_to_five_zeroes: &[5]i32 = &five_zeroes;
+	// Invalid because use_ptr_to_ptr_to_endless might assign &[...]i32 to it.
+	use_ptr_to_ptr_to_endless(&&ptr_to_five_zeroes);
+
+	var ptr_to_ptr_to_five_zeroes: &&[5]i32 = &&ptr_to_five_zeroes;
+	use_ptr_to_ptr_to_endless(&&ptr_to_ptr_to_five_zeroes);
+	use_ptr_to_ptr_to_ptr_to_endless(&&&ptr_to_ptr_to_five_zeroes);
+}
+
+extern fn use_ptr_to_ptr_to_endless(data: &&[]i32);
+extern fn use_ptr_to_ptr_to_ptr_to_endless(data: &&&[]i32);

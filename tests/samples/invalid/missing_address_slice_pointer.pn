@@ -1,0 +1,8 @@
+fn use_slice_ptr(data: &[]i32)
+{
+	use_slice_ptr_2(data);
+	use_ptr_to_endless(data);
+}
+
+fn use_slice_ptr_2(data: &[]i32);
+extern fn use_ptr_to_endless(data: &[]i32);

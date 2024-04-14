@@ -1,0 +1,18 @@
+fn foo()
+{
+	var databuffer: [1024]u8;
+	read_into_buffer(databuffer);
+	read_into_fixed_buffer(databuffer);
+	read_into_extern_buffer(databuffer);
+}
+
+fn bar(databuffer: &[1024]u8)
+{
+	read_into_buffer(databuffer);
+	read_into_fixed_buffer(databuffer);
+	read_into_extern_buffer(databuffer);
+}
+
+fn read_into_buffer(buffer: &[]u8);
+fn read_into_fixed_buffer(buffer: &[1024]u8);
+extern fn read_into_extern_buffer(buffer: &[]u8);

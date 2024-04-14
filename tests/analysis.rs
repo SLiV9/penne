@@ -197,7 +197,7 @@ fn fail_to_analyze_var_in_naked_branch()
 #[test]
 fn fail_to_analyze_missing_address()
 {
-	compile_to_fail(&[513, 513], "tests/samples/invalid/missing_address.pn");
+	compile_to_fail(&[513], "tests/samples/invalid/missing_address.pn");
 }
 
 #[test]
@@ -206,6 +206,24 @@ fn fail_to_analyze_missing_address_get_from_pointer()
 	compile_to_fail(
 		&[513],
 		"tests/samples/invalid/missing_address_get_from_pointer.pn",
+	);
+}
+
+#[test]
+fn fail_to_analyze_missing_address_array()
+{
+	compile_to_fail(
+		&[513, 513, 513, 513, 513, 513],
+		"tests/samples/invalid/missing_address_array.pn",
+	);
+}
+
+#[test]
+fn fail_to_analyze_missing_address_slice_pointer()
+{
+	compile_to_fail(
+		&[513, 513],
+		"tests/samples/invalid/missing_address_slice_pointer.pn",
 	);
 }
 
