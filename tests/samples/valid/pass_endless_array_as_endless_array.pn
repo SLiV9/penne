@@ -1,9 +1,9 @@
-fn foo(data: ([...]i32)) -> i32
+fn foo(data: ([..]i32)) -> i32
 {
 	return: bar(data)
 }
 
-fn bar(data: ([...]i32)) -> i32
+fn bar(data: ([..]i32)) -> i32
 {
 	return: data[1]
 }

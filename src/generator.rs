@@ -1045,6 +1045,19 @@ impl Generatable for Expression
 					unsafe {
 						LLVMBuildLShr(llvm.builder, left, right, cstr!(""))
 					},
+					BinaryOp::AdvancePointer =>
+					{
+						let mut indices = vec![right];
+						unsafe {
+							LLVMBuildGEP(
+								llvm.builder,
+								left,
+								indices.as_mut_ptr(),
+								indices.len() as u32,
+								cstr!(""),
+							)
+						}
+					}
 				};
 				Ok(result)
 			}
@@ -2748,7 +2761,7 @@ fn format_endless(
 	};
 	if let Some(address) = cstr_address
 	{
-		// Assume that [...]char8 is nul terminated.
+		// Assume that [..]char8 is nul terminated.
 		let nul_terminated_cstr = unsafe { address };
 		buffer.add_specifier("%s");
 		buffer.insert(nul_terminated_cstr);

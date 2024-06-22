@@ -770,11 +770,9 @@ fn parse_inner_type(tokens: &mut Tokens) -> Result<ValueType, Error>
 					element_type: Box::new(element_type),
 				})
 			}
-			Some(Token::Dot) =>
+			Some(Token::Dots) =>
 			{
 				tokens.pop_front();
-				consume(Token::Dot, tokens)?;
-				consume(Token::Dot, tokens)?;
 				consume(Token::BracketRight, tokens)?;
 				let element_type = parse_inner_type(tokens)?;
 				Ok(ValueType::EndlessArray {
@@ -1647,10 +1645,30 @@ fn parse_primary_expression(tokens: &mut Tokens) -> Result<Expression, Error>
 		Token::Ampersand =>
 		{
 			let reference = parse_addressed_reference(location, tokens)?;
-			Ok(Expression::Deref {
+			let pointer = Expression::Deref {
 				reference,
 				deref_type: None,
-			})
+			};
+			if let Some(Token::Dots) = peek(tokens)
+			{
+				tokens.pop_front();
+				let location_of_op = tokens.last_location.clone();
+
+				let offset = parse_expression(tokens)?;
+				let location =
+					pointer.location().clone().combined_with(offset.location());
+				Ok(Expression::Binary {
+					op: BinaryOp::AdvancePointer,
+					left: Box::new(pointer),
+					right: Box::new(offset),
+					location,
+					location_of_op,
+				})
+			}
+			else
+			{
+				Ok(pointer)
+			}
 		}
 		Token::BracketLeft =>
 		{

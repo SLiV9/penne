@@ -385,6 +385,7 @@ pub enum BinaryOp
 	BitwiseXor,
 	ShiftLeft,
 	ShiftRight,
+	AdvancePointer,
 }
 
 #[must_use]

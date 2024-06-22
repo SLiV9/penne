@@ -2717,7 +2717,7 @@ fn show_type_inner(value_type: &ValueType) -> String
 		}
 		ValueType::EndlessArray { element_type } =>
 		{
-			format!("[...]{}", show_type_inner(element_type))
+			format!("[..]{}", show_type_inner(element_type))
 		}
 		ValueType::Arraylike { element_type } =>
 		{

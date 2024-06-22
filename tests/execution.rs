@@ -544,6 +544,15 @@ fn execute_pointer_stability_struct() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_pointer_arithmetic() -> Result<(), anyhow::Error>
+{
+	let result =
+		execute_calculation("tests/samples/valid/pointer_arithmetic.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_empty_array() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation("tests/samples/valid/empty_array.pn")?;

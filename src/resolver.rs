@@ -1075,6 +1075,20 @@ impl ComparisonOp
 	}
 }
 
+fn get_type_of_operand(
+	operand: &Expression,
+) -> Result<common::ValueType, Errors>
+{
+	match operand.value_type()
+	{
+		Some(Ok(vt)) => Ok(vt),
+		Some(Err(poison)) => Err(poison)?,
+		None => Err(Error::AmbiguousType {
+			location: operand.location().clone(),
+		})?,
+	}
+}
+
 fn match_type_of_operands(
 	left: &Expression,
 	right: &Expression,
@@ -1123,7 +1137,14 @@ fn resolve_binary_op_type(
 	location_of_op: &Location,
 ) -> Result<resolved::ValueType, Errors>
 {
-	let vt = match_type_of_operands(left, right, location_of_op)?;
+	let vt = if op == BinaryOp::AdvancePointer
+	{
+		get_type_of_operand(left)?
+	}
+	else
+	{
+		match_type_of_operands(left, right, location_of_op)?
+	};
 	analyze_operand_type(vt, op.valid_types(), location_of_op, left.location())
 }
 
@@ -1155,6 +1176,8 @@ const VALID_TYPES_FOR_BITSHIFT: &[OperandValueType] = &[
 	OperandValueType::ValueType(ValueType::Uint64),
 	OperandValueType::ValueType(ValueType::Uint128),
 ];
+const VALID_TYPES_FOR_POINTER: &[OperandValueType] =
+	&[OperandValueType::Pointer];
 
 impl BinaryOp
 {
@@ -1172,6 +1195,7 @@ impl BinaryOp
 			BinaryOp::BitwiseXor => VALID_TYPES_FOR_BITWISE,
 			BinaryOp::ShiftLeft => VALID_TYPES_FOR_BITSHIFT,
 			BinaryOp::ShiftRight => VALID_TYPES_FOR_BITSHIFT,
+			BinaryOp::AdvancePointer => VALID_TYPES_FOR_POINTER,
 		}
 	}
 }
@@ -1182,15 +1206,7 @@ fn resolve_unary_op_type(
 	location_of_op: &Location,
 ) -> Result<resolved::ValueType, Errors>
 {
-	let vt = match operand.value_type()
-	{
-		Some(Ok(vt)) => vt,
-		Some(Err(poison)) => Err(poison)?,
-		None => Err(Error::AmbiguousType {
-			location: operand.location().clone(),
-		})?,
-	};
-
+	let vt = get_type_of_operand(operand)?;
 	analyze_operand_type(
 		vt,
 		op.valid_types(),

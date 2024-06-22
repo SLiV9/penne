@@ -16,7 +16,7 @@ Functionality:
 		✔	Think about (disallowing) cast between pointer and integer @done (2022-12-24 18:39)
 			The only use case I care about is debugging and maybe offsets.
 			✔	printf()/format() needs a %p @done (2023-11-04 20:25)
-			☐	builtin function (&T, usize) -> &T
+			✔	builtin function (&T, usize) -> &T @done (2024-06-22 20:10)
 				Not needed if you can cast &[]u8 to &T and &[]T.
 				No, it is needed for writing to buffers at dynamic offsets.
 			✔	Cast between pointer types (specifically from &T to &[]u8 and back) @done (2023-08-05 17:40)

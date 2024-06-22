@@ -19,7 +19,7 @@ fn main() -> u8
 	done:
 	result = ptr[5];
 	error_occurred:
-	free(cast &ptr as &[...]u8);
+	free(cast &ptr as &[..]u8);
 	after_free:
 	return: result as u8
 }

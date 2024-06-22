@@ -1,5 +1,5 @@
 fn foo()
 {
-	var legal: &[...]i32;
-	var illegal_because_infinite_size: [...]i32;
+	var legal: &[..]i32;
+	var illegal_because_infinite_size: [..]i32;
 }

@@ -4,7 +4,7 @@ fn main() -> i32
 {
 	var buffer = "Hallo\0";
 	var m: char8 = 108;
-	var ptr_into_buffer: &[...]char8 = strrchr(buffer, m);
+	var ptr_into_buffer: &[..]char8 = strrchr(buffer, m);
 	ptr_into_buffer[0] = 109;
 	var diff = strcmp(buffer, "Halmo\0");
 	return: diff

@@ -1,2 +1,2 @@
 
-const A: [...]u8 = "Hello\0";
+const A: [..]u8 = "Hello\0";

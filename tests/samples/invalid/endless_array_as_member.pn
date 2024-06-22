@@ -1,5 +1,5 @@
 struct SmallVec
 {
-	legal: &[...]i32,
-	illegal_because_infinite_size: [...]i32,
+	legal: &[..]i32,
+	illegal_because_infinite_size: [..]i32,
 }

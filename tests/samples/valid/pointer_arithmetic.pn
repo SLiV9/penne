@@ -1,0 +1,12 @@
+
+fn main() -> i32
+{
+	var data: [3]i32 = [-1, 200, -3];
+	var x: &[..]i32 = cast &data;
+	var a = 1;
+	var b = 0;
+	var c = 2;
+	var y: &[..]i32 = &x .. a + b * c;
+	var answer = y[0];
+	return: answer
+}

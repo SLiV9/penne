@@ -851,7 +851,7 @@ where
 			}
 			ValueType::EndlessArray { element_type } =>
 			{
-				Ok(format!("[...]{}", element_type.rebuild(indentation)?))
+				Ok(format!("[..]{}", element_type.rebuild(indentation)?))
 			}
 			ValueType::Arraylike { element_type } =>
 			{
@@ -1023,6 +1023,7 @@ impl std::fmt::Display for BinaryOp
 			BinaryOp::BitwiseXor => write!(f, "^"),
 			BinaryOp::ShiftLeft => write!(f, "<<"),
 			BinaryOp::ShiftRight => write!(f, ">>"),
+			BinaryOp::AdvancePointer => write!(f, ".."),
 		}
 	}
 }

@@ -1574,6 +1574,27 @@ impl Analyzable for Expression
 		match self
 		{
 			Expression::Binary {
+				op: op @ BinaryOp::AdvancePointer,
+				left,
+				right,
+				location,
+				location_of_op,
+			} =>
+			{
+				let contextual_type = typer.contextual_type.take();
+				typer.contextual_type = right.value_type().or(contextual_type);
+				let left = left.analyze(typer);
+				typer.contextual_type = Some(Ok(ValueType::Usize));
+				let right = right.analyze(typer);
+				Expression::Binary {
+					op,
+					left: Box::new(left),
+					right: Box::new(right),
+					location,
+					location_of_op,
+				}
+			}
+			Expression::Binary {
 				op,
 				left,
 				right,
@@ -1582,10 +1603,9 @@ impl Analyzable for Expression
 			} =>
 			{
 				let contextual_type = typer.contextual_type.take();
-				typer.contextual_type =
-					right.value_type().or_else(|| contextual_type.clone());
+				typer.contextual_type = right.value_type().or(contextual_type);
 				let left = left.analyze(typer);
-				typer.contextual_type = left.value_type().or(contextual_type);
+				typer.contextual_type = left.value_type();
 				let right = right.analyze(typer);
 				Expression::Binary {
 					op,

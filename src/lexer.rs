@@ -45,6 +45,7 @@ pub enum Token
 	ShiftRight,   // >>
 	Arrow,        // ->
 	PipeForType,  // |:
+	Dots,         // ..
 
 	// Keywords.
 	Fn,
@@ -248,7 +249,16 @@ fn lex_line(
 			'%' => Ok(Token::Modulo),
 			':' => Ok(Token::Colon),
 			';' => Ok(Token::Semicolon),
-			'.' => Ok(Token::Dot),
+			'.' => match iter.peek()
+			{
+				Some((_, '.')) =>
+				{
+					iter.next();
+					source_offset_end += 1;
+					Ok(Token::Dots)
+				}
+				_ => Ok(Token::Dot),
+			},
 			',' => Ok(Token::Comma),
 			'=' => match iter.peek()
 			{

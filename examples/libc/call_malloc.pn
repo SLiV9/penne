@@ -3,7 +3,7 @@ import "vendor:libc/stdlib.pn";
 fn main() -> u8
 {
 	var result = -1;
-	var ptr: &[...]u8 = malloc(10);
+	var ptr: &[..]u8 = malloc(10);
 	if &ptr == 0x0
 		goto after_free;
 	var i: usize = 0;
