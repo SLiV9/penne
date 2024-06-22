@@ -1,3 +1,4 @@
+import "vendor:libc/stdlib.pn";
 
 // Of course print_slice needs to be generic over the element type (here i32).
 fn print_slice(data: []i32)
@@ -8,10 +9,11 @@ fn print_slice(data: []i32)
 		goto end;
 	}
 
-	var buf: &&[]char8 = 0x0;
+	var buf: &[...]char8 = 0x0;
 	var buflen: usize = 0;
-	var real: usize = 0;
 
+	// Do a dry run followed by a real run.
+	var real: usize = 0;
 	{
 		var i: usize = 0;
 		var writlen: usize = 0;
@@ -23,21 +25,23 @@ fn print_slice(data: []i32)
 			{
 				&fmt = &fmt0;
 			}
-			var head: &[...]char8 = add_offset(&buf, real * writlen);
+			var head: &[...]char8 = add_offset!(&buf, real * writlen);
 			var len: usize = buflen - real * writlen;
-			writlen = writlen + snprintf(&head, len, fmt, data[i]);
+			writlen = writlen + __snprintf!(&head, len, fmt, data[i]);
 
 			if i == |data|
 			{
 				goto terminator;
 			}
+
+			i = i + 1;
 			loop;
 		}
 
 		terminator:
-		var head: &[...]char8 = add_offset(&buf, real * writlen);
+		var head: &[...]char8 = add_offset!(&buf, real * writlen);
 		var len: usize = buflen - real * writlen;
-		writlen = writlen + snprintf(&head, len, "]\0", 0);
+		writlen = writlen + __snprintf!(&head, len, "]\0");
 
 		if real > 0
 		{
@@ -45,7 +49,7 @@ fn print_slice(data: []i32)
 		}
 
 		buflen = writlen;
-		&&buf = alloc(buflen);
+		&buf = cast malloc(buflen);
 		real = 1;
 		loop;
 	}
@@ -53,14 +57,10 @@ fn print_slice(data: []i32)
 	print:
 	print!(buf, "\n");
 
+	free(cast &buf);
+
 	end:
 }
 
 // This is not the correct signature because variadics.
-extern fn snprintf(buf: &[]char8, buflen: usize, fmt: []char8, value: i32) -> usize;
-
-// This is not a real function.
-fn alloc(len: usize) -> &&[]char8;
-
-// This is not a real function.
-extern fn add_offset(buf: &[]char8, offset: usize) -> &[]char8;
+// builtin fn __snprintf(buf: &[...]char8, buflen: usize, fmt: [...]char8, value: i32) -> usize;
