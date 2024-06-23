@@ -646,22 +646,7 @@ where
 
 	fn is_wellformed_element(&self) -> bool
 	{
-		match self
-		{
-			ValueType::Void => false,
-			ValueType::Array { .. } => self.is_wellformed_inner(),
-			ValueType::ArrayWithNamedLength { .. } =>
-			{
-				self.is_wellformed_inner()
-			}
-			ValueType::Slice { .. } => false,
-			ValueType::SlicePointer { .. } => false,
-			ValueType::EndlessArray { .. } => false,
-			ValueType::Arraylike { .. } => false,
-			ValueType::Pointer { .. } => self.is_wellformed_inner(),
-			ValueType::View { .. } => false,
-			_ => self.is_wellformed_inner(),
-		}
+		self.can_be_element() && self.is_wellformed_inner()
 	}
 
 	fn is_wellformed_inner(&self) -> bool
@@ -696,9 +681,38 @@ where
 		}
 	}
 
+	fn can_be_element(&self) -> bool
+	{
+		match self
+		{
+			ValueType::Void => false,
+			ValueType::Array { .. } => true,
+			ValueType::ArrayWithNamedLength { .. } => true,
+			ValueType::Slice { .. } => false,
+			ValueType::SlicePointer { .. } => false,
+			ValueType::EndlessArray { .. } => false,
+			ValueType::Arraylike { .. } => true,
+			ValueType::Pointer { .. } => true,
+			ValueType::View { .. } => false,
+			_ => true,
+		}
+	}
+
 	pub fn can_be_sized(&self) -> bool
 	{
-		self.is_wellformed_element()
+		match self
+		{
+			ValueType::Void => false,
+			ValueType::Array { .. } => true,
+			ValueType::ArrayWithNamedLength { .. } => true,
+			ValueType::Slice { .. } => false,
+			ValueType::SlicePointer { .. } => false,
+			ValueType::EndlessArray { .. } => false,
+			ValueType::Arraylike { .. } => false,
+			ValueType::Pointer { .. } => true,
+			ValueType::View { .. } => false,
+			_ => true,
+		}
 	}
 
 	pub fn can_be_struct_member(&self) -> bool

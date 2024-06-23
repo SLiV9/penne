@@ -59,6 +59,9 @@ fn do_update_symbol(
 		Err(_poison) => return Ok(()),
 	};
 
+	assert!(vt.is_wellformed(), "{vt:?}");
+	assert!(ot.is_wellformed(), "{ot:?}");
+
 	if ot == &vt || ot.can_be_concretization_of(&vt)
 	{
 		Ok(())
@@ -288,6 +291,7 @@ impl Typer
 				return Some(Err(Poison::Poisoned));
 			}
 		};
+		assert!(x.is_wellformed(), "{x:?}");
 		for (num_steps_taken, step) in reference.steps.iter_mut().enumerate()
 		{
 			match step
@@ -305,6 +309,7 @@ impl Typer
 						}
 						None =>
 						{
+							assert!(x.is_wellformed(), "{x:?}");
 							// TODO use num_step_taken to cut off reference
 							let _ = num_steps_taken;
 							let location = reference.location.clone();
@@ -334,6 +339,7 @@ impl Typer
 						} => return None,
 						_ =>
 						{
+							assert!(x.is_wellformed(), "{x:?}");
 							// TODO use num_step_taken to cut off reference
 							let _ = num_steps_taken;
 							let location = reference.location.clone();
@@ -675,6 +681,7 @@ fn declare(declaration: Declaration, typer: &mut Typer) -> Declaration
 				{
 					Ok(vt) if !vt.can_be_constant() =>
 					{
+						assert!(vt.is_wellformed(), "{vt:?}");
 						Err(Poison::Error(Error::IllegalConstantType {
 							value_type: vt,
 							location: name.location.clone(),
@@ -965,6 +972,14 @@ fn analyze_return_value(
 		Ok(x) => x,
 		Err(_poison) => return Err(Poison::Poisoned),
 	};
+	if let Some(rt) = &return_type
+	{
+		assert!(rt.is_wellformed(), "{rt:?}");
+	}
+	if let Some(vt) = &body_value_type
+	{
+		assert!(vt.is_wellformed(), "{vt:?}");
+	}
 	let result = match (return_type, &body.return_value, body_value_type)
 	{
 		(Some(rt), Some(_), Some(vt)) =>
@@ -1069,6 +1084,7 @@ impl Member
 					{
 						Ok(name) =>
 						{
+							assert!(vt.is_wellformed(), "{vt:?}");
 							Err(Poison::Error(Error::IllegalMemberType {
 								value_type: vt,
 								in_word,
@@ -1126,6 +1142,7 @@ impl Parameter
 					{
 						Ok(name) =>
 						{
+							assert!(vt.is_wellformed(), "{vt:?}");
 							Err(Poison::Error(Error::IllegalParameterType {
 								value_type: vt,
 								location: name.location.clone(),
@@ -1878,6 +1895,10 @@ impl Analyzable for Expression
 								.get_valid_declaration(symbol)
 								.map(|(_vt, loc)| loc)
 								.unwrap_or_else(|| reference.location.clone());
+							assert!(
+								current_type.is_wellformed(),
+								"{current_type:?}"
+							);
 							let error = Error::NotAnArrayWithLength {
 								current_type,
 								location,
@@ -1914,6 +1935,7 @@ impl Analyzable for Expression
 				}
 				Ok(queried_type) =>
 				{
+					assert!(queried_type.is_wellformed(), "{queried_type:?}");
 					let error = Error::TypeLacksKnownSize {
 						queried_type,
 						location_of_query: location,
@@ -2296,6 +2318,7 @@ impl Reference
 		{
 			(Some((previous_type, previous)), _, _) if excess_addresses > 0 =>
 			{
+				assert!(previous_type.is_wellformed(), "{previous_type:?}");
 				Some(Error::ExcessAddressInAssignment {
 					name: base.name.clone(),
 					previous_type,
@@ -2306,6 +2329,7 @@ impl Reference
 			(Some((dt, previous)), Some(Ok(vt)), Some(assignment_value))
 				if self.address_depth as usize != vt.pointer_depth() =>
 			{
+				let assigned_type = vt.clone();
 				let mut assignee_type = vt.clone().fully_dereferenced();
 				for _i in 0..self.address_depth
 				{
@@ -2313,11 +2337,15 @@ impl Reference
 						deref_type: Box::new(assignee_type),
 					};
 				}
+				let declared_type = dt;
+				assert!(assigned_type.is_wellformed(), "{assigned_type:?}");
+				assert!(assignee_type.is_wellformed(), "{assignee_type:?}");
+				assert!(declared_type.is_wellformed(), "{declared_type:?}");
 				Some(Error::MismatchedAddressInAssignment {
 					name: base.name.clone(),
-					assigned_type: vt.clone(),
+					assigned_type,
 					assignee_type,
-					declared_type: dt,
+					declared_type,
 					location: assignment_value.location().clone(),
 					location_of_assignee: self.location.clone(),
 					location_of_declaration: previous,
@@ -3007,12 +3035,15 @@ fn infer_for_declaration(
 {
 	match value_type
 	{
-		Some(Ok(t @ ValueType::Pointer { .. })) => Some(Err(Poison::Error(
-			Error::AmbiguousTypeOfPointerDeclaration {
-				suggested_type: t,
+		Some(Ok(suggested_type @ ValueType::Pointer { .. })) =>
+		{
+			assert!(suggested_type.is_wellformed(), "{suggested_type:?}");
+			let error = Error::AmbiguousTypeOfPointerDeclaration {
+				suggested_type,
 				location: identifier.location.clone(),
-			},
-		))),
+			};
+			Some(Err(Poison::Error(error)))
+		}
 		Some(Ok(x)) => Some(Ok(x)),
 		Some(Err(_poison)) => Some(Err(Poison::Poisoned)),
 		None => None,
@@ -3209,6 +3240,7 @@ fn fix_return_type_for_flags(
 	}
 	else
 	{
+		assert!(value_type.is_wellformed(), "{value_type:?}");
 		let error = Error::IllegalReturnType {
 			value_type,
 			location: location_of_type.clone(),
@@ -3293,6 +3325,7 @@ fn externalize_type(
 	location_of_declaration: &Location,
 ) -> Result<ValueType, Error>
 {
+	assert!(value_type.is_wellformed(), "{value_type:?}");
 	match value_type
 	{
 		ValueType::Arraylike { element_type } =>

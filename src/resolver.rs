@@ -1117,6 +1117,8 @@ fn match_type_of_operands(
 		(Some(lvt), Some(rvt)) => (lvt, rvt),
 	};
 	// Return an error if the operand types mismatch.
+	assert!(lvt.is_wellformed(), "{lvt:?}");
+	assert!(rvt.is_wellformed(), "{rvt:?}");
 	match (lvt, rvt)
 	{
 		(vt, rvt) if rvt == vt => Ok(vt),
@@ -1266,6 +1268,7 @@ fn analyze_operand_type(
 	}
 	else
 	{
+		assert!(value_type.is_wellformed(), "{value_type:?}");
 		Err(Error::InvalidOperandType {
 			value_type,
 			possible_types: valid_types.to_vec(),
@@ -1304,6 +1307,7 @@ fn analyze_bit_cast_and_get_coerced_type(
 	}
 	else
 	{
+		assert!(value_type.is_wellformed(), "{value_type:?}");
 		Err(Error::InvalidBitCast {
 			value_type,
 			coerced_type,
@@ -1327,6 +1331,8 @@ fn analyze_primitive_cast_and_get_value_type(
 			location: expression.location().clone(),
 		})?,
 	};
+	assert!(value_type.is_wellformed(), "{value_type:?}");
+	assert!(coerced_type.is_wellformed(), "{coerced_type:?}");
 	if value_type == coerced_type
 	{
 		// The "as" keyword is used both for type hints and for primitive casts.

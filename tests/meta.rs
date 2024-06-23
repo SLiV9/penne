@@ -73,6 +73,9 @@ fn sample_types_rec(
 			ValueType::EndlessArray {
 				element_type: inner.clone(),
 			},
+			ValueType::Arraylike {
+				element_type: inner.clone(),
+			},
 			ValueType::Pointer {
 				deref_type: inner.clone(),
 			},
@@ -154,9 +157,11 @@ fn check_value_type_properties()
 		"r\ne\nt",
 		"pd",
 		"deref",
+		"Type",
 	]);
 	for value_type in value_types
 	{
+		let debug_string = format!("{value_type:?}");
 		if value_type.is_wellformed()
 		{
 			table.add_row([
@@ -174,6 +179,7 @@ fn check_value_type_properties()
 					&value_type.fully_dereferenced(),
 					&value_type,
 				),
+				&debug_string,
 			]);
 		}
 		else

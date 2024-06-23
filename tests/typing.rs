@@ -243,7 +243,7 @@ fn fail_to_type_index_into_int()
 #[test]
 fn fail_to_type_arraylike_of_arraylike()
 {
-	compile_to_fail(&[350], "tests/samples/invalid/arraylike_of_arraylike.pn")
+	compile_to_fail(&[352], "tests/samples/invalid/arraylike_of_arraylike.pn")
 }
 
 #[test]
