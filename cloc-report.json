@@ -1,0 +1,64 @@
+{"header" : {
+  "cloc_url"           : "github.com/AlDanial/cloc",
+  "cloc_version"       : "1.96",
+  "elapsed_seconds"    : 0.533371210098267,
+  "n_files"            : 403,
+  "n_lines"            : 34027,
+  "files_per_second"   : 755.571340128674,
+  "lines_per_second"   : 63796.0942693757,
+  "report_file"        : "cloc-report.json"},
+"Rust" :{
+  "nFiles": 35,
+  "blank": 1434,
+  "comment": 573,
+  "code": 23270},
+"Penne" :{
+  "nFiles": 344,
+  "blank": 548,
+  "comment": 172,
+  "code": 4435},
+"Markdown" :{
+  "nFiles": 5,
+  "blank": 587,
+  "comment": 0,
+  "code": 1773},
+"SVG" :{
+  "nFiles": 1,
+  "blank": 1,
+  "comment": 1,
+  "code": 330},
+"YAML" :{
+  "nFiles": 4,
+  "blank": 23,
+  "comment": 1,
+  "code": 303},
+"Ruby" :{
+  "nFiles": 2,
+  "blank": 33,
+  "comment": 0,
+  "code": 273},
+"SCSS" :{
+  "nFiles": 2,
+  "blank": 10,
+  "comment": 16,
+  "code": 111},
+"C" :{
+  "nFiles": 5,
+  "blank": 10,
+  "comment": 4,
+  "code": 46},
+"TOML" :{
+  "nFiles": 3,
+  "blank": 3,
+  "comment": 0,
+  "code": 43},
+"Text" :{
+  "nFiles": 2,
+  "blank": 4,
+  "comment": 0,
+  "code": 23},
+"SUM": {
+  "blank": 2653,
+  "comment": 767,
+  "code": 30607,
+  "nFiles": 403} }
