@@ -2834,12 +2834,15 @@ impl Reference
 
 		let take_address;
 		let coerced_type;
-		if self.address_depth == 0 && &current_type == &target_type
+		if self.address_depth == 0
+			&& target_type.pointer_depth() == 0
+			&& &current_type == &target_type
 		{
 			take_address = false;
 			coerced_type = None;
 		}
 		else if self.address_depth == 0
+			&& target_type.pointer_depth() == 0
 			&& current_type.get_viewee_type().as_ref() == Some(&target_type)
 		{
 			take_address = false;
@@ -2848,6 +2851,7 @@ impl Reference
 			current_type = target_type;
 		}
 		else if self.address_depth == 0
+			&& target_type.pointer_depth() == 0
 			&& current_type.can_coerce_into(&target_type)
 		{
 			take_address = false;
@@ -2899,6 +2903,13 @@ impl Reference
 				current_type = ValueType::Pointer {
 					deref_type: Box::new(current_type),
 				};
+			}
+			else if current_type.is_slice_pointer()
+			{
+				panic!(
+					"This currently has no solution because \
+					 fully_dereferenced makes no sense here."
+				);
 			}
 			else
 			{
