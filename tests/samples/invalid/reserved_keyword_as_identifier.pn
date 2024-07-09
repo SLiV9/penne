@@ -4,6 +4,10 @@ fn foo()
 	var usize = true;
 }
 
+fn foo1() {
+	usize = false;
+}
+
 fn bar()
 {
 	start:

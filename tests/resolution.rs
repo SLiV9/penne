@@ -109,6 +109,12 @@ fn allow_explicit_view_constant()
 }
 
 #[test]
+fn allow_sized_array_parameter()
+{
+	allow_to_compile("tests/samples/valid/sized_array_parameter.pn")
+}
+
+#[test]
 fn allow_autoderef_edge_cases()
 {
 	allow_to_compile("tests/samples/valid/autoderef_edge_cases.pn")

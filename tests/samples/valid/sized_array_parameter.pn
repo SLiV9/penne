@@ -1,0 +1,7 @@
+const CACHE_LEN: usize = 256;
+
+fn write_to_cache(cacheline: [256]u8);
+fn write_to_cache2(cacheline: [CACHE_LEN]u8);
+fn add3(list_of_vec3: [][3]i32, output: &[3]i32);
+fn solve(ten_by_ten_matrix: [10][10]i32) -> i32;
+fn invert(ten_by_ten_matrix: &[10][10]i32);

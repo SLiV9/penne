@@ -6,5 +6,12 @@ fn main() -> u8
 	&x = &alternative;
 	alternative[2] = 200;
 	var result: u8 = x[2];
+
+	// The above looks reasonable, but then doesn't this allow the following?
+	var y: &&[]u8 = &&x;
+	foo(&&y);
+
 	return: result
 }
+
+fn foo(data: &&[]u8);

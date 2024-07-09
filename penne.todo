@@ -23,8 +23,12 @@ Functionality:
 				✘	And check that the alignment is safe (i.e. no &[3]u8 to &u32) @cancelled (2023-08-06 12:12)
 			☐	Error if using 0x0 to initialize a view or non-optional pointer
 		☐	Think about storing a pointer to a view in a variable, then reassigning with a pointer to a different view
+			(Which to be clear is something that I want to be able to do with consts.)
+			☐	However doesn't this require view to be variable-able?
+			But then there is a difference between &([]char8) and &[]char8.
 	✔	Pass array by const-reference (slice) by default @done (2022-09-04 18:06)
-		☐	A [3]i32 parameter is typechecked as [3]i32 but implemented as []i32
+		✘	A [3]i32 parameter is typechecked as [3]i32 but implemented as []i32 @cancelled (2024-06-29 12:07)
+		☐	Allow [1024]i32 and [BUFFER_LEN]i32 parameters (by view, like structs)
 		✔	In extern functions, use pointers instead of slice structs @done (2022-09-08 12:09)
 	✔	String literals @done (2022-12-01 16:31)
 	✔	Byte string literals @done (2022-09-22 15:22)
@@ -83,6 +87,8 @@ Functionality:
 		✘	Reorder non-extern words and structs to shrink their size @cancelled (2022-12-15 20:50)
 		☐	Allow extern struct and words in externalize_type()
 			☐	Think about explicit view translated to "const T* const"
+		☐	Tnink about using = in struct initialization to simplify use of colon
+			let point = Point { x = 10, y = 20 };
 	✘	Vec and String @cancelled (2022-12-01 15:57)
 	✘	Explicit mutable parameters @cancelled (2022-09-03 16:04)
 	☐	Modules
@@ -237,6 +243,10 @@ Documentation:
 		☐	Think about whether variables (declared with var) can ever be immutable due to their type, because variables currently cannot be slices and views
 			☐	Remove `let is_mutable = match value_type` in mutability.rs
 		☐	Rethink necessity of is_immediate_parameter in generate_storage_address()
+			☐	Make all non-pointer parameters implicitly views, so (u8), (Struct), ([3]u8) and ([:]u8) with an optimization for primitives and words
+				Except slices still require some fiddling to get right.
+				Except that pointers also need to be view/const because you cannot assign to &x, unlike with variables.
+				Or maybe vice versa make views to copyable types illegal? You cannot copy from a view because you cannot copy non-copyable types anyway. So the only way (other than passing along) to interact with (Struct) is field access and ([]T) is indexing.
 		☐	Add tests that fully cover generate_autocoerce()
 			☐	Remove need for unimplemented!() somehow?
 	☐	Simplify wasm4 saving-data.md using cast
