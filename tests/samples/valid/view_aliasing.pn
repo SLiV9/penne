@@ -1,0 +1,17 @@
+struct Foo
+{
+	value: i32
+}
+
+fn use(a: &Foo, b: Foo) -> i32
+{
+	a.value = 200;
+	return: b.value
+}
+
+fn main() -> i32
+{
+	var foo = Foo { value: 0 };
+	var result = use(&foo, foo);
+	return: result
+}

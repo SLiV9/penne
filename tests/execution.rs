@@ -263,6 +263,14 @@ fn execute_pointer_aliasing() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_view_aliasing() -> Result<(), anyhow::Error>
+{
+	let result = execute_calculation("tests/samples/valid/view_aliasing.pn")?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_array_aliasing() -> Result<(), anyhow::Error>
 {
 	let result = execute_calculation("tests/samples/valid/array_aliasing.pn")?;

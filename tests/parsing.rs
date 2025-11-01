@@ -338,6 +338,24 @@ fn fail_to_parse_import_without_semicolon()
 }
 
 #[test]
+fn fail_to_parse_missing_semicolon_brace()
+{
+	compile_to_fail(&[300], "tests/samples/invalid/missing_semicolon_brace.pn")
+}
+
+#[test]
+fn fail_to_parse_missing_semicolon_block()
+{
+	compile_to_fail(&[300], "tests/samples/invalid/missing_semicolon_block.pn")
+}
+
+#[test]
+fn fail_to_parse_missing_semicolon_var()
+{
+	compile_to_fail(&[300], "tests/samples/invalid/missing_semicolon_var.pn")
+}
+
+#[test]
 fn fail_to_parse_non_existing_statement()
 {
 	compile_to_fail(&[301], "tests/samples/invalid/non_existing_statement.pn")
