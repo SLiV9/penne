@@ -119,7 +119,7 @@ impl Tokens
 		}
 	}
 
-	fn with_reservation(&mut self, token: Token) -> TokenReservation
+	fn with_reservation(&mut self, token: Token) -> TokenReservation<'_>
 	{
 		self.reserved_token.get_or_insert(token);
 		TokenReservation(self)

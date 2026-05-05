@@ -31,3 +31,6 @@ comfy-table = "7.0"
 [[bin]]
 name = "penne"
 path = "src/main.rs"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(coverage,tarpaulin_include)"] }

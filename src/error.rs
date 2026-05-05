@@ -824,7 +824,7 @@ impl Error
 	pub fn build_report(
 		&self,
 		config: Config,
-	) -> Report<(String, std::ops::Range<usize>)>
+	) -> Report<'_, (String, std::ops::Range<usize>)>
 	{
 		let location = self.location();
 		let code = self.code();

@@ -2664,6 +2664,7 @@ fn format_slice(
 		// for i in 0..n {
 		// TODO call the same llvm IR snippet for multiple Expressions
 		// TODO my Generator currently doesn't have a nice way to do that
+		let _ = (slice_ptr, slice_len);
 		// }
 		// LLVMBuildArrayAlloca
 		buffer.add_text("[");
@@ -2791,6 +2792,7 @@ fn format_struct(
 	let sname = CString::new(&struct_name.name as &str)?;
 	let struct_type = unsafe { LLVMGetTypeByName(llvm.module, sname.as_ptr()) };
 	// TODO print members
+	let _ = (argument, struct_type);
 
 	buffer.add_text("}");
 	Ok(())

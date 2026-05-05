@@ -18,9 +18,6 @@ use anyhow::Context;
 use clap::Parser;
 use serde::Deserialize;
 
-#[cfg(feature = "logging")]
-use env_logger;
-
 #[derive(Debug, clap::Parser)]
 #[clap(version, propagate_version = true)]
 #[clap(args_conflicts_with_subcommands = true)]
