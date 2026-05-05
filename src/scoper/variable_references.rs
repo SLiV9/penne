@@ -206,7 +206,7 @@ impl Analyzer
 	}
 
 	fn use_variable(&mut self, identifier: Identifier)
-		-> Poisonable<Identifier>
+	-> Poisonable<Identifier>
 	{
 		let previous = self
 			.variable_stack
@@ -259,7 +259,7 @@ impl Analyzer
 	}
 
 	fn use_constant(&mut self, identifier: Identifier)
-		-> Poisonable<Identifier>
+	-> Poisonable<Identifier>
 	{
 		let previous = self
 			.variable_stack
@@ -340,7 +340,7 @@ impl Analyzer
 	}
 
 	fn use_function(&self, identifier: Identifier)
-		-> Result<Identifier, Error>
+	-> Result<Identifier, Error>
 	{
 		if let Some(declaration_identifier) = self
 			.function_list
@@ -828,7 +828,7 @@ impl Analyzer
 }
 
 fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
-	-> Declaration
+-> Declaration
 {
 	match declaration
 	{
@@ -918,7 +918,7 @@ fn predeclare(declaration: Declaration, analyzer: &mut Analyzer)
 }
 
 fn postanalyze(declaration: Declaration, analyzer: &mut Analyzer)
-	-> Declaration
+-> Declaration
 {
 	match declaration
 	{

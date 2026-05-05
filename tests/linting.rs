@@ -4,13 +4,13 @@
 // License: MIT
 //
 
+use penne::Compiler;
 use penne::expander;
 use penne::lexer;
 use penne::linter::Lint;
 use penne::parser;
 use penne::resolver;
 use penne::scoper;
-use penne::Compiler;
 
 use pretty_assertions::assert_eq;
 

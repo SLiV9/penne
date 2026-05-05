@@ -88,7 +88,7 @@ impl Compiler
 	/// Ready the Compiler for a new module.
 	/// This function must be called before analyzing declarations.
 	pub fn add_module(&mut self, module_name: &str)
-		-> Result<(), anyhow::Error>
+	-> Result<(), anyhow::Error>
 	{
 		self.typer = typer::Typer::default();
 		self.analyzer = analyzer::Analyzer::default();

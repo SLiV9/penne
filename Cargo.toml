@@ -2,7 +2,7 @@
 name = "penne"
 version = "0.4.0"
 authors = ["Sander in 't Veld <sanderintveld@hotmail.com>"]
-edition = "2021"
+edition = "2024"
 license = "MIT"
 readme = "README.md"
 description = "Penne is a pasta-oriented programming language that favors the goto-statement for flow control."

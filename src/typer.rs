@@ -2293,7 +2293,7 @@ impl Reference
 					address_depth: self.address_depth,
 					location: self.location,
 					location_of_unaddressed: self.location_of_unaddressed,
-				}
+				};
 			}
 		};
 

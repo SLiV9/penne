@@ -8,7 +8,7 @@ use crate::common::*;
 use crate::error::Error;
 
 pub fn analyze(declaration: Declaration, analyzer: &mut Analyzer)
-	-> Declaration
+-> Declaration
 {
 	declaration.analyze(analyzer)
 }

@@ -6,8 +6,8 @@
 
 use penne::*;
 
-use anyhow::anyhow;
 use anyhow::Context;
+use anyhow::anyhow;
 use pretty_assertions::assert_eq;
 use std::io::Write;
 

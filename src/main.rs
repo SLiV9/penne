@@ -13,8 +13,8 @@ use penne::scoper;
 
 use std::io::Write;
 
-use anyhow::anyhow;
 use anyhow::Context;
+use anyhow::anyhow;
 use clap::Parser;
 use serde::Deserialize;
 

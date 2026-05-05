@@ -9,7 +9,7 @@ use crate::error::Error;
 use crate::typer::Typed;
 
 pub fn analyze(declaration: Declaration, analyzer: &mut Analyzer)
-	-> Declaration
+-> Declaration
 {
 	declaration.analyze(analyzer)
 }

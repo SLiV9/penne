@@ -102,7 +102,7 @@ impl Generator
 	/// Ready the Generator for a new module.
 	/// This function must be called before analyzing declarations.
 	pub fn add_module(&mut self, module_name: &str)
-		-> Result<(), anyhow::Error>
+	-> Result<(), anyhow::Error>
 	{
 		// Link the previous `module` into `combined_module`.
 		if let Some(combined) = self.combined_module.take()
@@ -575,7 +575,7 @@ trait Generatable
 
 	fn generate(
 		&self,
-		gen: &mut Generator,
+		llvm: &mut Generator,
 	) -> Result<Self::Item, anyhow::Error>;
 }
 
