@@ -4,9 +4,10 @@
 // License: MIT
 //
 
+use penne::lexer;
 use penne::lexer::Token;
 use penne::resolved::{Expression, Statement};
-use penne::*;
+use penne::{Declaration, Errors};
 
 use pretty_assertions::assert_eq;
 

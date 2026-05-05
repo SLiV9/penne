@@ -4,10 +4,12 @@
 // License: MIT
 //
 
+// TODO replace with calling main as a proper integration test
+// This requires main to separate program stdout from debug stderr
 use penne::*;
 
-use anyhow::Context;
 use anyhow::anyhow;
+use anyhow::Context;
 use pretty_assertions::assert_eq;
 use std::io::Write;
 
@@ -749,7 +751,7 @@ fn execute_and_crash_builtin_abort() -> Result<(), anyhow::Error>
 {
 	const POSIX_SIGABRT: i32 = 6;
 	let output = execute("tests/samples/valid/builtin_abort.pn")?;
-	if cfg!(target_os = "unix")
+	if cfg!(not(target_os = "windows"))
 	{
 		use std::os::unix::process::ExitStatusExt;
 		let signal = output.status.signal().expect("Expected signal");

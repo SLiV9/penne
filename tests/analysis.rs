@@ -4,7 +4,7 @@
 // License: MIT
 //
 
-use penne::*;
+use penne::{Declaration, Errors};
 
 use pretty_assertions::assert_eq;
 
