@@ -164,9 +164,11 @@ Syntactic sugar:
 	☐	Automatic enforced RVO by turning "-> BigStruct" into "out: &mut BigStruct"
 		But not for primitives and words, similar to parameter passing
 	☐	Herb Sutter's cppfront style multiple return types?
+	  fn foo(x: i32, y: BigStruct) -> (z: i32, u: BigStruct) { ... }
 		☐	With tuples this becomes -> [x: i32, y: i32] which automatically declares these inside the function scope
 		✘	Use -> [x: i32, y: ?MyError] for error handling? @cancelled (2026-01-04 18:22)
 			This is what Go does and it is awful
+			☐	Also think about panics being #[cold]
 		☐	Change return from a label into a statement keyword like loop?
 		☐	Think about this allows taking address of return value
 			Is that bad or awesome actually? E.g. it would ensure RVO and allow constructing a structs members one at a time without any memcpy.
@@ -261,6 +263,17 @@ Documentation:
 				Except slices still require some fiddling to get right.
 				Except that pointers also need to be view/const because you cannot assign to &x, unlike with variables.
 				Or maybe vice versa make views to copyable types illegal? You cannot copy from a view because you cannot copy non-copyable types anyway. So the only way (other than passing along) to interact with (Struct) is field access and ([]T) is indexing.
+			☐	New type divisions
+				Copy types such as primitives and words
+				  They are never views, but can be pointers
+				Pointers themselves are copy
+				  You cannot have a view to a pointer, but can have pointer to pointer
+				Struct and [10]T
+				  They are passed by view or by pointer, never copied
+				Runtime-sized-slices
+				  They are views or pointers
+				  SlicePointer remains weird because it's not &([:]u8) because the length of the slice is stored next to the pointer to the data
+				  But also Slice is weird because it is a view that also contains length information
 		☐	Add tests that fully cover generate_autocoerce()
 			☐	Remove need for unimplemented!() somehow?
 	☐	Simplify wasm4 saving-data.md using cast
@@ -295,6 +308,7 @@ Rewrite using Data-Oriented Compiler Design for 0.5.0:
 	☐	Linter
 	☐	Resolver
 	- Everything above at 100KLOC/s for responsive language server
+		☐	Hmm except you need code generation for declared constants use in array lengths, which currently depends on LLVM
 
 Development:
 	✘	Drop llvm-sys and generate textual LLVM IR by hand @cancelled (2024-04-13 21:44)
@@ -302,6 +316,8 @@ Development:
 		Means we lose constant folding.
 		Means we lose expression folding which means textual IR is much larger.
 		Means we lose C struct compatibility.
+		☐	Think about uncancelling if, as an intermediate project, I build a little library that does struct sizing and constant folding for Penne and "extern C" structs, with LLVM-backed tests confirming that it works. The problem being that the size of e.g. bool is not defined in a spec, but depends on the target (and in a way on LLVM)
+		☐	Alernatively, since I don't have const fn, can I separate the declarations that can appear in the definition of a named parameter, generate LLVM IR for those, do one syscall to an LLVM tool to get me all the resulting constants in one go, and then use those in the type checking of everything else?
 	☐	Release 0.4.0
 		☐	Flesh out core and vendor/libc
 		☐	Add/check documentation for E359, E553

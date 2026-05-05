@@ -170,6 +170,17 @@ where
 		}
 	}
 
+	pub fn is_copyable(&self) -> bool
+	{
+		match self
+		{
+			ValueType::Usize => true,
+			ValueType::Pointer { .. } => true,
+			ValueType::SlicePointer { .. } => false,
+			_ => self.known_size_in_bytes_as_word_member().is_some(),
+		}
+	}
+
 	pub fn is_signed(&self) -> bool
 	{
 		match self
@@ -639,7 +650,10 @@ where
 			{
 				deref_type.is_wellformed_inner()
 			}
-			ValueType::View { deref_type } => deref_type.is_wellformed_inner(),
+			ValueType::View { deref_type } =>
+			{
+				deref_type.is_wellformed_inner() && !deref_type.is_copyable()
+			}
 			_ => true,
 		}
 	}
