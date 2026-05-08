@@ -316,12 +316,12 @@ Development:
 		Means we lose constant folding.
 		Means we lose expression folding which means textual IR is much larger.
 		Means we lose C struct compatibility.
-		☐	Think about uncancelling if, as an intermediate project, I build a little library that does struct sizing and constant folding for Penne and "extern C" structs, with LLVM-backed tests confirming that it works. The problem being that the size of e.g. bool is not defined in a spec, but depends on the target (and in a way on LLVM)
+		✘	Think about uncancelling if, as an intermediate project, I build a little library that does struct sizing and constant folding for Penne and "extern C" structs, with LLVM-backed tests confirming that it works. The problem being that the size of e.g. bool is not defined in a spec, but depends on the target (and in a way on LLVM) @cancelled (2026-05-08 23:32)
 		☐	Alternatively, since I don't have const fn, can I separate the declarations that can appear in the definition of a named parameter, generate LLVM IR for those, do one syscall to an LLVM tool to get me all the resulting constants in one go, and then use those in the type checking of everything else?
 			In fact I already doing something similar when invoking the backend
-		☐	To do so, change most tests to be binary integration tests
-		☐	Alternatively hide all the implementation details in a v1 submodule, move some logic from main into lib and make the public interface of penne lib more opaque, taking &Path as inputs and String as output
-		☐	Relatedly, think about how language server and CompilerExplorer would use either lib or main
+		✘	To do so, change most tests to be binary integration tests @cancelled (2026-05-08 23:32)
+		✔	Alternatively hide all the implementation details in a v1 submodule, move some logic from main into lib and make the public interface of penne lib more opaque, taking &Path as inputs and String as output @done (2026-05-08 23:32)
+		✔	Relatedly, think about how language server and CompilerExplorer would use either lib or main @done (2026-05-08 23:33)
 			However for an LSP server you want a stateful (tree-sitting) binary
 	☐	Release 0.4.0
 		☐	Flesh out core and vendor/libc

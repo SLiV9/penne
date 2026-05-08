@@ -4,48 +4,18 @@
 // License: MIT
 //
 
-use penne::{Declaration, Errors};
-
-use pretty_assertions::assert_eq;
-
-fn compile(filename: &str) -> Result<Vec<Declaration>, Errors>
-{
-	let source = std::fs::read_to_string(filename).unwrap();
-	penne::compile_source(&source, &filename)
-}
+use penne::{allow_to_compile, compile_to_fail};
 
 #[test]
 fn allow_differing_local_variable_types()
 {
-	match compile("tests/samples/valid/local_variable_types.pn")
-	{
-		Ok(_) => (),
-		#[allow(unreachable_code)]
-		Err(errors) => match errors.panic() {},
-	}
+	allow_to_compile("tests/samples/valid/local_variable_types.pn")
 }
 
 #[test]
 fn allow_omit_type_of_array()
 {
-	match compile("tests/samples/valid/implicit_array_type.pn")
-	{
-		Ok(_) => (),
-		#[allow(unreachable_code)]
-		Err(errors) => match errors.panic() {},
-	}
-}
-
-fn compile_to_fail(codes: &[u16], filename: &str)
-{
-	match compile(filename)
-	{
-		Ok(_) => panic!("broken test"),
-		Err(errors) =>
-		{
-			assert_eq!(errors.codes(), codes, "unexpected {:?}", errors)
-		}
-	}
+	allow_to_compile("tests/samples/valid/implicit_array_type.pn")
 }
 
 #[test]

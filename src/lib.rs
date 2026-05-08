@@ -401,3 +401,57 @@ pub mod execution_test_tools
 		}
 	}
 }
+
+pub fn assert_formatted_correctly(filename: &str) -> Result<(), anyhow::Error>
+{
+	let source = std::fs::read_to_string(&filename)?;
+	let tokens = lexer::lex(&source, filename);
+	let declarations = parser::parse(tokens);
+	let indentation = rebuilder::Indentation {
+		value: "\t",
+		amount: 0,
+	};
+	let code = rebuilder::rebuild(&declarations, &indentation)?;
+	let code_lines: Vec<&str> = code.lines().collect();
+	let source_lines: Vec<&str> = source.lines().collect();
+	assert_eq!(code_lines, source_lines);
+	Ok(())
+}
+
+fn lint(filename: &str) -> Vec<linter::Lint>
+{
+	let source = std::fs::read_to_string(filename).unwrap();
+	let tokens = lexer::lex(&source, filename);
+	let declarations = parser::parse(tokens);
+	let declarations = expander::expand_one(filename, declarations);
+	match resolver::check_surface_level_errors(&declarations)
+	{
+		Ok(_) => (),
+		#[allow(unreachable_code)]
+		Err(errors) => match errors.panic() {},
+	}
+	let declarations = scoper::analyze(declarations);
+	let mut compiler = Compiler::default();
+	match compiler.analyze_and_resolve(declarations).unwrap()
+	{
+		Ok(_) => (),
+		#[allow(unreachable_code)]
+		Err(errors) => match errors.panic() {},
+	}
+	compiler.take_lints()
+}
+
+// TODO incorporate into compile_to_fail
+pub fn lint_to_fail(codes: &[u16], filename: &str)
+{
+	let lints = lint(filename);
+	let lint_codes: Vec<u16> = lints.iter().map(|x| x.code()).collect();
+	assert_eq!(lint_codes, codes, "unexpected {:?}", lints);
+}
+
+// TODO incorporate into allow_to_compile
+pub fn lint_to_nothing(filename: &str)
+{
+	let lints = lint(filename);
+	assert!(lints.is_empty(), "unexpected {:?}", lints);
+}
