@@ -236,3 +236,144 @@ impl Compiler
 		self.generator.generate_ir()
 	}
 }
+
+pub mod execution_test_tools
+{
+	use super::*;
+
+	use anyhow::Context;
+	use anyhow::anyhow;
+	use std::io::Write;
+
+	pub fn execute(
+		filename: &str,
+	) -> Result<std::process::Output, anyhow::Error>
+	{
+		let source = std::fs::read_to_string(filename)?;
+		let tokens = lexer::lex(&source, filename);
+		let declarations = parser::parse(tokens);
+		let declarations = expander::expand_one(filename, declarations);
+		match resolver::check_surface_level_errors(&declarations)
+		{
+			Ok(_) => (),
+			#[allow(unreachable_code)]
+			Err(errors) => match errors.panic() {},
+		}
+		let declarations = scoper::analyze(declarations);
+		let mut compiler = Compiler::default();
+		compiler.add_module(&filename)?;
+		let declarations = match compiler.analyze_and_resolve(declarations)?
+		{
+			Ok(declarations) => declarations,
+			#[allow(unreachable_code)]
+			Err(errors) => match errors.panic() {},
+		};
+		compiler.compile(&declarations)?;
+		let ir = compiler.generate_ir()?;
+		execute_ir(&ir)
+	}
+
+	pub fn execute_with_imports(
+		filenames: &[&str],
+	) -> Result<std::process::Output, anyhow::Error>
+	{
+		let mut modules = Vec::new();
+		for filename in filenames
+		{
+			let source = std::fs::read_to_string(&filename)?;
+			let tokens = lexer::lex(&source, filename);
+			let declarations = parser::parse(tokens);
+			let filepath = filename.parse()?;
+			modules.push((filepath, declarations));
+		}
+		expander::expand(&mut modules);
+		for (_filepath, declarations) in &modules
+		{
+			match resolver::check_surface_level_errors(&declarations)
+			{
+				Ok(_) => declarations,
+				#[allow(unreachable_code)]
+				Err(errors) => match errors.panic() {},
+			};
+		}
+		let mut compiler = Compiler::default();
+		for (filepath, declarations) in modules
+		{
+			let filename = filepath.to_str().unwrap();
+			compiler.add_module(&filename)?;
+			let declarations = scoper::analyze(declarations);
+			let declarations = match compiler
+				.analyze_and_resolve(declarations)?
+			{
+				Ok(declarations) => declarations,
+				#[allow(unreachable_code)]
+				Err(errors) => match errors.panic() {},
+			};
+			compiler.compile(&declarations)?;
+		}
+		compiler.link_modules()?;
+		let ir = compiler.generate_ir()?;
+		execute_ir(&ir)
+	}
+
+	fn execute_ir(ir: &str) -> Result<std::process::Output, anyhow::Error>
+	{
+		let llistr: std::borrow::Cow<str> = match std::env::var("PENNE_LLI")
+		{
+			Ok(value) => value.into(),
+			Err(std::env::VarError::NotPresent) => "lli".into(),
+			Err(e) => return Err(e.into()),
+		};
+		let mut cmd = std::process::Command::new(llistr.as_ref())
+			.stdin(std::process::Stdio::piped())
+			.stdout(std::process::Stdio::piped())
+			.stderr(std::process::Stdio::piped())
+			.spawn()?;
+		cmd.stdin.as_mut().unwrap().write_all(ir.as_bytes())?;
+		let output = cmd.wait_with_output()?;
+		Ok(output)
+	}
+
+	pub fn calculation_result_from_output(
+		output: std::process::Output,
+	) -> Result<i32, anyhow::Error>
+	{
+		let stdout = String::from_utf8(output.stdout)?;
+		println!("STDOUT\n{}\nSTDOUT", stdout);
+		if output.stderr.is_empty()
+		{
+			let exitcode = output.status.code().context("No status code")?;
+			Ok(exitcode)
+		}
+		else
+		{
+			let stderr = std::str::from_utf8(&output.stderr);
+			if let Ok(stderr) = stderr
+			{
+				eprintln!("STDERR\n{}\nSTDERR", stderr);
+			}
+			Err(anyhow!("Unexpected stderr: {:?}", stderr))
+		}
+	}
+
+	pub fn stdout_from_output(
+		output: std::process::Output,
+	) -> Result<String, anyhow::Error>
+	{
+		let stdout = String::from_utf8(output.stdout)?;
+		println!("STDOUT\n{}\nSTDOUT", stdout);
+		if output.stderr.is_empty()
+		{
+			Ok(stdout)
+		}
+		else
+		{
+			let stderr = std::str::from_utf8(&output.stderr);
+			if let Ok(stderr) = stderr
+			{
+				eprintln!("STDERR\n{}\nSTDERR", stderr);
+			}
+			Err(anyhow!("Unexpected stderr: {:?}", stderr))
+		}
+	}
+}
