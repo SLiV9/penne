@@ -4,27 +4,7 @@
 // License: MIT
 //
 
-use penne::{Declaration, Errors};
-
-use pretty_assertions::assert_eq;
-
-fn compile(filename: &str) -> Result<Vec<Declaration>, Errors>
-{
-	let source = std::fs::read_to_string(filename).unwrap();
-	penne::compile_source(&source, &filename)
-}
-
-fn compile_to_fail(codes: &[u16], filename: &str)
-{
-	match compile(filename)
-	{
-		Ok(_) => panic!("broken test"),
-		Err(errors) =>
-		{
-			assert_eq!(errors.codes(), codes, "unexpected {:?}", errors)
-		}
-	}
-}
+use penne::compile_to_fail;
 
 #[test]
 fn fail_to_analyze_nested_naked_if()

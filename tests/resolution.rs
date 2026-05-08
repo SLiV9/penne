@@ -4,27 +4,7 @@
 // License: MIT
 //
 
-use penne::resolved;
-use penne::value_type;
-use penne::{Declaration, Errors};
-
-use pretty_assertions::assert_eq;
-
-fn compile(filename: &str) -> Result<Vec<Declaration>, Errors>
-{
-	let source = std::fs::read_to_string(filename).unwrap();
-	penne::compile_source(&source, &filename)
-}
-
-fn allow_to_compile(filename: &str)
-{
-	match compile(filename)
-	{
-		Ok(_) => (),
-		#[allow(unreachable_code)]
-		Err(errors) => match errors.panic() {},
-	}
-}
+use penne::{allow_to_compile, compile_to_fail};
 
 #[test]
 fn allow_empty_file_with_comment()
@@ -147,41 +127,9 @@ fn allow_sketch_of_format_slice_implementation()
 }
 
 #[test]
-fn investigate_nominal_typing()
+fn fail_to_resolve_nominal_typing_error()
 {
-	let declarations = match compile("tests/samples/valid/nominal_typing.pn")
-	{
-		Ok(declarations) => declarations,
-		#[allow(unreachable_code)]
-		Err(errors) => match errors.panic() {},
-	};
-	let test_structure = declarations.into_iter().find(|x| match x
-	{
-		Declaration::Structure { name, .. } => name.name == "Test",
-		_ => false,
-	});
-	let members = match test_structure
-	{
-		Some(Declaration::Structure { members, .. }) => members,
-		_ => panic!("broken test"),
-	};
-	assert_eq!(members.len(), 3);
-	let member_types: Vec<value_type::ValueType<resolved::Identifier>> =
-		members.into_iter().map(|m| m.value_type).collect();
-	assert_ne!(member_types[0], member_types[1]);
-	assert_eq!(member_types[0], member_types[2]);
-}
-
-fn compile_to_fail(codes: &[u16], filename: &str)
-{
-	match compile(filename)
-	{
-		Ok(_) => panic!("broken test"),
-		Err(errors) =>
-		{
-			assert_eq!(errors.codes(), codes, "unexpected {:?}", errors)
-		}
-	}
+	compile_to_fail(&[], "tests/samples/invalid/nominal_typing_mistake.pn")
 }
 
 #[test]

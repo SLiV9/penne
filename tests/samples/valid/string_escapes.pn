@@ -1,4 +1,19 @@
-fn foo()
+fn main() -> i32
 {
-	var x = "\n\r\t\'\"\0\\";
+	print!("\n\r\t\'\"\\");
+	var text = "0123\056789";
+	var i = 0;
+	{
+		if i < |text|
+		{
+			if text[i] == 0
+			{
+				goto return;
+			}
+		}
+		i = i + 1;
+		loop;
+	}
+	return:
+	i as i32
 }

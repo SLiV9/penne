@@ -1,0 +1,25 @@
+struct Test
+{
+	a: Foo,
+	b: Bar,
+	c: Foo,
+}
+
+struct Foo
+{
+	value: i32,
+}
+
+struct Bar
+{
+	value: i32,
+}
+
+fn main()
+{
+	var test = Test {
+		a: Foo { value: 1 },
+		b: Foo { value: 2 },
+		c: Foo { value: 3 },
+	};
+}

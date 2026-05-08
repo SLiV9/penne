@@ -685,6 +685,51 @@ fn execute_builtin_print() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_euro_in_string() -> Result<(), anyhow::Error>
+{
+	let output = execute("tests/samples/valid/euro_in_string.pn")?;
+	let stdout = stdout_from_output(output)?;
+	assert_eq!(stdout, "€");
+	Ok(())
+}
+
+#[test]
+fn execute_euro_in_string_escaped() -> Result<(), anyhow::Error>
+{
+	let output = execute("tests/samples/valid/euro_in_string_escaped.pn")?;
+	let stdout = stdout_from_output(output)?;
+	assert_eq!(stdout, "€");
+	Ok(())
+}
+
+#[test]
+fn execute_string_escapes() -> Result<(), anyhow::Error>
+{
+	let output = execute("tests/samples/valid/string_escapes.pn")?;
+	let stdout = stdout_from_output(output)?;
+	assert_eq!(stdout, "\n\r\t\'\"\\");
+	Ok(())
+}
+
+#[test]
+fn execute_string_escapes_find_nul() -> Result<(), anyhow::Error>
+{
+	let output = execute("tests/samples/valid/string_escapes.pn")?;
+	let result = calculation_result_from_output(output)?;
+	assert_eq!(result, 4);
+	Ok(())
+}
+
+#[test]
+fn execute_unicode_string_in_utf8_file() -> Result<(), anyhow::Error>
+{
+	let output = execute("tests/samples/valid/unicode_string_in_utf8_file.pn")?;
+	let stdout = stdout_from_output(output)?;
+	assert_eq!(stdout, "$10/£10/€10. Aÿ!!! 하와!!!");
+	Ok(())
+}
+
+#[test]
 fn execute_builtin_file_and_line() -> Result<(), anyhow::Error>
 {
 	let filename = "tests/samples/valid/builtin_file_and_line.pn";

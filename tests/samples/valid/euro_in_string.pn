@@ -1,5 +1,4 @@
-fn euro()
+fn main()
 {
-	var x = "€";
-	end:
+	print!("€");
 }

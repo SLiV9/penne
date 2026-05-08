@@ -1,4 +1,4 @@
-fn euro()
+fn main()
 {
-	var x = "\u{20ac}";
+	print!("\u{20ac}");
 }

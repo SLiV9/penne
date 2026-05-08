@@ -237,6 +237,30 @@ impl Compiler
 	}
 }
 
+pub fn allow_to_compile(filename: &str)
+{
+	let source = std::fs::read_to_string(filename).unwrap();
+	match compile_source(&source, &filename)
+	{
+		Ok(_) => (),
+		#[allow(unreachable_code)]
+		Err(errors) => match errors.panic() {},
+	}
+}
+
+pub fn compile_to_fail(codes: &[u16], filename: &str)
+{
+	let source = std::fs::read_to_string(filename).unwrap();
+	match compile_source(&source, &filename)
+	{
+		Ok(_) => panic!("broken test"),
+		Err(errors) =>
+		{
+			assert_eq!(errors.codes(), codes, "unexpected {:?}", errors)
+		}
+	}
+}
+
 pub mod execution_test_tools
 {
 	use super::*;
