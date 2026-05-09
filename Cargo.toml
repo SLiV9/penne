@@ -24,6 +24,7 @@ toml = "0.5"
 clap = { version = "4.0", features = ["derive"] }
 libc = "0.2"
 llvm-sys = "60"
+strum = { version = "0.28", features = ["derive"] }
 
 [dev-dependencies]
 pretty_assertions = "1.3"

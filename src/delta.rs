@@ -8,6 +8,8 @@
 
 #![expect(unused)]
 
+pub mod lexer;
+
 pub mod test_suite
 {
 	use super::*;
