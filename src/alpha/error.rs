@@ -6,8 +6,6 @@
 
 //! Compiler stages may generate syntax errors and semantical errors.
 
-#![cfg_attr(coverage, feature(no_coverage))]
-
 pub use crate::alpha::lexer;
 pub use crate::alpha::lexer::Location;
 

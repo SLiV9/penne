@@ -1,6 +1,3 @@
-pub use crate::alpha::lexer::Error;
-pub use crate::alpha::lexer::Location;
-
 #[derive(Clone, Copy, Debug, PartialEq, strum::FromRepr)]
 #[repr(u8)]
 pub enum BaseToken
@@ -79,6 +76,9 @@ pub enum BaseToken
 
 	// Tokens with Bytes payload.
 	StringLiteral,
+
+	// Placeholder.
+	Error,
 }
 
 #[derive(Clone, Copy, Debug, strum::FromRepr)]
@@ -173,6 +173,21 @@ impl PayloadId
 	const NONE: PayloadId = PayloadId(0);
 }
 
+#[derive(Debug, Clone)]
+pub enum LexingError
+{
+	TooManySourceBytes,
+	TooManyTokens,
+	UnexpectedZeroByteFile,
+	UnexpectedCharacter,
+	InvalidIntegerLength,
+	InvalidIntegerTypeSuffix,
+	InvalidEscapeSequence,
+	UnexpectedTrailingBackslash,
+	MissingClosingQuote,
+	InvalidCharLiteral,
+}
+
 struct TokenLocation
 {
 	start: u32,
@@ -206,6 +221,7 @@ pub struct TokenizedBuffer<'source>
 	token_locations: Vec<TokenLocation>,
 
 	payloads: Vec<TokenPayload>,
+	errors: Vec<(LexingError, TokenId)>,
 }
 
 impl<'source> TokenizedBuffer<'source>
@@ -215,11 +231,10 @@ impl<'source> TokenizedBuffer<'source>
 		source_filename: &'source str,
 	) -> TokenizedBuffer<'source>
 	{
-		// TODO turn into lexing error
-		assert!(source.len() < MAX_SOURCE_LEN);
 		let mut tokens = Vec::new();
 		let mut token_locations = Vec::new();
 		let mut payloads = Vec::new();
+		let mut errors = Vec::new();
 
 		// This payload is unreachable because 0 is an invalid PayloadId.
 		payloads.push(TokenPayload::UnreachablePayload);
@@ -230,6 +245,7 @@ impl<'source> TokenizedBuffer<'source>
 			tokens,
 			token_locations,
 			payloads,
+			errors,
 		}
 	}
 
@@ -266,13 +282,27 @@ impl<'source> TokenizedBuffer<'source>
 		payload_id
 	}
 
-	fn finalize(self) -> Self
+	fn push_error(&mut self, error: LexingError, location: TokenLocation)
 	{
-		// TODO turn into lexing error
-		assert!(self.tokens.len() < MAX_NUM_TOKENS);
+		let token_id = self.push(BaseToken::Error, None, None, location);
+		self.errors.push((error, token_id));
+	}
 
+	fn finalize(mut self, end_of_source_location: TokenLocation) -> Self
+	{
+		if self.tokens.len() > MAX_NUM_TOKENS - 1
+		{
+			self.tokens.truncate(MAX_NUM_TOKENS - 1);
+			let last = self.tokens.last_mut().expect("clearly non-empty");
+			let error = LexingError::TooManyTokens;
+			self.errors.push((error, last.token_id()));
+		}
+		self.push(BaseToken::EndOfSource, None, None, end_of_source_location);
+
+		assert!(self.tokens.len() <= MAX_NUM_TOKENS);
 		assert_eq!(self.token_locations.len(), self.tokens.len());
-		assert!(self.payloads.len() < 1 + self.tokens.len());
+		assert!(self.payloads.len() <= 1 + self.tokens.len());
+		assert!(self.payloads.len() <= MAX_NUM_PAYLOADS);
 		self
 	}
 
@@ -290,7 +320,8 @@ impl<'source> TokenizedBuffer<'source>
 }
 
 const MAX_SOURCE_LEN: usize = 1 << 31;
-const MAX_NUM_TOKENS: usize = 1 << 23;
+const MAX_NUM_TOKENS: usize = MAX_NUM_PAYLOADS - 1;
+const MAX_NUM_PAYLOADS: usize = 1 << 24;
 
 pub fn lex<'source>(
 	source: &'source str,
@@ -298,6 +329,18 @@ pub fn lex<'source>(
 ) -> TokenizedBuffer<'source>
 {
 	let mut buffer = TokenizedBuffer::empty(source, source_filename);
+
+	if source.len() > MAX_SOURCE_LEN
+	{
+		let dummy_location = TokenLocation {
+			start: 0,
+			end: 0,
+			start_of_line: 0,
+			line_number: 0,
+		};
+		buffer.push_error(LexingError::TooManySourceBytes, dummy_location);
+		return buffer;
+	}
 
 	let mut iter = source.bytes().enumerate().peekable();
 	let mut line_number = 1;
@@ -314,6 +357,20 @@ pub fn lex<'source>(
 		let mut payload = None;
 		let result = match x
 		{
+			b' ' | b'\t' =>
+			{
+				continue;
+			}
+			b'\r' =>
+			{
+				continue;
+			}
+			b'\n' =>
+			{
+				line_number += 1;
+				start_of_line = location.end;
+				continue;
+			}
 			b'(' => Ok(BaseToken::ParenLeft),
 			b')' => Ok(BaseToken::ParenRight),
 			b'{' => Ok(BaseToken::BraceLeft),
@@ -681,6 +738,7 @@ pub fn lex<'source>(
 				let opening_quote = x;
 				let mut bytes = Vec::new();
 				let mut closed = false;
+				let mut first_error = None;
 
 				while let Some((_, x)) = iter.next_if(|&(_, y)| y != b'\n')
 				{
@@ -726,9 +784,11 @@ pub fn lex<'source>(
 										parse_hex_digits(&digits).unwrap();
 									bytes.push(byte as u8);
 								}
-								else
+								else if first_error.is_none()
 								{
-									// TODO error
+									first_error = Some(
+										LexingError::InvalidEscapeSequence,
+									);
 								}
 							}
 							Some((_, b'u')) =>
@@ -775,18 +835,30 @@ pub fn lex<'source>(
 									let slice = c.encode_utf8(&mut buffer);
 									bytes.extend_from_slice(slice.as_bytes());
 								}
-								else
+								else if first_error.is_none()
 								{
-									// TODO error
+									first_error = Some(
+										LexingError::InvalidEscapeSequence,
+									);
 								}
 							}
 							Some((_, _y)) =>
 							{
-								// TODO error
+								if first_error.is_none()
+								{
+									first_error = Some(
+										LexingError::InvalidEscapeSequence,
+									);
+								}
 							}
 							None =>
 							{
-								// TODO error
+								if first_error.is_none()
+								{
+									first_error = Some(
+										LexingError::UnexpectedTrailingBackslash,
+									);
+								}
 							}
 						}
 					}
@@ -808,7 +880,11 @@ pub fn lex<'source>(
 					}
 					else if x.is_ascii()
 					{
-						// TODO error
+						if first_error.is_none()
+						{
+							first_error =
+								Some(LexingError::UnexpectedCharacter);
+						}
 					}
 					else
 					{
@@ -821,9 +897,16 @@ pub fn lex<'source>(
 				}
 				if !closed
 				{
-					// TODO error
+					if first_error.is_none()
+					{
+						first_error = Some(LexingError::MissingClosingQuote);
+					}
 				}
-				if opening_quote == b'"'
+				if let Some(error) = first_error
+				{
+					Err(error)
+				}
+				else if opening_quote == b'"'
 				{
 					payload = Some(TokenPayload::Bytes(bytes));
 					Ok(BaseToken::StringLiteral)
@@ -836,24 +919,10 @@ pub fn lex<'source>(
 				}
 				else
 				{
-					// Err(Error::InvalidCharLiteral)
-					Err(())
+					Err(LexingError::InvalidCharLiteral)
 				}
 			}
-			b' ' | b'\t' =>
-			{
-				continue;
-			}
-			b'\r' =>
-			{
-				continue;
-			}
-			b'\n' =>
-			{
-				todo!()
-			}
-			// _ => Err(Error::UnexpectedCharacter),
-			_ => Err(()),
+			_ => Err(LexingError::UnexpectedCharacter),
 		};
 		match result
 		{
@@ -861,14 +930,24 @@ pub fn lex<'source>(
 			{
 				buffer.push(base_token, value_type, payload, location);
 			}
-			Err(_) => unimplemented!(),
+			Err(error) =>
+			{
+				buffer.push_error(error, location);
+			}
 		}
 	}
 
-	buffer.finalize()
+	let end_of_source_location = TokenLocation {
+		start: source.len() as u32,
+		end: source.len() as u32,
+		start_of_line,
+		line_number,
+	};
+
+	buffer.finalize(end_of_source_location)
 }
 
-fn parse_integer_suffix(suffix: &str) -> Result<ValueTypeKeyword, ()>
+fn parse_integer_suffix(suffix: &str) -> Result<ValueTypeKeyword, LexingError>
 {
 	match suffix
 	{
@@ -883,7 +962,7 @@ fn parse_integer_suffix(suffix: &str) -> Result<ValueTypeKeyword, ()>
 		"u64" => Ok(ValueTypeKeyword::Uint64),
 		"u128" => Ok(ValueTypeKeyword::Uint128),
 		"usize" => Ok(ValueTypeKeyword::Usize),
-		_ => Err(()),
+		_ => Err(LexingError::InvalidIntegerTypeSuffix),
 	}
 }
 
@@ -893,20 +972,20 @@ fn is_identifier_continuation(x: u8) -> bool
 }
 
 // It is a bit weird that the digits are validated but the length is not.
-fn parse_binary_digits(validated_digits: &str) -> Result<u128, ()>
+fn parse_binary_digits(validated_digits: &str) -> Result<u128, LexingError>
 {
-	// TODO
-	Err(())
+	u128::from_str_radix(validated_digits, 2)
+		.map_err(|_| LexingError::InvalidIntegerLength)
 }
 
-fn parse_decimal_digits(validated_digits: &str) -> Result<u128, ()>
+fn parse_decimal_digits(validated_digits: &str) -> Result<u128, LexingError>
 {
-	// TODO
-	Err(())
+	u128::from_str_radix(validated_digits, 10)
+		.map_err(|_| LexingError::InvalidIntegerLength)
 }
 
-fn parse_hex_digits(validated_digits: &str) -> Result<u128, ()>
+fn parse_hex_digits(validated_digits: &str) -> Result<u128, LexingError>
 {
-	// TODO
-	Err(())
+	u128::from_str_radix(validated_digits, 16)
+		.map_err(|_| LexingError::InvalidIntegerLength)
 }
