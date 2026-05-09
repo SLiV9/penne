@@ -4,9 +4,9 @@
 // License: MIT
 //
 
-use crate::common::*;
-use crate::error::Error;
-use crate::typer::Typed;
+use crate::alpha::common::*;
+use crate::alpha::error::Error;
+use crate::alpha::typer::Typed;
 
 pub fn analyze(declaration: Declaration) -> Declaration
 {

@@ -12,7 +12,7 @@ mod function_calls;
 mod mutability;
 mod syntax;
 
-use crate::common::*;
+use crate::alpha::common::*;
 
 /// The Analyzer keeps track of function calls and variable mutability status
 /// needed for during the analysis stage.

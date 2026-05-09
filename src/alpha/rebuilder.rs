@@ -7,8 +7,8 @@
 //! As a debugging aid for compiler development, source code may be rebuilt
 //! from the common AST, potentially annotated with extra-syntactical markers.
 
-use crate::common::*;
-use crate::value_type;
+use crate::alpha::common::*;
+use crate::alpha::value_type;
 
 use std::fmt::Write;
 

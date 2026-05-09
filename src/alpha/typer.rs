@@ -7,10 +7,10 @@
 //! During the type inference stage, the types of values and variables are
 //! determined, and `autoderef` expressions are inserted.
 
-use crate::common::*;
-use crate::error::Error;
-use crate::parser::{MAX_ADDRESS_DEPTH, MAX_REFERENCE_DEPTH};
-use crate::value_type::MAXIMUM_ALIGNMENT;
+use crate::alpha::common::*;
+use crate::alpha::error::Error;
+use crate::alpha::parser::{MAX_ADDRESS_DEPTH, MAX_REFERENCE_DEPTH};
+use crate::alpha::value_type::MAXIMUM_ALIGNMENT;
 
 use enumset::EnumSet;
 

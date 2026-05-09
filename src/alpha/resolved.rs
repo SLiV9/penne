@@ -7,13 +7,13 @@
 //! The resolved AST contain no syntax or semantic errors and is ready for
 //! IR generation.
 
-pub use crate::builtin;
-pub use crate::common::DeclarationFlag;
-pub use crate::common::{BinaryOp, ComparisonOp, UnaryOp};
+pub use crate::alpha::builtin;
+pub use crate::alpha::common::DeclarationFlag;
+pub use crate::alpha::common::{BinaryOp, ComparisonOp, UnaryOp};
 
-pub(crate) use crate::generator::GeneratorBuiltin;
+pub(crate) use crate::alpha::generator::GeneratorBuiltin;
 
-use crate::value_type;
+use crate::alpha::value_type;
 
 pub type ValueType = value_type::ValueType<Identifier>;
 

@@ -4,7 +4,10 @@
 // License: MIT
 //
 
-use penne::execution_test_tools::*;
+use penne::test_suite::calculation_result_from_output;
+use penne::test_suite::execute;
+use penne::test_suite::execute_with_imports;
+use penne::test_suite::stdout_from_output;
 
 use pretty_assertions::assert_eq;
 

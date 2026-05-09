@@ -10,7 +10,7 @@
 mod label_references;
 mod variable_references;
 
-use crate::common::*;
+use crate::alpha::common::*;
 
 pub fn analyze(program: Vec<Declaration>) -> Vec<Declaration>
 {

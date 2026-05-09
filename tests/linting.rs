@@ -4,7 +4,7 @@
 // License: MIT
 //
 
-use penne::{lint_to_fail, lint_to_nothing};
+use penne::test_suite::{lint_to_fail, lint_to_nothing};
 
 #[test]
 fn trigger_lint_for_loop_in_branch()

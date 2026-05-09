@@ -7,11 +7,11 @@
 //! The command line interface outputs colored dumps of intermediate code
 //! when run with the _verbose_ flag.
 
-use crate::common;
-use crate::error;
-use crate::lexer;
-use crate::rebuilder;
-use crate::resolved;
+use crate::alpha::common;
+use crate::alpha::error;
+use crate::alpha::lexer;
+use crate::alpha::rebuilder;
+use crate::alpha::resolved;
 
 use serde::Deserialize;
 use std::io::Write;
@@ -291,7 +291,7 @@ impl StdOut
 
 	pub fn show_errors(
 		&mut self,
-		errors: impl IntoIterator<Item = crate::error::Error>,
+		errors: impl IntoIterator<Item = error::Error>,
 		mut source_cache: impl ariadne::Cache<String>,
 	) -> Result<(), std::io::Error>
 	{

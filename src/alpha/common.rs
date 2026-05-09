@@ -9,10 +9,10 @@
 use enumset::{EnumSet, EnumSetType};
 use serde::{Deserialize, Serialize};
 
-pub use crate::error::{Poison, Poisonable};
-pub use crate::lexer::Location;
+pub use crate::alpha::error::{Poison, Poisonable};
+pub use crate::alpha::lexer::Location;
 
-use crate::value_type;
+use crate::alpha::value_type;
 
 pub type ValueType = value_type::ValueType<Identifier>;
 

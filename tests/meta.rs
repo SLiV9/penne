@@ -4,11 +4,11 @@
 // License: MIT
 //
 
-use penne::rebuilder::{Indentation, Rebuildable};
+use penne::alpha::rebuilder::{Indentation, Rebuildable};
 
 use comfy_table::Table;
 
-type ValueType = penne::value_type::ValueType<&'static str>;
+type ValueType = penne::alpha::value_type::ValueType<&'static str>;
 
 fn sample_types() -> impl std::iter::Iterator<Item = ValueType>
 {

@@ -7,11 +7,11 @@
 //! The Penne compiler supports various built-in functions that cannot be
 //! expressed in normal Penne source code, unlike those in the core library).
 
-use crate::common::Builtin;
-use crate::common::Location;
-use crate::resolved::GeneratorBuiltin;
-use crate::resolved::ValueType;
-use crate::resolved::{Expression, Statement};
+use crate::alpha::common::Builtin;
+use crate::alpha::common::Location;
+use crate::alpha::resolved::GeneratorBuiltin;
+use crate::alpha::resolved::ValueType;
+use crate::alpha::resolved::{Expression, Statement};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Fd

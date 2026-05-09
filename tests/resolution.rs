@@ -4,7 +4,7 @@
 // License: MIT
 //
 
-use penne::{allow_to_compile, compile_to_fail};
+use penne::test_suite::{allow_to_compile, compile_to_fail};
 
 #[test]
 fn allow_empty_file_with_comment()

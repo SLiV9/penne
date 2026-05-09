@@ -4,8 +4,8 @@
 // License: MIT
 //
 
-use crate::common::*;
-use crate::error::Error;
+use crate::alpha::common::*;
+use crate::alpha::error::Error;
 
 pub fn analyze(declaration: Declaration, analyzer: &mut Analyzer)
 -> Declaration

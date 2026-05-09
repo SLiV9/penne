@@ -6,7 +6,7 @@
 
 //! The lexer cuts each line of source code into a sequence of tokens.
 
-use crate::common::*;
+use crate::alpha::common::*;
 
 #[derive(Debug, PartialEq)]
 pub enum Token

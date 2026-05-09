@@ -7,10 +7,10 @@
 //! During the import expansion stage, public symbols are shared between
 //! compilation units.
 
-use crate::common::Declaration;
-use crate::common::DeclarationFlag;
-use crate::error::Error;
-use crate::included;
+use crate::alpha::common::Declaration;
+use crate::alpha::common::DeclarationFlag;
+use crate::alpha::error::Error;
+use crate::alpha::included;
 
 use enumset::EnumSet;
 use std::collections::HashSet;

@@ -7,9 +7,9 @@
 //! The optional linting stage analyzes the common AST and generates warnings
 //! for error-free code that may have unintended behavior at runtime.
 
-use crate::common::*;
+use crate::alpha::common::*;
 
-pub use crate::error::Error as Lint;
+pub use crate::alpha::error::Error as Lint;
 
 /// The Linter keeps track of context during the linting stage.
 #[derive(Default)]

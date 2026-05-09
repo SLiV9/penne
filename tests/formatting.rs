@@ -4,7 +4,7 @@
 // License: MIT
 //
 
-use penne::assert_formatted_correctly;
+use penne::test_suite::assert_formatted_correctly;
 
 #[test]
 fn rebuild_goto_end() -> Result<(), anyhow::Error>

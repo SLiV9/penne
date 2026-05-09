@@ -4,12 +4,14 @@
 // License: MIT
 //
 
-use penne::expander;
-use penne::included;
-use penne::lexer;
-use penne::parser;
-use penne::resolver;
-use penne::scoper;
+use penne::alpha::Compiler;
+use penne::alpha::expander;
+use penne::alpha::included;
+use penne::alpha::lexer;
+use penne::alpha::parser;
+use penne::alpha::resolver;
+use penne::alpha::scoper;
+use penne::alpha::stdout;
 
 use std::io::Write;
 
@@ -80,7 +82,7 @@ struct BuildArgs
 	wasm: bool,
 
 	#[clap(flatten)]
-	stdout_options: penne::stdout::Options,
+	stdout_options: stdout::Options,
 }
 
 #[derive(Debug, Default, Deserialize, clap::Args)]
@@ -105,7 +107,7 @@ struct RunArgs
 	out_dir: Option<std::path::PathBuf>,
 
 	#[clap(flatten)]
-	stdout_options: penne::stdout::Options,
+	stdout_options: stdout::Options,
 }
 
 #[derive(Debug, Default, Deserialize, clap::Args)]
@@ -125,7 +127,7 @@ struct EmitArgs
 	wasm: bool,
 
 	#[clap(flatten)]
-	stdout_options: penne::stdout::Options,
+	stdout_options: stdout::Options,
 }
 
 fn main() -> Result<(), anyhow::Error>
@@ -133,7 +135,7 @@ fn main() -> Result<(), anyhow::Error>
 	let result = do_main();
 	if result.is_err()
 	{
-		penne::stdout::StdOut::new(Default::default());
+		stdout::StdOut::new(Default::default());
 		println!();
 		println!();
 	}
@@ -143,7 +145,7 @@ fn main() -> Result<(), anyhow::Error>
 struct MainArgs
 {
 	out_dir: Option<std::path::PathBuf>,
-	stdout_options: penne::stdout::Options,
+	stdout_options: stdout::Options,
 	filepaths: Vec<std::path::PathBuf>,
 	is_lli: bool,
 	skip_backend: bool,
@@ -324,7 +326,7 @@ fn do_main() -> Result<(), anyhow::Error>
 		}
 	}
 
-	let mut stdout = penne::stdout::StdOut::new(stdout_options);
+	let mut stdout = stdout::StdOut::new(stdout_options);
 
 	let mut sources = Vec::new();
 	let mut modules = Vec::new();
@@ -371,7 +373,7 @@ fn do_main() -> Result<(), anyhow::Error>
 		}
 	}
 
-	let mut compiler = penne::Compiler::default();
+	let mut compiler = Compiler::default();
 	if wasm
 	{
 		compiler.for_wasm()?;

@@ -4,7 +4,7 @@
 // License: MIT
 //
 
-use penne::compile_to_fail;
+use penne::test_suite::compile_to_fail;
 
 #[test]
 fn fail_to_scope_duplicate_label()

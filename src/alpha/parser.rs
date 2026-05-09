@@ -6,9 +6,9 @@
 
 //! The parser takes lexed tokens and builds the common AST.
 
-use crate::common::*;
-use crate::error::Error;
-use crate::lexer::{LexedToken, Token};
+use crate::alpha::common::*;
+use crate::alpha::error::Error;
+use crate::alpha::lexer::{LexedToken, Token};
 
 use std::collections::VecDeque;
 

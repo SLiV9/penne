@@ -9,6 +9,9 @@ description = "Penne is a pasta-oriented programming language that favors the go
 repository = "https://github.com/SLiV9/penne"
 exclude = ["/docs/_site"]
 
+[features]
+delta = []
+
 [dependencies]
 enumset = "1.0"
 anyhow = "1.0"

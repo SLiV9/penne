@@ -8,11 +8,11 @@
 
 #![cfg_attr(coverage, feature(no_coverage))]
 
-pub use crate::lexer;
-pub use crate::lexer::Location;
+pub use crate::alpha::lexer;
+pub use crate::alpha::lexer::Location;
 
-use crate::common::Identifier;
-use crate::value_type;
+use crate::alpha::common::Identifier;
+use crate::alpha::value_type;
 
 pub type OperandValueType = value_type::OperandValueType<Identifier>;
 pub type ValueType = value_type::ValueType<Identifier>;
