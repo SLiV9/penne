@@ -169,6 +169,12 @@ fn fail_to_parse_octal_literal()
 }
 
 #[test]
+fn fail_to_parse_octal_zero()
+{
+	compile_to_fail(&[141], "tests/samples/invalid/octal_zero.pn")
+}
+
+#[test]
 fn fail_to_parse_octal_suffix()
 {
 	compile_to_fail(&[141], "tests/samples/invalid/octal_suffix.pn")
