@@ -4,7 +4,6 @@
 // License: MIT
 //
 
-use penne::alpha::Compiler;
 use penne::alpha::expander;
 use penne::alpha::included;
 use penne::alpha::lexer;
@@ -12,11 +11,12 @@ use penne::alpha::parser;
 use penne::alpha::resolver;
 use penne::alpha::scoper;
 use penne::alpha::stdout;
+use penne::alpha::Compiler;
 
 use std::io::Write;
 
-use anyhow::Context;
 use anyhow::anyhow;
+use anyhow::Context;
 use clap::Parser;
 use serde::Deserialize;
 
@@ -264,25 +264,63 @@ fn do_main() -> Result<(), anyhow::Error>
 		wasm,
 	} = args;
 
-	let output_filepath = output_filepath.or_else(|| {
-		filepaths
-			.get(0)
-			.and_then(|filepath| filepath.file_name())
-			.map(|filename| {
-				let mut path = out_dir.clone().unwrap_or_default();
-				path.push(filename);
-				if wasm
-				{
-					path.set_extension("wasm");
-				}
-				else
-				{
-					path.set_extension(get_exe_extension());
-				}
-				path
-			})
-	});
+	let mut stdout = stdout::StdOut::new(stdout_options);
 
+	let output_filepath = output_filepath
+		.or_else(|| derive_output_filepath(&filepaths, out_dir.as_ref(), wasm));
+	let compilation_units = gather_compilation_units(filepaths)?;
+	let generated_ir = compile_to_ir_using_alpha(
+		compilation_units,
+		out_dir.as_ref(),
+		wasm,
+		&mut stdout,
+	)?;
+
+	if let Some(output_filepath) = output_filepath.filter(|_x| !skip_backend)
+	{
+		generate_output(
+			output_filepath,
+			Some(generated_ir),
+			is_lli,
+			backend,
+			backend_args,
+			link_args,
+			&mut stdout,
+		)?;
+	}
+
+	stdout.done()?;
+	Ok(())
+}
+
+fn derive_output_filepath(
+	filepaths: &[std::path::PathBuf],
+	out_dir: Option<&std::path::PathBuf>,
+	for_wasm: bool,
+) -> Option<std::path::PathBuf>
+{
+	filepaths
+		.get(0)
+		.and_then(|filepath| filepath.file_name())
+		.map(|filename| {
+			let mut path = out_dir.map(|x| x.to_path_buf()).unwrap_or_default();
+			path.push(filename);
+			if for_wasm
+			{
+				path.set_extension("wasm");
+			}
+			else
+			{
+				path.set_extension(get_exe_extension());
+			}
+			path
+		})
+}
+
+fn gather_compilation_units(
+	filepaths: Vec<std::path::PathBuf>,
+) -> Result<Vec<(std::path::PathBuf, String)>, anyhow::Error>
+{
 	let mut compilation_units = Vec::new();
 
 	for filepath in filepaths
@@ -326,8 +364,16 @@ fn do_main() -> Result<(), anyhow::Error>
 		}
 	}
 
-	let mut stdout = stdout::StdOut::new(stdout_options);
+	Ok(compilation_units)
+}
 
+fn compile_to_ir_using_alpha(
+	compilation_units: Vec<(std::path::PathBuf, String)>,
+	out_dir: Option<&std::path::PathBuf>,
+	for_wasm: bool,
+	stdout: &mut stdout::StdOut,
+) -> Result<String, anyhow::Error>
+{
 	let mut sources = Vec::new();
 	let mut modules = Vec::new();
 
@@ -374,7 +420,7 @@ fn do_main() -> Result<(), anyhow::Error>
 	}
 
 	let mut compiler = Compiler::default();
-	if wasm
+	if for_wasm
 	{
 		compiler.for_wasm()?;
 	}
@@ -422,7 +468,7 @@ fn do_main() -> Result<(), anyhow::Error>
 		if let Some(out_dir) = &out_dir
 		{
 			let outputpath = {
-				let mut path = out_dir.clone();
+				let mut path = out_dir.to_path_buf();
 				path.push(filepath.clone());
 				path.set_extension("pn.ll");
 				path
@@ -440,68 +486,76 @@ fn do_main() -> Result<(), anyhow::Error>
 	compiler.link_modules()?;
 	let full_ir = compiler.generate_ir()?;
 	stdout.dump_text(&full_ir)?;
-	let generated_ir = Some(full_ir);
 
-	if let Some(output_filepath) = output_filepath.filter(|_x| !skip_backend)
+	Ok(full_ir)
+}
+
+fn generate_output(
+	output_filepath: std::path::PathBuf,
+	generated_ir: Option<String>,
+	is_lli: bool,
+	backend: String,
+	backend_args: Option<Vec<String>>,
+	link_args: Option<Vec<String>>,
+	stdout: &mut stdout::StdOut,
+) -> Result<(), anyhow::Error>
+{
+	let mut cmd = std::process::Command::new(&backend);
+	if let Some(backend_args) = backend_args
 	{
-		let mut cmd = std::process::Command::new(&backend);
-		if let Some(backend_args) = backend_args
+		for arg in backend_args
 		{
-			for arg in backend_args
-			{
-				cmd.arg(arg);
-			}
-		}
-		if let Some(link_args) = link_args
-		{
-			for arg in link_args
-			{
-				cmd.arg(format!("-Wl,{}", arg));
-			}
-		}
-		if generated_ir.is_some()
-		{
-			if !is_lli
-			{
-				cmd.arg("-x");
-				cmd.arg("ir");
-			}
-			cmd.arg("-");
-			cmd.stdin(std::process::Stdio::piped());
-		}
-		if !is_lli
-		{
-			cmd.arg("-o");
-			cmd.arg(output_filepath);
-		}
-
-		stdout.cmd_header("Running", format!("{:?}", cmd))?;
-		stdout.prepare_for_errors()?;
-		let mut cmd = cmd.spawn()?;
-		if let Some(full_ir) = generated_ir
-		{
-			cmd.stdin
-				.as_mut()
-				.context("failed to pipe")?
-				.write_all(full_ir.as_bytes())?;
-		}
-		let status = cmd.wait()?;
-		if is_lli
-		{
-			let exitcode =
-				status.code().ok_or_else(|| error_from_status(status))?;
-			stdout.output(exitcode)?;
-		}
-		else
-		{
-			status
-				.success()
-				.then_some(Some(()))
-				.context("compilation unsuccessful")?;
+			cmd.arg(arg);
 		}
 	}
+	if let Some(link_args) = link_args
+	{
+		for arg in link_args
+		{
+			cmd.arg(format!("-Wl,{}", arg));
+		}
+	}
+	if generated_ir.is_some()
+	{
+		if !is_lli
+		{
+			cmd.arg("-x");
+			cmd.arg("ir");
+		}
+		cmd.arg("-");
+		cmd.stdin(std::process::Stdio::piped());
+	}
+	if !is_lli
+	{
+		cmd.arg("-o");
+		cmd.arg(output_filepath);
+	}
 
-	stdout.done()?;
+	stdout.cmd_header("Running", format!("{:?}", cmd))?;
+	stdout.prepare_for_errors()?;
+	let mut cmd = cmd.spawn()?;
+	if let Some(full_ir) = generated_ir
+	{
+		cmd.stdin
+			.as_mut()
+			.context("failed to pipe")?
+			.write_all(full_ir.as_bytes())?;
+	}
+	let status = cmd.wait()?;
+	if is_lli
+	{
+		let exitcode =
+			status.code().ok_or_else(|| error_from_status(status))?;
+		stdout.output(exitcode)?;
+	}
+	else
+	{
+		status
+			.success()
+			.then_some(Some(()))
+			.context("compilation unsuccessful")?;
+	}
+
 	Ok(())
 }
 

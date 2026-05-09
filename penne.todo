@@ -327,7 +327,7 @@ Development:
 		✔	Alternatively hide all the implementation details in a v1 submodule, move some logic from main into lib and make the public interface of penne lib more opaque, taking &Path as inputs and String as output @done (2026-05-08 23:32)
 		✔	Relatedly, think about how language server and CompilerExplorer would use either lib or main @done (2026-05-08 23:33)
 			However for an LSP server you want a stateful (tree-sitting) binary
-	☐	Release 0.4.0
+	✘	Release 0.4.0 @cancelled (2026-05-09 20:05)
 		☐	Flesh out core and vendor/libc
 		☐	Add/check documentation for E359, E553
 		☐	Describe core as "batteries included but not pre-installed"
@@ -335,6 +335,7 @@ Development:
 		☐	Deploy website
 	☐	Rewrite from scratch using data-oriented compiler design
 		☐	Do this as a separate compiler with 0.4.0 as the reference
+		☐	Release 0.5.0
 	☐	Write intermediate stages as XML-like output so that I can diff them, like ContextFree does
 	☐	Language server and IDE integrations
 	☐	CompilerExplorer on godbolt.org
