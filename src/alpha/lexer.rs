@@ -88,9 +88,11 @@ pub enum Token
 	Type(ValueType),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Error
 {
+	TooManySourceBytes,
+	TooManyTokens,
 	UnexpectedZeroByteFile,
 	UnexpectedCharacter,
 	InvalidIntegerLength,

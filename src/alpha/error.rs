@@ -6,10 +6,10 @@
 
 //! Compiler stages may generate syntax errors and semantical errors.
 
-pub use crate::alpha::lexer;
 pub use crate::alpha::lexer::Location;
 
 use crate::alpha::common::Identifier;
+use crate::alpha::lexer;
 use crate::alpha::value_type;
 
 pub type OperandValueType = value_type::OperandValueType<Identifier>;
@@ -582,6 +582,8 @@ impl Error
 			Error::Lexical { error, .. } => match error
 			{
 				lexer::Error::UnexpectedZeroByteFile => 101,
+				lexer::Error::TooManySourceBytes => 102,
+				lexer::Error::TooManyTokens => 103,
 				lexer::Error::UnexpectedCharacter => 110,
 				lexer::Error::InvalidIntegerLength => 140,
 				lexer::Error::InvalidIntegerTypeSuffix => 141,
@@ -956,6 +958,34 @@ fn write<'a>(
 					.with_color(PRIMARY),
 			)
 			.with_note("Provided file contains zero bytes of data."),
+
+		Error::Lexical {
+			error: lexer::Error::TooManySourceBytes,
+			expectation: _,
+			location,
+		} => report
+			.with_message("Too many bytes in source file")
+			.with_label(
+				location
+					.label()
+					.with_message("File starts here.")
+					.with_color(PRIMARY),
+			)
+			.with_note("Provided file contains too many bytes of data."),
+
+		Error::Lexical {
+			error: lexer::Error::TooManyTokens,
+			expectation: _,
+			location,
+		} => report
+			.with_message("Too many tokens in source file")
+			.with_label(
+				location
+					.label()
+					.with_message("File starts here.")
+					.with_color(PRIMARY),
+			)
+			.with_note("Provided file contains too many tokens."),
 
 		Error::Lexical {
 			error: lexer::Error::UnexpectedCharacter,

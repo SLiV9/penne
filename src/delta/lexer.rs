@@ -1,6 +1,8 @@
 mod digits;
 pub mod tokens;
 
+pub use crate::alpha::lexer::Error as LexingError;
+
 use digits::{parse_binary_digits, parse_decimal_digits, parse_hex_digits};
 use tokens::*;
 
@@ -114,21 +116,6 @@ pub enum TokenPayload
 	UnreachablePayload,
 	Integer(u128),
 	Bytes(Vec<u8>),
-}
-
-#[derive(Debug, Clone)]
-pub enum LexingError
-{
-	TooManySourceBytes,
-	TooManyTokens,
-	UnexpectedZeroByteFile,
-	UnexpectedCharacter,
-	InvalidIntegerLength,
-	InvalidIntegerTypeSuffix,
-	InvalidEscapeSequence,
-	UnexpectedTrailingBackslash,
-	MissingClosingQuote,
-	InvalidCharLiteral,
 }
 
 pub fn lex<'source>(
@@ -603,7 +590,7 @@ pub fn lex<'source>(
 							{
 								let start_of_digits = location.end + 1;
 								let end_of_digits = start_of_digits + 4;
-								let mut is_closed = false;
+								let mut digits = None;
 								if let Some((_, b'{')) = iter.peek()
 								{
 									iter.next();
@@ -618,7 +605,15 @@ pub fn lex<'source>(
 										}
 										else if y == b'}'
 										{
-											is_closed = true;
+											if location.end == end_of_digits
+											{
+												digits = Some(
+													&source[location
+														.span_from(
+															start_of_digits,
+														)],
+												);
+											}
 											iter.next();
 											location.end += 1;
 											break;
@@ -629,9 +624,6 @@ pub fn lex<'source>(
 										}
 									}
 								};
-								let digits = is_closed.then(|| {
-									&source[location.span_from(start_of_digits)]
-								});
 								let c = digits
 									.and_then(|digits| {
 										parse_hex_digits(digits).ok()

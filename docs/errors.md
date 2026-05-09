@@ -49,6 +49,22 @@ A source file being completely empty is quite uncommon, and it may indicate some
 One particular example is writing source code to a newly created temporary file and passing the name of that file to the compiler *before* flushing and closing the temporary file.
 Because a Penne source file without declarations produces no other errors, this error code is used to warn about such a scenario.
 
+## Error code E102
+
+The source file contains too many bytes of data.
+
+### Explanation
+
+For performance reasons, the compiler assumes source files are less than 2GB in size.
+
+## Error code E103
+
+The source file contains too many tokens.
+
+### Explanation
+
+For performance reasons, the compiler assumes a reasonable upper bound on the number of tokens a source file can contain. Your source file has exceeded that limit.
+
 ## Error code E110
 
 Unexpected character in source file or string literal.

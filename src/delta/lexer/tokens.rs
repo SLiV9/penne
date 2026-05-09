@@ -1,5 +1,8 @@
 use super::{BaseToken, LexingError, TokenPayload, ValueTypeKeyword};
 
+use crate::alpha::error;
+use crate::alpha::error::Errors;
+
 pub const MAX_SOURCE_LEN: usize = 1 << 31;
 const MAX_NUM_TOKENS: usize = MAX_NUM_PAYLOADS - 1;
 const MAX_NUM_PAYLOADS: usize = 1 << 24;
@@ -93,7 +96,7 @@ impl TokenLocation
 		self.line_number as usize
 	}
 
-	pub fn column_number(&self) -> usize
+	pub fn line_offset(&self) -> usize
 	{
 		(self.start - self.start_of_line) as usize
 	}
@@ -213,11 +216,39 @@ impl<'source> Tokens<'source>
 		self.payloads.get(payload_id as usize)
 	}
 
-	pub fn get_location(&self, token: Token) -> TokenLocation
+	pub fn get_location(&self, TokenId(token_id): TokenId) -> error::Location
 	{
-		let TokenId(token_id) = token.token_id();
 		let i = token_id as usize;
 		// This cannot fail, by construction.
-		self.token_locations[i]
+		let location = self.token_locations[i];
+		error::Location {
+			source_filename: self.source_filename.to_string(),
+			span: location.span(),
+			line_number: location.line_number(),
+			line_offset: location.line_offset(),
+		}
+	}
+
+	pub fn errors(&self) -> Option<Errors>
+	{
+		if self.errors.is_empty()
+		{
+			return None;
+		}
+
+		let errors = (self.errors.iter().copied())
+			.map(|(error, token_id)| {
+				let location = self.get_location(token_id);
+				// TODO expectations from the parser
+				let expectation = "expected a valid token".to_string();
+				error::Error::Lexical {
+					error,
+					location,
+					expectation,
+				}
+			})
+			.collect();
+
+		Some(Errors { errors })
 	}
 }
