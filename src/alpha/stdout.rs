@@ -25,6 +25,10 @@ pub struct Options
 	#[clap(short, long)]
 	verbose: bool,
 
+	/// Show no output
+	#[clap(short, long)]
+	silent: bool,
+
 	/// When to use ANSI colors in error messages and intermediate output
 	#[clap(long, value_name("WHEN"))]
 	#[clap(value_enum, default_value_t=ColorChoice::Auto)]
@@ -81,6 +85,7 @@ impl From<CharSet> for ariadne::CharSet
 pub struct StdOut
 {
 	stdout: StandardStream,
+	is_silent: bool,
 	is_verbose: bool,
 	report_config: error::Config,
 }
@@ -90,7 +95,8 @@ impl StdOut
 	pub fn new(options: Options) -> StdOut
 	{
 		let stdout = StandardStream::stdout(options.color.into());
-		let is_verbose = options.verbose;
+		let is_silent = options.silent;
+		let is_verbose = options.verbose && !is_silent;
 		let with_color = match options.color
 		{
 			ColorChoice::Auto => stdout.supports_color(),
@@ -104,6 +110,7 @@ impl StdOut
 			error::Config::from(ariadne_config).with_color(with_color);
 		StdOut {
 			stdout,
+			is_silent,
 			is_verbose,
 			report_config,
 		}
@@ -111,6 +118,10 @@ impl StdOut
 
 	pub fn newline(&mut self) -> Result<(), std::io::Error>
 	{
+		if self.is_silent
+		{
+			return Ok(());
+		}
 		if self.is_verbose
 		{
 			writeln!(self.stdout)?;
@@ -124,6 +135,10 @@ impl StdOut
 		path: &std::path::Path,
 	) -> Result<(), std::io::Error>
 	{
+		if self.is_silent
+		{
+			return Ok(());
+		}
 		let colorspec_header = ColorSpec::new();
 		self.stdout.set_color(&colorspec_header)?;
 		writeln!(self.stdout, "{} {}...", preamble, path.to_string_lossy())?;
@@ -136,6 +151,10 @@ impl StdOut
 		command: String,
 	) -> Result<(), std::io::Error>
 	{
+		if self.is_silent
+		{
+			return Ok(());
+		}
 		let colorspec_header = ColorSpec::new();
 		self.stdout.set_color(&colorspec_header)?;
 		writeln!(self.stdout)?;
@@ -149,6 +168,10 @@ impl StdOut
 		filename: &str,
 	) -> Result<(), std::io::Error>
 	{
+		if self.is_silent
+		{
+			return Ok(());
+		}
 		if self.is_verbose
 		{
 			let colorspec_header = ColorSpec::new();
@@ -163,6 +186,10 @@ impl StdOut
 		section_name: &str,
 	) -> Result<(), std::io::Error>
 	{
+		if self.is_silent
+		{
+			return Ok(());
+		}
 		if self.is_verbose
 		{
 			let colorspec_header = ColorSpec::new();
@@ -177,6 +204,10 @@ impl StdOut
 		tokens: &[lexer::LexedToken],
 	) -> Result<(), anyhow::Error>
 	{
+		if self.is_silent
+		{
+			return Ok(());
+		}
 		if self.is_verbose
 		{
 			let colorspec_dump = ColorSpec::new().set_dimmed(true).to_owned();
@@ -202,6 +233,10 @@ impl StdOut
 		tokens: &crate::delta::lexer::tokens::Tokens,
 	) -> Result<(), anyhow::Error>
 	{
+		if self.is_silent
+		{
+			return Ok(());
+		}
 		if self.is_verbose
 		{
 			let colorspec_dump = ColorSpec::new().set_dimmed(true).to_owned();
@@ -222,6 +257,10 @@ impl StdOut
 		declarations: &[common::Declaration],
 	) -> Result<(), anyhow::Error>
 	{
+		if self.is_silent
+		{
+			return Ok(());
+		}
 		if self.is_verbose
 		{
 			let colorspec_dump = ColorSpec::new().set_dimmed(true).to_owned();
@@ -248,6 +287,10 @@ impl StdOut
 		declarations: &[resolved::Declaration],
 	) -> Result<(), anyhow::Error>
 	{
+		if self.is_silent
+		{
+			return Ok(());
+		}
 		if self.is_verbose
 		{
 			let colorspec_dump = ColorSpec::new().set_dimmed(true).to_owned();
@@ -260,6 +303,10 @@ impl StdOut
 
 	pub fn dump_text(&mut self, text: &str) -> Result<(), anyhow::Error>
 	{
+		if self.is_silent
+		{
+			return Ok(());
+		}
 		if self.is_verbose
 		{
 			let colorspec_dump = ColorSpec::new().set_dimmed(true).to_owned();
@@ -275,6 +322,10 @@ impl StdOut
 		was_successful: bool,
 	) -> Result<(), std::io::Error>
 	{
+		if self.is_silent
+		{
+			return Ok(());
+		}
 		if self.is_verbose
 		{
 			if was_successful
@@ -299,6 +350,10 @@ impl StdOut
 
 	pub fn prepare_for_errors(&mut self) -> Result<(), std::io::Error>
 	{
+		if self.is_silent
+		{
+			return Ok(());
+		}
 		let colorspec_error = ColorSpec::new()
 			.set_fg(Some(Color::Red))
 			.set_bold(true)
@@ -314,6 +369,10 @@ impl StdOut
 		mut source_cache: impl ariadne::Cache<String>,
 	) -> Result<(), std::io::Error>
 	{
+		if self.is_silent
+		{
+			return Ok(());
+		}
 		for error in errors
 		{
 			writeln!(self.stdout)?;
@@ -326,6 +385,10 @@ impl StdOut
 
 	pub fn output(&mut self, value: i32) -> Result<(), std::io::Error>
 	{
+		if self.is_silent
+		{
+			return Ok(());
+		}
 		self.stdout.reset()?;
 		writeln!(self.stdout, "Output: {}", value)?;
 		Ok(())
@@ -333,6 +396,10 @@ impl StdOut
 
 	pub fn done(&mut self) -> Result<(), std::io::Error>
 	{
+		if self.is_silent
+		{
+			return Ok(());
+		}
 		self.stdout.reset()?;
 		writeln!(self.stdout, "Done.")?;
 		Ok(())
