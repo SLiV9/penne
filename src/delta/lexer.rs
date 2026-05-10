@@ -718,11 +718,10 @@ pub fn lex(source: &str, source_filename: &str) -> Tokens
 								{
 									first_error = Some((
 										LexingError::UnexpectedTrailingBackslash,
-
-							TokenLocation {
-								start: start_of_escape,
-								..location
-							},)
+										TokenLocation {
+											start: start_of_escape,
+											..location
+										})
 									);
 								}
 							}
@@ -739,10 +738,7 @@ pub fn lex(source: &str, source_filename: &str) -> Tokens
 					}
 					else if x.is_ascii_graphic()
 					{
-						for byte in x.to_string().as_bytes()
-						{
-							bytes.push(*byte);
-						}
+						bytes.push(x);
 					}
 					else if x.is_ascii()
 					{
