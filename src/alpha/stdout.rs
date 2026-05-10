@@ -197,6 +197,25 @@ impl StdOut
 		Ok(())
 	}
 
+	pub fn dump_delta_tokens(
+		&mut self,
+		tokens: &crate::delta::lexer::tokens::Tokens,
+	) -> Result<(), anyhow::Error>
+	{
+		if self.is_verbose
+		{
+			let colorspec_dump = ColorSpec::new().set_dimmed(true).to_owned();
+			self.stdout.set_color(&colorspec_dump)?;
+			for token in tokens.dump()
+			{
+				write!(self.stdout, "{:?}   ", token)?;
+			}
+			writeln!(self.stdout)?;
+			writeln!(self.stdout)?;
+		}
+		Ok(())
+	}
+
 	pub fn dump_code(
 		&mut self,
 		filename: &str,

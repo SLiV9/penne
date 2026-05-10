@@ -269,12 +269,25 @@ fn do_main() -> Result<(), anyhow::Error>
 	let output_filepath = output_filepath
 		.or_else(|| derive_output_filepath(&filepaths, out_dir.as_ref(), wasm));
 	let compilation_units = gather_compilation_units(filepaths)?;
-	let generated_ir = compile_to_ir_using_alpha(
-		compilation_units,
-		out_dir.as_ref(),
-		wasm,
-		&mut stdout,
-	)?;
+
+	let generated_ir = if cfg!(feature = "delta")
+	{
+		compile_to_ir_using_delta(
+			compilation_units,
+			out_dir.as_ref(),
+			wasm,
+			&mut stdout,
+		)?
+	}
+	else
+	{
+		compile_to_ir_using_alpha(
+			compilation_units,
+			out_dir.as_ref(),
+			wasm,
+			&mut stdout,
+		)?
+	};
 
 	if let Some(output_filepath) = output_filepath.filter(|_x| !skip_backend)
 	{
@@ -488,6 +501,50 @@ fn compile_to_ir_using_alpha(
 	stdout.dump_text(&full_ir)?;
 
 	Ok(full_ir)
+}
+
+fn compile_to_ir_using_delta(
+	compilation_units: Vec<(std::path::PathBuf, String)>,
+	out_dir: Option<&std::path::PathBuf>,
+	for_wasm: bool,
+	stdout: &mut stdout::StdOut,
+) -> Result<String, anyhow::Error>
+{
+	let mut sources = Vec::new();
+	let mut modules = Vec::new();
+
+	for (filepath, source) in compilation_units
+	{
+		let filename = filepath.to_string_lossy().to_string();
+		stdout.newline()?;
+		stdout.header("Lexing", &filename)?;
+		let tokens = penne::delta::lexer::lex(&source, &filename);
+		stdout.dump_delta_tokens(&tokens)?;
+
+		let mut source = source;
+		if source.is_empty()
+		{
+			source.push_str(" ");
+		}
+		sources.push((filename, source));
+
+		if let Some(errors) = tokens.errors()
+		{
+			let mut source_cache = ariadne::sources(sources);
+			stdout.prepare_for_errors()?;
+			stdout.show_errors(errors, &mut source_cache)?;
+			return Err(anyhow!("compilation failed"));
+		}
+
+		modules.push((filepath, tokens));
+
+		// TODO parse
+	}
+
+	// TODO finish
+	let _ = for_wasm;
+	let _ = out_dir;
+	Err(anyhow!("unfinished"))
 }
 
 fn generate_output(

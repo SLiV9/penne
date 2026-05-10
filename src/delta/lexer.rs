@@ -6,7 +6,7 @@ pub use crate::alpha::lexer::Error as LexingError;
 use digits::{parse_binary_digits, parse_decimal_digits, parse_hex_digits};
 use tokens::*;
 
-#[derive(Clone, Copy, Debug, PartialEq, strum::FromRepr)]
+#[derive(Clone, Copy, Debug, PartialEq, strum::FromRepr, strum::Display)]
 #[repr(u8)]
 pub enum BaseToken
 {
@@ -89,7 +89,7 @@ pub enum BaseToken
 	Error,
 }
 
-#[derive(Clone, Copy, Debug, strum::FromRepr)]
+#[derive(Clone, Copy, Debug, strum::FromRepr, strum::Display)]
 #[repr(u8)]
 pub enum ValueTypeKeyword
 {
@@ -118,12 +118,9 @@ pub enum TokenPayload
 	Bytes(Vec<u8>),
 }
 
-pub fn lex<'source>(
-	source: &'source str,
-	source_filename: &'source str,
-) -> Tokens<'source>
+pub fn lex(source: &str, source_filename: &str) -> Tokens
 {
-	let mut buffer = Tokens::empty(source, source_filename);
+	let mut buffer = Tokens::empty(source_filename.to_string());
 
 	if source.len() > MAX_SOURCE_LEN
 	{
@@ -540,6 +537,7 @@ pub fn lex<'source>(
 					location.end += 1;
 					if x == b'\\'
 					{
+						let start_of_escape = location.end - 1;
 						location.end += 1;
 						match iter.next()
 						{
@@ -581,9 +579,13 @@ pub fn lex<'source>(
 								}
 								else if first_error.is_none()
 								{
-									first_error = Some(
+									first_error = Some((
 										LexingError::InvalidEscapeSequence,
-									);
+										TokenLocation {
+											start: start_of_escape,
+											..location
+										},
+									));
 								}
 							}
 							Some((_, b'u')) =>
@@ -637,26 +639,40 @@ pub fn lex<'source>(
 								}
 								else if first_error.is_none()
 								{
-									first_error = Some(
+									first_error = Some((
 										LexingError::InvalidEscapeSequence,
-									);
+										TokenLocation {
+											start: start_of_escape,
+											..location
+										},
+									));
 								}
 							}
 							Some((_, _y)) =>
 							{
 								if first_error.is_none()
 								{
-									first_error = Some(
+									first_error = Some((
 										LexingError::InvalidEscapeSequence,
-									);
+										TokenLocation {
+											start: start_of_escape,
+											..location
+										},
+									));
 								}
 							}
 							None =>
 							{
+								location.end -= 1;
 								if first_error.is_none()
 								{
-									first_error = Some(
+									first_error = Some((
 										LexingError::UnexpectedTrailingBackslash,
+
+							TokenLocation {
+								start: start_of_escape,
+								..location
+							},)
 									);
 								}
 							}
@@ -682,8 +698,13 @@ pub fn lex<'source>(
 					{
 						if first_error.is_none()
 						{
-							first_error =
-								Some(LexingError::UnexpectedCharacter);
+							first_error = Some((
+								LexingError::UnexpectedCharacter,
+								TokenLocation {
+									start: location.end - 1,
+									..location
+								},
+							));
 						}
 					}
 					else
@@ -699,11 +720,18 @@ pub fn lex<'source>(
 				{
 					if first_error.is_none()
 					{
-						first_error = Some(LexingError::MissingClosingQuote);
+						first_error = Some((
+							LexingError::MissingClosingQuote,
+							TokenLocation {
+								start: location.end,
+								..location
+							},
+						));
 					}
 				}
-				if let Some(error) = first_error
+				if let Some((error, error_location)) = first_error
 				{
+					location = error_location;
 					Err(error)
 				}
 				else if opening_quote == b'"'

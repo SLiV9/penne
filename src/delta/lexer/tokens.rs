@@ -102,10 +102,9 @@ impl TokenLocation
 	}
 }
 
-pub struct Tokens<'source>
+pub struct Tokens
 {
-	source: &'source str,
-	source_filename: &'source str,
+	source_filename: String,
 
 	// Tokens (SOA)
 	tokens: Vec<Token>,
@@ -115,12 +114,9 @@ pub struct Tokens<'source>
 	errors: Vec<(LexingError, TokenId)>,
 }
 
-impl<'source> Tokens<'source>
+impl Tokens
 {
-	pub(super) fn empty(
-		source: &'source str,
-		source_filename: &'source str,
-	) -> Tokens<'source>
+	pub(super) fn empty(source_filename: String) -> Tokens
 	{
 		let mut tokens = Vec::new();
 		let mut token_locations = Vec::new();
@@ -131,7 +127,6 @@ impl<'source> Tokens<'source>
 		payloads.push(TokenPayload::UnreachablePayload);
 
 		Tokens {
-			source,
 			source_filename,
 			tokens,
 			token_locations,
@@ -229,6 +224,28 @@ impl<'source> Tokens<'source>
 		}
 	}
 
+	pub fn dump(&self) -> impl Iterator<Item = String>
+	{
+		self.tokens.iter().copied().map(|token| {
+			let base_token = token.base_token();
+			let value_type = token.value_type();
+			let payload = self.get_payload(token.payload_id());
+			match (value_type, payload)
+			{
+				(ValueTypeKeyword::NoKeyword, None) => format!("{base_token}"),
+				(ValueTypeKeyword::NoKeyword, Some(payload)) =>
+				{
+					format!("{base_token}={payload:?}")
+				}
+				(value_type, None) => format!("{base_token}({value_type})"),
+				(value_type, Some(payload)) =>
+				{
+					format!("{base_token}({value_type})={payload:?}")
+				}
+			}
+		})
+	}
+
 	pub fn errors(&self) -> Option<Errors>
 	{
 		if self.errors.is_empty()
@@ -239,8 +256,7 @@ impl<'source> Tokens<'source>
 		let errors = (self.errors.iter().copied())
 			.map(|(error, token_id)| {
 				let location = self.get_location(token_id);
-				// TODO expectations from the parser
-				let expectation = "expected a valid token".to_string();
+				let expectation = "Invalid token".to_string();
 				error::Error::Lexical {
 					error,
 					location,
