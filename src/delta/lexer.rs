@@ -403,6 +403,7 @@ pub fn lex(source: &str, source_filename: &str) -> Tokens
 					{
 						iter.next();
 						location.end += 1;
+						let start_of_literal = location.end;
 						while let Some(&(_, y)) = iter.peek()
 						{
 							if y.is_ascii_hexdigit()
@@ -420,7 +421,8 @@ pub fn lex(source: &str, source_filename: &str) -> Tokens
 								break;
 							}
 						}
-						let literal = &source[location.span()];
+						let literal =
+							&source[location.span_from(start_of_literal)];
 						if !literal.is_empty()
 						{
 							end_of_literal = location.end;
@@ -436,6 +438,7 @@ pub fn lex(source: &str, source_filename: &str) -> Tokens
 					{
 						iter.next();
 						location.end += 1;
+						let start_of_literal = location.end;
 						while let Some(&(_, y)) = iter.peek()
 						{
 							if y == b'0' || y == b'1'
@@ -453,7 +456,8 @@ pub fn lex(source: &str, source_filename: &str) -> Tokens
 								break;
 							}
 						}
-						let literal = &source[location.span()];
+						let literal =
+							&source[location.span_from(start_of_literal)];
 						if !literal.is_empty()
 						{
 							end_of_literal = location.end;
@@ -461,7 +465,7 @@ pub fn lex(source: &str, source_filename: &str) -> Tokens
 						}
 						else
 						{
-							// 'x' was part of the suffix.
+							// 'b' was part of the suffix.
 							Ok(0)
 						}
 					}
