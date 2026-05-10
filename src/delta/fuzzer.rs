@@ -28,73 +28,93 @@ pub fn fill_to_capacity_with_tokens(
 {
 	let mut rng = rand::rng();
 
-	let mut base_token_weights = [0; 256];
-	for base_token in BaseToken::iter()
-	{
-		use BaseToken::*;
-		let i = base_token as u8 as usize;
-		let weight = match base_token
+	let base_token_dist = WeightedIndex::new({
+		let mut weights = [0; 256];
+		for base_token in BaseToken::iter()
 		{
-			EndOfSource => 0,
+			use BaseToken::*;
+			let i = base_token as u8 as usize;
+			let weight = match base_token
+			{
+				EndOfSource => 0,
 
-			ParenLeft | ParenRight | BraceLeft | BraceRight | BracketLeft
-			| BracketRight | AngleLeft | AngleRight => 10,
+				ParenLeft | ParenRight | BraceLeft | BraceRight
+				| BracketLeft | BracketRight | AngleLeft | AngleRight => 10,
 
-			Pipe | Ampersand | Caret | Exclamation | Placeholder | Plus
-			| Minus | Times | Divide | Modulo | Colon | Semicolon | Dot
-			| Comma | Assignment | Equals | DoesNotEqual | IsGE | IsLE
-			| ShiftLeft | ShiftRight | Arrow | PipeForType | Dots => 5,
+				Pipe | Ampersand | Caret | Exclamation | Placeholder | Plus
+				| Minus | Times | Divide | Modulo | Colon | Semicolon | Dot
+				| Comma | Assignment | Equals | DoesNotEqual | IsGE | IsLE
+				| ShiftLeft | ShiftRight | Arrow | PipeForType | Dots => 5,
 
-			Fn | Var | Const | If | Goto | Loop | Else | Cast | As | Import
-			| Pub | Extern | Struct => 5,
+				Fn | Var | Const | If | Goto | Loop | Else | Cast | As
+				| Import | Pub | Extern | Struct => 5,
 
-			Word8 | Word16 | Word32 | Word64 | Word128 => 1,
+				Word8 | Word16 | Word32 | Word64 | Word128 => 1,
 
-			ValueTypeKeyword => 10,
+				ValueTypeKeyword => 10,
 
-			Identifier => 2,
-			Builtin => 1,
+				Identifier => 2,
+				Builtin => 1,
 
-			NakedDecimal => 2,
-			BitInteger => 1,
-			SuffixedInteger => 1,
-			CharLiteral => 1,
-			BoolLiteral => 1,
+				NakedDecimal => 2,
+				BitInteger => 1,
+				SuffixedInteger => 1,
+				CharLiteral => 1,
+				BoolLiteral => 1,
 
-			StringLiteral => 1,
+				StringLiteral => 1,
 
-			Error => 0,
-		};
-		base_token_weights[i] = weight;
-	}
-	let base_token_dist = WeightedIndex::new(base_token_weights)?;
-
-	let mut value_type_weights = [0; 256];
-	for value_type in ValueTypeKeyword::iter()
-	{
-		use ValueTypeKeyword::*;
-		let i = value_type as u8 as usize;
-		let weight = match value_type
-		{
-			ValueTypeKeyword::NoKeyword => 0,
-			_ => 1,
-		};
-		value_type_weights[i] = weight;
-	}
-	let value_type_dist = WeightedIndex::new(value_type_weights)?;
-
-	let mut us_ascii_weights: [i32; 128] = std::array::from_fn(|i| {
-		let x = i as u8;
-		match x
-		{
-			b' ' => 500,
-			b'a'..=b'z' => 50,
-			b'0'..=b'9' => 20,
-			x if x.is_ascii_graphic() => 10,
-			_ => 1,
+				Error => 0,
+			};
+			weights[i] = weight;
 		}
-	});
-	let us_ascii_dist = WeightedIndex::new(us_ascii_weights)?;
+		weights
+	})?;
+
+	let value_type_dist = WeightedIndex::new({
+		let mut weights = [0; 256];
+		for value_type in ValueTypeKeyword::iter()
+		{
+			use ValueTypeKeyword::*;
+			let i = value_type as u8 as usize;
+			let weight = match value_type
+			{
+				NoKeyword => 0,
+				_ => 1,
+			};
+			weights[i] = weight;
+		}
+		weights
+	})?;
+
+	let int_type_dist = WeightedIndex::new({
+		use ValueTypeKeyword::*;
+		let mut weights = [0; 256];
+		for int_type in [
+			Int8, Int16, Int32, Int64, Int128, Uint8, Uint16, Uint32, Uint64,
+			Uint128, Usize,
+		]
+		{
+			let i = int_type as u8 as usize;
+			weights[i] = 1;
+		}
+		weights
+	})?;
+
+	let us_ascii_dist = WeightedIndex::new({
+		let weights: [i32; 128] = std::array::from_fn(|i| {
+			let x = i as u8;
+			match x
+			{
+				b' ' => 500,
+				b'a'..=b'z' => 50,
+				b'0'..=b'9' => 20,
+				x if x.is_ascii_graphic() => 10,
+				_ => 1,
+			}
+		});
+		weights
+	})?;
 
 	let random_uint = |rng: &mut dyn Rng| -> u128 {
 		if rng.random_bool(0.2)
@@ -314,7 +334,7 @@ pub fn fill_to_capacity_with_tokens(
 					format!("0b{value:b}")
 				};
 				buffer.push_str(&text);
-				let value_type = value_type_dist.sample(&mut rng) as u8;
+				let value_type = int_type_dist.sample(&mut rng) as u8;
 				let value_type =
 					ValueTypeKeyword::from_repr(value_type).unwrap();
 				buffer.push_str(&value_type.to_string());
@@ -325,7 +345,7 @@ pub fn fill_to_capacity_with_tokens(
 				if rng.random_bool(0.01)
 				{
 					let value: u32 = rng.random_range(..256);
-					buffer.push_str(&format!("\\x{value:X}"));
+					buffer.push_str(&format!("\\x{value:02X}"));
 				}
 				else
 				{
@@ -357,7 +377,7 @@ pub fn fill_to_capacity_with_tokens(
 					if rng.random_bool(0.01)
 					{
 						let value: u32 = rng.random_range(..256);
-						buffer.push_str(&format!("\\x{value:X}"));
+						buffer.push_str(&format!("\\x{value:02X}"));
 					}
 					else
 					{

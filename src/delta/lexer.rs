@@ -640,13 +640,12 @@ pub fn lex(source: &str, source_filename: &str) -> Tokens
 							}
 							Some((_, b'u')) =>
 							{
-								let start_of_digits = location.end + 1;
-								let end_of_digits = start_of_digits + 4;
 								let mut digits = None;
 								if let Some((_, b'{')) = iter.peek()
 								{
 									iter.next();
 									location.end += 1;
+									let start_of_digits = location.end;
 
 									while let Some(&(_, y)) = iter.peek()
 									{
@@ -657,7 +656,7 @@ pub fn lex(source: &str, source_filename: &str) -> Tokens
 										}
 										else if y == b'}'
 										{
-											if location.end == end_of_digits
+											if location.end > start_of_digits
 											{
 												digits = Some(
 													&source[location

@@ -280,7 +280,7 @@ Documentation:
 
 Rewrite using Data-Oriented Compiler Design for 0.5.0:
 	"Modernizing Compiler Design for Carbon Toolchain" by Chandler Carruth
-	☐	Lexer
+	✔	Lexer @done (2026-05-10 22:49)
 		✔	Load all the source files into memory at once and keep them in scope @done (2024-02-25 17:37)
 			I already do this for ariadne.
 			For reference the entire LLVM source code is 20MB and modern L3 cache is also around 20MB, so this is silly but not 100x silly.
