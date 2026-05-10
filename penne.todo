@@ -299,9 +299,8 @@ Rewrite using Data-Oriented Compiler Design for 0.5.0:
 		☐	Store parse tree nodes as postorder traversed array
 	☐	Rebuilder
 	☐	Everything above at 1MLOC/s (10% of Carbon's goals) to allow formatting
-		☐	Fuzzer that generates 10MB of random tokens
-		☐	Fuzzer that generates 10MB of random valid trees
-			☐	Using arithmetic coding (entropy coding) in reverse!?
+		✔	Fuzzer that generates 40MB of random tokens @done (2026-05-10 20:21)
+		☐	Fuzzer that generates 40MB of random valid trees
 	☐	Expander
 		☐	Somehow insert scoped and typed AST instead of
 	☐	Scoper
