@@ -37,5 +37,9 @@ comfy-table = "7.0"
 name = "penne"
 path = "src/main.rs"
 
+[profile.release-with-debug]
+inherits = "release"
+debug = true
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(coverage,tarpaulin_include)"] }

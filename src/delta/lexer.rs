@@ -166,10 +166,9 @@ pub enum TokenPayload
 
 pub fn lex(source: &str, source_filename: &str) -> Tokens
 {
-	let mut buffer = Tokens::empty(source_filename.to_string());
-
 	if source.len() > MAX_SOURCE_LEN
 	{
+		let mut buffer = Tokens::empty(source_filename.to_string(), 0);
 		let dummy_location = TokenLocation {
 			start: 0,
 			end: 0,
@@ -179,6 +178,8 @@ pub fn lex(source: &str, source_filename: &str) -> Tokens
 		buffer.push_error(LexingError::TooManySourceBytes, dummy_location);
 		return buffer;
 	}
+
+	let mut buffer = Tokens::empty(source_filename.to_string(), source.len());
 
 	let mut iter = source.bytes().enumerate().peekable();
 	let mut line_number = 1;

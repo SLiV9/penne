@@ -116,12 +116,13 @@ pub struct Tokens
 
 impl Tokens
 {
-	pub(super) fn empty(source_filename: String) -> Tokens
+	pub(super) fn empty(source_filename: String, source_len: usize) -> Tokens
 	{
-		let mut tokens = Vec::new();
-		let mut token_locations = Vec::new();
-		let mut payloads = Vec::new();
-		let mut errors = Vec::new();
+		let num_tokens = source_len / 4;
+		let mut tokens = Vec::with_capacity(num_tokens);
+		let mut token_locations = Vec::with_capacity(num_tokens);
+		let mut payloads = Vec::with_capacity(source_len / 10);
+		let mut errors = Vec::with_capacity(source_len / 100);
 
 		// This payload is unreachable because 0 is an invalid PayloadId.
 		payloads.push(TokenPayload::UnreachablePayload);
@@ -186,6 +187,8 @@ impl Tokens
 		if self.tokens.len() > MAX_NUM_TOKENS - 1
 		{
 			self.tokens.truncate(MAX_NUM_TOKENS - 1);
+			self.token_locations.truncate(MAX_NUM_TOKENS - 1);
+
 			let last = self.tokens.last_mut().expect("clearly non-empty");
 			let error = LexingError::TooManyTokens;
 			self.errors.push((error, last.token_id()));
