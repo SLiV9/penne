@@ -103,7 +103,16 @@ impl StdOut
 			ColorChoice::Always => true,
 			ColorChoice::Never => false,
 		};
+		let index_type = if cfg!(feature = "delta")
+		{
+			ariadne::IndexType::Byte
+		}
+		else
+		{
+			ariadne::IndexType::Char
+		};
 		let ariadne_config = ariadne::Config::default()
+			.with_index_type(index_type)
 			.with_color(with_color)
 			.with_char_set(options.arrows.into());
 		let report_config =

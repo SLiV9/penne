@@ -835,10 +835,12 @@ impl Error
 			2000..=2999 => (ReportKind::Advice, 'L'),
 			_ => (ReportKind::Error, 'E'),
 		};
-		let report =
-			Report::build(kind, &location.source_filename, location.span.end)
-				.with_config(config.into())
-				.with_code(format!("{}{}", letter, code));
+		let report = Report::build(
+			kind,
+			(location.source_filename.to_string(), location.span.clone()),
+		)
+		.with_config(config.into())
+		.with_code(format!("{}{}", letter, code));
 		let report = write(report, config.into(), self);
 		report.finish()
 	}
