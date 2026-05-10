@@ -85,13 +85,13 @@ pub fn fill_to_capacity_with_tokens(
 
 	let mut us_ascii_weights: [i32; 128] = std::array::from_fn(|i| {
 		let x = i as u8;
-		if x.is_ascii_graphic()
+		match x
 		{
-			10
-		}
-		else
-		{
-			1
+			b' ' => 500,
+			b'a'..=b'z' => 50,
+			b'0'..=b'9' => 20,
+			x if x.is_ascii_graphic() => 10,
+			_ => 1,
 		}
 	});
 	let us_ascii_dist = WeightedIndex::new(us_ascii_weights)?;
@@ -154,6 +154,35 @@ pub fn fill_to_capacity_with_tokens(
 		std::str::from_utf8(&bytes).unwrap().to_string()
 	};
 
+	let add_whitespace = |buffer: &mut String, rng: &mut dyn Rng| {
+		if let Some(last_byte) = buffer.bytes().last()
+		{
+			if last_byte == b'\n'
+			{
+				let num_tabs = rng.random_range(0..4);
+				if rng.random_bool(0.2)
+				{
+					for _ in 0..num_tabs
+					{
+						buffer.push('\t');
+					}
+				}
+				else
+				{
+					let num_spaces = 4 * num_tabs;
+					for _ in 0..num_spaces
+					{
+						buffer.push(' ');
+					}
+				}
+			}
+			else if rng.random_bool(0.2)
+			{
+				buffer.push(' ');
+			}
+		}
+	};
+
 	let add_space_if_necessary = |buffer: &mut String| {
 		if let Some(last_byte) = buffer.bytes().last()
 		{
@@ -164,7 +193,7 @@ pub fn fill_to_capacity_with_tokens(
 		}
 	};
 
-	let mut next_newline_at = rng.random_range(10..160);
+	let mut next_newline_at = rng.random_range(10..100);
 	let mut next_comment_at = rng.random_range(200..500);
 
 	assert!(percentage < 100);
@@ -180,7 +209,7 @@ pub fn fill_to_capacity_with_tokens(
 
 			if rng.random_bool(0.9)
 			{
-				next_newline_at = buffer.len() + rng.random_range(10..160);
+				next_newline_at = buffer.len() + rng.random_range(10..100);
 			}
 		}
 
@@ -206,6 +235,8 @@ pub fn fill_to_capacity_with_tokens(
 				next_comment_at = buffer.len() + rng.random_range(200..500);
 			}
 		}
+
+		add_whitespace(buffer, &mut rng);
 
 		let base_token = base_token_dist.sample(&mut rng) as u8;
 		let base_token = BaseToken::from_repr(base_token).unwrap();
@@ -298,8 +329,8 @@ pub fn fill_to_capacity_with_tokens(
 				}
 				else
 				{
-					let c: char = random_char(&mut rng);
-					for x in c.escape_default()
+					let ascii = us_ascii_dist.sample(&mut rng) as u8;
+					for x in char::from(ascii).escape_default()
 					{
 						buffer.push(x);
 					}
@@ -331,9 +362,18 @@ pub fn fill_to_capacity_with_tokens(
 					else
 					{
 						let c: char = random_char(&mut rng);
-						for x in c.escape_default()
+						if !c.is_ascii() && rng.random_bool(0.5)
 						{
-							buffer.push(x);
+							// Non-ASCII UTF8 is allowed.
+							// (Non-UTF8 is also allowed but not in `buffer`.)
+							buffer.push(c);
+						}
+						else
+						{
+							for x in c.escape_default()
+							{
+								buffer.push(x);
+							}
 						}
 					}
 				}

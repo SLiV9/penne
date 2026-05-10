@@ -131,15 +131,25 @@ pub enum ValueTypeKeyword
 {
 	NoKeyword = 0,
 	Void,
+	#[strum(serialize = "i8")]
 	Int8,
+	#[strum(serialize = "i16")]
 	Int16,
+	#[strum(serialize = "i32")]
 	Int32,
+	#[strum(serialize = "i64")]
 	Int64,
+	#[strum(serialize = "i128")]
 	Int128,
+	#[strum(serialize = "u8")]
 	Uint8,
+	#[strum(serialize = "u16")]
 	Uint16,
+	#[strum(serialize = "u32")]
 	Uint32,
+	#[strum(serialize = "u64")]
 	Uint64,
+	#[strum(serialize = "u128")]
 	Uint128,
 	Usize,
 	Char8,
