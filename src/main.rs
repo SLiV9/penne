@@ -12,6 +12,7 @@ use penne::alpha::resolver;
 use penne::alpha::scoper;
 use penne::alpha::stdout;
 use penne::alpha::Compiler;
+use penne::delta::fuzzer;
 
 use std::io::Write;
 
@@ -32,6 +33,18 @@ struct Cli
 	build: BuildArgs,
 }
 
+impl Cli
+{
+	fn get_fuzz_args(&self) -> Option<&FuzzArgs>
+	{
+		match self.sub.as_ref()
+		{
+			Some(Subcommand::Fuzz(args)) => Some(args),
+			_ => None,
+		}
+	}
+}
+
 #[derive(Debug, Deserialize, clap::Subcommand)]
 enum Subcommand
 {
@@ -41,6 +54,8 @@ enum Subcommand
 	Run(RunArgs),
 	/// Generate LLVM IR from Penne source files
 	Emit(EmitArgs),
+	/// Generate random source files
+	Fuzz(FuzzArgs),
 }
 
 #[derive(Debug, Default, Deserialize, clap::Args)]
@@ -125,6 +140,30 @@ struct EmitArgs
 	/// Set target to 'wasm32-unknown-wasi'
 	#[clap(short, long)]
 	wasm: bool,
+
+	#[clap(flatten)]
+	stdout_options: stdout::Options,
+}
+
+#[derive(Debug, Default, Deserialize, clap::Args)]
+#[serde(default, deny_unknown_fields)]
+struct FuzzArgs
+{
+	/// Generate random source file using the provided fuzzing strategy.
+	#[clap(value_parser, required(true))]
+	strategy: fuzzer::FuzzingStrategy,
+
+	/// How many KB of random source file to generate.
+	#[clap(long, required(true))]
+	kb: usize,
+
+	/// How many random mistakes to inject into the source file.
+	#[clap(long)]
+	mistakes: Option<usize>,
+
+	/// Write generated source files to this directory
+	#[clap(long)]
+	out_dir: Option<std::path::PathBuf>,
 
 	#[clap(flatten)]
 	stdout_options: stdout::Options,
@@ -244,13 +283,23 @@ impl TryFrom<Cli> for MainArgs
 				output_filepath: None,
 				wasm: args.wasm,
 			}),
+			Cli {
+				sub: Some(Subcommand::Fuzz(_)),
+				build: _,
+			} => unimplemented!(),
 		}
 	}
 }
 
 fn do_main() -> Result<(), anyhow::Error>
 {
-	let args = Cli::parse().try_into()?;
+	let args = Cli::parse();
+	if let Some(fuzz_args) = args.get_fuzz_args()
+	{
+		return do_fuzzing(fuzz_args);
+	}
+
+	let args = args.try_into()?;
 	let MainArgs {
 		out_dir,
 		stdout_options,
@@ -691,4 +740,53 @@ where
 	{
 		Ok(None)
 	}
+}
+
+fn do_fuzzing(args: &FuzzArgs) -> Result<(), anyhow::Error>
+{
+	let FuzzArgs {
+		out_dir,
+		strategy,
+		kb,
+		mistakes,
+		stdout_options,
+	} = args;
+	let strategy = *strategy;
+	let kb = *kb;
+	let mistakes = mistakes.clone().unwrap_or(0);
+
+	let mut stdout = stdout::StdOut::new(stdout_options.clone());
+
+	let output_filepath = out_dir.as_ref().map(|out_dir| {
+		let mut path = out_dir.to_path_buf();
+		path.push(format!("fuzzed_{strategy}"));
+		path.set_extension("pn");
+		path
+	});
+
+	match strategy
+	{
+		fuzzer::FuzzingStrategy::Tokens =>
+		{
+			stdout.basic_header("Fuzzing tokens")?;
+			let capacity = kb * 1096;
+			let mut buffer = String::with_capacity(capacity);
+			fuzzer::fill_to_capacity_with_tokens(95, &mut buffer, mistakes)?;
+			stdout.dump_text(&format!("Fuzzed {} bytes", buffer.len()))?;
+
+			if let Some(output_filepath) = output_filepath
+			{
+				stdout.io_header("Writing to", &output_filepath)?;
+				std::fs::write(output_filepath, buffer)?;
+			}
+			else
+			{
+				stdout.basic_header("Dumping")?;
+				stdout.dump_text(&buffer)?;
+			}
+		}
+	}
+
+	stdout.done()?;
+	Ok(())
 }

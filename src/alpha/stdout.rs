@@ -17,7 +17,7 @@ use serde::Deserialize;
 use std::io::Write;
 use termcolor::{Color, ColorSpec, StandardStream, WriteColor};
 
-#[derive(Debug, Default, Deserialize, clap::Args)]
+#[derive(Debug, Clone, Default, Deserialize, clap::Args)]
 #[serde(default, deny_unknown_fields)]
 pub struct Options
 {

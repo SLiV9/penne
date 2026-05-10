@@ -6,47 +6,81 @@ pub use crate::alpha::lexer::Error as LexingError;
 use digits::{parse_binary_digits, parse_decimal_digits, parse_hex_digits};
 use tokens::*;
 
-#[derive(Clone, Copy, Debug, PartialEq, strum::FromRepr, strum::Display)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(strum::FromRepr, strum::Display, strum::EnumIter)]
 #[repr(u8)]
+#[strum(serialize_all = "lowercase")]
 pub enum BaseToken
 {
 	EndOfSource = 0,
 
 	// Single-character tokens.
+	#[strum(serialize = "(")]
 	ParenLeft,
+	#[strum(serialize = ")")]
 	ParenRight,
+	// "{"
 	BraceLeft,
+	// "}"
 	BraceRight,
+	#[strum(serialize = "[")]
 	BracketLeft,
+	#[strum(serialize = "]")]
 	BracketRight,
+	#[strum(serialize = "<")]
 	AngleLeft,
+	#[strum(serialize = ">")]
 	AngleRight,
+	#[strum(serialize = "|")]
 	Pipe,
+	#[strum(serialize = "&")]
 	Ampersand,
+	#[strum(serialize = "^")]
 	Caret,
+	#[strum(serialize = "!")]
 	Exclamation,
+	#[strum(serialize = "_")]
 	Placeholder,
+	#[strum(serialize = "+")]
 	Plus,
+	#[strum(serialize = "-")]
 	Minus,
+	#[strum(serialize = "*")]
 	Times,
+	#[strum(serialize = "/")]
 	Divide,
+	#[strum(serialize = "%")]
 	Modulo,
+	#[strum(serialize = ":")]
 	Colon,
+	#[strum(serialize = ";")]
 	Semicolon,
+	#[strum(serialize = ".")]
 	Dot,
+	#[strum(serialize = ",")]
 	Comma,
-	Assignment, // =
+	#[strum(serialize = "=")]
+	Assignment,
 
 	// Double-character tokens.
-	Equals,       // ==
-	DoesNotEqual, // !=
-	IsGE,         // >=
-	IsLE,         // <=
-	ShiftLeft,    // <<
-	ShiftRight,   // >>
-	Arrow,        // ->
-	PipeForType,  // |:
-	Dots,         // ..
+	#[strum(serialize = "==")]
+	Equals,
+	#[strum(serialize = "!=")]
+	DoesNotEqual,
+	#[strum(serialize = ">=")]
+	IsGE,
+	#[strum(serialize = "<=")]
+	IsLE,
+	#[strum(serialize = "<<")]
+	ShiftLeft,
+	#[strum(serialize = ">>")]
+	ShiftRight,
+	#[strum(serialize = "->")]
+	Arrow,
+	#[strum(serialize = "|:")]
+	PipeForType,
+	#[strum(serialize = "..")]
+	Dots,
 
 	// Keywords.
 	Fn,
@@ -89,8 +123,10 @@ pub enum BaseToken
 	Error,
 }
 
-#[derive(Clone, Copy, Debug, strum::FromRepr, strum::Display)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(strum::FromRepr, strum::Display, strum::EnumIter)]
 #[repr(u8)]
+#[strum(serialize_all = "lowercase")]
 pub enum ValueTypeKeyword
 {
 	NoKeyword = 0,
@@ -794,7 +830,7 @@ fn parse_integer_suffix(suffix: &str) -> Result<ValueTypeKeyword, LexingError>
 	}
 }
 
-fn is_identifier_continuation(x: u8) -> bool
+pub(crate) fn is_identifier_continuation(x: u8) -> bool
 {
 	matches!(x, b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_')
 }
