@@ -85,8 +85,8 @@ impl From<CharSet> for ariadne::CharSet
 pub struct StdOut
 {
 	stdout: StandardStream,
-	is_silent: bool,
-	is_verbose: bool,
+	pub is_silent: bool,
+	pub is_verbose: bool,
 	report_config: error::Config,
 }
 

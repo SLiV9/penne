@@ -379,6 +379,7 @@ fn derive_output_filepath(
 		})
 }
 
+#[inline(never)]
 fn gather_compilation_units(
 	filepaths: Vec<std::path::PathBuf>,
 ) -> Result<Vec<(std::path::PathBuf, String)>, anyhow::Error>
@@ -429,6 +430,7 @@ fn gather_compilation_units(
 	Ok(compilation_units)
 }
 
+#[inline(never)]
 fn compile_to_ir_using_alpha(
 	compilation_units: Vec<(std::path::PathBuf, String)>,
 	out_dir: Option<&std::path::PathBuf>,
@@ -552,6 +554,7 @@ fn compile_to_ir_using_alpha(
 	Ok(full_ir)
 }
 
+#[inline(never)]
 fn compile_to_ir_using_delta(
 	compilation_units: Vec<(std::path::PathBuf, String)>,
 	out_dir: Option<&std::path::PathBuf>,
@@ -579,9 +582,12 @@ fn compile_to_ir_using_delta(
 
 		if let Some(errors) = tokens.errors()
 		{
-			let mut source_cache = ariadne::sources(sources);
-			stdout.prepare_for_errors()?;
-			stdout.show_errors(errors, &mut source_cache)?;
+			if !stdout.is_silent
+			{
+				let mut source_cache = ariadne::sources(sources);
+				stdout.prepare_for_errors()?;
+				stdout.show_errors(errors, &mut source_cache)?;
+			}
 			return Err(anyhow!("compilation failed"));
 		}
 
@@ -596,6 +602,7 @@ fn compile_to_ir_using_delta(
 	Err(anyhow!("unfinished"))
 }
 
+#[inline(never)]
 fn generate_output(
 	output_filepath: std::path::PathBuf,
 	generated_ir: Option<String>,
@@ -742,6 +749,7 @@ where
 	}
 }
 
+#[inline(never)]
 fn do_fuzzing(args: &FuzzArgs) -> Result<(), anyhow::Error>
 {
 	let FuzzArgs {
