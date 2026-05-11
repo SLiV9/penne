@@ -116,7 +116,7 @@ pub enum BaseToken
 	CharLiteral,
 	BoolLiteral,
 
-	// Tokens with Bytes payload.
+	// Tokens whose source span can be decoded as a string literal.
 	StringLiteral,
 
 	// Placeholder.
@@ -161,7 +161,6 @@ pub enum TokenPayload
 {
 	UnreachablePayload,
 	Integer(u128),
-	Bytes(Vec<u8>),
 }
 
 pub fn lex(source: &str, source_filename: &str) -> Tokens
@@ -576,10 +575,15 @@ pub fn lex(source: &str, source_filename: &str) -> Tokens
 					Err(err) => Err(err),
 				}
 			}
-			b'"' | b'\'' =>
+			b'\'' =>
 			{
 				let opening_quote = x;
-				let mut bytes = Vec::new();
+				let mut num_bytes = 0;
+				let mut byte = 0u8;
+				let mut push_byte = |b: u8| {
+					byte = b;
+					num_bytes += 1;
+				};
 				let mut closed = false;
 				let mut first_error = None;
 
@@ -592,13 +596,13 @@ pub fn lex(source: &str, source_filename: &str) -> Tokens
 						location.end += 1;
 						match iter.next()
 						{
-							Some((_, b'n')) => bytes.push(b'\n'),
-							Some((_, b'r')) => bytes.push(b'\r'),
-							Some((_, b't')) => bytes.push(b'\t'),
-							Some((_, b'\\')) => bytes.push(b'\\'),
-							Some((_, b'\'')) => bytes.push(b'\''),
-							Some((_, b'\"')) => bytes.push(b'\"'),
-							Some((_, b'0')) => bytes.push(b'\0'),
+							Some((_, b'n')) => push_byte(b'\n'),
+							Some((_, b'r')) => push_byte(b'\r'),
+							Some((_, b't')) => push_byte(b'\t'),
+							Some((_, b'\\')) => push_byte(b'\\'),
+							Some((_, b'\'')) => push_byte(b'\''),
+							Some((_, b'\"')) => push_byte(b'\"'),
+							Some((_, b'0')) => push_byte(b'\0'),
 							Some((_, b'x')) =>
 							{
 								let start_of_digits = location.end;
@@ -626,7 +630,160 @@ pub fn lex(source: &str, source_filename: &str) -> Tokens
 								{
 									let byte =
 										parse_hex_digits(&digits).unwrap();
-									bytes.push(byte as u8);
+									push_byte(byte as u8);
+								}
+								else if first_error.is_none()
+								{
+									first_error = Some((
+										LexingError::InvalidEscapeSequence,
+										TokenLocation {
+											start: start_of_escape,
+											..location
+										},
+									));
+								}
+							}
+							Some((_, _y)) =>
+							{
+								if first_error.is_none()
+								{
+									first_error = Some((
+										LexingError::InvalidEscapeSequence,
+										TokenLocation {
+											start: start_of_escape,
+											..location
+										},
+									));
+								}
+							}
+							None =>
+							{
+								location.end -= 1;
+								if first_error.is_none()
+								{
+									first_error = Some((
+										LexingError::UnexpectedTrailingBackslash,
+										TokenLocation {
+											start: start_of_escape,
+											..location
+										})
+									);
+								}
+							}
+						}
+					}
+					else if x == opening_quote
+					{
+						closed = true;
+						break;
+					}
+					else if x == b' '
+					{
+						push_byte(b' ');
+					}
+					else if x.is_ascii_graphic()
+					{
+						push_byte(x);
+					}
+					else if x.is_ascii()
+					{
+						if first_error.is_none()
+						{
+							first_error = Some((
+								LexingError::UnexpectedCharacter,
+								TokenLocation {
+									start: location.end - 1,
+									..location
+								},
+							));
+						}
+					}
+					else
+					{
+						debug_assert!(x >= 128);
+						push_byte(x)
+					}
+				}
+				if !closed
+				{
+					if first_error.is_none()
+					{
+						first_error = Some((
+							LexingError::MissingClosingQuote,
+							TokenLocation {
+								start: location.end,
+								..location
+							},
+						));
+					}
+				}
+				if let Some((error, error_location)) = first_error
+				{
+					location = error_location;
+					Err(error)
+				}
+				else if num_bytes == 1
+				{
+					let value = u128::from(byte);
+					payload = Some(TokenPayload::Integer(value));
+					Ok(BaseToken::CharLiteral)
+				}
+				else
+				{
+					Err(LexingError::InvalidCharLiteral)
+				}
+			}
+			b'"' =>
+			{
+				let opening_quote = x;
+				let push_byte = |b: u8| {};
+				let mut closed = false;
+				let mut first_error = None;
+
+				while let Some((_, x)) = iter.next_if(|&(_, y)| y != b'\n')
+				{
+					location.end += 1;
+					if x == b'\\'
+					{
+						let start_of_escape = location.end - 1;
+						location.end += 1;
+						match iter.next()
+						{
+							Some((_, b'n')) => push_byte(b'\n'),
+							Some((_, b'r')) => push_byte(b'\r'),
+							Some((_, b't')) => push_byte(b'\t'),
+							Some((_, b'\\')) => push_byte(b'\\'),
+							Some((_, b'\'')) => push_byte(b'\''),
+							Some((_, b'\"')) => push_byte(b'\"'),
+							Some((_, b'0')) => push_byte(b'\0'),
+							Some((_, b'x')) =>
+							{
+								let start_of_digits = location.end;
+								let end_of_digits = start_of_digits + 2;
+								while let Some(&(_, y)) = iter.peek()
+								{
+									if y.is_ascii_hexdigit()
+									{
+										iter.next();
+										location.end += 1;
+
+										if location.end == end_of_digits
+										{
+											break;
+										}
+									}
+									else
+									{
+										break;
+									}
+								}
+								let digits = &source
+									[location.span_from(start_of_digits)];
+								if digits.len() == 2
+								{
+									let byte =
+										parse_hex_digits(&digits).unwrap();
+									push_byte(byte as u8);
 								}
 								else if first_error.is_none()
 								{
@@ -685,7 +842,10 @@ pub fn lex(source: &str, source_filename: &str) -> Tokens
 								{
 									let mut buffer = [0; 4];
 									let slice = c.encode_utf8(&mut buffer);
-									bytes.extend_from_slice(slice.as_bytes());
+									for &byte in slice.as_bytes()
+									{
+										push_byte(byte)
+									}
 								}
 								else if first_error.is_none()
 								{
@@ -734,11 +894,11 @@ pub fn lex(source: &str, source_filename: &str) -> Tokens
 					}
 					else if x == b' '
 					{
-						bytes.push(b' ');
+						push_byte(b' ');
 					}
 					else if x.is_ascii_graphic()
 					{
-						bytes.push(x);
+						push_byte(x);
 					}
 					else if x.is_ascii()
 					{
@@ -756,10 +916,7 @@ pub fn lex(source: &str, source_filename: &str) -> Tokens
 					else
 					{
 						debug_assert!(x >= 128);
-						for byte in x.to_string().as_bytes()
-						{
-							bytes.push(*byte);
-						}
+						push_byte(x);
 					}
 				}
 				if !closed
@@ -780,20 +937,9 @@ pub fn lex(source: &str, source_filename: &str) -> Tokens
 					location = error_location;
 					Err(error)
 				}
-				else if opening_quote == b'"'
-				{
-					payload = Some(TokenPayload::Bytes(bytes));
-					Ok(BaseToken::StringLiteral)
-				}
-				else if bytes.len() == 1
-				{
-					let value = u128::from(bytes[0]);
-					payload = Some(TokenPayload::Integer(value));
-					Ok(BaseToken::CharLiteral)
-				}
 				else
 				{
-					Err(LexingError::InvalidCharLiteral)
+					Ok(BaseToken::StringLiteral)
 				}
 			}
 			_ => Err(LexingError::UnexpectedCharacter),

@@ -1,7 +1,7 @@
 use super::LexingError;
 
 pub fn parse_binary_digits(validated_digits: &str)
-	-> Result<u128, LexingError>
+-> Result<u128, LexingError>
 {
 	debug_assert!(validated_digits.chars().all(|x| x.is_digit(2)));
 	u128::from_str_radix(validated_digits, 2)
@@ -9,7 +9,7 @@ pub fn parse_binary_digits(validated_digits: &str)
 }
 
 pub fn parse_decimal_digits(validated_digits: &str)
-	-> Result<u128, LexingError>
+-> Result<u128, LexingError>
 {
 	debug_assert!(validated_digits.chars().all(|x| x.is_digit(10)));
 	u128::from_str_radix(validated_digits, 10)

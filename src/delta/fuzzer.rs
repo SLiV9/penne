@@ -2,9 +2,9 @@ use rand::distr::weighted::WeightedIndex;
 use rand::prelude::*;
 use strum::IntoEnumIterator as _;
 
-use super::lexer::is_identifier_continuation;
 use super::lexer::BaseToken;
 use super::lexer::ValueTypeKeyword;
+use super::lexer::is_identifier_continuation;
 
 #[derive(Debug, Clone, Copy, Default)]
 #[derive(clap::ValueEnum, serde::Deserialize, serde::Serialize, strum::Display)]
@@ -111,6 +111,19 @@ pub fn fill_to_capacity_with_tokens(
 				b'0'..=b'9' => 20,
 				x if x.is_ascii_graphic() => 10,
 				_ => 1,
+			}
+		});
+		weights
+	})?;
+
+	let single_char_dist = WeightedIndex::new({
+		let weights: [i32; 128] = std::array::from_fn(|i| {
+			let x = i as u8;
+			match x
+			{
+				b' ' | b'\n' | b'\t' | b'\r' | b'\\' | b'\'' | b'"' => 1,
+				x if x.is_ascii_graphic() => 1,
+				_ => 0,
 			}
 		});
 		weights
@@ -342,14 +355,14 @@ pub fn fill_to_capacity_with_tokens(
 			BaseToken::CharLiteral =>
 			{
 				buffer.push('\'');
-				if rng.random_bool(0.01)
+				if rng.random_bool(0.05)
 				{
 					let value: u32 = rng.random_range(..256);
 					buffer.push_str(&format!("\\x{value:02X}"));
 				}
 				else
 				{
-					let ascii = us_ascii_dist.sample(&mut rng) as u8;
+					let ascii = single_char_dist.sample(&mut rng) as u8;
 					for x in char::from(ascii).escape_default()
 					{
 						buffer.push(x);

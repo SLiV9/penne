@@ -67,6 +67,12 @@ fn fail_to_parse_invalid_character_in_string()
 }
 
 #[test]
+fn fail_to_parse_unicode_escape_in_char()
+{
+	compile_to_fail(&[162], "tests/samples/invalid/unicode_escape_in_char.pn")
+}
+
+#[test]
 fn fail_to_parse_invalid_escape()
 {
 	compile_to_fail(&[162], "tests/samples/invalid/invalid_escape.pn")

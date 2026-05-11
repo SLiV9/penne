@@ -136,6 +136,7 @@ impl Tokens
 		}
 	}
 
+	#[inline]
 	pub(super) fn push(
 		&mut self,
 		base_token: BaseToken,
@@ -144,8 +145,6 @@ impl Tokens
 		location: TokenLocation,
 	) -> TokenId
 	{
-		// TokenId validity is checked upon use.
-		let token_id = TokenId(self.tokens.len() as u32);
 		let value_type = value_type.unwrap_or(ValueTypeKeyword::NoKeyword);
 		let payload_id = if let Some(payload) = payload
 		{
@@ -155,6 +154,19 @@ impl Tokens
 		{
 			PayloadId::NONE
 		};
+		self.push_token(base_token, value_type, payload_id, location)
+	}
+
+	fn push_token(
+		&mut self,
+		base_token: BaseToken,
+		value_type: ValueTypeKeyword,
+		payload_id: PayloadId,
+		location: TokenLocation,
+	) -> TokenId
+	{
+		// TokenId validity is checked upon use.
+		let token_id = TokenId(self.tokens.len() as u32);
 		let token = Token::new(base_token, token_id, value_type, payload_id);
 		self.tokens.push(token);
 		self.token_locations.push(location);

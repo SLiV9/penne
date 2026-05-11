@@ -4,6 +4,7 @@
 // License: MIT
 //
 
+use penne::alpha::Compiler;
 use penne::alpha::expander;
 use penne::alpha::included;
 use penne::alpha::lexer;
@@ -11,13 +12,12 @@ use penne::alpha::parser;
 use penne::alpha::resolver;
 use penne::alpha::scoper;
 use penne::alpha::stdout;
-use penne::alpha::Compiler;
 use penne::delta::fuzzer;
 
 use std::io::Write;
 
-use anyhow::anyhow;
 use anyhow::Context;
+use anyhow::anyhow;
 use clap::Parser;
 use serde::Deserialize;
 
