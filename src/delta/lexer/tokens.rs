@@ -110,7 +110,7 @@ pub struct Tokens
 	tokens: Vec<Token>,
 	token_locations: Vec<TokenLocation>,
 
-	payloads: Vec<TokenPayload>,
+	integer_payloads: Vec<u128>,
 	errors: Vec<(LexingError, TokenId)>,
 }
 
@@ -121,17 +121,17 @@ impl Tokens
 		let num_tokens = source_len / 4;
 		let mut tokens = Vec::with_capacity(num_tokens);
 		let mut token_locations = Vec::with_capacity(num_tokens);
-		let mut payloads = Vec::with_capacity(source_len / 10);
-		let mut errors = Vec::with_capacity(source_len / 100);
+		let mut integer_payloads = Vec::with_capacity(source_len / 64);
+		let mut errors = Vec::with_capacity(source_len / 512);
 
 		// This payload is unreachable because 0 is an invalid PayloadId.
-		payloads.push(TokenPayload::UnreachablePayload);
+		integer_payloads.push(u128::MAX);
 
 		Tokens {
 			source_filename,
 			tokens,
 			token_locations,
-			payloads,
+			integer_payloads,
 			errors,
 		}
 	}
@@ -146,13 +146,13 @@ impl Tokens
 	) -> TokenId
 	{
 		let value_type = value_type.unwrap_or(ValueTypeKeyword::NoKeyword);
-		let payload_id = if let Some(payload) = payload
+		let payload_id = match payload
 		{
-			self.push_payload(payload)
-		}
-		else
-		{
-			PayloadId::NONE
+			Some(TokenPayload::Integer(payload)) =>
+			{
+				self.push_integer_payload(payload)
+			}
+			None => PayloadId::NONE,
 		};
 		self.push_token(base_token, value_type, payload_id, location)
 	}
@@ -173,11 +173,11 @@ impl Tokens
 		token_id
 	}
 
-	fn push_payload(&mut self, payload: TokenPayload) -> PayloadId
+	fn push_integer_payload(&mut self, payload: u128) -> PayloadId
 	{
 		// PayloadId validity is checked upon use.
-		let payload_id = PayloadId(self.payloads.len() as u32);
-		self.payloads.push(payload);
+		let payload_id = PayloadId(self.integer_payloads.len() as u32);
+		self.integer_payloads.push(payload);
 		payload_id
 	}
 
@@ -209,21 +209,21 @@ impl Tokens
 
 		assert!(self.tokens.len() <= MAX_NUM_TOKENS);
 		assert_eq!(self.token_locations.len(), self.tokens.len());
-		assert!(self.payloads.len() <= 1 + self.tokens.len());
-		assert!(self.payloads.len() <= MAX_NUM_PAYLOADS);
+		assert!(self.integer_payloads.len() <= 1 + self.tokens.len());
+		assert!(self.integer_payloads.len() <= MAX_NUM_PAYLOADS);
 		self
 	}
 
-	pub fn get_payload(
+	pub fn get_integer_payload(
 		&self,
 		PayloadId(payload_id): PayloadId,
-	) -> Option<&TokenPayload>
+	) -> Option<&u128>
 	{
 		if payload_id == 0
 		{
 			return None;
 		}
-		self.payloads.get(payload_id as usize)
+		self.integer_payloads.get(payload_id as usize)
 	}
 
 	pub fn get_location(&self, TokenId(token_id): TokenId) -> error::Location
@@ -244,7 +244,7 @@ impl Tokens
 		self.tokens.iter().copied().map(|token| {
 			let base_token = token.base_token();
 			let value_type = token.value_type();
-			let payload = self.get_payload(token.payload_id());
+			let payload = self.get_integer_payload(token.payload_id());
 			match (value_type, payload)
 			{
 				(ValueTypeKeyword::NoKeyword, None) => format!("{base_token}"),

@@ -159,7 +159,6 @@ pub enum ValueTypeKeyword
 #[derive(Debug)]
 pub enum TokenPayload
 {
-	UnreachablePayload,
 	Integer(u128),
 }
 

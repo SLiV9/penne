@@ -6,3 +6,9 @@
 *.exe
 
 /docs/_site/
+
+/callgrind.*
+/massif.*
+/perf.*
+/stacks.*.out
+/flamegraph.svg
