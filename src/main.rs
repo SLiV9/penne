@@ -4,7 +4,6 @@
 // License: MIT
 //
 
-use penne::alpha::Compiler;
 use penne::alpha::expander;
 use penne::alpha::included;
 use penne::alpha::lexer;
@@ -12,12 +11,13 @@ use penne::alpha::parser;
 use penne::alpha::resolver;
 use penne::alpha::scoper;
 use penne::alpha::stdout;
+use penne::alpha::Compiler;
 use penne::delta::fuzzer;
 
 use std::io::Write;
 
-use anyhow::Context;
 use anyhow::anyhow;
+use anyhow::Context;
 use clap::Parser;
 use serde::Deserialize;
 
@@ -570,7 +570,7 @@ fn compile_to_ir_using_delta(
 		let filename = filepath.to_string_lossy().to_string();
 		stdout.newline()?;
 		stdout.header("Lexing", &filename)?;
-		let tokens = penne::delta::lexer::lex(&source, &filename);
+		let tokens = penne::delta::lexer::lex(source.as_bytes(), &filename);
 		stdout.dump_delta_tokens(&tokens)?;
 
 		let mut source = source;

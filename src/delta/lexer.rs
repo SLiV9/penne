@@ -163,7 +163,7 @@ pub enum TokenPayload
 	Integer(u128),
 }
 
-pub fn lex(source: &str, source_filename: &str) -> Tokens
+pub fn lex(source: &[u8], source_filename: &str) -> Tokens
 {
 	if source.len() > MAX_SOURCE_LEN
 	{
@@ -180,7 +180,7 @@ pub fn lex(source: &str, source_filename: &str) -> Tokens
 
 	let mut buffer = Tokens::empty(source_filename.to_string(), source.len());
 
-	let mut iter = source.bytes().enumerate().peekable();
+	let mut iter = source.iter().copied().enumerate().peekable();
 	let mut line_number = 1;
 	let mut start_of_line = 0;
 	while let Some((i, x)) = iter.next()
@@ -335,57 +335,57 @@ pub fn lex(source: &str, source_filename: &str) -> Tokens
 				let identifier = &source[location.span()];
 				let token = match identifier
 				{
-					"fn" => BaseToken::Fn,
-					"var" => BaseToken::Var,
-					"const" => BaseToken::Const,
-					"if" => BaseToken::If,
-					"goto" => BaseToken::Goto,
-					"loop" => BaseToken::Loop,
-					"else" => BaseToken::Else,
-					"cast" => BaseToken::Cast,
-					"as" => BaseToken::As,
-					"true" =>
+					b"fn" => BaseToken::Fn,
+					b"var" => BaseToken::Var,
+					b"const" => BaseToken::Const,
+					b"if" => BaseToken::If,
+					b"goto" => BaseToken::Goto,
+					b"loop" => BaseToken::Loop,
+					b"else" => BaseToken::Else,
+					b"cast" => BaseToken::Cast,
+					b"as" => BaseToken::As,
+					b"true" =>
 					{
 						payload = Some(TokenPayload::Integer(1));
 						BaseToken::BoolLiteral
 					}
-					"false" =>
+					b"false" =>
 					{
 						payload = Some(TokenPayload::Integer(0));
 						BaseToken::BoolLiteral
 					}
-					"bool" =>
+					b"bool" =>
 					{
 						value_type = Some(ValueTypeKeyword::Bool);
 						BaseToken::ValueTypeKeyword
 					}
-					"void" =>
+					b"void" =>
 					{
 						value_type = Some(ValueTypeKeyword::Void);
 						BaseToken::ValueTypeKeyword
 					}
-					"char8" =>
+					b"char8" =>
 					{
 						value_type = Some(ValueTypeKeyword::Char8);
 						BaseToken::ValueTypeKeyword
 					}
-					"i8" | "i16" | "i32" | "i64" | "i128" | "u8" | "u16"
-					| "u32" | "u64" | "u128" | "usize" =>
+					b"i8" | b"i16" | b"i32" | b"i64" | b"i128" | b"u8"
+					| b"u16" | b"u32" | b"u64" | b"u128" | b"usize" =>
 					{
 						value_type =
 							Some(parse_integer_suffix(identifier).unwrap());
 						BaseToken::ValueTypeKeyword
 					}
-					"import" => BaseToken::Import,
-					"pub" => BaseToken::Pub,
-					"extern" => BaseToken::Extern,
-					"struct" => BaseToken::Struct,
-					"word8" => BaseToken::Word8,
-					"word16" => BaseToken::Word16,
-					"word32" => BaseToken::Word32,
-					"word64" => BaseToken::Word64,
-					"word128" => BaseToken::Word128,
-					"_" => BaseToken::Placeholder,
+					b"import" => BaseToken::Import,
+					b"pub" => BaseToken::Pub,
+					b"extern" => BaseToken::Extern,
+					b"struct" => BaseToken::Struct,
+					b"word8" => BaseToken::Word8,
+					b"word16" => BaseToken::Word16,
+					b"word32" => BaseToken::Word32,
+					b"word64" => BaseToken::Word64,
+					b"word128" => BaseToken::Word128,
+					b"_" => BaseToken::Placeholder,
 					_identifier =>
 					{
 						if let Some(&(_, b'!')) = iter.peek()
@@ -967,21 +967,22 @@ pub fn lex(source: &str, source_filename: &str) -> Tokens
 	buffer.finalize(end_of_source_location)
 }
 
-fn parse_integer_suffix(suffix: &str) -> Result<ValueTypeKeyword, LexingError>
+fn parse_integer_suffix(suffix: &[u8])
+	-> Result<ValueTypeKeyword, LexingError>
 {
 	match suffix
 	{
-		"i8" => Ok(ValueTypeKeyword::Int8),
-		"i16" => Ok(ValueTypeKeyword::Int16),
-		"i32" => Ok(ValueTypeKeyword::Int32),
-		"i64" => Ok(ValueTypeKeyword::Int64),
-		"i128" => Ok(ValueTypeKeyword::Int128),
-		"u8" => Ok(ValueTypeKeyword::Uint8),
-		"u16" => Ok(ValueTypeKeyword::Uint16),
-		"u32" => Ok(ValueTypeKeyword::Uint32),
-		"u64" => Ok(ValueTypeKeyword::Uint64),
-		"u128" => Ok(ValueTypeKeyword::Uint128),
-		"usize" => Ok(ValueTypeKeyword::Usize),
+		b"i8" => Ok(ValueTypeKeyword::Int8),
+		b"i16" => Ok(ValueTypeKeyword::Int16),
+		b"i32" => Ok(ValueTypeKeyword::Int32),
+		b"i64" => Ok(ValueTypeKeyword::Int64),
+		b"i128" => Ok(ValueTypeKeyword::Int128),
+		b"u8" => Ok(ValueTypeKeyword::Uint8),
+		b"u16" => Ok(ValueTypeKeyword::Uint16),
+		b"u32" => Ok(ValueTypeKeyword::Uint32),
+		b"u64" => Ok(ValueTypeKeyword::Uint64),
+		b"u128" => Ok(ValueTypeKeyword::Uint128),
+		b"usize" => Ok(ValueTypeKeyword::Usize),
 		_ => Err(LexingError::InvalidIntegerTypeSuffix),
 	}
 }

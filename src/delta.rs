@@ -29,7 +29,7 @@ pub mod test_suite
 		for filename in filenames
 		{
 			let source = std::fs::read_to_string(&filename).unwrap();
-			let tokens = lexer::lex(&source, filename);
+			let tokens = lexer::lex(source.as_bytes(), filename);
 			if let Some(errors) = tokens.errors()
 			{
 				all_errors = all_errors.combined_with(errors);
