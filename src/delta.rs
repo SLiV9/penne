@@ -8,6 +8,7 @@
 
 pub mod fuzzer;
 pub mod lexer;
+pub mod scanner;
 
 pub mod test_suite
 {
