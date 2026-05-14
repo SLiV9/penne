@@ -2,9 +2,9 @@ use rand::distr::weighted::WeightedIndex;
 use rand::prelude::*;
 use strum::IntoEnumIterator as _;
 
+use super::lexer::is_identifier_continuation;
 use super::lexer::BaseToken;
 use super::lexer::ValueTypeKeyword;
-use super::scanner::is_identifier_continuation;
 
 #[derive(Debug, Clone, Copy, Default)]
 #[derive(clap::ValueEnum, serde::Deserialize, serde::Serialize, strum::Display)]

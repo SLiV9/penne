@@ -3,8 +3,6 @@ pub mod tokens;
 
 pub use crate::alpha::lexer::Error as LexingError;
 
-use crate::delta::scanner::is_identifier_continuation;
-
 use digits::*;
 use tokens::*;
 
@@ -999,7 +997,7 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 
 #[inline(always)]
 fn parse_integer_suffix(suffix: &[u8])
-	-> Result<ValueTypeKeyword, LexingError>
+-> Result<ValueTypeKeyword, LexingError>
 {
 	match suffix
 	{
@@ -1016,4 +1014,10 @@ fn parse_integer_suffix(suffix: &[u8])
 		b"usize" => Ok(ValueTypeKeyword::Usize),
 		_ => Err(LexingError::InvalidIntegerTypeSuffix),
 	}
+}
+
+#[inline(always)]
+pub(crate) fn is_identifier_continuation(x: u8) -> bool
+{
+	matches!(x, b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_')
 }
