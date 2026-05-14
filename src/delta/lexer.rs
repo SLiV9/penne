@@ -178,7 +178,14 @@ pub fn lex(source: &[u8], source_filename: &str) -> Tokens
 	}
 
 	let mut buffer = Tokens::empty(source_filename.to_string(), source.len());
+	lex_source_into_tokens(source, &mut buffer);
+	buffer.finalize();
+	buffer
+}
 
+#[inline(never)]
+fn lex_source_into_tokens(source: &[u8], buffer: &mut Tokens)
+{
 	let mut iter = source.iter().copied().enumerate().peekable();
 	let mut line_number = 1;
 	let mut start_of_line = 0;
@@ -962,8 +969,7 @@ pub fn lex(source: &[u8], source_filename: &str) -> Tokens
 		start_of_line,
 		line_number,
 	};
-
-	buffer.finalize(end_of_source_location)
+	buffer.push_end_of_source(end_of_source_location)
 }
 
 fn parse_integer_suffix(suffix: &[u8])

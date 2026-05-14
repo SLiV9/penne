@@ -191,10 +191,10 @@ impl Tokens
 		self.errors.push((error, token_id));
 	}
 
-	pub(super) fn finalize(
-		mut self,
+	pub(super) fn push_end_of_source(
+		&mut self,
 		end_of_source_location: TokenLocation,
-	) -> Self
+	)
 	{
 		if self.tokens.len() > MAX_NUM_TOKENS - 1
 		{
@@ -206,12 +206,14 @@ impl Tokens
 			self.errors.push((error, last.token_id()));
 		}
 		self.push(BaseToken::EndOfSource, None, None, end_of_source_location);
+	}
 
+	pub(super) fn finalize(&mut self)
+	{
 		assert!(self.tokens.len() <= MAX_NUM_TOKENS);
 		assert_eq!(self.token_locations.len(), self.tokens.len());
 		assert!(self.integer_payloads.len() <= 1 + self.tokens.len());
 		assert!(self.integer_payloads.len() <= MAX_NUM_PAYLOADS);
-		self
 	}
 
 	pub fn get_integer_payload(
