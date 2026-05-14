@@ -3,7 +3,7 @@ pub mod tokens;
 
 pub use crate::alpha::lexer::Error as LexingError;
 
-use digits::{parse_binary_digits, parse_decimal_digits, parse_hex_digits};
+use digits::*;
 use tokens::*;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -378,8 +378,10 @@ fn lex_source_into_tokens(source: &[u8], buffer: &mut Tokens)
 					b"i8" | b"i16" | b"i32" | b"i64" | b"i128" | b"u8"
 					| b"u16" | b"u32" | b"u64" | b"u128" | b"usize" =>
 					{
-						value_type =
-							Some(parse_integer_suffix(identifier).unwrap());
+						value_type = Some(
+							parse_integer_suffix(identifier)
+								.expect("just checked"),
+						);
 						BaseToken::ValueTypeKeyword
 					}
 					b"import" => BaseToken::Import,
@@ -632,11 +634,10 @@ fn lex_source_into_tokens(source: &[u8], buffer: &mut Tokens)
 								}
 								let digits = &source
 									[location.span_from(start_of_digits)];
-								if digits.len() == 2
+								if let Some(&[a, b]) = digits.as_array()
 								{
-									let byte =
-										parse_hex_digits(&digits).unwrap();
-									push_byte(byte as u8);
+									let byte = parse_double_hex([a, b]);
+									push_byte(byte);
 								}
 								else if first_error.is_none()
 								{
@@ -785,11 +786,10 @@ fn lex_source_into_tokens(source: &[u8], buffer: &mut Tokens)
 								}
 								let digits = &source
 									[location.span_from(start_of_digits)];
-								if digits.len() == 2
+								if let Some(&[a, b]) = digits.as_array()
 								{
-									let byte =
-										parse_hex_digits(&digits).unwrap();
-									push_byte(byte as u8);
+									let byte = parse_double_hex([a, b]);
+									push_byte(byte);
 								}
 								else if first_error.is_none()
 								{
@@ -972,8 +972,9 @@ fn lex_source_into_tokens(source: &[u8], buffer: &mut Tokens)
 	buffer.push_end_of_source(end_of_source_location)
 }
 
+#[inline(always)]
 fn parse_integer_suffix(suffix: &[u8])
-	-> Result<ValueTypeKeyword, LexingError>
+-> Result<ValueTypeKeyword, LexingError>
 {
 	match suffix
 	{
@@ -992,6 +993,7 @@ fn parse_integer_suffix(suffix: &[u8])
 	}
 }
 
+#[inline(always)]
 pub(crate) fn is_identifier_continuation(x: u8) -> bool
 {
 	matches!(x, b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_')
