@@ -3,50 +3,41 @@ use super::{BaseToken, LexingError, TokenPayload, ValueTypeKeyword};
 use crate::alpha::error;
 use crate::alpha::error::Errors;
 
+use std::mem::MaybeUninit;
+
 pub const MAX_SOURCE_LEN: usize = 1 << 31;
-const MAX_NUM_TOKENS: usize = MAX_NUM_PAYLOADS - 1;
+const MAX_NUM_TOKENS: usize = 1 << 24;
 const MAX_NUM_PAYLOADS: usize = 1 << 24;
+const MAX_NUM_LEXING_ERRORS: usize = 1024;
+
+#[must_use]
+pub(super) struct TokenAllocError;
 
 #[derive(Clone, Copy, Debug)]
-pub struct Token
+struct ValueTypeAndPayloadId
 {
-	base_token_and_token_id: u32,
 	value_type_and_payload_id: u32,
 }
 
-impl Token
+impl ValueTypeAndPayloadId
 {
 	fn new(
-		base_token: BaseToken,
-		TokenId(token_id): TokenId,
 		value_type: ValueTypeKeyword,
 		PayloadId(payload_id): PayloadId,
-	) -> Token
+	) -> Self
 	{
-		let base_token = u32::from(base_token as u8);
 		let value_type = u32::from(value_type as u8);
-		Token {
-			base_token_and_token_id: base_token | (token_id << 8),
+		Self {
 			value_type_and_payload_id: value_type | (payload_id << 8),
 		}
-	}
-
-	pub fn base_token(self) -> BaseToken
-	{
-		let base_token = (self.base_token_and_token_id & 0xFF) as u8;
-		BaseToken::from_repr(base_token).expect("from Token::new")
-	}
-
-	pub fn token_id(self) -> TokenId
-	{
-		let token_id = self.base_token_and_token_id >> 8;
-		TokenId(token_id)
 	}
 
 	pub fn value_type(self) -> ValueTypeKeyword
 	{
 		let value_type = (self.value_type_and_payload_id & 0xFF) as u8;
-		ValueTypeKeyword::from_repr(value_type).expect("from Token::new")
+		let value_type = ValueTypeKeyword::from_repr(value_type);
+		debug_assert!(value_type.is_some(), "ValueTypeAndPayloadId::new");
+		value_type.unwrap_or(ValueTypeKeyword::NoKeyword)
 	}
 
 	pub fn payload_id(self) -> PayloadId
@@ -62,11 +53,6 @@ pub struct TokenId(u32);
 
 #[derive(Clone, Copy, Debug)]
 pub struct PayloadId(u32);
-
-impl PayloadId
-{
-	const NONE: PayloadId = PayloadId(0);
-}
 
 #[derive(Clone, Copy, Debug)]
 pub struct TokenLocation
@@ -104,10 +90,11 @@ impl TokenLocation
 
 pub struct Tokens
 {
-	source_filename: String,
+	pub(super) source_filename: String,
 
 	// Tokens (SOA)
-	tokens: Vec<Token>,
+	tokens: Vec<BaseToken>,
+	token_vaps: Vec<ValueTypeAndPayloadId>,
 	token_locations: Vec<TokenLocation>,
 
 	integer_payloads: Vec<u128>,
@@ -118,24 +105,146 @@ impl Tokens
 {
 	pub(super) fn empty(source_filename: String, source_len: usize) -> Tokens
 	{
-		let num_tokens = source_len / 4;
-		let mut tokens = Vec::with_capacity(num_tokens);
-		let mut token_locations = Vec::with_capacity(num_tokens);
-		let mut integer_payloads = Vec::with_capacity(source_len / 64);
-		let mut errors = Vec::with_capacity(source_len / 512);
+		// For tokens, we want to avoid the realloc at all costs.
+		// If the source is bigger than 65kb, we expect a medium density.
+		let hard_token_cap = std::cmp::max(source_len / 4, 1 << 16);
+		let token_cap = std::cmp::min(hard_token_cap, MAX_NUM_TOKENS);
+		let tokens = Vec::with_capacity(token_cap);
+		let token_vaps = Vec::with_capacity(token_cap);
+		let token_locations = Vec::with_capacity(token_cap);
 
-		// This payload is unreachable because 0 is an invalid PayloadId.
-		integer_payloads.push(u128::MAX);
+		// Don't pre-allocate too many payloads. We will rescale these.
+		let soft_payload_cap = std::cmp::max(source_len / 64, 1024);
+		let payload_cap = std::cmp::min(soft_payload_cap, MAX_NUM_PAYLOADS);
+		let integer_payloads = Vec::with_capacity(payload_cap);
+
+		// For errors we have MAX_NUM_LEXING_ERRORS as a hard cap
+		// because there is no point showing the user millions of errors.
+		let error_cap = std::cmp::min(source_len, MAX_NUM_LEXING_ERRORS);
+		let errors = Vec::with_capacity(error_cap);
 
 		Tokens {
 			source_filename,
 			tokens,
+			token_vaps,
 			token_locations,
 			integer_payloads,
 			errors,
 		}
 	}
 
+	#[inline(never)]
+	#[cold]
+	pub(super) fn empty_with_one_error(
+		source_filename: String,
+		error: LexingError,
+	) -> Tokens
+	{
+		let mut tokens = Self::empty(source_filename, 0);
+		tokens.tokens.push(BaseToken::Error);
+		tokens.token_vaps.push(ValueTypeAndPayloadId::new(
+			ValueTypeKeyword::NoKeyword,
+			PayloadId(0),
+		));
+		tokens.token_locations.push(TokenLocation {
+			start: 0,
+			end: 0,
+			start_of_line: 0,
+			line_number: 0,
+		});
+		tokens.errors.push((error, TokenId(0)));
+		tokens
+	}
+
+	pub(super) fn buffer(&mut self) -> TokensBuffer<'_>
+	{
+		let Self {
+			source_filename: _,
+			tokens,
+			token_vaps,
+			token_locations,
+			integer_payloads,
+			errors,
+		} = self;
+		assert_eq!(token_vaps.len(), tokens.len());
+		assert_eq!(token_locations.len(), tokens.len());
+		assert_eq!(token_vaps.capacity(), tokens.capacity());
+		assert_eq!(token_locations.capacity(), tokens.capacity());
+		assert_eq!(tokens.len(), 0);
+		assert_eq!(integer_payloads.len(), 0);
+		assert_eq!(errors.len(), 0);
+		TokensBuffer {
+			num_tokens: 0,
+			tokens: tokens.spare_capacity_mut(),
+			token_vaps: token_vaps.spare_capacity_mut(),
+			token_locations: token_locations.spare_capacity_mut(),
+			num_integer_payloads: 0,
+			integer_payloads: integer_payloads.spare_capacity_mut(),
+			num_errors: 0,
+			errors: errors.spare_capacity_mut(),
+		}
+	}
+
+	/// TODO
+	pub(super) unsafe fn set_tokens_len(&mut self, num_tokens: usize)
+	{
+		assert_eq!(self.token_vaps.len(), self.tokens.len());
+		assert_eq!(self.token_locations.len(), self.tokens.len());
+		assert_eq!(self.token_vaps.capacity(), self.tokens.capacity());
+		assert_eq!(self.token_locations.capacity(), self.tokens.capacity());
+
+		assert_eq!(self.tokens.len(), 0);
+		assert!(num_tokens <= self.tokens.capacity());
+		// TODO
+		unsafe {
+			self.tokens.set_len(num_tokens);
+			self.token_vaps.set_len(num_tokens);
+			self.token_locations.set_len(num_tokens);
+		}
+	}
+
+	/// TODO
+	pub(super) unsafe fn set_integer_payloads_len(
+		&mut self,
+		num_integer_payloads: usize,
+	)
+	{
+		assert_eq!(self.integer_payloads.len(), 0);
+		assert!(num_integer_payloads <= self.integer_payloads.capacity());
+		// TODO
+		unsafe {
+			self.integer_payloads.set_len(num_integer_payloads);
+		}
+	}
+
+	/// TODO
+	pub(super) unsafe fn set_errors_len(&mut self, num_errors: usize)
+	{
+		assert_eq!(self.errors.len(), 0);
+		assert!(num_errors <= self.errors.capacity());
+		// TODO
+		unsafe {
+			self.errors.set_len(num_errors);
+		}
+	}
+}
+
+pub(super) struct TokensBuffer<'buffer>
+{
+	pub num_tokens: usize,
+	tokens: &'buffer mut [MaybeUninit<BaseToken>],
+	token_vaps: &'buffer mut [MaybeUninit<ValueTypeAndPayloadId>],
+	token_locations: &'buffer mut [MaybeUninit<TokenLocation>],
+
+	pub num_integer_payloads: usize,
+	integer_payloads: &'buffer mut [MaybeUninit<u128>],
+
+	pub num_errors: usize,
+	errors: &'buffer mut [MaybeUninit<(LexingError, TokenId)>],
+}
+
+impl<'buffer> TokensBuffer<'buffer>
+{
 	#[inline]
 	pub(super) fn push(
 		&mut self,
@@ -143,16 +252,16 @@ impl Tokens
 		value_type: Option<ValueTypeKeyword>,
 		payload: Option<TokenPayload>,
 		location: TokenLocation,
-	) -> TokenId
+	) -> Result<TokenId, TokenAllocError>
 	{
 		let value_type = value_type.unwrap_or(ValueTypeKeyword::NoKeyword);
 		let payload_id = match payload
 		{
 			Some(TokenPayload::Integer(payload)) =>
 			{
-				self.push_integer_payload(payload)
+				self.push_integer_payload(payload)?
 			}
-			None => PayloadId::NONE,
+			None => PayloadId(0),
 		};
 		self.push_token(base_token, value_type, payload_id, location)
 	}
@@ -163,59 +272,67 @@ impl Tokens
 		value_type: ValueTypeKeyword,
 		payload_id: PayloadId,
 		location: TokenLocation,
-	) -> TokenId
+	) -> Result<TokenId, TokenAllocError>
 	{
-		// TokenId validity is checked upon use.
-		let token_id = TokenId(self.tokens.len() as u32);
-		let token = Token::new(base_token, token_id, value_type, payload_id);
-		self.tokens.push(token);
-		self.token_locations.push(location);
-		token_id
+		let i = self.num_tokens;
+		if i >= self.tokens.len()
+		{
+			return Err(TokenAllocError);
+		}
+		let token_id = TokenId(i as u32);
+		let vap = ValueTypeAndPayloadId::new(value_type, payload_id);
+		self.tokens[i].write(base_token);
+		self.token_vaps[i].write(vap);
+		self.token_locations[i].write(location);
+		self.num_tokens += 1;
+		Ok(token_id)
 	}
 
-	fn push_integer_payload(&mut self, payload: u128) -> PayloadId
+	fn push_integer_payload(
+		&mut self,
+		payload: u128,
+	) -> Result<PayloadId, TokenAllocError>
 	{
-		// PayloadId validity is checked upon use.
-		let payload_id = PayloadId(self.integer_payloads.len() as u32);
-		self.integer_payloads.push(payload);
-		payload_id
+		let i = self.num_integer_payloads;
+		if i >= self.integer_payloads.len()
+		{
+			return Err(TokenAllocError);
+		}
+		let payload_id = PayloadId(i as u32);
+		self.integer_payloads[i].write(payload);
+		self.num_integer_payloads += 1;
+		Ok(payload_id)
 	}
 
 	pub(super) fn push_error(
 		&mut self,
 		error: LexingError,
 		location: TokenLocation,
-	)
+	) -> Result<(), TokenAllocError>
 	{
-		let token_id = self.push(BaseToken::Error, None, None, location);
-		self.errors.push((error, token_id));
+		let token_id = self.push(BaseToken::Error, None, None, location)?;
+		let i = self.num_errors;
+		if i >= self.errors.len()
+		{
+			return Err(TokenAllocError);
+		}
+		self.errors[i].write((error, token_id));
+		self.num_errors += 1;
+		Ok(())
 	}
 
 	pub(super) fn push_end_of_source(
 		&mut self,
 		end_of_source_location: TokenLocation,
-	)
+	) -> Result<(), TokenAllocError>
 	{
-		if self.tokens.len() > MAX_NUM_TOKENS - 1
-		{
-			self.tokens.truncate(MAX_NUM_TOKENS - 1);
-			self.token_locations.truncate(MAX_NUM_TOKENS - 1);
-
-			let last = self.tokens.last_mut().expect("clearly non-empty");
-			let error = LexingError::TooManyTokens;
-			self.errors.push((error, last.token_id()));
-		}
-		self.push(BaseToken::EndOfSource, None, None, end_of_source_location);
+		self.push(BaseToken::EndOfSource, None, None, end_of_source_location)?;
+		Ok(())
 	}
+}
 
-	pub(super) fn finalize(&mut self)
-	{
-		assert!(self.tokens.len() <= MAX_NUM_TOKENS);
-		assert_eq!(self.token_locations.len(), self.tokens.len());
-		assert!(self.integer_payloads.len() <= 1 + self.tokens.len());
-		assert!(self.integer_payloads.len() <= MAX_NUM_PAYLOADS);
-	}
-
+impl Tokens
+{
 	pub fn get_integer_payload(
 		&self,
 		PayloadId(payload_id): PayloadId,
@@ -239,28 +356,6 @@ impl Tokens
 			line_number: location.line_number(),
 			line_offset: location.line_offset(),
 		}
-	}
-
-	pub fn dump(&self) -> impl Iterator<Item = String>
-	{
-		self.tokens.iter().copied().map(|token| {
-			let base_token = token.base_token();
-			let value_type = token.value_type();
-			let payload = self.get_integer_payload(token.payload_id());
-			match (value_type, payload)
-			{
-				(ValueTypeKeyword::NoKeyword, None) => format!("{base_token}"),
-				(ValueTypeKeyword::NoKeyword, Some(payload)) =>
-				{
-					format!("{base_token}={payload:?}")
-				}
-				(value_type, None) => format!("{base_token}({value_type})"),
-				(value_type, Some(payload)) =>
-				{
-					format!("{base_token}({value_type})={payload:?}")
-				}
-			}
-		})
 	}
 
 	pub fn errors(&self) -> Option<Errors>

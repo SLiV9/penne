@@ -6,13 +6,13 @@
 
 //! The second generation compiler for the Penne programming language.
 
-#![expect(unused)]
-
 pub mod fuzzer;
 pub mod lexer;
 
 pub mod test_suite
 {
+	#![expect(unused)]
+
 	use super::*;
 
 	use crate::alpha::error::Errors;

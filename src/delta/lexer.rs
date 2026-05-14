@@ -166,25 +166,50 @@ pub fn lex(source: &[u8], source_filename: &str) -> Tokens
 {
 	if source.len() > MAX_SOURCE_LEN
 	{
-		let mut buffer = Tokens::empty(source_filename.to_string(), 0);
-		let dummy_location = TokenLocation {
-			start: 0,
-			end: 0,
-			start_of_line: 0,
-			line_number: 0,
-		};
-		buffer.push_error(LexingError::TooManySourceBytes, dummy_location);
-		return buffer;
+		return Tokens::empty_with_one_error(
+			source_filename.to_string(),
+			LexingError::TooManySourceBytes,
+		);
 	}
 
 	let mut buffer = Tokens::empty(source_filename.to_string(), source.len());
-	lex_source_into_tokens(source, &mut buffer);
-	buffer.finalize();
-	buffer
+	lex_source_into_tokens(source, buffer)
 }
 
 #[inline(never)]
-fn lex_source_into_tokens(source: &[u8], buffer: &mut Tokens)
+fn lex_source_into_tokens(source: &[u8], mut tokens: Tokens) -> Tokens
+{
+	let mut buffer = tokens.buffer();
+	let result = lex_source_into_buffer(source, &mut buffer);
+
+	let num_tokens = buffer.num_tokens;
+	let num_integer_payloads = buffer.num_integer_payloads;
+	let num_errors = buffer.num_errors;
+	// TODO
+	unsafe {
+		tokens.set_tokens_len(num_tokens);
+		tokens.set_integer_payloads_len(num_integer_payloads);
+		tokens.set_errors_len(num_errors);
+	}
+
+	match result
+	{
+		Ok(()) => tokens,
+		Err(TokenAllocError) =>
+		{
+			return Tokens::empty_with_one_error(
+				tokens.source_filename,
+				LexingError::TooManyTokens,
+			);
+		}
+	}
+}
+
+#[inline(always)]
+fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
+	source: &'source [u8],
+	buffer: &'buffer mut TokensBuffer<'tokens>,
+) -> Result<(), tokens::TokenAllocError>
 {
 	let mut iter = source.iter().copied().enumerate().peekable();
 	let mut line_number = 1;

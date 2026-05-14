@@ -571,7 +571,6 @@ fn compile_to_ir_using_delta(
 		stdout.newline()?;
 		stdout.header("Lexing", &filename)?;
 		let tokens = penne::delta::lexer::lex(source.as_bytes(), &filename);
-		stdout.dump_delta_tokens(&tokens)?;
 
 		let mut source = source;
 		if source.is_empty()
