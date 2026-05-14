@@ -292,10 +292,9 @@ Rewrite using Data-Oriented Compiler Design for 0.5.0:
 	  ✔	Tokens contain u32 indices into Lexer's SOA vecs @done (2026-05-09 17:17)
 		✘	Keep whitespace and comments as tokens @cancelled (2026-05-09 17:17)
 		✔	Add end of file token @done (2026-05-11 20:07)
-		☐	Add unbalanced/missing closing braces as tokens
+		✘	Add unbalanced/missing closing braces as tokens @cancelled (2026-05-14 19:25)
 	☐	Parser
 		☐	Number of parse tree nodes <= number of tokens
-			☐	Increase capacity of (small)vec ahead of time
 		☐	Store parse tree nodes as postorder traversed array
 	☐	Rebuilder
 	☐	Everything above at 1MLOC/s (10% of Carbon's goals) to allow formatting

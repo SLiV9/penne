@@ -181,12 +181,12 @@ impl Tokens
 			token_vaps: token_vaps.spare_capacity_mut(),
 			token_locations: token_locations.spare_capacity_mut(),
 			integer_payloads,
-			num_errors: 0,
-			errors: errors.spare_capacity_mut(),
+			errors,
 		}
 	}
 
-	/// TODO
+	/// SAFETY: The `num_tokens` argument MUST be the value returned by
+	/// calling [TokensBuffer::into_num_initialized_tokens].
 	pub(super) unsafe fn set_tokens_len(&mut self, num_tokens: usize)
 	{
 		assert_eq!(self.token_vaps.len(), self.tokens.len());
@@ -196,41 +196,38 @@ impl Tokens
 
 		assert_eq!(self.tokens.len(), 0);
 		assert!(num_tokens <= self.tokens.capacity());
-		// TODO
+		// Safety: we have checked that `num_tokens` is less than the capacity
+		// of each of the buffers.
+		// The buffers are initialized in `push_token`, which is also the only
+		// place where `num_tokens` is modified. The caller guarantees the
+		// `num_tokens` argument comes from `into_num_initialized_tokens`.
 		unsafe {
 			self.tokens.set_len(num_tokens);
 			self.token_vaps.set_len(num_tokens);
 			self.token_locations.set_len(num_tokens);
 		}
 	}
-
-	/// TODO
-	pub(super) unsafe fn set_errors_len(&mut self, num_errors: usize)
-	{
-		assert_eq!(self.errors.len(), 0);
-		assert!(num_errors <= self.errors.capacity());
-		// TODO
-		unsafe {
-			self.errors.set_len(num_errors);
-		}
-	}
 }
 
 pub(super) struct TokensBuffer<'buffer>
 {
-	pub num_tokens: usize,
+	num_tokens: usize,
 	tokens: &'buffer mut [MaybeUninit<BaseToken>],
 	token_vaps: &'buffer mut [MaybeUninit<ValueTypeAndPayloadId>],
 	token_locations: &'buffer mut [MaybeUninit<TokenLocation>],
 
 	integer_payloads: &'buffer mut Vec<u128>,
 
-	pub num_errors: usize,
-	errors: &'buffer mut [MaybeUninit<(LexingError, TokenId)>],
+	errors: &'buffer mut Vec<(LexingError, TokenId)>,
 }
 
 impl<'buffer> TokensBuffer<'buffer>
 {
+	pub(super) fn into_num_initialized_tokens(self) -> usize
+	{
+		self.num_tokens
+	}
+
 	#[inline]
 	pub(super) fn push(
 		&mut self,
@@ -295,16 +292,15 @@ impl<'buffer> TokensBuffer<'buffer>
 		location: TokenLocation,
 	) -> Result<(), TokenAllocError>
 	{
-		let i = self.num_errors;
-		if i >= self.errors.len()
+		let i = self.errors.len();
+		if i >= self.errors.capacity()
 		{
 			// We ignore errors after the first MAX_NUM_LEXING_ERRORS,
 			// because there is no point showing the user all of them.
 			return Ok(());
 		}
 		let token_id = self.push(BaseToken::Error, None, None, location)?;
-		self.errors[i].write((error, token_id));
-		self.num_errors += 1;
+		self.errors.push((error, token_id));
 		Ok(())
 	}
 

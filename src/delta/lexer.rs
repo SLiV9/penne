@@ -182,12 +182,11 @@ fn lex_source_into_tokens(source: &[u8], mut tokens: Tokens) -> Tokens
 	let mut buffer = tokens.buffer();
 	let result = lex_source_into_buffer(source, &mut buffer);
 
-	let num_tokens = buffer.num_tokens;
-	let num_errors = buffer.num_errors;
-	// TODO
+	// Safety: we are calling `set_tokens_len` with the result of
+	// `into_num_initialized_tokens`.
 	unsafe {
+		let num_tokens = buffer.into_num_initialized_tokens();
 		tokens.set_tokens_len(num_tokens);
-		tokens.set_errors_len(num_errors);
 	}
 
 	match result
@@ -997,7 +996,7 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 
 #[inline(always)]
 fn parse_integer_suffix(suffix: &[u8])
--> Result<ValueTypeKeyword, LexingError>
+	-> Result<ValueTypeKeyword, LexingError>
 {
 	match suffix
 	{
