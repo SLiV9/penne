@@ -14,7 +14,7 @@ const MAX_NUM_LEXING_ERRORS: usize = 1024;
 pub(super) struct TokenAllocError;
 
 #[derive(Clone, Copy, Debug)]
-struct ValueTypeAndPayloadId
+pub struct ValueTypeAndPayloadId
 {
 	value_type_and_payload_id: u32,
 }
@@ -32,6 +32,7 @@ impl ValueTypeAndPayloadId
 		}
 	}
 
+	#[inline(always)]
 	pub fn value_type(self) -> ValueTypeKeyword
 	{
 		let value_type = (self.value_type_and_payload_id & 0xFF) as u8;
@@ -40,6 +41,7 @@ impl ValueTypeAndPayloadId
 		value_type.unwrap_or(ValueTypeKeyword::NoKeyword)
 	}
 
+	#[inline(always)]
 	pub fn payload_id(self) -> PayloadId
 	{
 		let payload_id = self.value_type_and_payload_id >> 8;
@@ -178,8 +180,7 @@ impl Tokens
 			tokens: tokens.spare_capacity_mut(),
 			token_vaps: token_vaps.spare_capacity_mut(),
 			token_locations: token_locations.spare_capacity_mut(),
-			num_integer_payloads: 0,
-			integer_payloads: integer_payloads.spare_capacity_mut(),
+			integer_payloads,
 			num_errors: 0,
 			errors: errors.spare_capacity_mut(),
 		}
@@ -204,20 +205,6 @@ impl Tokens
 	}
 
 	/// TODO
-	pub(super) unsafe fn set_integer_payloads_len(
-		&mut self,
-		num_integer_payloads: usize,
-	)
-	{
-		assert_eq!(self.integer_payloads.len(), 0);
-		assert!(num_integer_payloads <= self.integer_payloads.capacity());
-		// TODO
-		unsafe {
-			self.integer_payloads.set_len(num_integer_payloads);
-		}
-	}
-
-	/// TODO
 	pub(super) unsafe fn set_errors_len(&mut self, num_errors: usize)
 	{
 		assert_eq!(self.errors.len(), 0);
@@ -236,8 +223,7 @@ pub(super) struct TokensBuffer<'buffer>
 	token_vaps: &'buffer mut [MaybeUninit<ValueTypeAndPayloadId>],
 	token_locations: &'buffer mut [MaybeUninit<TokenLocation>],
 
-	pub num_integer_payloads: usize,
-	integer_payloads: &'buffer mut [MaybeUninit<u128>],
+	integer_payloads: &'buffer mut Vec<u128>,
 
 	pub num_errors: usize,
 	errors: &'buffer mut [MaybeUninit<(LexingError, TokenId)>],
@@ -293,14 +279,13 @@ impl<'buffer> TokensBuffer<'buffer>
 		payload: u128,
 	) -> Result<PayloadId, TokenAllocError>
 	{
-		let i = self.num_integer_payloads;
-		if i >= self.integer_payloads.len()
+		let i = self.integer_payloads.len();
+		if i >= MAX_NUM_PAYLOADS
 		{
 			return Err(TokenAllocError);
 		}
 		let payload_id = PayloadId(i as u32);
-		self.integer_payloads[i].write(payload);
-		self.num_integer_payloads += 1;
+		self.integer_payloads.push(payload);
 		Ok(payload_id)
 	}
 
@@ -310,12 +295,14 @@ impl<'buffer> TokensBuffer<'buffer>
 		location: TokenLocation,
 	) -> Result<(), TokenAllocError>
 	{
-		let token_id = self.push(BaseToken::Error, None, None, location)?;
 		let i = self.num_errors;
 		if i >= self.errors.len()
 		{
-			return Err(TokenAllocError);
+			// We ignore errors after the first MAX_NUM_LEXING_ERRORS,
+			// because there is no point showing the user all of them.
+			return Ok(());
 		}
+		let token_id = self.push(BaseToken::Error, None, None, location)?;
 		self.errors[i].write((error, token_id));
 		self.num_errors += 1;
 		Ok(())
@@ -333,6 +320,16 @@ impl<'buffer> TokensBuffer<'buffer>
 
 impl Tokens
 {
+	pub fn get_value_type_and_payload(
+		&self,
+		TokenId(token_id): TokenId,
+	) -> ValueTypeAndPayloadId
+	{
+		let i = token_id as usize;
+		// This cannot fail, by construction.
+		self.token_vaps[i]
+	}
+
 	pub fn get_integer_payload(
 		&self,
 		PayloadId(payload_id): PayloadId,

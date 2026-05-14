@@ -172,7 +172,7 @@ pub fn lex(source: &[u8], source_filename: &str) -> Tokens
 		);
 	}
 
-	let mut buffer = Tokens::empty(source_filename.to_string(), source.len());
+	let buffer = Tokens::empty(source_filename.to_string(), source.len());
 	lex_source_into_tokens(source, buffer)
 }
 
@@ -183,12 +183,10 @@ fn lex_source_into_tokens(source: &[u8], mut tokens: Tokens) -> Tokens
 	let result = lex_source_into_buffer(source, &mut buffer);
 
 	let num_tokens = buffer.num_tokens;
-	let num_integer_payloads = buffer.num_integer_payloads;
 	let num_errors = buffer.num_errors;
 	// TODO
 	unsafe {
 		tokens.set_tokens_len(num_tokens);
-		tokens.set_integer_payloads_len(num_integer_payloads);
 		tokens.set_errors_len(num_errors);
 	}
 
@@ -768,7 +766,7 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 			b'"' =>
 			{
 				let opening_quote = x;
-				let push_byte = |b: u8| {};
+				let push_byte = |_byte: u8| {};
 				let mut closed = false;
 				let mut first_error = None;
 
@@ -979,11 +977,11 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 		{
 			Ok(base_token) =>
 			{
-				buffer.push(base_token, value_type, payload, location);
+				buffer.push(base_token, value_type, payload, location)?;
 			}
 			Err(error) =>
 			{
-				buffer.push_error(error, location);
+				buffer.push_error(error, location)?;
 			}
 		}
 	}
