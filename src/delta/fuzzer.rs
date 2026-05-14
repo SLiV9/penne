@@ -2,9 +2,9 @@ use rand::distr::weighted::WeightedIndex;
 use rand::prelude::*;
 use strum::IntoEnumIterator as _;
 
+use super::lexer::is_identifier_continuation;
 use super::lexer::BaseToken;
 use super::lexer::ValueTypeKeyword;
-use super::lexer::is_identifier_continuation;
 
 #[derive(Debug, Clone, Copy, Default)]
 #[derive(clap::ValueEnum, serde::Deserialize, serde::Serialize, strum::Display)]
@@ -226,7 +226,7 @@ pub fn fill_to_capacity_with_tokens(
 		}
 	};
 
-	let mut next_newline_at = rng.random_range(10..100);
+	let mut next_newline_at = rng.random_range(10..80);
 	let mut next_comment_at = rng.random_range(200..500);
 
 	assert!(percentage < 100);
@@ -240,9 +240,9 @@ pub fn fill_to_capacity_with_tokens(
 			}
 			buffer.push('\n');
 
-			if rng.random_bool(0.9)
+			if rng.random_bool(0.8)
 			{
-				next_newline_at = buffer.len() + rng.random_range(10..100);
+				next_newline_at = buffer.len() + rng.random_range(10..80);
 			}
 		}
 
