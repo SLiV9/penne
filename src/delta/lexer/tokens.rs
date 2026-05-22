@@ -316,6 +316,38 @@ impl<'buffer> TokensBuffer<'buffer>
 
 impl Tokens
 {
+	#[inline]
+	pub fn base_tokens(&self) -> &[BaseToken]
+	{
+		&self.tokens
+	}
+
+	#[inline]
+	pub fn find_span(
+		&self,
+		from: usize,
+		expect_start_with: impl Fn(BaseToken) -> bool,
+		until: impl Fn(BaseToken) -> bool,
+	) -> std::ops::Range<usize>
+	{
+		let len = self.tokens.len();
+		let mut i = from;
+		let first_token = *self.tokens.get(i).expect("ends with EndOfSource");
+		if expect_start_with(first_token)
+		{
+			i += 1;
+		}
+		while i < len
+		{
+			if until(self.tokens[i]) || self.tokens[i] == BaseToken::EndOfSource
+			{
+				return from..i;
+			}
+			i += 1;
+		}
+		panic!("there is always an EndOfSource token")
+	}
+
 	pub fn get_value_type_and_payload(
 		&self,
 		TokenId(token_id): TokenId,

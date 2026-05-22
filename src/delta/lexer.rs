@@ -996,7 +996,7 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 
 #[inline(always)]
 fn parse_integer_suffix(suffix: &[u8])
-	-> Result<ValueTypeKeyword, LexingError>
+-> Result<ValueTypeKeyword, LexingError>
 {
 	match suffix
 	{

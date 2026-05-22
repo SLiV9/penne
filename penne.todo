@@ -136,6 +136,9 @@ Functionality:
 	  ☐	Requires hidden syntax for lifetime/region annotations
 	  ☐	Requires some syntax for exclusive pointers (default but not supported in extern) vs shared unrestricted pointers (needed for extern)
 	  	☐	Also think about atomics, as it doesn't make sense to have a view to atomics
+			Wait doesn't it? In (virtual) embedded situations such as WASM4, I have a need for memory reads that cannot be elided, despite the fact that no Penne code can modify it.
+		☐	Maybe &mut vs &extern vs &const?
+			Oof I would lose the fact that declaration keywords always start a declaration.
 	  	☐	Exclusive pointers will solve github issue #5
 	  ☐	Requires unsafe keyword and scoping rules
 
@@ -266,6 +269,7 @@ Documentation:
 			☐	New type divisions
 				Copy types such as primitives and words
 				  They are never views, but can be pointers
+				  However, in wasm I have the need for constants that "pointers" to a primitive that can be read but not modified, i.e. a view, and also constants that are pointers to modifyable primitives. On the other hand, the indirection is needed precisely because it is "volatile"; something else may modify it in between reads, and reads should not be optimized out.
 				Pointers themselves are copy
 				  You cannot have a view to a pointer, but can have pointer to pointer
 				Struct and [10]T

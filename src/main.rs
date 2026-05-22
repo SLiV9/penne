@@ -606,9 +606,9 @@ fn compile_to_ir_using_delta(
 			return Err(anyhow!("compilation failed"));
 		}
 
-		modules.push((filepath, tokens));
+		let parse_tree = penne::delta::parser::parse(&tokens);
 
-		// TODO parse
+		modules.push((filepath, tokens, parse_tree));
 	}
 
 	// TODO finish
