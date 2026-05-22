@@ -2132,22 +2132,6 @@ fn generate_conversion(
 	}
 }
 
-#[must_use]
-#[derive(Debug, Clone)]
-pub enum GeneratorBuiltin
-{
-	Abort,
-	Format
-	{
-		arguments: Vec<Expression>,
-	},
-	Write
-	{
-		fd: builtin::Fd,
-		buffer: Box<Expression>,
-	},
-}
-
 impl Generatable for GeneratorBuiltin
 {
 	type Item = LLVMValueRef;
@@ -2200,19 +2184,6 @@ impl Generatable for GeneratorBuiltin
 				let _ = return_type;
 				Ok(result)
 			}
-		}
-	}
-}
-
-impl Typed for GeneratorBuiltin
-{
-	fn value_type(&self) -> ValueType
-	{
-		match self
-		{
-			GeneratorBuiltin::Abort => ValueType::Void,
-			GeneratorBuiltin::Format { .. } => ValueType::for_string_slice(),
-			GeneratorBuiltin::Write { .. } => ValueType::Usize,
 		}
 	}
 }

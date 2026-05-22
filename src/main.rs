@@ -4,13 +4,10 @@
 // License: MIT
 //
 
+#[cfg(feature = "alpha")]
 use penne::alpha::Compiler;
-use penne::alpha::expander;
+
 use penne::alpha::included;
-use penne::alpha::lexer;
-use penne::alpha::parser;
-use penne::alpha::resolver;
-use penne::alpha::scoper;
 use penne::alpha::stdout;
 use penne::delta::fuzzer;
 
@@ -319,9 +316,9 @@ fn do_main() -> Result<(), anyhow::Error>
 		.or_else(|| derive_output_filepath(&filepaths, out_dir.as_ref(), wasm));
 	let compilation_units = gather_compilation_units(filepaths)?;
 
-	let generated_ir = if cfg!(feature = "delta")
+	let generated_ir = if cfg!(feature = "alpha")
 	{
-		compile_to_ir_using_delta(
+		compile_to_ir_using_alpha(
 			compilation_units,
 			out_dir.as_ref(),
 			wasm,
@@ -330,7 +327,7 @@ fn do_main() -> Result<(), anyhow::Error>
 	}
 	else
 	{
-		compile_to_ir_using_alpha(
+		compile_to_ir_using_delta(
 			compilation_units,
 			out_dir.as_ref(),
 			wasm,
@@ -430,6 +427,19 @@ fn gather_compilation_units(
 	Ok(compilation_units)
 }
 
+#[cfg(not(feature = "alpha"))]
+#[inline(never)]
+fn compile_to_ir_using_alpha(
+	_compilation_units: Vec<(std::path::PathBuf, String)>,
+	_out_dir: Option<&std::path::PathBuf>,
+	_for_wasm: bool,
+	_stdout: &mut stdout::StdOut,
+) -> Result<String, anyhow::Error>
+{
+	unimplemented!("missing feature flag 'alpha'")
+}
+
+#[cfg(feature = "alpha")]
 #[inline(never)]
 fn compile_to_ir_using_alpha(
 	compilation_units: Vec<(std::path::PathBuf, String)>,
@@ -438,6 +448,12 @@ fn compile_to_ir_using_alpha(
 	stdout: &mut stdout::StdOut,
 ) -> Result<String, anyhow::Error>
 {
+	use penne::alpha::expander;
+	use penne::alpha::lexer;
+	use penne::alpha::parser;
+	use penne::alpha::resolver;
+	use penne::alpha::scoper;
+
 	let mut sources = Vec::new();
 	let mut modules = Vec::new();
 

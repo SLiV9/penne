@@ -29,7 +29,6 @@ pub mod builtin;
 pub mod common;
 pub mod error;
 pub mod expander;
-pub mod generator;
 pub mod included;
 pub mod lexer;
 pub mod linter;
@@ -42,10 +41,14 @@ pub mod stdout;
 pub mod typer;
 pub mod value_type;
 
+#[cfg(feature = "alpha")]
+pub mod generator;
+
 pub use error::Error;
 pub use error::Errors;
 pub use resolved::Declaration;
 
+#[cfg(feature = "alpha")]
 /// Convenience method that parses source code and runs it through each of the
 /// compiler stages, except full IR generation.
 pub fn compile_source(
@@ -65,6 +68,7 @@ pub fn compile_source(
 		.expect("failed to generate IR")
 }
 
+#[cfg(feature = "alpha")]
 /// After parsing and scoping, the relative order of type inferencing, analysis
 /// and IR generation for individual declarations is managed by a Compiler.
 /// This allows compile-time constants to be used during type inference.
@@ -77,6 +81,7 @@ pub struct Compiler
 	generator: generator::Generator,
 }
 
+#[cfg(feature = "alpha")]
 impl Compiler
 {
 	/// Change the target triple from the current OS to WebAssembly.
@@ -237,6 +242,7 @@ impl Compiler
 	}
 }
 
+#[cfg(feature = "alpha")]
 pub mod test_suite
 {
 	use super::*;

@@ -12,3 +12,5 @@
 /perf.*
 /stacks.*.out
 /flamegraph.svg
+
+/.vscode

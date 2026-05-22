@@ -19,8 +19,8 @@ pub mod delta;
 
 mod execution_test_tools;
 
-#[cfg(not(feature = "delta"))]
+#[cfg(feature = "alpha")]
 pub use alpha::test_suite;
 
-#[cfg(feature = "delta")]
+#[cfg(not(feature = "alpha"))]
 pub use delta::test_suite;

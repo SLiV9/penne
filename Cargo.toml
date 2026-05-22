@@ -10,6 +10,7 @@ repository = "https://github.com/SLiV9/penne"
 exclude = ["/docs/_site"]
 
 [features]
+alpha = []
 delta = []
 
 [dependencies]
@@ -23,7 +24,7 @@ serde_plain = "1.0"
 toml = "0.5"
 clap = { version = "4.0", features = ["derive"] }
 libc = "0.2"
-llvm-sys = "60"
+llvm-sys = { version = "60", optional = true }
 strum = { version = "0.28", features = ["derive"] }
 rand = { version = "0.10", features = ["alloc"] }
 

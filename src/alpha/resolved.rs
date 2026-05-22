@@ -11,8 +11,6 @@ pub use crate::alpha::builtin;
 pub use crate::alpha::common::DeclarationFlag;
 pub use crate::alpha::common::{BinaryOp, ComparisonOp, UnaryOp};
 
-pub(crate) use crate::alpha::generator::GeneratorBuiltin;
-
 use crate::alpha::value_type;
 
 pub type ValueType = value_type::ValueType<Identifier>;
@@ -336,5 +334,34 @@ impl PartialEq for Identifier
 	fn eq(&self, other: &Identifier) -> bool
 	{
 		self.resolution_id > 0 && self.resolution_id == other.resolution_id
+	}
+}
+
+#[must_use]
+#[derive(Debug, Clone)]
+pub enum GeneratorBuiltin
+{
+	Abort,
+	Format
+	{
+		arguments: Vec<Expression>,
+	},
+	Write
+	{
+		fd: builtin::Fd,
+		buffer: Box<Expression>,
+	},
+}
+
+impl Typed for GeneratorBuiltin
+{
+	fn value_type(&self) -> ValueType
+	{
+		match self
+		{
+			GeneratorBuiltin::Abort => ValueType::Void,
+			GeneratorBuiltin::Format { .. } => ValueType::for_string_slice(),
+			GeneratorBuiltin::Write { .. } => ValueType::Usize,
+		}
 	}
 }
