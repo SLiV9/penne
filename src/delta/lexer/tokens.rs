@@ -8,7 +8,7 @@ use std::mem::MaybeUninit;
 pub const MAX_SOURCE_LEN: usize = 1 << 31;
 const MAX_NUM_TOKENS: usize = 1 << 24;
 const MAX_NUM_PAYLOADS: usize = 1 << 24;
-const MAX_NUM_LEXING_ERRORS: usize = 1024;
+const MAX_NUM_LEXING_ERRORS: usize = 100;
 
 #[must_use]
 pub(super) struct TokenAllocError;

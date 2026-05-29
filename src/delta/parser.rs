@@ -1,17 +1,289 @@
 use enumset::EnumSet;
 
+use crate::alpha::common::BinaryOp;
+use crate::alpha::common::ComparisonOp;
 use crate::alpha::common::DeclarationFlag;
+use crate::alpha::common::UnaryOp;
 use crate::delta::lexer;
 use crate::delta::lexer::BaseToken;
 use crate::delta::lexer::ValueTypeKeyword;
-use crate::delta::lexer::tokens::TokenId;
 use crate::delta::lexer::tokens::Tokens;
 
 pub const MAX_ADDRESS_DEPTH: u8 = 127;
 pub const MAX_REFERENCE_DEPTH: usize = 127;
+pub const MAX_NUM_PARSING_ERRORS: usize = 100;
+
+const MAX_NUM_NODES: usize = 1 << 24;
+
+#[derive(Debug, Clone, Copy)]
+struct NodeId(U24);
+
+#[derive(Debug, Clone, Copy)]
+struct TokenId(U24);
+
+#[derive(Clone, Copy)]
+struct U24([u8; 3]);
+
+impl U24
+{
+	fn new(value: u32) -> Self
+	{
+		debug_assert!((value as usize) < MAX_NUM_NODES);
+		let [_x3, x2, x1, x0] = value.to_le_bytes();
+		Self([x2, x1, x0])
+	}
+}
+
+impl From<U24> for u32
+{
+	fn from(value: U24) -> Self
+	{
+		let [x2, x1, x0] = value.0;
+		let bytes = [0, x2, x1, x0];
+		u32::from_le_bytes(bytes)
+	}
+}
+
+impl std::fmt::Debug for U24
+{
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+	{
+		let value = u32::from(*self);
+		f.debug_tuple("U24").field(&value).finish()
+	}
+}
+
+pub enum ParseNode
+{
+	Declaration(Declaration),
+	DeclarationFlags(EnumSet<DeclarationFlag>),
+	NameAndType {
+		// identifier <- from token id
+		// value_type: ValueType <-
+	},
+	Statement(Statement),
+	Then {
+		// then = nodes[-1]
+	},
+	ThenElse
+	{
+		then: NodeId,
+		// else = nodes[-1]
+	},
+	Expression(Expression),
+	FunctionBody {
+		// return_value: Expression = nodes[-1]
+	},
+	// TODO instead of all this, I could also create separate vecs:
+	// - declarations
+	// - statements
+	// - expressions
+	// - names_and_types
+	// And then encode the start and end as U24.
+	// Then Declaration can occupy 8 or 16 bytes, but statements stay small.
+	// Oof no but value types are part of declarations, statements and expressions, and they would suffer from a lot more indirection.
+	ListItem
+	{
+		// value: ParseNode = nodes[-1]
+		next: NodeId,
+	},
+	NoMoreItems,
+	Poison,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Declaration
+{
+	Constant
+	{
+		// identifier <- token id
+		// flags: DeclarationFlags = nodes[-1]
+		value_type: NodeId,
+		// expression: ValueType = nodes[-2]
+	},
+	Function
+	{
+		// identifier <- token id
+		// flags: DeclarationFlags = nodes[-1]
+		// first_parameter: ListItem = nodes[-2]
+		return_type: NodeId,
+		// body: FunctionBody = nodes[-3]
+	},
+	FunctionHead
+	{
+		// identifier <- token id
+		// flags: DeclarationFlags = nodes[-1]
+		// first_parameter: ListItem = nodes[-2]
+		return_type: NodeId,
+	},
+	Structure
+	{
+		num_members: U24,
+		// identifier <- token id
+		// flags: DeclarationFlags = nodes[-1]
+		// first_member: ListItem = nodes[-2]
+		// value_type: ValueType = nodes[-3]
+	},
+	Import {
+		// path: StringLiteral = nodes[-1]
+	},
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Statement
+{
+	Declaration,
+	Assignment,
+	Loop,
+	Goto,
+	Label,
+	If
+	{
+		comparison: NodeId,
+		// then: Then/ThenElse = nodes[-1]
+	},
+	Block,
+	MethodCall
+	{
+		is_builtin: bool,
+	},
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Expression
+{
+	Binary
+	{
+		op: BinaryOp,
+		left: NodeId,
+		// right: Expression = nodes[-1]
+	},
+	Unary
+	{
+		op: UnaryOp,
+		// operand: Expression = nodes[-1]
+	},
+	BooleanLiteral,
+	SignedIntegerLiteral {
+		// value_type: ValueType = nodes[-1]
+	},
+	BitIntegerLiteral {
+		// value_type: ValueType = nodes[-1]
+	},
+	StringLiteral,
+	ArrayLiteral
+	{
+		num_elements: U24,
+		// first_item: ListItem = nodes[-1]
+	},
+	Structural,
+	Parenthesized,
+	Reference,
+	BitCast,
+	TypeCast,
+	LengthOf,
+	SizeOf,
+	FunctionCall
+	{
+		is_builtin: bool,
+	},
+}
+
+pub enum ParsedValueType
+{
+	Void,
+	Int8,
+	Int16,
+	Int32,
+	Int64,
+	Int128,
+	Uint8,
+	Uint16,
+	Uint32,
+	Uint64,
+	Uint128,
+	Usize,
+	Char8,
+	Bool,
+	Array
+	{
+		// element_type = nodes[-1]
+		num_elements: U24,
+	},
+	ArrayWithNamedLength
+	{
+		// element_type = nodes[-1]
+		named_length_identifier: TokenId,
+	},
+	Slice {
+		// element_type = nodes[-1]
+	},
+	SlicePointer {
+		// element_type = nodes[-1]
+	},
+	EndlessArray {
+		// element_type = nodes[-1]
+	},
+	Arraylike {
+		// element_type = nodes[-1]
+	},
+	Struct {
+		// identifier <- token
+	},
+	Word
+	{
+		// identifier <- token
+		size_in_bytes: u8,
+	},
+	UnresolvedStructOrWord {
+		// identifier <- token
+	},
+	Pointer {
+		// deref_type = nodes[-1]
+	},
+	View {
+		// deref_type = nodes[-1]
+	},
+}
+
+pub enum ParsingError
+{
+	UnexpectedToken,
+	UnexpectedSemicolonAfterIdentifier,
+	UnexpectedSemicolonAfterReturnValue,
+	MissingReturnType,
+	MissingAmbiguousReturnType,
+	AmbiguousReturnValue,
+	ConflictingReturnValue,
+	MissingReturnValue,
+	MissingReturnValueAfterStatement,
+	MissingConstantType,
+	MissingParameterType,
+	MissingMemberType,
+	IllegalType,
+	IllegalReturnType,
+	IllegalVariableType,
+	IllegalConstantType,
+	IllegalParameterType,
+	IllegalMemberType,
+	TypeNotAllowedInExtern,
+	TypeLacksKnownSize,
+	UnsupportedInConstContext,
+	FunctionInConstContext,
+	WordSizeMismatch,
+	MaximumParseDepthExceeded,
+}
 
 // TODO move into file
-pub struct ParseTree {}
+pub struct ParseTree
+{
+	nodes: Vec<ParseNode>,
+	node_tokens: Vec<TokenId>,
+
+	declarations: Vec<NodeId>,
+
+	errors: Vec<ParsingError>,
+}
 
 // struct Tokens<'a>
 // {
@@ -69,7 +341,7 @@ pub fn parse(tokens: &lexer::tokens::Tokens) -> ParseTree
 		tokens.base_tokens()[start_of_next_declaration],
 		BaseToken::EndOfSource
 	);
-	ParseTree {}
+	parse_tree
 }
 
 fn starts_declaration(token: BaseToken) -> bool
@@ -90,7 +362,6 @@ fn starts_declaration(token: BaseToken) -> bool
 		_ => false,
 	}
 }
-struct Declaration {}
 
 fn parse_declaration(
 	tokens: &Tokens,
