@@ -267,6 +267,12 @@ pub enum ParseNode
 		// arguments: List<Expression> = nodes[-2]
 	},
 	SimpleValueType(ValueTypeKeyword),
+	CompositeValueType
+	{
+		start: TokenId,
+		// end: EndOfSpan = nodes[-1]
+		// composite_type: VT = nodes[..-2]
+	},
 	ArrayVT
 	{
 		// element_type = nodes[-1]
@@ -295,6 +301,10 @@ pub enum ParseNode
 	},
 	ViewVT {
 		// deref_type = nodes[-1]
+	},
+	EndOfSpan
+	{
+		end: TokenId,
 	},
 	Item
 	{

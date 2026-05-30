@@ -451,6 +451,12 @@ impl Tokens
 		}
 	}
 
+	pub fn spans_multiple_tokens(&self, span: Span) -> bool
+	{
+		let end_inclusive = TokenId(span.end.0.saturating_sub(1));
+		end_inclusive > span.start
+	}
+
 	pub fn errors(&self) -> Option<Errors>
 	{
 		if self.errors.is_empty()

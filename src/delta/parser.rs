@@ -58,12 +58,6 @@ pub enum ParsingError
 	{
 		unexpected_token: tokens::TokenId
 	},
-	IllegalType
-	{
-		node_id: NodeId,
-		start: tokens::TokenId,
-		end: tokens::TokenId,
-	},
 	MaximumParseDepthExceeded
 	{
 		start: tokens::TokenId,
@@ -260,7 +254,7 @@ fn parse_constant_declaration(
 	let location_of_colon = span.start;
 	let value_type = if consume_optional(BaseToken::Colon, tokens, span)
 	{
-		parse_wellformed_type(tokens, buffer, span)?
+		parse_type(tokens, buffer, span)?
 	}
 	else
 	{
@@ -442,7 +436,7 @@ fn parse_rest_of_function_signature(
 
 	let return_type = if consume_optional(BaseToken::Arrow, tokens, span)
 	{
-		parse_wellformed_type(tokens, buffer, span)?
+		parse_type(tokens, buffer, span)?
 	}
 	else
 	{
@@ -462,7 +456,7 @@ fn parse_member(
 	let location_of_colon = span.start;
 	let value_type = if consume_optional(BaseToken::Colon, tokens, span)
 	{
-		parse_wellformed_type(tokens, buffer, span)?
+		parse_type(tokens, buffer, span)?
 	}
 	else
 	{
@@ -486,7 +480,7 @@ fn parse_parameter(
 	let location_of_colon = span.start;
 	let value_type = if consume_optional(BaseToken::Colon, tokens, span)
 	{
-		parse_wellformed_type(tokens, buffer, span)?
+		parse_type(tokens, buffer, span)?
 	}
 	else
 	{
@@ -499,28 +493,28 @@ fn parse_parameter(
 	Ok(node)
 }
 
-fn parse_wellformed_type(
+fn parse_type(
 	tokens: &Tokens,
 	buffer: &mut ParseBuffer<'_>,
 	span: &mut Span,
 ) -> Result<NodeId, ParsingError>
 {
-	let start_of_value_type = span.start;
+	let vt_start = span.start;
 	let value_type = parse_inner_type(tokens, buffer, span)?;
-	let end_of_value_type = span.start;
-	// TODO is wellformed
-	if true
+	let vt_end = span.start;
+	let node = if tokens.spans_multiple_tokens(vt_start..vt_end)
 	{
-		Ok(value_type)
+		buffer.expect_most_recent_node(value_type);
+		buffer.push_undeclared(ParseNode::EndOfSpan { end: vt_end.into() });
+		buffer.push(ParseNode::CompositeValueType {
+			start: vt_start.into(),
+		})
 	}
 	else
 	{
-		Err(ParsingError::IllegalType {
-			node_id: value_type,
-			start: start_of_value_type,
-			end: end_of_value_type,
-		})
-	}
+		value_type
+	};
+	Ok(node)
 }
 
 fn parse_inner_type(

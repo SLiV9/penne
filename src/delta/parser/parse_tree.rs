@@ -222,24 +222,14 @@ impl ParseTree
 		}
 
 		let errors = (self.errors.iter().copied())
-			.map(|error| build_error(error, self, tokens))
+			.map(|error| build_error(error, tokens))
 			.collect();
 
 		Some(Errors { errors })
 	}
-
-	fn get_value_type_for_error(&self, node: NodeId) -> error::ValueType
-	{
-		// TODO proof in the pudding: how do I traferse this?
-		todo!()
-	}
 }
 
-fn build_error(
-	error: ParsingError,
-	parse_tree: &ParseTree,
-	tokens: &Tokens,
-) -> error::Error
+fn build_error(error: ParsingError, tokens: &Tokens) -> error::Error
 {
 	match error
 	{
@@ -294,14 +284,6 @@ fn build_error(
 				location: tokens.get_location(unexpected_token),
 			}
 		}
-		ParsingError::IllegalType {
-			node_id,
-			start,
-			end,
-		} => error::Error::IllegalType {
-			value_type: parse_tree.get_value_type_for_error(node_id),
-			location: tokens.get_location_of_span(start..end),
-		},
 		ParsingError::MaximumParseDepthExceeded { start, end } =>
 		{
 			error::Error::MaximumParseDepthExceeded {

@@ -301,6 +301,7 @@ Rewrite using Data-Oriented Compiler Design for 0.5.0:
 		✔	Number of parse tree nodes <= number of tokens
 		✔	Store parse tree nodes as postorder traversed array
 		☐   Think about error numbering (2xx is now mixed into 3xx, but are returned separately)	
+			☐   Also, whether types are wellformed is no longer checked during parsing
 	☐	Rebuilder
 	☐	Everything above at 1MLOC/s (10% of Carbon's goals) to allow formatting
 		✔	Fuzzer that generates 40MB of random tokens @done (2026-05-10 20:21)

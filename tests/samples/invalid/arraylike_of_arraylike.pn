@@ -3,3 +3,5 @@ fn foo()
 {
 	var x: [][]i32;
 }
+
+fn bar(x: [][]i32);
