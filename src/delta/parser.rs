@@ -1,3 +1,6 @@
+pub mod parse_node;
+pub mod parse_tree;
+
 use enumset::EnumSet;
 
 use crate::alpha::common::BinaryOp;
@@ -7,313 +10,15 @@ use crate::alpha::common::UnaryOp;
 use crate::delta::lexer;
 use crate::delta::lexer::BaseToken;
 use crate::delta::lexer::ValueTypeKeyword;
+use crate::delta::lexer::tokens;
 use crate::delta::lexer::tokens::Tokens;
+use crate::delta::parser::parse_node::NodeId;
+use crate::delta::parser::parse_node::ParseNode;
+use crate::delta::parser::parse_tree::ParseBuffer;
+use crate::delta::parser::parse_tree::ParseTree;
 
 pub const MAX_ADDRESS_DEPTH: u8 = 127;
 pub const MAX_REFERENCE_DEPTH: usize = 127;
-pub const MAX_NUM_PARSING_ERRORS: usize = 100;
-
-const MAX_NUM_NODES: usize = 1 << 24;
-
-#[derive(Debug, Clone, Copy)]
-struct NodeId(U24);
-
-#[derive(Debug, Clone, Copy)]
-struct TokenId(U24);
-
-#[derive(Clone, Copy)]
-struct U24([u8; 3]);
-
-impl U24
-{
-	fn new(value: u32) -> Self
-	{
-		debug_assert!((value as usize) < MAX_NUM_NODES);
-		let [_x3, x2, x1, x0] = value.to_le_bytes();
-		Self([x2, x1, x0])
-	}
-}
-
-impl From<U24> for u32
-{
-	fn from(value: U24) -> Self
-	{
-		let [x2, x1, x0] = value.0;
-		let bytes = [0, x2, x1, x0];
-		u32::from_le_bytes(bytes)
-	}
-}
-
-impl std::fmt::Debug for U24
-{
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
-	{
-		let value = u32::from(*self);
-		f.debug_tuple("U24").field(&value).finish()
-	}
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum ParseNode
-{
-	ConstantDeclaration
-	{
-		start_of_declaration: TokenId,
-		// flags: DeclarationFlags = nodes[-1]
-		// identifier: Identifier = nodes[-2]
-		// value_type: Item<ValueType> = nodes[-3]
-		// expression: Expression = nodes[..-4]
-	},
-	FunctionDeclaration
-	{
-		start_of_declaration: TokenId,
-		// flags: DeclarationFlags = nodes[-1]
-		// identifier: Identifier = nodes[-2]
-		// parameters: List<IdentifierAndVT> = nodes[-3]
-		// statements: List<Statement> = nodes[-4],
-		// return_value: Item<Expression> = nodes[-5]
-		// return_type: ValueType = nodes[..-6]
-	},
-	FunctionHeadDeclaration
-	{
-		start_of_declaration: TokenId,
-		// flags: DeclarationFlags = nodes[-1]
-		// identifier: Identifier = nodes[-2]
-		// parameters: List<IdentifierAndVT> = nodes[-3]
-		// statements: Padding = nodes[-4]
-		// return_value: Padding = nodes[-5]
-		// return_type: ValueType = nodes[..-6]
-	},
-	StructureDeclaration
-	{
-		start_of_declaration: TokenId,
-		// flags: DeclarationFlags = nodes[-1]
-		// identifier: Identifier = nodes[-2]
-		// members: List<IdentifierAndVT> = nodes[-3]
-		// structural_type: ValueType = nodes[..-4]
-	},
-	ImportDeclaration
-	{
-		start_of_declaration: TokenId,
-		// path: StringLiteral = nodes[-1]
-	},
-	DeclarationFlags(EnumSet<DeclarationFlag>),
-	Identifier
-	{
-		identifier_token: TokenId,
-	},
-	IdentifierAndVT
-	{
-		identifier_token: TokenId,
-		// value_type: ValueType = nodes[..-1]
-	},
-	IdentifierAndExpression
-	{
-		identifier_token: TokenId,
-		// expression: Expression = nodes[..-1]
-	},
-	VariableDeclaration
-	{
-		identifier_token: TokenId,
-		// value_type: Item<ValueType>/NoMoreItems = nodes[-1]
-		// expression: Item<Expression>/NoMoreItems = nodes[-2]
-	},
-	Assignment {
-		// deref: Item<Deref> = nodes[-1]
-		// expression: Expression = nodes[..-2]
-	},
-	Loop
-	{
-		token: TokenId,
-	},
-	Goto
-	{
-		token: TokenId,
-		// label: Identifier = nodes[-1]
-	},
-	Label
-	{
-		// label: Identifier = nodes[-1]
-		semicolon: TokenId,
-	},
-	If
-	{
-		comparison: NodeId,
-		// then: Then/ThenElse = nodes[-1]
-	},
-	Then {
-		// then: Statement = nodes[..-1]
-	},
-	ThenElse
-	{
-		then: NodeId,
-		// else: Statement = nodes[..-1]
-	},
-	Block
-	{
-		first: NodeId, // ListItem<Statement>
-	},
-	MethodCall
-	{
-		// identifier: Identifier = nodes[-1]
-		is_builtin: bool,
-		// arguments: List<Expression> = nodes[-2]
-	},
-	Parenthesized {
-		// inner: Expression = nodes[..-1]
-	},
-	Comparison
-	{
-		token: TokenId,
-		// op: ComparisonOp = nodes[-1],
-		// left: Item<Expression> = nodes[-2],
-		// right: Expression = nodes[..-3]
-	},
-	ComparisonOp(ComparisonOp),
-	Binary
-	{
-		token: TokenId,
-		// op: BinaryOp = nodes[-1],
-		// left: Item<Expression> = nodes[-2],
-		// right: Expression = nodes[..-3]
-	},
-	BinaryOp(BinaryOp),
-	Unary
-	{
-		token: TokenId,
-		// op: UnaryOp = nodes[-1],
-		// operand: Expression = nodes[..-2],
-	},
-	UnaryOp(UnaryOp),
-	BooleanLiteral
-	{
-		literal: TokenId,
-	},
-	CharLiteral
-	{
-		literal: TokenId,
-	},
-	UntypedIntegerLiteral
-	{
-		literal: TokenId,
-	},
-	TypedIntegerLiteral
-	{
-		literal: TokenId,
-		// value_type: SimpleValueType = nodes[-1]
-	},
-	StringLiteral
-	{
-		literal: TokenId,
-	},
-	ArrayLiteral
-	{
-		num_elements: U24,
-		// items: List<Expression> = nodes[-1]
-	},
-	Structural
-	{
-		unresolved_struct_or_word: TokenId,
-		// field_initializers: List<IdentifierAndExpression> = nodes[-1]
-	},
-	Deref
-	{
-		start_of_reference: TokenId,
-		// address_depth: DerefAddressDepth = nodes[-1]
-		// base_identifier: Identifier = nodes[-2]
-		// steps: List<DerefStep> = nodes[-3]
-	},
-	DerefAddressDepth
-	{
-		depth: u8,
-	},
-	DerefStepElement {
-		// argument: Expression = nodes[..-1]
-	},
-	DerefStepMember
-	{
-		field_identifier: TokenId,
-	},
-	BitCast
-	{
-		cast_keyword: TokenId,
-		// expression: Expression = nodes[..-1]
-	},
-	TypeCast
-	{
-		start_of_type: TokenId,
-		// expression: Item<Expression> = nodes[-1]
-		// coerced_type: ValueType = nodes[..-2]
-	},
-	LengthOf {
-		// deref: Deref = nodes[..-1]
-	},
-	SizeOf {
-		// queried_type: ValueType = nodes[..-1]
-	},
-	FunctionCall
-	{
-		// identifier: Identifier = nodes[-1]
-		is_builtin: bool,
-		// arguments: List<Expression> = nodes[-2]
-	},
-	SimpleValueType(ValueTypeKeyword),
-	ArrayVT
-	{
-		// element_type = nodes[-1]
-		fixed_length: U24,
-	},
-	ArrayWithNamedLengthVT
-	{
-		// element_type = nodes[-1]
-		named_length_identifier: TokenId,
-	},
-	SliceVT {
-		// element_type = nodes[-1]
-	},
-	SlicePointerVT {
-		// element_type = nodes[-1]
-	},
-	EndlessArrayVT {
-		// element_type = nodes[-1]
-	},
-	ArraylikeVT {
-		// element_type = nodes[-1]
-	},
-	StructVT
-	{
-		identifier: TokenId,
-	},
-	WordVT
-	{
-		identifier: TokenId,
-	},
-	PointerVT {
-		// deref_type = nodes[-1]
-	},
-	ViewVT {
-		// deref_type = nodes[-1]
-	},
-	Item
-	{
-		at: NodeId, // ParseNode
-	},
-	List
-	{
-		first: NodeId, // ListItem
-	},
-	ListItem
-	{
-		// value: ParseNode = nodes[-1]
-		next: NodeId,
-	},
-	NoMoreItems,
-	Padding,
-	Poison,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum Declaration {}
 
 pub enum ParsingError
 {
@@ -343,16 +48,6 @@ pub enum ParsingError
 	MaximumParseDepthExceeded,
 }
 
-// TODO move into file
-pub struct ParseTree
-{
-	nodes: Vec<ParseNode>,
-
-	declarations: Vec<NodeId>,
-
-	errors: Vec<ParsingError>,
-}
-
 // struct Tokens<'a>
 // {
 // 	tokens: &'a lexer::tokens::Tokens,
@@ -379,7 +74,8 @@ pub fn parse(tokens: &lexer::tokens::Tokens) -> ParseTree
 		.filter(|&&token| starts_declaration(token))
 		.count();
 	let num_possible_declarations = 2 * num_known_declarations + 2;
-	let mut declarations = Vec::with_capacity(num_possible_declarations);
+	let mut parse_tree = ParseTree::empty(tokens, num_possible_declarations);
+	let buffer = parse_tree.buffer();
 	let mut start_of_next_declaration = 0;
 	for _ in 0..(num_known_declarations + 1)
 	{
@@ -388,18 +84,23 @@ pub fn parse(tokens: &lexer::tokens::Tokens) -> ParseTree
 			BaseToken::EndOfSource => break,
 			_ => (),
 		}
-		assert!(declarations.len() + 2 <= declarations.capacity());
 		let mut span = tokens.find_span(
 			start_of_next_declaration,
 			starts_declaration,
 			starts_declaration,
 		);
-		let declaration = parse_declaration(tokens, &mut span);
-		declarations.push(declaration);
+		match parse_declaration(tokens, &mut buffer, &mut span)
+		{
+			Ok(()) => buffer.finish_declaration(),
+			Err((error, start, end)) => buffer.push_error(error, start, end),
+		}
 		start_of_next_declaration = span.start;
 		if !span.is_empty()
 		{
 			let token = tokens.base_tokens()[start_of_next_declaration];
+			let start = tokens::TokenId(start_of_next_declaration as u32);
+			let end = tokens::TokenId(span.end as u32);
+			buffer.push_error(ParsingError::UnexpectedToken, start, end);
 			// TODO expected start of declaration
 			// declarations.push(error);
 		}
@@ -433,8 +134,9 @@ fn starts_declaration(token: BaseToken) -> bool
 
 fn parse_declaration(
 	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
 	span: &mut std::ops::Range<usize>,
-) -> Result<Declaration, &'static str>
+) -> Result<(), &'static str>
 {
 	// TODO
 	// let start_of_declaration = tokens.get_id(span.start).expect();
@@ -451,32 +153,41 @@ fn parse_declaration(
 	let declaring_token = take(tokens, span);
 	match declaring_token
 	{
-		BaseToken::Import =>
-		{
-			parse_import_declaration(tokens, span, start_of_declaration, flags)
-		}
+		BaseToken::Import => parse_import_declaration(
+			tokens,
+			buffer,
+			span,
+			start_of_declaration,
+			flags,
+		),
 		BaseToken::Const => parse_constant_declaration(
 			tokens,
+			buffer,
 			span,
 			start_of_declaration,
 			flags,
 		),
 		BaseToken::Fn => parse_function_declaration(
 			tokens,
+			buffer,
 			span,
 			flags,
 			start_of_declaration,
 		),
-		BaseToken::Struct =>
-		{
-			parse_struct_declaration(tokens, span, start_of_declaration, flags)
-		}
+		BaseToken::Struct => parse_struct_declaration(
+			tokens,
+			buffer,
+			span,
+			start_of_declaration,
+			flags,
+		),
 		BaseToken::Word8
 		| BaseToken::Word16
 		| BaseToken::Word32
 		| BaseToken::Word64
 		| BaseToken::Word128 => parse_word_declaration(
 			tokens,
+			buffer,
 			span,
 			start_of_declaration,
 			flags,
@@ -488,30 +199,32 @@ fn parse_declaration(
 
 fn parse_import_declaration(
 	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
 	span: &mut std::ops::Range<usize>,
 	start_of_declaration: usize,
 	flags: EnumSet<DeclarationFlag>,
-) -> Result<Declaration, &'static str>
+) -> Result<(), &'static str>
 {
 	let filename = consume(BaseToken::StringLiteral, tokens, span)?;
 	consume(BaseToken::Semicolon, tokens, span)?;
 	// TODO build declaration using filename: TokenId
-	Ok(Declaration {})
+	Ok(())
 }
 
 fn parse_constant_declaration(
 	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
 	span: &mut std::ops::Range<usize>,
 	start_of_declaration: usize,
 	flags: EnumSet<DeclarationFlag>,
-) -> Result<Declaration, &'static str>
+) -> Result<(), &'static str>
 {
 	let name = consume(BaseToken::Identifier, tokens, span)?;
 	// TODO location of declaration
 	let start_of_type = span.start;
 	let value_type = if consume_optional(BaseToken::Colon, tokens, span)
 	{
-		let value_type = parse_wellformed_type(tokens, span)?;
+		let value_type = parse_wellformed_type(tokens, buffer, span)?;
 		value_type
 	}
 	else
@@ -520,30 +233,32 @@ fn parse_constant_declaration(
 	};
 	let end_of_type = span.start;
 	consume(BaseToken::Assignment, tokens, span)?;
-	let expression = parse_expression(tokens, span)?;
+	let expression = parse_expression(tokens, buffer, span)?;
 	consume(BaseToken::Semicolon, tokens, span)?;
-	Ok(Declaration {})
+	Ok(())
 }
 
 fn parse_word_declaration(
 	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
 	span: &mut std::ops::Range<usize>,
 	start_of_declaration: usize,
 	mut flags: EnumSet<DeclarationFlag>,
 	declaring_token: BaseToken,
-) -> Result<Declaration, &'static str>
+) -> Result<(), &'static str>
 {
 	let name = consume(BaseToken::Identifier, tokens, span)?;
-	let members = parse_struct_members(tokens, span)?;
-	Ok(Declaration {})
+	let members = parse_struct_members(tokens, buffer, span)?;
+	Ok(())
 }
 
 fn parse_struct_declaration(
 	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
 	span: &mut std::ops::Range<usize>,
 	start_of_declaration: usize,
 	mut flags: EnumSet<DeclarationFlag>,
-) -> Result<Declaration, &'static str>
+) -> Result<(), &'static str>
 {
 	let name = consume(BaseToken::Identifier, tokens, span)?;
 	if consume_optional(BaseToken::Semicolon, tokens, span)
@@ -552,20 +267,21 @@ fn parse_struct_declaration(
 	}
 	else
 	{
-		let members = parse_struct_members(tokens, span)?;
+		let members = parse_struct_members(tokens, buffer, span)?;
 	}
-	Ok(Declaration {})
+	Ok(())
 }
 
 fn parse_struct_members(
 	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
 	span: &mut std::ops::Range<usize>,
 ) -> Result<(), &'static str>
 {
 	let opening_brace = consume(BaseToken::BraceLeft, tokens, span)?;
 	while !consume_optional(BaseToken::BraceRight, tokens, span)
 	{
-		let member = parse_member(tokens, span)?;
+		let member = parse_member(tokens, buffer, span)?;
 		consume(BaseToken::Comma, tokens, span)?;
 	}
 	Ok(())
@@ -573,28 +289,30 @@ fn parse_struct_members(
 
 fn parse_function_declaration(
 	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
 	span: &mut std::ops::Range<usize>,
 	mut flags: EnumSet<DeclarationFlag>,
 	start_of_declaration: usize,
-) -> Result<Declaration, &'static str>
+) -> Result<(), &'static str>
 {
 	let name = consume(BaseToken::Identifier, tokens, span)?;
-	let signature = parse_rest_of_function_signature(tokens, span)?;
+	let signature = parse_rest_of_function_signature(tokens, buffer, span)?;
 	if consume_optional(BaseToken::Semicolon, tokens, span)
 	{
 		// FunctionHead
-		Ok(Declaration {})
+		Ok(())
 	}
 	else
 	{
-		let body = parse_function_body(tokens, span)?;
+		let body = parse_function_body(tokens, buffer, span)?;
 		// Function
-		Ok(Declaration {})
+		Ok(())
 	}
 }
 
 fn parse_rest_of_function_signature(
 	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
 	span: &mut std::ops::Range<usize>,
 ) -> Result<(), &'static str>
 {
@@ -605,7 +323,7 @@ fn parse_rest_of_function_signature(
 		{
 			break;
 		}
-		let parameter = parse_parameter(tokens, span)?;
+		let parameter = parse_parameter(tokens, buffer, span)?;
 		if consume_optional(BaseToken::Comma, tokens, span)
 		{
 			continue;
@@ -618,7 +336,7 @@ fn parse_rest_of_function_signature(
 	}
 	let return_type = if consume_optional(BaseToken::Arrow, tokens, span)
 	{
-		parse_wellformed_type(tokens, span)?;
+		parse_wellformed_type(tokens, buffer, span)?;
 	}
 	else
 	{
@@ -629,13 +347,14 @@ fn parse_rest_of_function_signature(
 
 fn parse_member(
 	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
 	span: &mut std::ops::Range<usize>,
 ) -> Result<(), &'static str>
 {
 	let name = consume(BaseToken::Identifier, tokens, span)?;
 	if consume_optional(BaseToken::Colon, tokens, span)
 	{
-		let value_type = parse_wellformed_type(tokens, span)?;
+		let value_type = parse_wellformed_type(tokens, buffer, span)?;
 		value_type
 	}
 	else
@@ -647,13 +366,14 @@ fn parse_member(
 
 fn parse_parameter(
 	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
 	span: &mut std::ops::Range<usize>,
 ) -> Result<(), &'static str>
 {
 	let name = consume(BaseToken::Identifier, tokens, span)?;
-	if consume_optional(BaseToken::Colon, tokens, span)
+	let value_type = if consume_optional(BaseToken::Colon, tokens, span)
 	{
-		let value_type = parse_wellformed_type(tokens, span)?;
+		let value_type = parse_wellformed_type(tokens, buffer, span)?;
 		value_type
 	}
 	else
@@ -665,16 +385,18 @@ fn parse_parameter(
 
 fn parse_wellformed_type(
 	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
 	span: &mut std::ops::Range<usize>,
 ) -> Result<(), &'static str>
 {
-	let value_type = parse_inner_type(tokens, span)?;
+	let value_type = parse_inner_type(tokens, buffer, span)?;
 	// TODO is wellformed
 	if true { Ok(()) } else { Err("illegal type") }
 }
 
 fn parse_inner_type(
 	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
 	span: &mut std::ops::Range<usize>,
 ) -> Result<(), &'static str>
 {
@@ -682,20 +404,24 @@ fn parse_inner_type(
 	{
 		BaseToken::ValueTypeKeyword =>
 		{
-			// TODO where do I store this type?
-			// too much indirection during type checking is also bad
+			// TODO figure out token id
+			let vap = tokens.get_value_type_and_payload(token_id);
+			let value_type = vap.value_type();
+			buffer.push(ParseNode::SimpleValueType(value_type));
 			Ok(())
 		}
 		BaseToken::Identifier =>
 		{
-			// TODO unresolved struct or word
+			// TODO figure out token id
+			let identifier_token = parse_node::TokenId(U24::new(span.start));
+			buffer.push(ParseNode::Identifier { identifier_token });
 			Ok(())
 		}
 		BaseToken::Ampersand =>
 		{
 			// TODO how do I store this nested type?
 			// in a way, the tokens are already a way to store it
-			let deref_type = parse_inner_type(tokens, span)?;
+			let deref_type = parse_inner_type(tokens, buffer, span)?;
 			Ok(())
 		}
 		_ => Err("Expected type keyword."),
@@ -704,6 +430,7 @@ fn parse_inner_type(
 
 fn parse_function_body(
 	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
 	span: &mut std::ops::Range<usize>,
 ) -> Result<(), &'static str>
 {
@@ -714,27 +441,30 @@ fn parse_function_body(
 		{
 			break;
 		}
-		let statement = parse_statement(tokens, span)?;
+		let statement = parse_statement(tokens, buffer, span)?;
 		// TODO check if statement is return: and handle that
-		// unless I switch to a new assignment-based / named returns
 	}
 	Ok(())
 }
 
 fn parse_statement(
 	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
 	span: &mut std::ops::Range<usize>,
-) -> Result<(), &'static str>
+) -> Result<NodeId, &'static str>
 {
-	Ok(())
+	// TODO finish
+	unimplemented!()
 }
 
 fn parse_expression(
 	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
 	span: &mut std::ops::Range<usize>,
-) -> Result<(), &'static str>
+) -> Result<NodeId, &'static str>
 {
-	Ok(())
+	// TODO finish
+	unimplemented!()
 }
 
 #[inline(always)]
