@@ -8,6 +8,7 @@ use crate::delta::lexer::ValueTypeKeyword;
 
 const MAX_NUM_NODES: usize = 1 << 24;
 
+#[must_use]
 #[derive(Debug, Clone, Copy)]
 pub struct NodeId(pub U24);
 
@@ -73,9 +74,9 @@ pub enum ParseNode
 		// flags: DeclarationFlags = nodes[-1]
 		// identifier: Identifier = nodes[-2]
 		// parameters: List<IdentifierAndVT> = nodes[-3]
-		// statements: List<Statement> = nodes[-4],
-		// return_value: Item<Expression> = nodes[-5]
-		// return_type: ValueType = nodes[..-6]
+		// return_type: Item<ValueType> = nodes[-4]
+		// statements: List<Statement> = nodes[-5]
+		// return_value: Item<Expression>/NoMoreItems = nodes[-6]
 	},
 	FunctionHeadDeclaration
 	{
@@ -83,41 +84,46 @@ pub enum ParseNode
 		// flags: DeclarationFlags = nodes[-1]
 		// identifier: Identifier = nodes[-2]
 		// parameters: List<IdentifierAndVT> = nodes[-3]
-		// statements: Padding = nodes[-4]
-		// return_value: Padding = nodes[-5]
-		// return_type: ValueType = nodes[..-6]
+		// return_type: Item<ValueType> = nodes[-4]
+		// statements: Padding = nodes[-5]
+		// return_value: Padding = nodes[-6]
 	},
 	StructureDeclaration
 	{
 		start_of_declaration: TokenId,
 		// flags: DeclarationFlags = nodes[-1]
 		// identifier: Identifier = nodes[-2]
-		// members: List<IdentifierAndVT> = nodes[-3]
-		// structural_type: ValueType = nodes[..-4]
+		// structural_type: StructuralType = nodes[-3]
+		// members: List<IdentifierAndVT> = nodes[-4]
 	},
 	ImportDeclaration
 	{
 		start_of_declaration: TokenId,
-		// path: StringLiteral = nodes[-1]
+		// flags: DeclarationFlags = nodes[-1]
+		// path: StringLiteral = nodes[-2]
 	},
 	DeclarationFlags(EnumSet<DeclarationFlag>),
+	StructuralType
+	{
+		size_in_bytes_if_word: Option<u8>,
+	},
 	Identifier
 	{
-		identifier_token: TokenId,
+		identifier: TokenId,
 	},
 	IdentifierAndVT
 	{
-		identifier_token: TokenId,
+		identifier: TokenId,
 		// value_type: ValueType = nodes[..-1]
 	},
 	IdentifierAndExpression
 	{
-		identifier_token: TokenId,
+		identifier: TokenId,
 		// expression: Expression = nodes[..-1]
 	},
 	VariableDeclaration
 	{
-		identifier_token: TokenId,
+		identifier: TokenId,
 		// value_type: Item<ValueType>/NoMoreItems = nodes[-1]
 		// expression: Item<Expression>/NoMoreItems = nodes[-2]
 	},
@@ -264,7 +270,7 @@ pub enum ParseNode
 	ArrayVT
 	{
 		// element_type = nodes[-1]
-		fixed_length: U24,
+		fixed_length: TokenId,
 	},
 	ArrayWithNamedLengthVT
 	{
@@ -274,20 +280,13 @@ pub enum ParseNode
 	SliceVT {
 		// element_type = nodes[-1]
 	},
-	SlicePointerVT {
-		// element_type = nodes[-1]
-	},
 	EndlessArrayVT {
 		// element_type = nodes[-1]
 	},
 	ArraylikeVT {
 		// element_type = nodes[-1]
 	},
-	StructVT
-	{
-		identifier: TokenId,
-	},
-	WordVT
+	UnresolvedStructOrWordVT
 	{
 		identifier: TokenId,
 	},
@@ -310,6 +309,7 @@ pub enum ParseNode
 		// value: ParseNode = nodes[-1]
 		next: NodeId,
 	},
+	UnpatchedListItem,
 	NoMoreItems,
 	Poison,
 }

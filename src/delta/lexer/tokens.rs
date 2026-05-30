@@ -2,6 +2,7 @@ use super::{BaseToken, LexingError, TokenPayload, ValueTypeKeyword};
 
 use crate::alpha::error;
 use crate::alpha::error::Errors;
+use crate::delta::parser::parse_node;
 
 use std::mem::MaybeUninit;
 
@@ -50,8 +51,33 @@ impl ValueTypeAndPayloadId
 	}
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialOrd, Ord, PartialEq, Eq)]
 pub struct TokenId(u32);
+
+impl From<parse_node::TokenId> for TokenId
+{
+	fn from(value: parse_node::TokenId) -> Self
+	{
+		TokenId(u32::from(value.0))
+	}
+}
+impl From<TokenId> for parse_node::TokenId
+{
+	fn from(value: TokenId) -> Self
+	{
+		parse_node::TokenId(parse_node::U24::new(usize::from(value)))
+	}
+}
+
+impl From<TokenId> for usize
+{
+	fn from(value: TokenId) -> Self
+	{
+		value.0 as usize
+	}
+}
+
+pub type Span = std::ops::Range<TokenId>;
 
 #[derive(Clone, Copy, Debug)]
 pub struct PayloadId(u32);
@@ -322,13 +348,35 @@ impl Tokens
 		&self.tokens
 	}
 
+	#[inline(always)]
+	pub fn get(&self, TokenId(token_id): TokenId) -> BaseToken
+	{
+		let i = token_id as usize;
+		self.tokens[i]
+	}
+
+	#[inline(always)]
+	pub fn advance(&self, token_id: &mut TokenId)
+	{
+		token_id.0 += 1;
+		let i = token_id.0 as usize;
+		debug_assert!(i < self.tokens.len());
+	}
+
+	#[inline(always)]
+	fn token_id(&self, i: usize) -> TokenId
+	{
+		debug_assert!(i < self.tokens.len());
+		TokenId(i as u32)
+	}
+
 	#[inline]
 	pub fn find_span(
 		&self,
 		from: usize,
 		expect_start_with: impl Fn(BaseToken) -> bool,
 		until: impl Fn(BaseToken) -> bool,
-	) -> std::ops::Range<usize>
+	) -> Span
 	{
 		let len = self.tokens.len();
 		let mut i = from;
@@ -341,7 +389,7 @@ impl Tokens
 		{
 			if until(self.tokens[i]) || self.tokens[i] == BaseToken::EndOfSource
 			{
-				return from..i;
+				return self.token_id(from)..self.token_id(i);
 			}
 			i += 1;
 		}
