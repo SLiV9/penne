@@ -21,32 +21,54 @@ use crate::delta::parser::parse_tree::ParseTree;
 pub const MAX_ADDRESS_DEPTH: u8 = 127;
 pub const MAX_REFERENCE_DEPTH: usize = 127;
 
+#[derive(Debug, Clone, Copy)]
 pub enum ParsingError
 {
-	UnexpectedToken,
-	UnexpectedSemicolonAfterIdentifier,
-	UnexpectedSemicolonAfterReturnValue,
-	MissingReturnType,
-	MissingAmbiguousReturnType,
-	AmbiguousReturnValue,
-	ConflictingReturnValue,
-	MissingReturnValue,
-	MissingReturnValueAfterStatement,
-	MissingConstantType,
-	MissingParameterType,
-	MissingMemberType,
-	IllegalType,
-	IllegalReturnType,
-	IllegalVariableType,
-	IllegalConstantType,
-	IllegalParameterType,
-	IllegalMemberType,
-	TypeNotAllowedInExtern,
-	TypeLacksKnownSize,
-	UnsupportedInConstContext,
-	FunctionInConstContext,
-	WordSizeMismatch,
-	MaximumParseDepthExceeded,
+	UnexpectedToken
+	{
+		token: tokens::TokenId,
+		expectation: &'static str,
+	},
+	UnexpectedSemicolonAfterIdentifier
+	{
+		semicolon: tokens::TokenId,
+		identifier: tokens::TokenId,
+	},
+	UnexpectedSemicolonAfterReturnValue
+	{
+		semicolon: tokens::TokenId,
+		return_value_start: tokens::TokenId,
+		return_value_end: tokens::TokenId,
+	},
+	MissingReturnValueAfterStatement
+	{
+		unexpected_token: tokens::TokenId,
+		return_statement_start: tokens::TokenId,
+		return_statement_end: tokens::TokenId,
+	},
+	MissingConstantType
+	{
+		unexpected_token: tokens::TokenId
+	},
+	MissingParameterType
+	{
+		unexpected_token: tokens::TokenId
+	},
+	MissingMemberType
+	{
+		unexpected_token: tokens::TokenId
+	},
+	IllegalType
+	{
+		node_id: NodeId,
+		start: tokens::TokenId,
+		end: tokens::TokenId,
+	},
+	MaximumParseDepthExceeded
+	{
+		start: tokens::TokenId,
+		end: tokens::TokenId,
+	},
 }
 
 // struct Tokens<'a>
@@ -76,9 +98,9 @@ pub fn parse(tokens: &lexer::tokens::Tokens) -> ParseTree
 		.count();
 	let num_possible_declarations = 2 * num_known_declarations + 2;
 	let mut parse_tree = ParseTree::empty(tokens, num_possible_declarations);
-	let buffer = parse_tree.buffer();
-	// TODO tokens cannot be empty because of EndOfSource
-	let mut start_of_next_declaration = tokens::TokenId(0);
+
+	let mut buffer = parse_tree.buffer();
+	let mut start_of_next_declaration = tokens.first_token_id();
 	for _ in 0..(num_known_declarations + 1)
 	{
 		match tokens.get(start_of_next_declaration)
@@ -93,18 +115,16 @@ pub fn parse(tokens: &lexer::tokens::Tokens) -> ParseTree
 		);
 		match parse_declaration(tokens, &mut buffer, &mut span)
 		{
-			Ok(()) => buffer.finish_declaration(),
-			Err((error, start, end)) => buffer.store_error(error, start, end),
+			Ok(node) => buffer.finish_declaration(node),
+			Err(error) => buffer.store_error(error),
 		}
 		start_of_next_declaration = span.start;
 		if !span.is_empty()
 		{
-			let token = tokens.get(start_of_next_declaration);
-			let start = start_of_next_declaration;
-			let end = span.end;
-			buffer.store_error(ParsingError::UnexpectedToken, start, end);
-			// TODO expected start of declaration
-			// declarations.push(error);
+			buffer.store_error(ParsingError::UnexpectedToken {
+				token: start_of_next_declaration,
+				expectation: "Expected top-level declaration.",
+			});
 		}
 		start_of_next_declaration = span.end;
 	}
@@ -112,6 +132,13 @@ pub fn parse(tokens: &lexer::tokens::Tokens) -> ParseTree
 		tokens.get(start_of_next_declaration),
 		BaseToken::EndOfSource
 	);
+	// Safety: we are calling `set_nodes_len` with the result of
+	// `into_num_initialized_nodes`.
+	unsafe {
+		let num_tokens = buffer.into_num_initialized_nodes();
+		parse_tree.set_nodes_len(num_tokens);
+	}
+
 	parse_tree
 }
 
@@ -138,7 +165,7 @@ fn parse_declaration(
 	tokens: &Tokens,
 	buffer: &mut ParseBuffer<'_>,
 	span: &mut Span,
-) -> Result<(), &'static str>
+) -> Result<NodeId, ParsingError>
 {
 	let start_of_declaration = span.start.into();
 	let mut flags = EnumSet::new();
@@ -150,6 +177,7 @@ fn parse_declaration(
 	{
 		flags.insert(DeclarationFlag::External);
 	}
+	let declaring_token_id = span.start;
 	let declaring_token = take(tokens, span);
 	match declaring_token
 	{
@@ -193,7 +221,10 @@ fn parse_declaration(
 			flags,
 			declaring_token,
 		),
-		_ => Err("unexpected token"),
+		_ => Err(ParsingError::UnexpectedToken {
+			token: declaring_token_id,
+			expectation: "Expected top-level declaration.",
+		}),
 	}
 }
 
@@ -203,17 +234,17 @@ fn parse_import_declaration(
 	span: &mut Span,
 	start_of_declaration: parse_node::TokenId,
 	flags: EnumSet<DeclarationFlag>,
-) -> Result<(), &'static str>
+) -> Result<NodeId, ParsingError>
 {
 	let literal = span.start.into();
 	consume(BaseToken::StringLiteral, tokens, span)?;
 	consume(BaseToken::Semicolon, tokens, span)?;
-	buffer.push(ParseNode::StringLiteral { literal });
-	buffer.push(ParseNode::DeclarationFlags(flags));
-	buffer.push(ParseNode::ImportDeclaration {
+	buffer.push_undeclared(ParseNode::StringLiteral { literal });
+	buffer.push_undeclared(ParseNode::DeclarationFlags(flags));
+	let node = buffer.push(ParseNode::ImportDeclaration {
 		start_of_declaration,
 	});
-	Ok(())
+	Ok(node)
 }
 
 fn parse_constant_declaration(
@@ -222,32 +253,32 @@ fn parse_constant_declaration(
 	span: &mut Span,
 	start_of_declaration: parse_node::TokenId,
 	flags: EnumSet<DeclarationFlag>,
-) -> Result<(), &'static str>
+) -> Result<NodeId, ParsingError>
 {
 	let identifier = span.start.into();
 	consume(BaseToken::Identifier, tokens, span)?;
-	// TODO location of declaration
-	let start_of_type = span.start;
+	let location_of_colon = span.start;
 	let value_type = if consume_optional(BaseToken::Colon, tokens, span)
 	{
 		parse_wellformed_type(tokens, buffer, span)?
 	}
 	else
 	{
-		return Err("misisng constant type");
+		return Err(ParsingError::MissingConstantType {
+			unexpected_token: location_of_colon,
+		});
 	};
-	let end_of_type = span.start;
 	consume(BaseToken::Assignment, tokens, span)?;
 	let expression = parse_expression(tokens, buffer, span)?;
 	consume(BaseToken::Semicolon, tokens, span)?;
 	buffer.expect_most_recent_node(expression);
 	buffer.push_older_node(value_type);
-	buffer.push(ParseNode::Identifier { identifier });
-	buffer.push(ParseNode::DeclarationFlags(flags));
-	buffer.push(ParseNode::ConstantDeclaration {
+	buffer.push_undeclared(ParseNode::Identifier { identifier });
+	buffer.push_undeclared(ParseNode::DeclarationFlags(flags));
+	let node = buffer.push(ParseNode::ConstantDeclaration {
 		start_of_declaration,
 	});
-	Ok(())
+	Ok(node)
 }
 
 fn parse_word_declaration(
@@ -257,7 +288,7 @@ fn parse_word_declaration(
 	start_of_declaration: parse_node::TokenId,
 	flags: EnumSet<DeclarationFlag>,
 	declaring_token: BaseToken,
-) -> Result<(), &'static str>
+) -> Result<NodeId, ParsingError>
 {
 	let size_in_bytes = match declaring_token
 	{
@@ -276,13 +307,13 @@ fn parse_word_declaration(
 	consume(BaseToken::Identifier, tokens, span)?;
 	let list = parse_struct_members(tokens, buffer, span)?;
 	buffer.push_list(list);
-	buffer.push(structural_type);
-	buffer.push(ParseNode::Identifier { identifier });
-	buffer.push(ParseNode::DeclarationFlags(flags));
-	buffer.push(ParseNode::StructureDeclaration {
+	buffer.push_undeclared(structural_type);
+	buffer.push_undeclared(ParseNode::Identifier { identifier });
+	buffer.push_undeclared(ParseNode::DeclarationFlags(flags));
+	let node = buffer.push(ParseNode::StructureDeclaration {
 		start_of_declaration,
 	});
-	Ok(())
+	Ok(node)
 }
 
 fn parse_struct_declaration(
@@ -291,7 +322,7 @@ fn parse_struct_declaration(
 	span: &mut Span,
 	start_of_declaration: parse_node::TokenId,
 	mut flags: EnumSet<DeclarationFlag>,
-) -> Result<(), &'static str>
+) -> Result<NodeId, ParsingError>
 {
 	let structural_type = ParseNode::StructuralType {
 		size_in_bytes_if_word: None,
@@ -310,20 +341,20 @@ fn parse_struct_declaration(
 		list
 	};
 	buffer.push_list(list);
-	buffer.push(structural_type);
-	buffer.push(ParseNode::Identifier { identifier });
-	buffer.push(ParseNode::DeclarationFlags(flags));
-	buffer.push(ParseNode::StructureDeclaration {
+	buffer.push_undeclared(structural_type);
+	buffer.push_undeclared(ParseNode::Identifier { identifier });
+	buffer.push_undeclared(ParseNode::DeclarationFlags(flags));
+	let node = buffer.push(ParseNode::StructureDeclaration {
 		start_of_declaration,
 	});
-	Ok(())
+	Ok(node)
 }
 
 fn parse_struct_members(
 	tokens: &Tokens,
 	buffer: &mut ParseBuffer<'_>,
 	span: &mut Span,
-) -> Result<NodeId, &'static str>
+) -> Result<NodeId, ParsingError>
 {
 	consume(BaseToken::BraceLeft, tokens, span)?;
 	buffer.start_list();
@@ -341,27 +372,26 @@ fn parse_function_declaration(
 	tokens: &Tokens,
 	buffer: &mut ParseBuffer<'_>,
 	span: &mut Span,
-	mut flags: EnumSet<DeclarationFlag>,
+	flags: EnumSet<DeclarationFlag>,
 	start_of_declaration: parse_node::TokenId,
-) -> Result<(), &'static str>
+) -> Result<NodeId, ParsingError>
 {
 	let identifier = span.start.into();
 	consume(BaseToken::Identifier, tokens, span)?;
 	let (parameters, return_type) =
 		parse_rest_of_function_signature(tokens, buffer, span)?;
 
-	if consume_optional(BaseToken::Semicolon, tokens, span)
+	let node = if consume_optional(BaseToken::Semicolon, tokens, span)
 	{
-		buffer.push(ParseNode::Padding);
-		buffer.push(ParseNode::Padding);
+		buffer.push_undeclared(ParseNode::Padding);
+		buffer.push_undeclared(ParseNode::Padding);
 		buffer.push_older_node(return_type);
 		buffer.push_list(parameters);
-		buffer.push(ParseNode::Identifier { identifier });
-		buffer.push(ParseNode::DeclarationFlags(flags));
+		buffer.push_undeclared(ParseNode::Identifier { identifier });
+		buffer.push_undeclared(ParseNode::DeclarationFlags(flags));
 		buffer.push(ParseNode::FunctionHeadDeclaration {
 			start_of_declaration,
-		});
-		Ok(())
+		})
 	}
 	else
 	{
@@ -373,20 +403,20 @@ fn parse_function_declaration(
 		buffer.push_list(statements);
 		buffer.push_older_node(return_type);
 		buffer.push_list(parameters);
-		buffer.push(ParseNode::Identifier { identifier });
-		buffer.push(ParseNode::DeclarationFlags(flags));
+		buffer.push_undeclared(ParseNode::Identifier { identifier });
+		buffer.push_undeclared(ParseNode::DeclarationFlags(flags));
 		buffer.push(ParseNode::FunctionDeclaration {
 			start_of_declaration,
-		});
-		Ok(())
-	}
+		})
+	};
+	Ok(node)
 }
 
 fn parse_rest_of_function_signature(
 	tokens: &Tokens,
 	buffer: &mut ParseBuffer<'_>,
 	span: &mut Span,
-) -> Result<(NodeId, NodeId), &'static str>
+) -> Result<(NodeId, NodeId), ParsingError>
 {
 	consume(BaseToken::ParenLeft, tokens, span)?;
 	buffer.start_list();
@@ -425,17 +455,20 @@ fn parse_member(
 	tokens: &Tokens,
 	buffer: &mut ParseBuffer<'_>,
 	span: &mut Span,
-) -> Result<NodeId, &'static str>
+) -> Result<NodeId, ParsingError>
 {
 	let identifier = span.start.into();
 	consume(BaseToken::Identifier, tokens, span)?;
+	let location_of_colon = span.start;
 	let value_type = if consume_optional(BaseToken::Colon, tokens, span)
 	{
 		parse_wellformed_type(tokens, buffer, span)?
 	}
 	else
 	{
-		return Err("missing member type");
+		return Err(ParsingError::MissingMemberType {
+			unexpected_token: location_of_colon,
+		});
 	};
 	buffer.expect_most_recent_node(value_type);
 	let node = buffer.push(ParseNode::IdentifierAndVT { identifier });
@@ -446,17 +479,20 @@ fn parse_parameter(
 	tokens: &Tokens,
 	buffer: &mut ParseBuffer<'_>,
 	span: &mut Span,
-) -> Result<NodeId, &'static str>
+) -> Result<NodeId, ParsingError>
 {
 	let identifier = span.start.into();
 	consume(BaseToken::Identifier, tokens, span)?;
+	let location_of_colon = span.start;
 	let value_type = if consume_optional(BaseToken::Colon, tokens, span)
 	{
 		parse_wellformed_type(tokens, buffer, span)?
 	}
 	else
 	{
-		return Err("missing parameter type");
+		return Err(ParsingError::MissingParameterType {
+			unexpected_token: location_of_colon,
+		});
 	};
 	buffer.expect_most_recent_node(value_type);
 	let node = buffer.push(ParseNode::IdentifierAndVT { identifier });
@@ -467,9 +503,11 @@ fn parse_wellformed_type(
 	tokens: &Tokens,
 	buffer: &mut ParseBuffer<'_>,
 	span: &mut Span,
-) -> Result<NodeId, &'static str>
+) -> Result<NodeId, ParsingError>
 {
+	let start_of_value_type = span.start;
 	let value_type = parse_inner_type(tokens, buffer, span)?;
+	let end_of_value_type = span.start;
 	// TODO is wellformed
 	if true
 	{
@@ -477,7 +515,11 @@ fn parse_wellformed_type(
 	}
 	else
 	{
-		Err("illegal type")
+		Err(ParsingError::IllegalType {
+			node_id: value_type,
+			start: start_of_value_type,
+			end: end_of_value_type,
+		})
 	}
 }
 
@@ -485,7 +527,7 @@ fn parse_inner_type(
 	tokens: &Tokens,
 	buffer: &mut ParseBuffer<'_>,
 	span: &mut Span,
-) -> Result<NodeId, &'static str>
+) -> Result<NodeId, ParsingError>
 {
 	let token_id = span.start;
 	let node_id = match take(tokens, span)
@@ -530,7 +572,13 @@ fn parse_inner_type(
 				BaseToken::Identifier => ParseNode::ArrayWithNamedLengthVT {
 					named_length_identifier: length_token_id.into(),
 				},
-				_ => return Err("Expected size literal or named constant."),
+				_ =>
+				{
+					return Err(ParsingError::UnexpectedToken {
+						token: length_token_id,
+						expectation: "Expected size literal or named constant.",
+					});
+				}
 			};
 			if length_or_bracket != BaseToken::BracketRight
 			{
@@ -540,7 +588,13 @@ fn parse_inner_type(
 			buffer.expect_most_recent_node(inner);
 			buffer.push(outer_node)
 		}
-		_ => return Err("Expected type keyword."),
+		_ =>
+		{
+			return Err(ParsingError::UnexpectedToken {
+				token: token_id,
+				expectation: "Expected type keyword.",
+			});
+		}
 	};
 	Ok(node_id)
 }
@@ -549,7 +603,7 @@ fn parse_function_body(
 	tokens: &Tokens,
 	buffer: &mut ParseBuffer<'_>,
 	span: &mut Span,
-) -> Result<(NodeId, NodeId), &'static str>
+) -> Result<(NodeId, NodeId), ParsingError>
 {
 	consume(BaseToken::BraceLeft, tokens, span)?;
 	buffer.start_list();
@@ -573,7 +627,7 @@ fn parse_statement(
 	tokens: &Tokens,
 	buffer: &mut ParseBuffer<'_>,
 	span: &mut Span,
-) -> Result<NodeId, &'static str>
+) -> Result<NodeId, ParsingError>
 {
 	// TODO finish
 	unimplemented!()
@@ -583,7 +637,7 @@ fn parse_expression(
 	tokens: &Tokens,
 	buffer: &mut ParseBuffer<'_>,
 	span: &mut Span,
-) -> Result<NodeId, &'static str>
+) -> Result<NodeId, ParsingError>
 {
 	// TODO finish
 	unimplemented!()
@@ -602,8 +656,9 @@ fn consume(
 	expected: BaseToken,
 	tokens: &Tokens,
 	span: &mut Span,
-) -> Result<(), &'static str>
+) -> Result<(), ParsingError>
 {
+	let token_id = span.start;
 	let token = tokens.get(span.start);
 	tokens.advance(&mut span.start);
 	if token == expected
@@ -628,7 +683,10 @@ fn consume(
 			BaseToken::Identifier => "Expected identifier.",
 			_ => unreachable!(),
 		};
-		Err(expectation)
+		Err(ParsingError::UnexpectedToken {
+			token: token_id,
+			expectation,
+		})
 	}
 }
 

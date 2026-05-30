@@ -298,8 +298,9 @@ Rewrite using Data-Oriented Compiler Design for 0.5.0:
 		✔	Add end of file token @done (2026-05-11 20:07)
 		✘	Add unbalanced/missing closing braces as tokens @cancelled (2026-05-14 19:25)
 	☐	Parser
-		☐	Number of parse tree nodes <= number of tokens
-		☐	Store parse tree nodes as postorder traversed array
+		✔	Number of parse tree nodes <= number of tokens
+		✔	Store parse tree nodes as postorder traversed array
+		☐   Think about error numbering (2xx is now mixed into 3xx, but are returned separately)	
 	☐	Rebuilder
 	☐	Everything above at 1MLOC/s (10% of Carbon's goals) to allow formatting
 		✔	Fuzzer that generates 40MB of random tokens @done (2026-05-10 20:21)

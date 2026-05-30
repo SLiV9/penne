@@ -370,16 +370,21 @@ impl Tokens
 		TokenId(i as u32)
 	}
 
-	#[inline]
+	pub fn first_token_id(&self) -> TokenId
+	{
+		assert!(0 < self.tokens.len(), "contains EndOfSource");
+		TokenId(0)
+	}
+
 	pub fn find_span(
 		&self,
-		from: usize,
+		from: TokenId,
 		expect_start_with: impl Fn(BaseToken) -> bool,
 		until: impl Fn(BaseToken) -> bool,
 	) -> Span
 	{
 		let len = self.tokens.len();
-		let mut i = from;
+		let mut i = from.0 as usize;
 		let first_token = *self.tokens.get(i).expect("ends with EndOfSource");
 		if expect_start_with(first_token)
 		{
@@ -389,7 +394,7 @@ impl Tokens
 		{
 			if until(self.tokens[i]) || self.tokens[i] == BaseToken::EndOfSource
 			{
-				return self.token_id(from)..self.token_id(i);
+				return from..self.token_id(i);
 			}
 			i += 1;
 		}
@@ -428,6 +433,21 @@ impl Tokens
 			span: location.span(),
 			line_number: location.line_number(),
 			line_offset: location.line_offset(),
+		}
+	}
+
+	pub fn get_location_of_span(&self, span: Span) -> error::Location
+	{
+		let location = self.get_location(span.start);
+		let end_inclusive = TokenId(span.end.0.saturating_sub(1));
+		if end_inclusive > span.start
+		{
+			let end_location = self.get_location(end_inclusive);
+			location.combined_with(&end_location)
+		}
+		else
+		{
+			location
 		}
 	}
 

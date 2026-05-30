@@ -3,7 +3,8 @@ use std::mem::MaybeUninit;
 use super::parse_node::NodeId;
 use super::parse_node::ParseNode;
 
-use crate::delta::lexer::tokens;
+use crate::alpha::Errors;
+use crate::alpha::error;
 use crate::delta::lexer::tokens::Tokens;
 use crate::delta::parser::ParsingError;
 use crate::delta::parser::parse_node::U24;
@@ -16,7 +17,7 @@ pub struct ParseTree
 
 	declarations: Vec<NodeId>,
 
-	errors: Vec<(ParsingError, tokens::TokenId, tokens::TokenId)>,
+	errors: Vec<ParsingError>,
 }
 
 impl ParseTree
@@ -90,7 +91,7 @@ pub(super) struct ParseBuffer<'buffer>
 
 	declarations: &'buffer mut Vec<NodeId>,
 
-	errors: &'buffer mut Vec<(ParsingError, tokens::TokenId, tokens::TokenId)>,
+	errors: &'buffer mut Vec<ParsingError>,
 }
 
 impl<'buffer> ParseBuffer<'buffer>
@@ -123,13 +124,13 @@ impl<'buffer> ParseBuffer<'buffer>
 	#[inline]
 	pub(super) fn push_older_node(&mut self, node: NodeId)
 	{
-		self.push(ParseNode::Item { at: node });
+		let _: NodeId = self.push(ParseNode::Item { at: node });
 	}
 
 	#[inline]
 	pub(super) fn push_list(&mut self, node: NodeId)
 	{
-		self.push(ParseNode::List { first: node });
+		let _: NodeId = self.push(ParseNode::List { first: node });
 	}
 
 	#[inline]
@@ -185,21 +186,20 @@ impl<'buffer> ParseBuffer<'buffer>
 		self.push(ParseNode::NoMoreItems)
 	}
 
-	pub(super) fn finish_declaration(&mut self)
+	#[inline]
+	pub(super) fn push_undeclared(&mut self, node: ParseNode)
 	{
-		let i = self.num_nodes;
-		assert!(i < self.nodes.len());
-		let node_id = NodeId(U24::new(i));
-		assert!(self.declarations.len() < self.declarations.capacity());
-		self.declarations.push(node_id);
+		let _: NodeId = self.push(node);
 	}
 
-	pub(super) fn store_error(
-		&mut self,
-		error: ParsingError,
-		start: tokens::TokenId,
-		end: tokens::TokenId,
-	)
+	pub(super) fn finish_declaration(&mut self, node: NodeId)
+	{
+		self.expect_most_recent_node(node);
+		assert!(self.declarations.len() < self.declarations.capacity());
+		self.declarations.push(node);
+	}
+
+	pub(super) fn store_error(&mut self, error: ParsingError)
 	{
 		let i = self.errors.len();
 		if i >= self.errors.capacity()
@@ -208,6 +208,105 @@ impl<'buffer> ParseBuffer<'buffer>
 			// because there is no point showing the user all of them.
 			return;
 		}
-		self.errors.push((error, start, end));
+		self.errors.push(error);
+	}
+}
+
+impl ParseTree
+{
+	pub fn errors(&self, tokens: &Tokens) -> Option<Errors>
+	{
+		if self.errors.is_empty()
+		{
+			return None;
+		}
+
+		let errors = (self.errors.iter().copied())
+			.map(|error| build_error(error, self, tokens))
+			.collect();
+
+		Some(Errors { errors })
+	}
+
+	fn get_value_type_for_error(&self, node: NodeId) -> error::ValueType
+	{
+		// TODO proof in the pudding: how do I traferse this?
+		todo!()
+	}
+}
+
+fn build_error(
+	error: ParsingError,
+	parse_tree: &ParseTree,
+	tokens: &Tokens,
+) -> error::Error
+{
+	match error
+	{
+		ParsingError::UnexpectedToken { token, expectation } =>
+		{
+			error::Error::UnexpectedToken {
+				location: tokens.get_location(token),
+				expectation: expectation.to_string(),
+			}
+		}
+		ParsingError::UnexpectedSemicolonAfterIdentifier {
+			semicolon,
+			identifier,
+		} => error::Error::UnexpectedSemicolonAfterIdentifier {
+			location: tokens.get_location(semicolon),
+			after: tokens.get_location(identifier),
+		},
+		ParsingError::UnexpectedSemicolonAfterReturnValue {
+			semicolon,
+			return_value_start,
+			return_value_end,
+		} => error::Error::UnexpectedSemicolonAfterReturnValue {
+			location: tokens.get_location(semicolon),
+			after: tokens
+				.get_location_of_span(return_value_start..return_value_end),
+		},
+		ParsingError::MissingReturnValueAfterStatement {
+			unexpected_token,
+			return_statement_start,
+			return_statement_end,
+		} => error::Error::MissingReturnValueAfterStatement {
+			location: tokens.get_location(unexpected_token),
+			after: tokens.get_location_of_span(
+				return_statement_start..return_statement_end,
+			),
+		},
+		ParsingError::MissingConstantType { unexpected_token } =>
+		{
+			error::Error::MissingConstantType {
+				location: tokens.get_location(unexpected_token),
+			}
+		}
+		ParsingError::MissingParameterType { unexpected_token } =>
+		{
+			error::Error::MissingParameterType {
+				location: tokens.get_location(unexpected_token),
+			}
+		}
+		ParsingError::MissingMemberType { unexpected_token } =>
+		{
+			error::Error::MissingMemberType {
+				location: tokens.get_location(unexpected_token),
+			}
+		}
+		ParsingError::IllegalType {
+			node_id,
+			start,
+			end,
+		} => error::Error::IllegalType {
+			value_type: parse_tree.get_value_type_for_error(node_id),
+			location: tokens.get_location_of_span(start..end),
+		},
+		ParsingError::MaximumParseDepthExceeded { start, end } =>
+		{
+			error::Error::MaximumParseDepthExceeded {
+				location: tokens.get_location_of_span(start..end),
+			}
+		}
 	}
 }
