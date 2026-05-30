@@ -53,198 +53,267 @@ impl std::fmt::Debug for U24
 	}
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum ParseNode
 {
-	Declaration(Declaration),
-	DeclarationFlags(EnumSet<DeclarationFlag>),
-	NameAndType {
-		// identifier <- from token id
-		// value_type: ValueType <-
+	ConstantDeclaration
+	{
+		start_of_declaration: TokenId,
+		// flags: DeclarationFlags = nodes[-1]
+		// identifier: Identifier = nodes[-2]
+		// value_type: Item<ValueType> = nodes[-3]
+		// expression: Expression = nodes[..-4]
 	},
-	Statement(Statement),
+	FunctionDeclaration
+	{
+		start_of_declaration: TokenId,
+		// flags: DeclarationFlags = nodes[-1]
+		// identifier: Identifier = nodes[-2]
+		// parameters: List<IdentifierAndVT> = nodes[-3]
+		// statements: List<Statement> = nodes[-4],
+		// return_value: Item<Expression> = nodes[-5]
+		// return_type: ValueType = nodes[..-6]
+	},
+	FunctionHeadDeclaration
+	{
+		start_of_declaration: TokenId,
+		// flags: DeclarationFlags = nodes[-1]
+		// identifier: Identifier = nodes[-2]
+		// parameters: List<IdentifierAndVT> = nodes[-3]
+		// statements: Padding = nodes[-4]
+		// return_value: Padding = nodes[-5]
+		// return_type: ValueType = nodes[..-6]
+	},
+	StructureDeclaration
+	{
+		start_of_declaration: TokenId,
+		// flags: DeclarationFlags = nodes[-1]
+		// identifier: Identifier = nodes[-2]
+		// members: List<IdentifierAndVT> = nodes[-3]
+		// structural_type: ValueType = nodes[..-4]
+	},
+	ImportDeclaration
+	{
+		start_of_declaration: TokenId,
+		// path: StringLiteral = nodes[-1]
+	},
+	DeclarationFlags(EnumSet<DeclarationFlag>),
+	Identifier
+	{
+		identifier_token: TokenId,
+	},
+	IdentifierAndVT
+	{
+		identifier_token: TokenId,
+		// value_type: ValueType = nodes[..-1]
+	},
+	IdentifierAndExpression
+	{
+		identifier_token: TokenId,
+		// expression: Expression = nodes[..-1]
+	},
+	VariableDeclaration
+	{
+		identifier_token: TokenId,
+		// value_type: Item<ValueType>/NoMoreItems = nodes[-1]
+		// expression: Item<Expression>/NoMoreItems = nodes[-2]
+	},
+	Assignment {
+		// deref: Item<Deref> = nodes[-1]
+		// expression: Expression = nodes[..-2]
+	},
+	Loop
+	{
+		token: TokenId,
+	},
+	Goto
+	{
+		token: TokenId,
+		// label: Identifier = nodes[-1]
+	},
+	Label
+	{
+		// label: Identifier = nodes[-1]
+		semicolon: TokenId,
+	},
+	If
+	{
+		comparison: NodeId,
+		// then: Then/ThenElse = nodes[-1]
+	},
 	Then {
-		// then = nodes[-1]
+		// then: Statement = nodes[..-1]
 	},
 	ThenElse
 	{
 		then: NodeId,
-		// else = nodes[-1]
+		// else: Statement = nodes[..-1]
 	},
-	Expression(Expression),
-	FunctionBody {
-		// return_value: Expression = nodes[-1]
+	Block
+	{
+		first: NodeId, // ListItem<Statement>
 	},
-	// TODO instead of all this, I could also create separate vecs:
-	// - declarations
-	// - statements
-	// - expressions
-	// - names_and_types
-	// And then encode the start and end as U24.
-	// Then Declaration can occupy 8 or 16 bytes, but statements stay small.
-	// Oof no but value types are part of declarations, statements and expressions, and they would suffer from a lot more indirection.
+	MethodCall
+	{
+		// identifier: Identifier = nodes[-1]
+		is_builtin: bool,
+		// arguments: List<Expression> = nodes[-2]
+	},
+	Parenthesized {
+		// inner: Expression = nodes[..-1]
+	},
+	Comparison
+	{
+		token: TokenId,
+		// op: ComparisonOp = nodes[-1],
+		// left: Item<Expression> = nodes[-2],
+		// right: Expression = nodes[..-3]
+	},
+	ComparisonOp(ComparisonOp),
+	Binary
+	{
+		token: TokenId,
+		// op: BinaryOp = nodes[-1],
+		// left: Item<Expression> = nodes[-2],
+		// right: Expression = nodes[..-3]
+	},
+	BinaryOp(BinaryOp),
+	Unary
+	{
+		token: TokenId,
+		// op: UnaryOp = nodes[-1],
+		// operand: Expression = nodes[..-2],
+	},
+	UnaryOp(UnaryOp),
+	BooleanLiteral
+	{
+		literal: TokenId,
+	},
+	CharLiteral
+	{
+		literal: TokenId,
+	},
+	UntypedIntegerLiteral
+	{
+		literal: TokenId,
+	},
+	TypedIntegerLiteral
+	{
+		literal: TokenId,
+		// value_type: SimpleValueType = nodes[-1]
+	},
+	StringLiteral
+	{
+		literal: TokenId,
+	},
+	ArrayLiteral
+	{
+		num_elements: U24,
+		// items: List<Expression> = nodes[-1]
+	},
+	Structural
+	{
+		unresolved_struct_or_word: TokenId,
+		// field_initializers: List<IdentifierAndExpression> = nodes[-1]
+	},
+	Deref
+	{
+		start_of_reference: TokenId,
+		// address_depth: DerefAddressDepth = nodes[-1]
+		// base_identifier: Identifier = nodes[-2]
+		// steps: List<DerefStep> = nodes[-3]
+	},
+	DerefAddressDepth
+	{
+		depth: u8,
+	},
+	DerefStepElement {
+		// argument: Expression = nodes[..-1]
+	},
+	DerefStepMember
+	{
+		field_identifier: TokenId,
+	},
+	BitCast
+	{
+		cast_keyword: TokenId,
+		// expression: Expression = nodes[..-1]
+	},
+	TypeCast
+	{
+		start_of_type: TokenId,
+		// expression: Item<Expression> = nodes[-1]
+		// coerced_type: ValueType = nodes[..-2]
+	},
+	LengthOf {
+		// deref: Deref = nodes[..-1]
+	},
+	SizeOf {
+		// queried_type: ValueType = nodes[..-1]
+	},
+	FunctionCall
+	{
+		// identifier: Identifier = nodes[-1]
+		is_builtin: bool,
+		// arguments: List<Expression> = nodes[-2]
+	},
+	SimpleValueType(ValueTypeKeyword),
+	ArrayVT
+	{
+		// element_type = nodes[-1]
+		fixed_length: U24,
+	},
+	ArrayWithNamedLengthVT
+	{
+		// element_type = nodes[-1]
+		named_length_identifier: TokenId,
+	},
+	SliceVT {
+		// element_type = nodes[-1]
+	},
+	SlicePointerVT {
+		// element_type = nodes[-1]
+	},
+	EndlessArrayVT {
+		// element_type = nodes[-1]
+	},
+	ArraylikeVT {
+		// element_type = nodes[-1]
+	},
+	StructVT
+	{
+		identifier: TokenId,
+	},
+	WordVT
+	{
+		identifier: TokenId,
+	},
+	PointerVT {
+		// deref_type = nodes[-1]
+	},
+	ViewVT {
+		// deref_type = nodes[-1]
+	},
+	Item
+	{
+		at: NodeId, // ParseNode
+	},
+	List
+	{
+		first: NodeId, // ListItem
+	},
 	ListItem
 	{
 		// value: ParseNode = nodes[-1]
 		next: NodeId,
 	},
 	NoMoreItems,
+	Padding,
 	Poison,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Declaration
-{
-	Constant
-	{
-		// identifier <- token id
-		// flags: DeclarationFlags = nodes[-1]
-		value_type: NodeId,
-		// expression: ValueType = nodes[-2]
-	},
-	Function
-	{
-		// identifier <- token id
-		// flags: DeclarationFlags = nodes[-1]
-		// first_parameter: ListItem = nodes[-2]
-		return_type: NodeId,
-		// body: FunctionBody = nodes[-3]
-	},
-	FunctionHead
-	{
-		// identifier <- token id
-		// flags: DeclarationFlags = nodes[-1]
-		// first_parameter: ListItem = nodes[-2]
-		return_type: NodeId,
-	},
-	Structure
-	{
-		num_members: U24,
-		// identifier <- token id
-		// flags: DeclarationFlags = nodes[-1]
-		// first_member: ListItem = nodes[-2]
-		// value_type: ValueType = nodes[-3]
-	},
-	Import {
-		// path: StringLiteral = nodes[-1]
-	},
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum Statement
-{
-	Declaration,
-	Assignment,
-	Loop,
-	Goto,
-	Label,
-	If
-	{
-		comparison: NodeId,
-		// then: Then/ThenElse = nodes[-1]
-	},
-	Block,
-	MethodCall
-	{
-		is_builtin: bool,
-	},
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum Expression
-{
-	Binary
-	{
-		op: BinaryOp,
-		left: NodeId,
-		// right: Expression = nodes[-1]
-	},
-	Unary
-	{
-		op: UnaryOp,
-		// operand: Expression = nodes[-1]
-	},
-	BooleanLiteral,
-	SignedIntegerLiteral {
-		// value_type: ValueType = nodes[-1]
-	},
-	BitIntegerLiteral {
-		// value_type: ValueType = nodes[-1]
-	},
-	StringLiteral,
-	ArrayLiteral
-	{
-		num_elements: U24,
-		// first_item: ListItem = nodes[-1]
-	},
-	Structural,
-	Parenthesized,
-	Reference,
-	BitCast,
-	TypeCast,
-	LengthOf,
-	SizeOf,
-	FunctionCall
-	{
-		is_builtin: bool,
-	},
-}
-
-pub enum ParsedValueType
-{
-	Void,
-	Int8,
-	Int16,
-	Int32,
-	Int64,
-	Int128,
-	Uint8,
-	Uint16,
-	Uint32,
-	Uint64,
-	Uint128,
-	Usize,
-	Char8,
-	Bool,
-	Array
-	{
-		// element_type = nodes[-1]
-		num_elements: U24,
-	},
-	ArrayWithNamedLength
-	{
-		// element_type = nodes[-1]
-		named_length_identifier: TokenId,
-	},
-	Slice {
-		// element_type = nodes[-1]
-	},
-	SlicePointer {
-		// element_type = nodes[-1]
-	},
-	EndlessArray {
-		// element_type = nodes[-1]
-	},
-	Arraylike {
-		// element_type = nodes[-1]
-	},
-	Struct {
-		// identifier <- token
-	},
-	Word
-	{
-		// identifier <- token
-		size_in_bytes: u8,
-	},
-	UnresolvedStructOrWord {
-		// identifier <- token
-	},
-	Pointer {
-		// deref_type = nodes[-1]
-	},
-	View {
-		// deref_type = nodes[-1]
-	},
-}
+pub enum Declaration {}
 
 pub enum ParsingError
 {
@@ -278,7 +347,6 @@ pub enum ParsingError
 pub struct ParseTree
 {
 	nodes: Vec<ParseNode>,
-	node_tokens: Vec<TokenId>,
 
 	declarations: Vec<NodeId>,
 
