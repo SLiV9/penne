@@ -73,7 +73,7 @@ pub enum ParseNode
 		start_of_declaration: TokenId,
 		// flags: DeclarationFlags = nodes[-1]
 		// identifier: Identifier = nodes[-2]
-		// parameters: List<IdentifierAndVT> = nodes[-3]
+		// parameters: List<IdentifierAndType> = nodes[-3]
 		// return_type: Item<ValueType> = nodes[-4]
 		// statements: List<Statement> = nodes[-5]
 		// return_value: Item<Expression>/NoMoreItems = nodes[-6]
@@ -83,7 +83,7 @@ pub enum ParseNode
 		start_of_declaration: TokenId,
 		// flags: DeclarationFlags = nodes[-1]
 		// identifier: Identifier = nodes[-2]
-		// parameters: List<IdentifierAndVT> = nodes[-3]
+		// parameters: List<IdentifierAndType> = nodes[-3]
 		// return_type: Item<ValueType> = nodes[-4]
 		// statements: Padding = nodes[-5]
 		// return_value: Padding = nodes[-6]
@@ -94,7 +94,7 @@ pub enum ParseNode
 		// flags: DeclarationFlags = nodes[-1]
 		// identifier: Identifier = nodes[-2]
 		// structural_type: StructuralType = nodes[-3]
-		// members: List<IdentifierAndVT> = nodes[-4]
+		// members: List<IdentifierAndType> = nodes[-4]
 	},
 	ImportDeclaration
 	{
@@ -111,7 +111,7 @@ pub enum ParseNode
 	{
 		identifier: TokenId,
 	},
-	IdentifierAndVT
+	IdentifierAndType
 	{
 		identifier: TokenId,
 		// value_type: ValueType = nodes[..-1]
@@ -404,7 +404,10 @@ impl ParseNode
 				size_in_bytes_if_word,
 			},
 			Identifier { identifier } => Identifier { identifier },
-			IdentifierAndVT { identifier } => IdentifierAndVT { identifier },
+			IdentifierAndType { identifier } =>
+			{
+				IdentifierAndType { identifier }
+			}
 			IdentifierAndExpression { identifier } =>
 			{
 				IdentifierAndExpression { identifier }

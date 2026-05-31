@@ -10,6 +10,10 @@ use crate::delta::parser::ParsingError;
 use crate::delta::parser::parse_node::U24;
 
 pub const MAX_NUM_PARSING_ERRORS: usize = 100;
+pub(crate) const MAX_PARSE_NODE_CONTEXT: usize = 6;
+
+#[path = "parse_tree_xml.rs"]
+mod parse_tree_xml;
 
 #[derive(Debug)]
 pub struct ParseTree
@@ -30,7 +34,8 @@ impl ParseTree
 	{
 		// For nodes, we want to avoid the realloc at all costs.
 		// TODO so 1 is too small, 2 is very likely true but a bit of a magic number
-		let num_tokens = 2 * tokens.base_tokens().len();
+		let num_tokens =
+			MAX_PARSE_NODE_CONTEXT + 2 * tokens.base_tokens().len();
 		let nodes = Vec::with_capacity(num_tokens);
 
 		// The caller knows how many declarations there can be.
@@ -90,12 +95,18 @@ pub(super) struct ParseBuffer<'buffer>
 	num_nodes: usize,
 	nodes: &'buffer mut [MaybeUninit<ParseNode>],
 
-	active_list: Option<NodeId>,
+	active_list: Option<ActiveList>,
 	active_private_zone: Option<NodeId>,
 
 	declarations: &'buffer mut Vec<NodeId>,
 
 	errors: &'buffer mut Vec<ParsingError>,
+}
+
+struct ActiveList
+{
+	first_node: NodeId,
+	last_node: NodeId,
 }
 
 impl<'buffer> ParseBuffer<'buffer>
@@ -161,27 +172,48 @@ impl<'buffer> ParseBuffer<'buffer>
 		self.expect_most_recent_node(content_node);
 		// This will be patched later, unless there are parse errors.
 		let new_node = self.push(ParseNode::UnpatchedListItem);
-		if let Some(old_node) = self.active_list.replace(new_node)
+		self.active_list = match self.active_list
 		{
-			self.patch_list_item(
-				old_node,
-				ParseNode::ListItem { next: new_node },
-			);
-		}
+			Some(ActiveList {
+				first_node,
+				last_node,
+			}) =>
+			{
+				self.patch_list_item(
+					last_node,
+					ParseNode::ListItem { next: new_node },
+				);
+				Some(ActiveList {
+					first_node,
+					last_node: new_node,
+				})
+			}
+			None => Some(ActiveList {
+				first_node: new_node,
+				last_node: new_node,
+			}),
+		};
 	}
 
 	#[inline]
 	pub(super) fn push_end_of_list(&mut self) -> NodeId
 	{
 		let new_node = self.push(ParseNode::NoMoreItems);
-		if let Some(old_node) = self.active_list.take()
+		if let Some(ActiveList {
+			first_node,
+			last_node,
+		}) = self.active_list.take()
 		{
 			self.patch_list_item(
-				old_node,
+				last_node,
 				ParseNode::ListItem { next: new_node },
 			);
+			first_node
 		}
-		new_node
+		else
+		{
+			new_node
+		}
 	}
 
 	#[inline]
@@ -279,7 +311,8 @@ impl ParseTree
 					ParseNode::StartPrivateZone { end } =>
 					{
 						let end = usize::from(end.0);
-						num_skipped_nodes += end - i;
+						// The -2 is because of the 2 blocks of padding.
+						num_skipped_nodes += end + 1 - i - 2;
 						i = end;
 						debug_assert!(matches!(
 							self.nodes[i],
@@ -291,6 +324,7 @@ impl ParseTree
 						push(ParseNode::Padding);
 						continue;
 					}
+					ParseNode::EndPrivateZone { .. } => unreachable!(),
 					node =>
 					{
 						push(node.convert_for_head(num_skipped_nodes));
@@ -319,16 +353,6 @@ impl ParseTree
 
 impl ParseTree
 {
-	pub fn as_xml(
-		&self,
-		tokens: &Tokens,
-		source: &str,
-	) -> impl Iterator<Item = String>
-	{
-		// TODO
-		std::iter::empty()
-	}
-
 	pub fn errors(&self, tokens: &Tokens) -> Option<Errors>
 	{
 		if self.errors.is_empty()

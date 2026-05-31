@@ -15,6 +15,7 @@ use crate::delta::lexer::tokens::Span;
 use crate::delta::lexer::tokens::Tokens;
 use crate::delta::parser::parse_node::NodeId;
 use crate::delta::parser::parse_node::ParseNode;
+use crate::delta::parser::parse_tree::MAX_PARSE_NODE_CONTEXT;
 use crate::delta::parser::parse_tree::ParseBuffer;
 use crate::delta::parser::parse_tree::ParseTree;
 
@@ -93,6 +94,10 @@ pub fn parse(tokens: &lexer::tokens::Tokens) -> ParseTree
 	let mut parse_tree = ParseTree::empty(tokens, num_declarations);
 
 	let mut buffer = parse_tree.buffer();
+	for _ in 0..MAX_PARSE_NODE_CONTEXT
+	{
+		buffer.push_undeclared(ParseNode::Padding);
+	}
 	let mut start_of_next_declaration = tokens.first_token_id();
 	for _ in 0..(num_declarations + 1)
 	{
@@ -477,7 +482,7 @@ fn parse_member(
 		});
 	};
 	buffer.expect_most_recent_node(value_type);
-	let node = buffer.push(ParseNode::IdentifierAndVT { identifier });
+	let node = buffer.push(ParseNode::IdentifierAndType { identifier });
 	Ok(node)
 }
 
@@ -501,7 +506,7 @@ fn parse_parameter(
 		});
 	};
 	buffer.expect_most_recent_node(value_type);
-	let node = buffer.push(ParseNode::IdentifierAndVT { identifier });
+	let node = buffer.push(ParseNode::IdentifierAndType { identifier });
 	Ok(node)
 }
 

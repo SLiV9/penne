@@ -623,14 +623,17 @@ fn compile_to_ir_using_delta(
 			return Err(anyhow!("compilation failed"));
 		}
 
+		// dbg!(&parse_tree);
 		stdout.dump_xml(
 			"ParseTree",
 			filename,
 			parse_tree.as_xml(&tokens, source),
 		)?;
 
+		stdout.header("Creating header for", filename)?;
 		let header = parse_tree.build_header();
 
+		// dbg!(&header);
 		stdout.dump_xml(
 			"HeaderParseTree",
 			filename,
