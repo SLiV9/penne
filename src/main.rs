@@ -608,6 +608,17 @@ fn compile_to_ir_using_delta(
 
 		let parse_tree = penne::delta::parser::parse(&tokens);
 
+		if let Some(errors) = parse_tree.errors(&tokens)
+		{
+			if !stdout.is_silent
+			{
+				let mut source_cache = ariadne::sources(sources);
+				stdout.prepare_for_errors()?;
+				stdout.show_errors(errors, &mut source_cache)?;
+			}
+			return Err(anyhow!("compilation failed"));
+		}
+
 		modules.push((filepath, tokens, parse_tree));
 	}
 

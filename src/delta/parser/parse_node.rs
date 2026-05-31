@@ -211,9 +211,14 @@ pub enum ParseNode
 		literal: TokenId,
 		// value_type: SimpleValueType = nodes[-1]
 	},
-	StringLiteral
+	SimpleStringLiteral
 	{
 		literal: TokenId,
+	},
+	CompositeStringLiteral
+	{
+		start: TokenId,
+		// end: EndOfSpan = nodes[-1]
 	},
 	ArrayLiteral
 	{

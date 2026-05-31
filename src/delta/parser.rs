@@ -233,7 +233,7 @@ fn parse_import_declaration(
 	let literal = span.start.into();
 	consume(BaseToken::StringLiteral, tokens, span)?;
 	consume(BaseToken::Semicolon, tokens, span)?;
-	buffer.push_undeclared(ParseNode::StringLiteral { literal });
+	buffer.push_undeclared(ParseNode::SimpleStringLiteral { literal });
 	buffer.push_undeclared(ParseNode::DeclarationFlags(flags));
 	let node = buffer.push(ParseNode::ImportDeclaration {
 		start_of_declaration,
@@ -609,23 +609,25 @@ fn parse_function_body(
 			let return_value = buffer.push_none();
 			return Ok((statements, return_value));
 		}
-		let statement = parse_statement(tokens, buffer, span)?;
-		buffer.push_list_item(statement);
+		let _ = take(tokens, span);
+
+		// TODO implement statements
+		// let statement = parse_statement(tokens, buffer, span)?;
+		// buffer.push_list_item(statement);
 
 		// TODO check if statement is return: and handle that
 		// doesn't matter if it is an ugly hack because I want to change the syntax
 	}
 }
 
-fn parse_statement(
-	tokens: &Tokens,
-	buffer: &mut ParseBuffer<'_>,
-	span: &mut Span,
-) -> Result<NodeId, ParsingError>
-{
-	// TODO finish
-	unimplemented!()
-}
+// fn parse_statement(
+// 	tokens: &Tokens,
+// 	buffer: &mut ParseBuffer<'_>,
+// 	span: &mut Span,
+// ) -> Result<NodeId, ParsingError>
+// {
+// 	todo!()
+// }
 
 fn parse_expression(
 	tokens: &Tokens,
@@ -633,8 +635,484 @@ fn parse_expression(
 	span: &mut Span,
 ) -> Result<NodeId, ParsingError>
 {
-	// TODO finish
-	unimplemented!()
+	parse_addition(tokens, buffer, span)
+}
+
+fn parse_addition(
+	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
+	span: &mut Span,
+) -> Result<NodeId, ParsingError>
+{
+	let mut expression = parse_multiplication(tokens, buffer, span)?;
+
+	loop
+	{
+		let op_token_id = span.start;
+		let op = match peek(tokens, span)
+		{
+			BaseToken::Ampersand | BaseToken::Pipe | BaseToken::Caret =>
+			{
+				return parse_rest_of_bitwise_expression(
+					expression, tokens, buffer, span,
+				);
+			}
+			BaseToken::ShiftLeft | BaseToken::ShiftRight =>
+			{
+				return parse_rest_of_bitshift_operation(
+					expression, tokens, buffer, span,
+				);
+			}
+			BaseToken::Plus => BinaryOp::Add,
+			BaseToken::Minus => BinaryOp::Subtract,
+			_ => return Ok(expression),
+		};
+		let _peeked = take(tokens, span);
+
+		let right = parse_multiplication(tokens, buffer, span)?;
+
+		buffer.expect_most_recent_node(right);
+		buffer.push_older_node(expression);
+		buffer.push_undeclared(ParseNode::BinaryOp(op));
+		expression = buffer.push(ParseNode::Binary {
+			token: op_token_id.into(),
+		});
+	}
+}
+
+fn parse_rest_of_bitwise_expression(
+	mut expression: NodeId,
+	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
+	span: &mut Span,
+) -> Result<NodeId, ParsingError>
+{
+	let mut op_token_id = span.start;
+	let op_token = take(tokens, span);
+	let op = match op_token
+	{
+		BaseToken::Ampersand => BinaryOp::BitwiseAnd,
+		BaseToken::Pipe => BinaryOp::BitwiseOr,
+		BaseToken::Caret => BinaryOp::BitwiseXor,
+		_ =>
+		{
+			return Err(ParsingError::UnexpectedToken {
+				token: op_token_id,
+				expectation: "Expected bitwise operator.",
+			});
+		}
+	};
+
+	// Do not a bitwise expression after an unparenthesized binary expression.
+	// TODO check if most recent node is binary
+
+	loop
+	{
+		let right = parse_unary_expression(tokens, buffer, span)?;
+
+		buffer.expect_most_recent_node(right);
+		buffer.push_older_node(expression);
+		buffer.push_undeclared(ParseNode::BinaryOp(op));
+		expression = buffer.push(ParseNode::Binary {
+			token: op_token_id.into(),
+		});
+
+		op_token_id = span.start;
+		if consume_optional(op_token, tokens, span)
+		{
+			continue;
+		}
+		else
+		{
+			return Ok(expression);
+		}
+	}
+}
+
+fn parse_rest_of_bitshift_operation(
+	left: NodeId,
+	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
+	span: &mut Span,
+) -> Result<NodeId, ParsingError>
+{
+	let op_token_id = span.start;
+	let op_token = take(tokens, span);
+	let op = match op_token
+	{
+		BaseToken::ShiftLeft => BinaryOp::ShiftLeft,
+		BaseToken::ShiftRight => BinaryOp::ShiftRight,
+		_ =>
+		{
+			return Err(ParsingError::UnexpectedToken {
+				token: op_token_id,
+				expectation: "Expected bitshift operator.",
+			});
+		}
+	};
+
+	// Do not a bitshift expression after an unparenthesized binary expression.
+	// TODO check if most recent node is binary
+
+	let right = parse_unary_expression(tokens, buffer, span)?;
+
+	buffer.expect_most_recent_node(right);
+	buffer.push_older_node(left);
+	buffer.push_undeclared(ParseNode::BinaryOp(op));
+	let expression = buffer.push(ParseNode::Binary {
+		token: op_token_id.into(),
+	});
+	Ok(expression)
+}
+
+fn parse_multiplication(
+	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
+	span: &mut Span,
+) -> Result<NodeId, ParsingError>
+{
+	let mut expression = parse_singular_expression(tokens, buffer, span)?;
+
+	loop
+	{
+		let op_token_id = span.start;
+		let op = match peek(tokens, span)
+		{
+			BaseToken::Times => BinaryOp::Multiply,
+			BaseToken::Divide => BinaryOp::Divide,
+			BaseToken::Modulo => BinaryOp::Modulo,
+			_ => return Ok(expression),
+		};
+		let _peeked = take(tokens, span);
+
+		let right = parse_singular_expression(tokens, buffer, span)?;
+
+		buffer.expect_most_recent_node(right);
+		buffer.push_older_node(expression);
+		buffer.push_undeclared(ParseNode::BinaryOp(op));
+		expression = buffer.push(ParseNode::Binary {
+			token: op_token_id.into(),
+		});
+	}
+}
+
+fn parse_singular_expression(
+	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
+	span: &mut Span,
+) -> Result<NodeId, ParsingError>
+{
+	let bitcast_token_id = span.start;
+	let bitcast = consume_optional(BaseToken::Cast, tokens, span)
+		.then_some(bitcast_token_id);
+
+	let mut expression = parse_unary_expression(tokens, buffer, span)?;
+
+	if let Some(bitcast_token_id) = bitcast
+	{
+		buffer.expect_most_recent_node(expression);
+		expression = buffer.push(ParseNode::BitCast {
+			cast_keyword: bitcast_token_id.into(),
+		});
+	}
+
+	while consume_optional(BaseToken::As, tokens, span)
+	{
+		let start_of_type = span.start.into();
+		let coerced_type = parse_type(tokens, buffer, span)?;
+		buffer.expect_most_recent_node(coerced_type);
+		buffer.push_older_node(expression);
+		expression = buffer.push(ParseNode::TypeCast { start_of_type });
+	}
+
+	Ok(expression)
+}
+
+fn parse_unary_expression(
+	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
+	span: &mut Span,
+) -> Result<NodeId, ParsingError>
+{
+	match peek(tokens, span)
+	{
+		BaseToken::PipeForType =>
+		{
+			let _peeked = take(tokens, span);
+			let queried_type = parse_type(tokens, buffer, span)?;
+			consume(BaseToken::Pipe, tokens, span)?;
+			buffer.expect_most_recent_node(queried_type);
+			let expression = buffer.push(ParseNode::SizeOf {});
+			Ok(expression)
+		}
+		BaseToken::Pipe =>
+		{
+			let _peeked = take(tokens, span);
+			let reference = parse_reference(tokens, buffer, span)?;
+			consume(BaseToken::Pipe, tokens, span)?;
+			buffer.expect_most_recent_node(reference);
+			let expression = buffer.push(ParseNode::LengthOf {});
+			Ok(expression)
+		}
+		BaseToken::Exclamation =>
+		{
+			let op_token_id = span.start;
+			let _peeked = take(tokens, span);
+			let op = UnaryOp::BitwiseComplement;
+
+			let expression = parse_primary_expression(tokens, buffer, span)?;
+			buffer.expect_most_recent_node(expression);
+			buffer.push_undeclared(ParseNode::UnaryOp(op));
+			let expression = buffer.push(ParseNode::Unary {
+				token: op_token_id.into(),
+			});
+			Ok(expression)
+		}
+		BaseToken::Minus =>
+		{
+			let op_token_id = span.start;
+			let _peeked = take(tokens, span);
+			let op = UnaryOp::Negative;
+
+			// TODO either handle negative integers here
+			// or just before I check integer ranges
+			// because -128i8 is valid, but 128i8 is not
+
+			let expression = parse_primary_expression(tokens, buffer, span)?;
+			buffer.expect_most_recent_node(expression);
+			buffer.push_undeclared(ParseNode::UnaryOp(op));
+			let expression = buffer.push(ParseNode::Unary {
+				token: op_token_id.into(),
+			});
+			Ok(expression)
+		}
+		_ => parse_primary_expression(tokens, buffer, span),
+	}
+}
+
+fn parse_primary_expression(
+	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
+	span: &mut Span,
+) -> Result<NodeId, ParsingError>
+{
+	let first_token_id = span.start;
+	match take(tokens, span)
+	{
+		BaseToken::NakedDecimal =>
+		{
+			let expression = buffer.push(ParseNode::UntypedIntegerLiteral {
+				literal: first_token_id.into(),
+			});
+			Ok(expression)
+		}
+		BaseToken::BitInteger =>
+		{
+			let expression = buffer.push(ParseNode::UntypedIntegerLiteral {
+				literal: first_token_id.into(),
+			});
+			Ok(expression)
+		}
+		BaseToken::SuffixedInteger =>
+		{
+			let vap = tokens.get_value_type_and_payload(first_token_id);
+			let value_type = vap.value_type();
+			buffer.push_undeclared(ParseNode::SimpleValueType(value_type));
+			let expression = buffer.push(ParseNode::TypedIntegerLiteral {
+				literal: first_token_id.into(),
+			});
+			Ok(expression)
+		}
+		BaseToken::CharLiteral =>
+		{
+			let expression = buffer.push(ParseNode::CharLiteral {
+				literal: first_token_id.into(),
+			});
+			Ok(expression)
+		}
+		BaseToken::BoolLiteral =>
+		{
+			let expression = buffer.push(ParseNode::BooleanLiteral {
+				literal: first_token_id.into(),
+			});
+			Ok(expression)
+		}
+		BaseToken::StringLiteral =>
+		{
+			let token = BaseToken::StringLiteral;
+			let expression = if consume_optional(token, tokens, span)
+			{
+				let mut end = span.start.into();
+				while consume_optional(token, tokens, span)
+				{
+					end = span.start.into();
+				}
+				buffer.push_undeclared(ParseNode::EndOfSpan { end });
+				buffer.push(ParseNode::CompositeStringLiteral {
+					start: first_token_id.into(),
+				})
+			}
+			else
+			{
+				buffer.push(ParseNode::SimpleStringLiteral {
+					literal: first_token_id.into(),
+				})
+			};
+			Ok(expression)
+		}
+		BaseToken::Ampersand =>
+		{
+			let mut depth = 1;
+			while consume_optional(BaseToken::Ampersand, tokens, span)
+			{
+				depth += 1;
+				if depth > MAX_ADDRESS_DEPTH
+				{
+					let end = span.start.into();
+					return Err(ParsingError::MaximumParseDepthExceeded {
+						start: first_token_id.into(),
+						end,
+					});
+				}
+			}
+			let identifier = span.start.into();
+			let steps = parse_deref_steps_list(tokens, buffer, span)?;
+			buffer.push_list(steps);
+			buffer.push_undeclared(ParseNode::Identifier { identifier });
+			buffer.push_undeclared(ParseNode::DerefAddressDepth { depth });
+			let expression = buffer.push(ParseNode::Deref {
+				start_of_reference: first_token_id.into(),
+			});
+			Ok(expression)
+		}
+		BaseToken::Identifier =>
+		{
+			// TODO function call
+			// TODO structure initialization
+
+			let identifier = first_token_id.into();
+			let steps = parse_deref_steps_list(tokens, buffer, span)?;
+			buffer.push_list(steps);
+			buffer.push_undeclared(ParseNode::Identifier { identifier });
+			buffer.push_undeclared(ParseNode::DerefAddressDepth { depth: 0 });
+			let expression = buffer.push(ParseNode::Deref {
+				start_of_reference: first_token_id.into(),
+			});
+			Ok(expression)
+		}
+		BaseToken::Builtin =>
+		{
+			// TODO
+			todo!()
+		}
+		BaseToken::BracketLeft =>
+		{
+			let mut num_elements: usize = 0;
+			buffer.start_list();
+			if !consume_optional(BaseToken::BracketRight, tokens, span)
+			{
+				loop
+				{
+					let element = parse_expression(tokens, buffer, span)?;
+					buffer.push_list_item(element);
+					num_elements += 1;
+					if !consume_optional(BaseToken::Comma, tokens, span)
+					{
+						break;
+					}
+				}
+				consume(BaseToken::BracketRight, tokens, span)?;
+			}
+			let elements = buffer.push_end_of_list();
+			buffer.push_list(elements);
+			let num_elements = parse_node::U24::new(num_elements);
+			let expression =
+				buffer.push(ParseNode::ArrayLiteral { num_elements });
+			Ok(expression)
+		}
+		BaseToken::ParenLeft =>
+		{
+			let inner = parse_expression(tokens, buffer, span)?;
+			consume(BaseToken::ParenRight, tokens, span)?;
+			buffer.expect_most_recent_node(inner);
+			let expression = buffer.push(ParseNode::Parenthesized {});
+			Ok(expression)
+		}
+		_ => Err(ParsingError::UnexpectedToken {
+			token: first_token_id,
+			expectation: "Expected literal or identifier.",
+		}),
+	}
+}
+
+fn parse_reference(
+	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
+	span: &mut Span,
+) -> Result<NodeId, ParsingError>
+{
+	let first_token_id = span.start;
+	let mut address_depth = 1;
+	while consume_optional(BaseToken::Ampersand, tokens, span)
+	{
+		address_depth += 1;
+		if address_depth > MAX_ADDRESS_DEPTH
+		{
+			let start = first_token_id;
+			let end = span.start;
+			return Err(ParsingError::MaximumParseDepthExceeded { start, end });
+		}
+	}
+	let identifier = span.start.into();
+	consume(BaseToken::Identifier, tokens, span)?;
+	let steps = parse_deref_steps_list(tokens, buffer, span)?;
+	buffer.push_list(steps);
+	buffer.push_undeclared(ParseNode::Identifier { identifier });
+	buffer.push_undeclared(ParseNode::DerefAddressDepth { depth: 0 });
+	let expression = buffer.push(ParseNode::Deref {
+		start_of_reference: first_token_id.into(),
+	});
+	Ok(expression)
+}
+
+fn parse_deref_steps_list(
+	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
+	span: &mut Span,
+) -> Result<NodeId, ParsingError>
+{
+	let start = span.start.into();
+	buffer.start_list();
+	for _ in 0..MAX_REFERENCE_DEPTH
+	{
+		let step = if consume_optional(BaseToken::BracketLeft, tokens, span)
+		{
+			let argument = parse_expression(tokens, buffer, span)?;
+			consume(BaseToken::BracketRight, tokens, span)?;
+			buffer.expect_most_recent_node(argument);
+			buffer.push(ParseNode::DerefStepElement {})
+		}
+		else if consume_optional(BaseToken::Dot, tokens, span)
+		{
+			let field_identifier = span.start.into();
+			consume(BaseToken::Identifier, tokens, span)?;
+			buffer.push(ParseNode::DerefStepMember { field_identifier })
+		}
+		else
+		{
+			let start_of_list = buffer.push_end_of_list();
+			return Ok(start_of_list);
+		};
+		buffer.push_list_item(step);
+	}
+	let end = span.start.into();
+	Err(ParsingError::MaximumParseDepthExceeded { start, end })
+}
+
+#[inline(always)]
+fn peek(tokens: &Tokens, span: &mut Span) -> BaseToken
+{
+	tokens.get(span.start)
 }
 
 #[inline(always)]
