@@ -326,5 +326,174 @@ pub enum ParseNode
 	},
 	UnpatchedListItem,
 	NoMoreItems,
-	Poison,
+	EndlessPrivateZone,
+	StartPrivateZone
+	{
+		end: NodeId,
+	},
+	EndPrivateZone
+	{
+		start: NodeId,
+	},
+}
+
+impl ParseNode
+{
+	#[inline]
+	pub(crate) fn is_declaration(self) -> bool
+	{
+		use ParseNode::*;
+		matches!(
+			self,
+			ConstantDeclaration { .. }
+				| FunctionDeclaration { .. }
+				| FunctionHeadDeclaration { .. }
+				| StructureDeclaration { .. }
+				| ImportDeclaration { .. }
+		)
+	}
+
+	#[inline]
+	pub(crate) fn convert_for_head(self, num_skipped_nodes: usize) -> Self
+	{
+		let adjust = |node_id: NodeId| -> NodeId {
+			let i = usize::from(node_id.0);
+			debug_assert!(i >= num_skipped_nodes);
+			NodeId(U24::new(i - num_skipped_nodes))
+		};
+
+		use ParseNode::*;
+		match self
+		{
+			Padding => Padding,
+			ConstantDeclaration {
+				start_of_declaration,
+			} => ConstantDeclaration {
+				start_of_declaration,
+			},
+			FunctionDeclaration {
+				start_of_declaration,
+			} =>
+			{
+				// Note here we actually change the node type.
+				FunctionHeadDeclaration {
+					start_of_declaration,
+				}
+			}
+			FunctionHeadDeclaration {
+				start_of_declaration,
+			} => FunctionHeadDeclaration {
+				start_of_declaration,
+			},
+			StructureDeclaration {
+				start_of_declaration,
+			} => StructureDeclaration {
+				start_of_declaration,
+			},
+			ImportDeclaration { .. } =>
+			{
+				// Stripping imports.
+				Padding
+			}
+			DeclarationFlags(enum_set) => DeclarationFlags(
+				enum_set.difference(EnumSet::from(DeclarationFlag::Public)),
+			),
+			StructuralType {
+				size_in_bytes_if_word,
+			} => StructuralType {
+				size_in_bytes_if_word,
+			},
+			Identifier { identifier } => Identifier { identifier },
+			IdentifierAndVT { identifier } => IdentifierAndVT { identifier },
+			IdentifierAndExpression { identifier } =>
+			{
+				IdentifierAndExpression { identifier }
+			}
+			VariableDeclaration { identifier } =>
+			{
+				VariableDeclaration { identifier }
+			}
+			Assignment {} => Assignment {},
+			Loop { token } => Loop { token },
+			Goto { token } => Goto { token },
+			Label { semicolon } => Label { semicolon },
+			If { comparison } => If {
+				comparison: adjust(comparison),
+			},
+			Then {} => Then {},
+			ThenElse { then } => ThenElse { then: adjust(then) },
+			Block { first } => Block {
+				first: adjust(first),
+			},
+			MethodCall { is_builtin } => MethodCall { is_builtin },
+			Parenthesized {} => Parenthesized {},
+			Comparison { token } => Comparison { token },
+			ComparisonOp(comparison_op) => ComparisonOp(comparison_op),
+			Binary { token } => Binary { token },
+			BinaryOp(binary_op) => BinaryOp(binary_op),
+			Unary { token } => Unary { token },
+			UnaryOp(unary_op) => UnaryOp(unary_op),
+			BooleanLiteral { literal } => BooleanLiteral { literal },
+			CharLiteral { literal } => CharLiteral { literal },
+			UntypedIntegerLiteral { literal } =>
+			{
+				UntypedIntegerLiteral { literal }
+			}
+			TypedIntegerLiteral { literal } => TypedIntegerLiteral { literal },
+			SimpleStringLiteral { literal } => SimpleStringLiteral { literal },
+			CompositeStringLiteral { start } =>
+			{
+				CompositeStringLiteral { start }
+			}
+			ArrayLiteral { num_elements } => ArrayLiteral { num_elements },
+			Structural {
+				unresolved_struct_or_word,
+			} => Structural {
+				unresolved_struct_or_word,
+			},
+			Deref { start_of_reference } => Deref { start_of_reference },
+			DerefAddressDepth { depth } => DerefAddressDepth { depth },
+			DerefStepElement {} => DerefStepElement {},
+			DerefStepMember { field_identifier } =>
+			{
+				DerefStepMember { field_identifier }
+			}
+			BitCast { cast_keyword } => BitCast { cast_keyword },
+			TypeCast { start_of_type } => TypeCast { start_of_type },
+			LengthOf {} => LengthOf {},
+			SizeOf {} => SizeOf {},
+			FunctionCall { is_builtin } => FunctionCall { is_builtin },
+			SimpleValueType(value_type_keyword) =>
+			{
+				SimpleValueType(value_type_keyword)
+			}
+			CompositeValueType { start } => CompositeValueType { start },
+			ArrayVT { fixed_length } => ArrayVT { fixed_length },
+			ArrayWithNamedLengthVT {
+				named_length_identifier,
+			} => ArrayWithNamedLengthVT {
+				named_length_identifier,
+			},
+			SliceVT {} => SliceVT {},
+			EndlessArrayVT {} => EndlessArrayVT {},
+			ArraylikeVT {} => ArraylikeVT {},
+			UnresolvedStructOrWordVT { identifier } =>
+			{
+				UnresolvedStructOrWordVT { identifier }
+			}
+			PointerVT {} => PointerVT {},
+			ViewVT {} => ViewVT {},
+			EndOfSpan { end } => EndOfSpan { end },
+			Item { at } => Item { at: adjust(at) },
+			List { first } => List {
+				first: adjust(first),
+			},
+			ListItem { next } => ListItem { next: adjust(next) },
+			UnpatchedListItem => UnpatchedListItem,
+			NoMoreItems => NoMoreItems,
+			EndlessPrivateZone
+			| StartPrivateZone { .. }
+			| EndPrivateZone { .. } => unreachable!(),
+		}
+	}
 }

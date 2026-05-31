@@ -85,49 +85,30 @@ pub enum ParsingError
 pub fn parse(tokens: &lexer::tokens::Tokens) -> ParseTree
 {
 	// let mut tokens = Tokens::from(tokens);
-	let num_known_declarations = tokens
+	let num_declarations = tokens
 		.base_tokens()
 		.iter()
-		.filter(|&&token| starts_declaration(token))
+		.filter(|&&token| is_actual_declaration_keyword(token))
 		.count();
-	let num_possible_declarations = 2 * num_known_declarations + 2;
-	let mut parse_tree = ParseTree::empty(tokens, num_possible_declarations);
+	let mut parse_tree = ParseTree::empty(tokens, num_declarations);
 
 	let mut buffer = parse_tree.buffer();
 	let mut start_of_next_declaration = tokens.first_token_id();
-	for _ in 0..(num_known_declarations + 1)
+	for _ in 0..(num_declarations + 1)
 	{
 		match tokens.get(start_of_next_declaration)
 		{
 			BaseToken::EndOfSource => break,
 			_ => (),
 		}
-		let mut span = tokens.find_span(
-			start_of_next_declaration,
-			starts_declaration,
-			starts_declaration,
-		);
+		let mut span = tokens.span_from(start_of_next_declaration);
 		match parse_declaration(tokens, &mut buffer, &mut span)
 		{
 			Ok(node) => buffer.finish_declaration(node),
-			Err(error) =>
-			{
-				buffer.store_error(error);
-				// Skip to the start of the next declaration.
-				start_of_next_declaration = span.end;
-				continue;
-			}
+			Err(error) => buffer.store_error(error),
 		}
-		// If there are tokens left over, produce an error.
-		start_of_next_declaration = span.start;
-		if !span.is_empty()
-		{
-			buffer.store_error(ParsingError::UnexpectedToken {
-				token: start_of_next_declaration,
-				expectation: "Expected top-level declaration.",
-			});
-		}
-		start_of_next_declaration = span.end;
+		start_of_next_declaration =
+			tokens.skip_until(starts_declaration, span.start);
 	}
 	assert_eq!(
 		tokens.get(start_of_next_declaration),
@@ -143,13 +124,11 @@ pub fn parse(tokens: &lexer::tokens::Tokens) -> ParseTree
 	parse_tree
 }
 
-fn starts_declaration(token: BaseToken) -> bool
+fn is_actual_declaration_keyword(token: BaseToken) -> bool
 {
 	match token
 	{
 		BaseToken::Import => true,
-		BaseToken::Pub => true,
-		BaseToken::Extern => true,
 		BaseToken::Const => true,
 		BaseToken::Fn => true,
 		BaseToken::Struct => true,
@@ -162,6 +141,16 @@ fn starts_declaration(token: BaseToken) -> bool
 	}
 }
 
+fn starts_declaration(token: BaseToken) -> bool
+{
+	match token
+	{
+		BaseToken::Pub => true,
+		BaseToken::Extern => true,
+		_ => is_actual_declaration_keyword(token),
+	}
+}
+
 fn parse_declaration(
 	tokens: &Tokens,
 	buffer: &mut ParseBuffer<'_>,
@@ -170,9 +159,15 @@ fn parse_declaration(
 {
 	let start_of_declaration = span.start.into();
 	let mut flags = EnumSet::new();
+	dbg!(peek(tokens, span));
 	if consume_optional(BaseToken::Pub, tokens, span)
 	{
 		flags.insert(DeclarationFlag::Public);
+		buffer.set_public();
+	}
+	else
+	{
+		buffer.set_private();
 	}
 	if consume_optional(BaseToken::Extern, tokens, span)
 	{
@@ -384,6 +379,7 @@ fn parse_function_declaration(
 
 	let node = if consume_optional(BaseToken::Semicolon, tokens, span)
 	{
+		// This is to allow layout compatibility with Function.
 		buffer.push_undeclared(ParseNode::Padding);
 		buffer.push_undeclared(ParseNode::Padding);
 		buffer.push_older_node(return_type);
@@ -396,12 +392,22 @@ fn parse_function_declaration(
 	}
 	else
 	{
+		// When the private zone gets expunged, two padding blocks
+		// shift into the position of the return value and statements.
+		if flags.contains(DeclarationFlag::Public)
+		{
+			buffer.set_private();
+		}
 		let (statements, return_value) =
 			parse_function_body(tokens, buffer, span)?;
-
+		// Note that we do not use buffer.expect_most_recent_node() here.
 		// This is to allow layout compatibility with FunctionHead.
 		buffer.push_older_node(return_value);
 		buffer.push_list(statements);
+		if flags.contains(DeclarationFlag::Public)
+		{
+			buffer.set_public();
+		}
 		buffer.push_older_node(return_type);
 		buffer.push_list(parameters);
 		buffer.push_undeclared(ParseNode::Identifier { identifier });

@@ -42,6 +42,9 @@ pub mod test_suite
 				all_errors = all_errors.combined_with(errors);
 				continue;
 			}
+
+			let header = parse_tree.build_header();
+			// TODO use these headers when analyzing other fields
 		}
 		all_errors.sorted()
 	}

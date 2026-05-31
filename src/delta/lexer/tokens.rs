@@ -376,25 +376,26 @@ impl Tokens
 		TokenId(0)
 	}
 
-	pub fn find_span(
+	pub fn span_from(&self, from: TokenId) -> Span
+	{
+		let len = self.tokens.len();
+		assert!(len > 0, "ends with EndOfSource");
+		from..self.token_id(len - 1)
+	}
+
+	pub fn skip_until(
 		&self,
-		from: TokenId,
-		expect_start_with: impl Fn(BaseToken) -> bool,
 		until: impl Fn(BaseToken) -> bool,
-	) -> Span
+		from: TokenId,
+	) -> TokenId
 	{
 		let len = self.tokens.len();
 		let mut i = from.0 as usize;
-		let first_token = *self.tokens.get(i).expect("ends with EndOfSource");
-		if expect_start_with(first_token)
-		{
-			i += 1;
-		}
 		while i < len
 		{
 			if until(self.tokens[i]) || self.tokens[i] == BaseToken::EndOfSource
 			{
-				return from..self.token_id(i);
+				return self.token_id(i);
 			}
 			i += 1;
 		}

@@ -11,6 +11,7 @@ use crate::delta::parser::parse_node::U24;
 
 pub const MAX_NUM_PARSING_ERRORS: usize = 100;
 
+#[derive(Debug)]
 pub struct ParseTree
 {
 	nodes: Vec<ParseNode>,
@@ -28,7 +29,8 @@ impl ParseTree
 	) -> Self
 	{
 		// For nodes, we want to avoid the realloc at all costs.
-		let num_tokens = tokens.base_tokens().len();
+		// TODO so 1 is too small, 2 is very likely true but a bit of a magic number
+		let num_tokens = 2 * tokens.base_tokens().len();
 		let nodes = Vec::with_capacity(num_tokens);
 
 		// The caller knows how many declarations there can be.
@@ -60,6 +62,7 @@ impl ParseTree
 			num_nodes: 0,
 			nodes: nodes.spare_capacity_mut(),
 			active_list: None,
+			active_private_zone: None,
 			declarations,
 			errors,
 		}
@@ -88,6 +91,7 @@ pub(super) struct ParseBuffer<'buffer>
 	nodes: &'buffer mut [MaybeUninit<ParseNode>],
 
 	active_list: Option<NodeId>,
+	active_private_zone: Option<NodeId>,
 
 	declarations: &'buffer mut Vec<NodeId>,
 
@@ -192,6 +196,45 @@ impl<'buffer> ParseBuffer<'buffer>
 		let _: NodeId = self.push(node);
 	}
 
+	#[inline]
+	pub(super) fn set_private(&mut self)
+	{
+		if self.active_private_zone.is_none()
+		{
+			let node = self.push(ParseNode::EndlessPrivateZone);
+			self.active_private_zone = Some(node);
+		}
+	}
+
+	#[inline]
+	pub(super) fn set_public(&mut self)
+	{
+		if let Some(start) = self.active_private_zone.take()
+		{
+			let end = self.push(ParseNode::EndPrivateZone { start });
+			self.patch_start_of_private_zone(
+				start,
+				ParseNode::StartPrivateZone { end },
+			);
+		}
+	}
+
+	#[inline]
+	fn patch_start_of_private_zone(
+		&mut self,
+		old_node: NodeId,
+		new_content: ParseNode,
+	)
+	{
+		let i = usize::from(old_node.0);
+		assert!(i < self.num_nodes);
+		// Safety: `self.num_nodes` is only increased in `push`,
+		// upholding the invariant of `self`.
+		let old_node = unsafe { self.nodes[i].assume_init_mut() };
+		debug_assert!(matches!(*old_node, ParseNode::EndlessPrivateZone));
+		*old_node = new_content;
+	}
+
 	pub(super) fn finish_declaration(&mut self, node: NodeId)
 	{
 		self.expect_most_recent_node(node);
@@ -209,6 +252,68 @@ impl<'buffer> ParseBuffer<'buffer>
 			return;
 		}
 		self.errors.push(error);
+	}
+}
+
+impl ParseTree
+{
+	#[inline(never)]
+	pub fn build_header(&self) -> ParseTree
+	{
+		assert!(self.errors.is_empty());
+		let mut nodes = Vec::with_capacity(self.nodes.len());
+		{
+			let buffer = nodes.spare_capacity_mut();
+			let mut num_public_nodes = 0;
+			let mut num_skipped_nodes = 0;
+			let mut push = |node| {
+				buffer[num_public_nodes].write(node);
+				num_public_nodes += 1;
+			};
+			let mut i = 0;
+			while i < self.nodes.len()
+			{
+				match self.nodes[i]
+				{
+					ParseNode::EndlessPrivateZone => break,
+					ParseNode::StartPrivateZone { end } =>
+					{
+						let end = usize::from(end.0);
+						num_skipped_nodes += end - i;
+						i = end;
+						debug_assert!(matches!(
+							self.nodes[i],
+							ParseNode::EndPrivateZone { .. }
+						));
+						i += 1;
+						// These two padding blocks are load-bearing, see FunctionHead.
+						push(ParseNode::Padding);
+						push(ParseNode::Padding);
+						continue;
+					}
+					node =>
+					{
+						push(node.convert_for_head(num_skipped_nodes));
+						i += 1;
+					}
+				}
+			}
+			// Safety: `num_public_nodes` is only modified in the `push` closure.
+			unsafe { nodes.set_len(num_public_nodes) };
+		}
+		let mut declarations = Vec::with_capacity(self.declarations.len());
+		for (i, node) in nodes.iter().enumerate()
+		{
+			if node.is_declaration()
+			{
+				declarations.push(NodeId(U24::new(i)));
+			}
+		}
+		ParseTree {
+			nodes,
+			declarations,
+			errors: Vec::new(),
+		}
 	}
 }
 

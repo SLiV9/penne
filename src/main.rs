@@ -606,6 +606,8 @@ fn compile_to_ir_using_delta(
 			return Err(anyhow!("compilation failed"));
 		}
 
+		dbg!(tokens.base_tokens());
+
 		let parse_tree = penne::delta::parser::parse(&tokens);
 
 		if let Some(errors) = parse_tree.errors(&tokens)
@@ -618,6 +620,12 @@ fn compile_to_ir_using_delta(
 			}
 			return Err(anyhow!("compilation failed"));
 		}
+
+		dbg!(&parse_tree);
+
+		let header = parse_tree.build_header();
+
+		dbg!(&header);
 
 		modules.push((filepath, tokens, parse_tree));
 	}
