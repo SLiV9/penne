@@ -319,6 +319,16 @@ impl ParseTree
 
 impl ParseTree
 {
+	pub fn as_xml(
+		&self,
+		tokens: &Tokens,
+		source: &str,
+	) -> impl Iterator<Item = String>
+	{
+		// TODO
+		std::iter::empty()
+	}
+
 	pub fn errors(&self, tokens: &Tokens) -> Option<Errors>
 	{
 		if self.errors.is_empty()

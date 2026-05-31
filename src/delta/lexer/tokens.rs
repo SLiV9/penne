@@ -415,13 +415,13 @@ impl Tokens
 	pub fn get_integer_payload(
 		&self,
 		PayloadId(payload_id): PayloadId,
-	) -> Option<&u128>
+	) -> Option<u128>
 	{
 		if payload_id == 0
 		{
 			return None;
 		}
-		self.integer_payloads.get(payload_id as usize)
+		self.integer_payloads.get(payload_id as usize).copied()
 	}
 
 	pub fn get_location(&self, TokenId(token_id): TokenId) -> error::Location
@@ -456,6 +456,69 @@ impl Tokens
 	{
 		let end_inclusive = TokenId(span.end.0.saturating_sub(1));
 		end_inclusive > span.start
+	}
+
+	pub fn as_xml(&self, source: &str) -> impl Iterator<Item = String>
+	{
+		assert_eq!(self.tokens.len(), self.token_vaps.len());
+		(0..self.tokens.len()).map(|i| {
+			let token_id = self.token_id(i);
+			let base_token = self.tokens[i];
+			let vap = self.token_vaps[i];
+			self.print_xml(token_id, base_token, vap, source)
+		})
+	}
+
+	fn print_xml(
+		&self,
+		token_id: TokenId,
+		base_token: BaseToken,
+		vap: ValueTypeAndPayloadId,
+		source: &str,
+	) -> String
+	{
+		let get_source = || {
+			let location = self.get_location(token_id);
+			&source[location.span]
+		};
+
+		match base_token
+		{
+			BaseToken::ValueTypeKeyword =>
+			{
+				format!("<{base_token:?} type=\"{:?}\" />", vap.value_type())
+			}
+			BaseToken::Identifier | BaseToken::Builtin =>
+			{
+				format!("<{base_token:?} src={:?} />", get_source())
+			}
+			BaseToken::NakedDecimal
+			| BaseToken::BitInteger
+			| BaseToken::CharLiteral
+			| BaseToken::BoolLiteral =>
+			{
+				format!(
+					"<{base_token:?} value=\"{}\" />",
+					self.get_integer_payload(vap.payload_id()).unwrap()
+				)
+			}
+			BaseToken::SuffixedInteger =>
+			{
+				format!(
+					"<{base_token:?} type=\"{:?}\" value=\"{}\" />",
+					vap.value_type(),
+					self.get_integer_payload(vap.payload_id()).unwrap()
+				)
+			}
+			BaseToken::StringLiteral =>
+			{
+				format!(
+					"<{base_token:?} src={:?} />",
+					get_source().trim_matches('"')
+				)
+			}
+			_ => format!("<{base_token:?} />"),
+		}
 	}
 
 	pub fn errors(&self) -> Option<Errors>

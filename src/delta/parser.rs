@@ -159,7 +159,6 @@ fn parse_declaration(
 {
 	let start_of_declaration = span.start.into();
 	let mut flags = EnumSet::new();
-	dbg!(peek(tokens, span));
 	if consume_optional(BaseToken::Pub, tokens, span)
 	{
 		flags.insert(DeclarationFlag::Public);

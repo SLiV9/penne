@@ -303,6 +303,35 @@ impl StdOut
 		Ok(())
 	}
 
+	pub fn dump_xml<T: std::fmt::Display>(
+		&mut self,
+		kind: &str,
+		filename: &str,
+		xml_lines: impl Iterator<Item = T>,
+	) -> Result<(), anyhow::Error>
+	{
+		if self.is_silent
+		{
+			return Ok(());
+		}
+		if self.is_verbose
+		{
+			self.header("Dumping", filename)?;
+
+			let colorspec_dump = ColorSpec::new().set_dimmed(true).to_owned();
+			self.stdout.set_color(&colorspec_dump)?;
+			writeln!(self.stdout, "<{kind} filename={filename:?}>")?;
+			for xml in xml_lines
+			{
+				writeln!(self.stdout, "{xml}")?;
+			}
+			writeln!(self.stdout, "</{kind}>")?;
+			writeln!(self.stdout)?;
+			writeln!(self.stdout)?;
+		}
+		Ok(())
+	}
+
 	pub fn linting(
 		&mut self,
 		was_successful: bool,
