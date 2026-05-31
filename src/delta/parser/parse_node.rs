@@ -24,8 +24,8 @@ impl U24
 	{
 		debug_assert!(value < MAX_NUM_NODES);
 		let value = value as u32;
-		let [_x3, x2, x1, x0] = value.to_le_bytes();
-		Self([x2, x1, x0])
+		let [x0, x1, x2, _x3] = value.to_le_bytes();
+		Self([x0, x1, x2])
 	}
 }
 
@@ -33,8 +33,8 @@ impl From<U24> for u32
 {
 	fn from(value: U24) -> Self
 	{
-		let [x2, x1, x0] = value.0;
-		let bytes = [0, x2, x1, x0];
+		let [x0, x1, x2] = value.0;
+		let bytes = [x0, x1, x2, 0];
 		u32::from_le_bytes(bytes)
 	}
 }

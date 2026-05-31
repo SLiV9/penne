@@ -110,8 +110,15 @@ pub fn parse(tokens: &lexer::tokens::Tokens) -> ParseTree
 		match parse_declaration(tokens, &mut buffer, &mut span)
 		{
 			Ok(node) => buffer.finish_declaration(node),
-			Err(error) => buffer.store_error(error),
+			Err(error) =>
+			{
+				buffer.store_error(error);
+				// Skip to the start of the next declaration.
+				start_of_next_declaration = span.end;
+				continue;
+			}
 		}
+		// If there are tokens left over, produce an error.
 		start_of_next_declaration = span.start;
 		if !span.is_empty()
 		{

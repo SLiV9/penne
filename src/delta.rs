@@ -36,6 +36,12 @@ pub mod test_suite
 				all_errors = all_errors.combined_with(errors);
 				continue;
 			}
+			let parse_tree = parser::parse(&tokens);
+			if let Some(errors) = parse_tree.errors(&tokens)
+			{
+				all_errors = all_errors.combined_with(errors);
+				continue;
+			}
 		}
 		all_errors.sorted()
 	}

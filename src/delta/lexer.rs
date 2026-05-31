@@ -164,6 +164,13 @@ pub enum TokenPayload
 
 pub fn lex(source: &[u8], source_filename: &str) -> Tokens
 {
+	if source.is_empty()
+	{
+		return Tokens::empty_with_one_error(
+			source_filename.to_string(),
+			LexingError::UnexpectedZeroByteFile,
+		);
+	}
 	if source.len() > MAX_SOURCE_LEN
 	{
 		return Tokens::empty_with_one_error(
