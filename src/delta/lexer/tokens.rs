@@ -144,7 +144,9 @@ impl Tokens
 		// Don't pre-allocate too many payloads. We will rescale these.
 		let soft_payload_cap = std::cmp::max(source_len / 64, 1024);
 		let payload_cap = std::cmp::min(soft_payload_cap, MAX_NUM_PAYLOADS);
-		let integer_payloads = Vec::with_capacity(payload_cap);
+		let mut integer_payloads = Vec::with_capacity(payload_cap);
+		// PayloadId(0) means no payload.
+		integer_payloads.push(u128::MAX);
 
 		// For errors we have MAX_NUM_LEXING_ERRORS as a hard cap
 		// because there is no point showing the user millions of errors.
@@ -199,8 +201,6 @@ impl Tokens
 		assert_eq!(token_vaps.capacity(), tokens.capacity());
 		assert_eq!(token_locations.capacity(), tokens.capacity());
 		assert_eq!(tokens.len(), 0);
-		assert_eq!(integer_payloads.len(), 0);
-		assert_eq!(errors.len(), 0);
 		TokensBuffer {
 			num_tokens: 0,
 			tokens: tokens.spare_capacity_mut(),
@@ -336,6 +336,7 @@ impl<'buffer> TokensBuffer<'buffer>
 	) -> Result<(), TokenAllocError>
 	{
 		self.push(BaseToken::EndOfSource, None, None, end_of_source_location)?;
+		self.push(BaseToken::EndOfSource, None, None, end_of_source_location)?;
 		Ok(())
 	}
 }
@@ -360,7 +361,7 @@ impl Tokens
 	{
 		token_id.0 += 1;
 		let i = token_id.0 as usize;
-		debug_assert!(i < self.tokens.len());
+		debug_assert!(i <= self.tokens.len());
 	}
 
 	#[inline(always)]
@@ -435,6 +436,14 @@ impl Tokens
 			line_number: location.line_number(),
 			line_offset: location.line_offset(),
 		}
+	}
+
+	pub fn get_location_of_previous_token(
+		&self,
+		TokenId(token_id): TokenId,
+	) -> error::Location
+	{
+		self.get_location(TokenId(token_id.saturating_sub(1)))
 	}
 
 	pub fn get_location_of_span(&self, span: Span) -> error::Location

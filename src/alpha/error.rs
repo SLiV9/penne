@@ -138,6 +138,7 @@ pub enum Error
 {
 	UnexpectedEndOfFile
 	{
+		location: Location,
 		last_location: Location,
 		expectation: String,
 	},
@@ -679,7 +680,7 @@ impl Error
 	{
 		match self
 		{
-			Error::UnexpectedEndOfFile { last_location, .. } => &last_location,
+			Error::UnexpectedEndOfFile { location, .. } => &location,
 			Error::Lexical { location, .. } => &location,
 			Error::UnexpectedToken { location, .. } => &location,
 			Error::UnexpectedSemicolonAfterIdentifier { location, .. } =>
@@ -928,12 +929,13 @@ fn write<'a>(
 	match error
 	{
 		Error::UnexpectedEndOfFile {
+			location,
 			last_location,
 			expectation,
 		} => report
 			.with_message("Unexpected end of file")
 			.with_label(
-				last_location
+				location
 					.label_after_end()
 					.with_message(expectation)
 					.with_order(1)

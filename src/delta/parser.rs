@@ -626,7 +626,9 @@ fn parse_function_body(
 			let return_value = buffer.push_none();
 			return Ok((statements, return_value));
 		}
-		let _ = take(tokens, span);
+
+		// TODO finish
+		consume(BaseToken::BraceRight, tokens, span)?;
 
 		// TODO implement statements
 		// let statement = parse_statement(tokens, buffer, span)?;

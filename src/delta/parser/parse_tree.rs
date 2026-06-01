@@ -5,6 +5,7 @@ use super::parse_node::ParseNode;
 
 use crate::alpha::Errors;
 use crate::alpha::error;
+use crate::delta::lexer::BaseToken;
 use crate::delta::lexer::tokens::Tokens;
 use crate::delta::parser::ParsingError;
 use crate::delta::parser::parse_node::U24;
@@ -372,6 +373,15 @@ fn build_error(error: ParsingError, tokens: &Tokens) -> error::Error
 {
 	match error
 	{
+		ParsingError::UnexpectedToken { token, expectation }
+			if tokens.get(token) == BaseToken::EndOfSource =>
+		{
+			error::Error::UnexpectedEndOfFile {
+				location: tokens.get_location(token),
+				last_location: tokens.get_location_of_previous_token(token),
+				expectation: expectation.to_string(),
+			}
+		}
 		ParsingError::UnexpectedToken { token, expectation } =>
 		{
 			error::Error::UnexpectedToken {

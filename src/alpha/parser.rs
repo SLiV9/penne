@@ -190,6 +190,7 @@ fn consume(expected_token: Token, tokens: &mut Tokens) -> Result<(), Error>
 		}),
 		None => Err(Error::UnexpectedEndOfFile {
 			expectation: expected_token.expectation().to_string(),
+			location: tokens.last_location.clone(),
 			last_location: tokens.last_location.clone(),
 		}),
 	}
@@ -249,6 +250,7 @@ fn extract_identifier(
 		}),
 		None => Err(Error::UnexpectedEndOfFile {
 			expectation: expectation.to_string(),
+			location: tokens.last_location.clone(),
 			last_location: tokens.last_location.clone(),
 		}),
 	}
@@ -275,6 +277,7 @@ fn extract(
 		}),
 		None => Err(Error::UnexpectedEndOfFile {
 			expectation: expectation.to_string(),
+			location: tokens.last_location.clone(),
 			last_location: tokens.last_location.clone(),
 		}),
 	}
