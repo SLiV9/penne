@@ -143,7 +143,7 @@ pub enum ParseNode
 	Label
 	{
 		// label: Identifier = nodes[-1]
-		semicolon: TokenId,
+		colon: TokenId,
 	},
 	If
 	{
@@ -419,7 +419,7 @@ impl ParseNode
 			Assignment {} => Assignment {},
 			Loop { token } => Loop { token },
 			Goto { token } => Goto { token },
-			Label { semicolon } => Label { semicolon },
+			Label { colon: semicolon } => Label { colon: semicolon },
 			If { comparison } => If {
 				comparison: adjust(comparison),
 			},

@@ -33,19 +33,17 @@ pub enum ParsingError
 	UnexpectedSemicolonAfterIdentifier
 	{
 		semicolon: tokens::TokenId,
-		identifier: tokens::TokenId,
+		identifier_start: tokens::TokenId,
 	},
 	UnexpectedSemicolonAfterReturnValue
 	{
 		semicolon: tokens::TokenId,
 		return_value_start: tokens::TokenId,
-		return_value_end: tokens::TokenId,
 	},
 	MissingReturnValueAfterStatement
 	{
 		unexpected_token: tokens::TokenId,
 		return_statement_start: tokens::TokenId,
-		return_statement_end: tokens::TokenId,
 	},
 	MissingConstantType
 	{
@@ -406,7 +404,7 @@ fn parse_function_declaration(
 			parse_function_body(tokens, buffer, span)?;
 		// Note that we do not use buffer.expect_most_recent_node() here.
 		// This is to allow layout compatibility with FunctionHead.
-		buffer.push_older_node(return_value);
+		buffer.push_optional_node(return_value);
 		buffer.push_list(statements);
 		if flags.contains(DeclarationFlag::Public)
 		{
@@ -614,7 +612,7 @@ fn parse_function_body(
 	tokens: &Tokens,
 	buffer: &mut ParseBuffer<'_>,
 	span: &mut Span,
-) -> Result<(NodeId, NodeId), ParsingError>
+) -> Result<(NodeId, Option<NodeId>), ParsingError>
 {
 	consume(BaseToken::BraceLeft, tokens, span)?;
 	buffer.start_list();
@@ -623,30 +621,271 @@ fn parse_function_body(
 		if consume_optional(BaseToken::BraceRight, tokens, span)
 		{
 			let statements = buffer.push_end_of_list();
-			let return_value = buffer.push_none();
-			return Ok((statements, return_value));
+			return Ok((statements, None));
 		}
 
-		// TODO finish
-		consume(BaseToken::BraceRight, tokens, span)?;
+		if consume_optional(BaseToken::Return, tokens, span)
+		{
+			let statements = buffer.push_end_of_list();
+			consume(BaseToken::Colon, tokens, span)?;
+			let return_value = parse_expression(tokens, buffer, span)?;
+			return Ok((statements, Some(return_value)));
+		}
 
-		// TODO implement statements
-		// let statement = parse_statement(tokens, buffer, span)?;
-		// buffer.push_list_item(statement);
-
-		// TODO check if statement is return: and handle that
-		// doesn't matter if it is an ugly hack because I want to change the syntax
+		let statement = parse_statement(tokens, buffer, span)?;
+		buffer.push_list_item(statement);
 	}
 }
 
-// fn parse_statement(
-// 	tokens: &Tokens,
-// 	buffer: &mut ParseBuffer<'_>,
-// 	span: &mut Span,
-// ) -> Result<NodeId, ParsingError>
-// {
-// 	todo!()
-// }
+fn parse_rest_of_block(
+	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
+	span: &mut Span,
+) -> Result<NodeId, ParsingError>
+{
+	buffer.start_list();
+	loop
+	{
+		if consume_optional(BaseToken::BraceRight, tokens, span)
+		{
+			let statements = buffer.push_end_of_list();
+			return Ok(statements);
+		}
+
+		let statement = parse_statement(tokens, buffer, span)?;
+		buffer.push_list_item(statement);
+	}
+}
+
+fn parse_statement(
+	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
+	span: &mut Span,
+) -> Result<NodeId, ParsingError>
+{
+	let first_token_id = span.start;
+	let statement = match take(tokens, span)
+	{
+		BaseToken::BraceLeft =>
+		{
+			let statements = parse_rest_of_block(tokens, buffer, span)?;
+			buffer.push(ParseNode::Block { first: statements })
+		}
+		BaseToken::If =>
+		{
+			let comparison = parse_comparison(tokens, buffer, span)?;
+			let then = parse_then(tokens, buffer, span)?;
+			buffer.expect_most_recent_node(then);
+			buffer.push(ParseNode::If { comparison })
+		}
+		BaseToken::Loop =>
+		{
+			consume(BaseToken::Semicolon, tokens, span)?;
+			buffer.push(ParseNode::Loop {
+				token: first_token_id.into(),
+			})
+		}
+		BaseToken::Goto =>
+		{
+			let label = span.start;
+			if consume_optional(BaseToken::Return, tokens, span)
+			{
+				// A bit of a hack: pretend this keyword is an identifier.
+				// It's source span will be a valid identifiier.
+			}
+			else
+			{
+				consume(BaseToken::Identifier, tokens, span)?;
+			};
+			consume(BaseToken::Semicolon, tokens, span)?;
+			buffer.push_undeclared(ParseNode::Identifier {
+				identifier: label.into(),
+			});
+			buffer.push(ParseNode::Goto {
+				token: first_token_id.into(),
+			})
+		}
+		BaseToken::Var =>
+		{
+			let identifier = span.start.into();
+			consume(BaseToken::Identifier, tokens, span)?;
+
+			let value_type = if consume_optional(BaseToken::Colon, tokens, span)
+			{
+				let value_type = parse_type(tokens, buffer, span)?;
+				Some(value_type)
+			}
+			else
+			{
+				None
+			};
+			let value = if consume_optional(BaseToken::Assignment, tokens, span)
+			{
+				let expression = parse_expression(tokens, buffer, span)?;
+				Some(expression)
+			}
+			else
+			{
+				None
+			};
+			consume(BaseToken::Semicolon, tokens, span)?;
+			buffer.push_optional_node(value);
+			buffer.push_optional_node(value_type);
+			buffer.push(ParseNode::VariableDeclaration { identifier })
+		}
+		BaseToken::Identifier =>
+		{
+			let identifier = first_token_id.into();
+			let colon = span.start.into();
+			if consume_optional(BaseToken::Colon, tokens, span)
+			{
+				buffer.push(ParseNode::Label { colon })
+			}
+			// TODO method call
+			else
+			{
+				let deref_steps = parse_deref_steps_list(tokens, buffer, span)?;
+				buffer.push_list(deref_steps);
+				buffer.push_undeclared(ParseNode::Identifier { identifier });
+				buffer
+					.push_undeclared(ParseNode::DerefAddressDepth { depth: 0 });
+				let reference = buffer.push(ParseNode::Deref {
+					start_of_reference: identifier,
+				});
+
+				let semicolon = span.start;
+				if consume_optional(BaseToken::Semicolon, tokens, span)
+				{
+					return Err(
+						ParsingError::UnexpectedSemicolonAfterIdentifier {
+							semicolon,
+							identifier_start: first_token_id,
+						},
+					);
+				}
+				consume(BaseToken::Assignment, tokens, span)?;
+				let expression = parse_expression(tokens, buffer, span)?;
+				consume(BaseToken::Semicolon, tokens, span)?;
+				buffer.expect_most_recent_node(expression);
+				buffer.push_older_node(reference);
+				buffer.push(ParseNode::Assignment {})
+			}
+		}
+		BaseToken::Builtin =>
+		{
+			// TODO
+			todo!()
+		}
+		BaseToken::Ampersand =>
+		{
+			let mut depth = 1;
+			while consume_optional(BaseToken::Ampersand, tokens, span)
+			{
+				depth += 1;
+				if depth > MAX_ADDRESS_DEPTH
+				{
+					let end = span.start.into();
+					return Err(ParsingError::MaximumParseDepthExceeded {
+						start: first_token_id.into(),
+						end,
+					});
+				}
+			}
+			let identifier = span.start.into();
+			consume(BaseToken::Identifier, tokens, span)?;
+			let steps = parse_deref_steps_list(tokens, buffer, span)?;
+			buffer.push_list(steps);
+			buffer.push_undeclared(ParseNode::Identifier { identifier });
+			buffer.push_undeclared(ParseNode::DerefAddressDepth { depth });
+			let reference = buffer.push(ParseNode::Deref {
+				start_of_reference: identifier,
+			});
+
+			let semicolon = span.start;
+			if consume_optional(BaseToken::Semicolon, tokens, span)
+			{
+				return Err(ParsingError::UnexpectedSemicolonAfterIdentifier {
+					semicolon,
+					identifier_start: first_token_id,
+				});
+			}
+			consume(BaseToken::Assignment, tokens, span)?;
+			let expression = parse_expression(tokens, buffer, span)?;
+			consume(BaseToken::Semicolon, tokens, span)?;
+			buffer.expect_most_recent_node(expression);
+			buffer.push_older_node(reference);
+			buffer.push(ParseNode::Assignment {})
+		}
+		_ =>
+		{
+			return Err(ParsingError::UnexpectedToken {
+				token: first_token_id.into(),
+				expectation: "Expected statement.",
+			});
+		}
+	};
+	Ok(statement)
+}
+
+fn parse_then(
+	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
+	span: &mut Span,
+) -> Result<NodeId, ParsingError>
+{
+	let then_branch = parse_statement(tokens, buffer, span)?;
+	let branches = if consume_optional(BaseToken::Else, tokens, span)
+	{
+		let else_branch = parse_statement(tokens, buffer, span)?;
+		buffer.expect_most_recent_node(else_branch);
+		buffer.push(ParseNode::ThenElse { then: then_branch })
+	}
+	else
+	{
+		buffer.expect_most_recent_node(then_branch);
+		buffer.push(ParseNode::Then {})
+	};
+	Ok(branches)
+}
+
+fn parse_comparison(
+	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
+	span: &mut Span,
+) -> Result<NodeId, ParsingError>
+{
+	// TODO need some sort of reservation workaround to avoid parsing
+	// if a == b { goto end; } as a structure declaration.
+	let left = parse_expression(tokens, buffer, span)?;
+
+	let op_token_id = span.start;
+	let op = match take(tokens, span)
+	{
+		BaseToken::Equals => ComparisonOp::Equals,
+		BaseToken::DoesNotEqual => ComparisonOp::DoesNotEqual,
+		BaseToken::AngleLeft => ComparisonOp::IsLess,
+		BaseToken::AngleRight => ComparisonOp::IsGreater,
+		BaseToken::IsGE => ComparisonOp::IsGE,
+		BaseToken::IsLE => ComparisonOp::IsLE,
+		_ =>
+		{
+			return Err(ParsingError::UnexpectedToken {
+				token: op_token_id,
+				expectation: "Expected comparison operator.",
+			});
+		}
+	};
+
+	let right = parse_expression(tokens, buffer, span)?;
+
+	buffer.expect_most_recent_node(right);
+	buffer.push_older_node(left);
+	buffer.push_undeclared(ParseNode::ComparisonOp(op));
+	let comparison = buffer.push(ParseNode::Comparison {
+		token: op_token_id.into(),
+	});
+	Ok(comparison)
+}
 
 fn parse_expression(
 	tokens: &Tokens,
@@ -995,6 +1234,7 @@ fn parse_primary_expression(
 				}
 			}
 			let identifier = span.start.into();
+			consume(BaseToken::Identifier, tokens, span)?;
 			let steps = parse_deref_steps_list(tokens, buffer, span)?;
 			buffer.push_list(steps);
 			buffer.push_undeclared(ParseNode::Identifier { identifier });

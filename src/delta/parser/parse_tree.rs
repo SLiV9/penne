@@ -144,6 +144,19 @@ impl<'buffer> ParseBuffer<'buffer>
 	}
 
 	#[inline]
+	pub(super) fn push_optional_node(&mut self, node_id: Option<NodeId>)
+	{
+		if let Some(node_id) = node_id
+		{
+			self.push_older_node(node_id);
+		}
+		else
+		{
+			self.push_undeclared(ParseNode::NoMoreItems)
+		}
+	}
+
+	#[inline]
 	pub(super) fn push_list(&mut self, node: NodeId)
 	{
 		let _: NodeId = self.push(ParseNode::List { first: node });
@@ -215,12 +228,6 @@ impl<'buffer> ParseBuffer<'buffer>
 		{
 			new_node
 		}
-	}
-
-	#[inline]
-	pub(super) fn push_none(&mut self) -> NodeId
-	{
-		self.push(ParseNode::NoMoreItems)
 	}
 
 	#[inline]
@@ -391,29 +398,25 @@ fn build_error(error: ParsingError, tokens: &Tokens) -> error::Error
 		}
 		ParsingError::UnexpectedSemicolonAfterIdentifier {
 			semicolon,
-			identifier,
+			identifier_start,
 		} => error::Error::UnexpectedSemicolonAfterIdentifier {
 			location: tokens.get_location(semicolon),
-			after: tokens.get_location(identifier),
+			after: tokens.get_location_of_span(identifier_start..semicolon),
 		},
 		ParsingError::UnexpectedSemicolonAfterReturnValue {
 			semicolon,
 			return_value_start,
-			return_value_end,
 		} => error::Error::UnexpectedSemicolonAfterReturnValue {
 			location: tokens.get_location(semicolon),
-			after: tokens
-				.get_location_of_span(return_value_start..return_value_end),
+			after: tokens.get_location_of_span(return_value_start..semicolon),
 		},
 		ParsingError::MissingReturnValueAfterStatement {
 			unexpected_token,
 			return_statement_start,
-			return_statement_end,
 		} => error::Error::MissingReturnValueAfterStatement {
 			location: tokens.get_location(unexpected_token),
-			after: tokens.get_location_of_span(
-				return_statement_start..return_statement_end,
-			),
+			after: tokens
+				.get_location_of_span(return_statement_start..unexpected_token),
 		},
 		ParsingError::MissingConstantType { unexpected_token } =>
 		{

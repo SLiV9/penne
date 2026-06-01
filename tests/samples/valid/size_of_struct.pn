@@ -38,9 +38,11 @@ word16 Bools
 	b: bool,
 }
 
+const TOTAL: usize = |:Position| + |:Foo| + |:Bar| + |:Baz| + |:Padded| + |:Bools|;
+
+const EXPECTED: usize =    2 * 4 +  2 * 4 +  4 * 8 +  4 * 8 +     2 * 2 +    2 * 1;
+
 fn main() -> usize
 {
-	var total = |:Position| + |:Foo| + |:Bar| + |:Baz| + |:Padded| + |:Bools|;
-	var expected =    2 * 4 +  2 * 4 +  4 * 8 +  4 * 8 +     2 * 2 +    2 * 1;
-	return: 168 + SIZE_OF_BAZ + total - expected
+	return: 168 + SIZE_OF_BAZ + TOTAL - EXPECTED
 }

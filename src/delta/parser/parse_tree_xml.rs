@@ -42,6 +42,15 @@ fn print_xml(
 		&source[location.span]
 	};
 
+	let get_value_type = |token_id: parse_node::TokenId| {
+		let vap = tokens.get_value_type_and_payload(token_id.into());
+		vap.value_type()
+	};
+	let get_integer_value = |token_id: parse_node::TokenId| {
+		let vap = tokens.get_value_type_and_payload(token_id.into());
+		tokens.get_integer_payload(vap.payload_id()).unwrap()
+	};
+
 	let print_flags = |flags: EnumSet<DeclarationFlag>| {
 		flags
 			.into_iter()
@@ -190,6 +199,111 @@ fn print_xml(
 			.chain(print_prev(i - 1))
 			.chain(once(format!("</IdentifierAndExpression>"))),
 		),
+		(VariableDeclaration { identifier }, _) => Box::new(
+			once(format!(
+				"<VariableDeclaration src={:?}>",
+				get_source(identifier)
+			))
+			.chain(print_prev(i - 1))
+			.chain(print_prev(i - 2))
+			.chain(once(format!("</VariableDeclaration>"))),
+		),
+		(Assignment {}, _) => Box::new(
+			once(format!("<Assignment>"))
+				.chain(print_prev(i - 1))
+				.chain(print_prev(i - 2))
+				.chain(once(format!("</Assignment>"))),
+		),
+		(Loop { token: _ }, _) => Box::new(once(format!("<Loop />"))),
+		(Goto { token: _ }, [_, _, _, _, _, Identifier { identifier }]) =>
+		{
+			Box::new(once(format!(
+				"<Goto label={:?} />",
+				get_source(identifier)
+			)))
+		}
+		(Label { colon: _ }, [_, _, _, _, _, Identifier { identifier }]) =>
+		{
+			Box::new(once(format!(
+				"<Label src={:?} />",
+				get_source(identifier)
+			)))
+		}
+		(If { comparison }, _) => Box::new(
+			once(format!("<If>"))
+				.chain(print_item(comparison))
+				.chain(print_prev(i - 1))
+				.chain(once(format!("</If>"))),
+		),
+		(Then {}, _) => Box::new(
+			once(format!("<Then>"))
+				.chain(print_prev(i - 1))
+				.chain(once(format!("</Then>"))),
+		),
+		(ThenElse { then }, _) => Box::new(
+			once(format!("<Then>"))
+				.chain(print_item(then))
+				.chain(once(format!("</Then>")))
+				.chain(once(format!("<Else>")))
+				.chain(print_prev(i - 1))
+				.chain(once(format!("</Else>"))),
+		),
+		(Block { first }, _) => Box::new(
+			once(format!("<Block>"))
+				.chain(print_list(first, "statements"))
+				.chain(once(format!("</Block>"))),
+		),
+
+		(Parenthesized {}, _) => Box::new(
+			once(format!("<Parenthesized>"))
+				.chain(print_prev(i - 1))
+				.chain(once(format!("</Parenthesized>"))),
+		),
+		(
+			Comparison { token: _ },
+			[_, _, _, _, Item { at: left }, ComparisonOp(op)],
+		) => Box::new(
+			once(format!("<Comparison op=\"{op:?}\">"))
+				.chain(print_item(left))
+				.chain(print_prev(i - 3))
+				.chain(once(format!("</Comparison>"))),
+		),
+		(
+			Binary { token: _ },
+			[_, _, _, _, Item { at: left }, BinaryOp(op)],
+		) => Box::new(
+			once(format!("<Binary op=\"{op:?}\">"))
+				.chain(print_item(left))
+				.chain(print_prev(i - 3))
+				.chain(once(format!("</Binary>"))),
+		),
+		(Unary { token: _ }, [_, _, _, _, _, UnaryOp(op)]) => Box::new(
+			once(format!("<Unary op=\"{op:?}\">"))
+				.chain(print_prev(i - 2))
+				.chain(once(format!("</Unary>"))),
+		),
+
+		(BooleanLiteral { literal }, _) => Box::new(once(format!(
+			"<BooleanLiteral src={:?} value=\"{}\" />",
+			get_source(literal),
+			get_integer_value(literal),
+		))),
+		(CharLiteral { literal }, _) => Box::new(once(format!(
+			"<CharLiteral src={:?} value=\"{}\" />",
+			get_source(literal),
+			get_integer_value(literal),
+		))),
+		(UntypedIntegerLiteral { literal }, _) => Box::new(once(format!(
+			"<UntypedIntegerLiteral src={:?} value=\"{}\" />",
+			get_source(literal),
+			get_integer_value(literal),
+		))),
+		(TypedIntegerLiteral { literal }, _) => Box::new(once(format!(
+			"<UntypedIntegerLiteral src={:?} value=\"{}\" type=\"{:?}\" />",
+			get_source(literal),
+			get_integer_value(literal),
+			get_value_type(literal),
+		))),
 
 		(SimpleStringLiteral { literal }, _) => Box::new(once(format!(
 			"<SimpleStringLiteral src={:?} />",
@@ -205,6 +319,49 @@ fn print_xml(
 				.chain(once(format!("</CompositeStringLiteral>"))),
 		),
 
+		(
+			Deref {
+				start_of_reference: _,
+			},
+			[
+				_,
+				_,
+				_,
+				List { first: steps },
+				Identifier { identifier },
+				DerefAddressDepth { depth },
+			],
+		) => Box::new(
+			once(format!(
+				"<Deref address_depth=\"{depth}\" identifier={:?}>",
+				get_source(identifier)
+			))
+			.chain(print_list(steps, "steps"))
+			.chain(once(format!("</Deref>"))),
+		),
+
+		(BitCast { cast_keyword: _ }, _) => Box::new(
+			once(format!("<BitCast>"))
+				.chain(print_prev(i - 1))
+				.chain(once(format!("</BitCast>"))),
+		),
+		(TypeCast { start_of_type: _ }, _) => Box::new(
+			once(format!("<BitCast>"))
+				.chain(print_prev(i - 1))
+				.chain(print_prev(i - 2))
+				.chain(once(format!("</TypeCast>"))),
+		),
+		(LengthOf {}, _) => Box::new(
+			once(format!("<LengthOf>"))
+				.chain(print_prev(i - 1))
+				.chain(once(format!("</LengthOf>"))),
+		),
+		(SizeOf {}, _) => Box::new(
+			once(format!("<SizeOf>"))
+				.chain(print_prev(i - 1))
+				.chain(once(format!("</SizeOf>"))),
+		),
+
 		(SimpleValueType(value_type), _) => Box::new(once(format!(
 			"<UnresolvedStructOrWordVT type=\"{value_type:?}\" />"
 		))),
@@ -216,6 +373,7 @@ fn print_xml(
 			)))
 		}
 
+		(Item { at }, _) => print_item(at),
 		(ListItem { next }, _) =>
 		{
 			Box::new(print_prev(i - 1).chain(print_item(next)))

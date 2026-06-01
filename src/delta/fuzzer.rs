@@ -2,9 +2,9 @@ use rand::distr::weighted::WeightedIndex;
 use rand::prelude::*;
 use strum::IntoEnumIterator as _;
 
-use super::lexer::is_identifier_continuation;
 use super::lexer::BaseToken;
 use super::lexer::ValueTypeKeyword;
+use super::lexer::is_identifier_continuation;
 
 #[derive(Debug, Clone, Copy, Default)]
 #[derive(clap::ValueEnum, serde::Deserialize, serde::Serialize, strum::Display)]
@@ -46,8 +46,8 @@ pub fn fill_to_capacity_with_tokens(
 				| Comma | Assignment | Equals | DoesNotEqual | IsGE | IsLE
 				| ShiftLeft | ShiftRight | Arrow | PipeForType | Dots => 5,
 
-				Fn | Var | Const | If | Goto | Loop | Else | Cast | As
-				| Import | Pub | Extern | Struct => 5,
+				Fn | Var | Const | If | Goto | Loop | Return | Else | Cast
+				| As | Import | Pub | Extern | Struct => 5,
 
 				Word8 | Word16 | Word32 | Word64 | Word128 => 1,
 
