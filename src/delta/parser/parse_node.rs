@@ -59,15 +59,8 @@ impl std::fmt::Debug for U24
 #[derive(Debug, Clone, Copy)]
 pub enum ParseNode
 {
-	Padding,
-	ConstantDeclaration
-	{
-		start_of_declaration: TokenId,
-		// flags: DeclarationFlags = nodes[-1]
-		// identifier: Identifier = nodes[-2]
-		// value_type: Item<ValueType> = nodes[-3]
-		// expression: Expression = nodes[..-4]
-	},
+	NoMoreItems,
+	DeclarationFlags(EnumSet<DeclarationFlag>),
 	FunctionDeclaration
 	{
 		start_of_declaration: TokenId,
@@ -75,8 +68,7 @@ pub enum ParseNode
 		// identifier: Identifier = nodes[-2]
 		// parameters: List<IdentifierAndType> = nodes[-3]
 		// return_type: Item<ValueType> = nodes[-4]
-		// statements: List<Statement> = nodes[-5]
-		// return_value: Item<Expression>/NoMoreItems = nodes[-6]
+		// body: FunctionBody = nodes[..-5]
 	},
 	FunctionHeadDeclaration
 	{
@@ -85,8 +77,18 @@ pub enum ParseNode
 		// identifier: Identifier = nodes[-2]
 		// parameters: List<IdentifierAndType> = nodes[-3]
 		// return_type: Item<ValueType> = nodes[-4]
-		// statements: Padding = nodes[-5]
-		// return_value: Padding = nodes[-6]
+	},
+	FunctionBody {
+		// statements: List<Statement> = nodes[-1]
+		// return_value: Item<Expression>/NoMoreItems = nodes[-2]
+	},
+	ConstantDeclaration
+	{
+		start_of_declaration: TokenId,
+		// flags: DeclarationFlags = nodes[-1]
+		// identifier: Identifier = nodes[-2]
+		// value_type: Item<ValueType> = nodes[-3]
+		// expression: Expression = nodes[..-4]
 	},
 	StructureDeclaration
 	{
@@ -102,7 +104,6 @@ pub enum ParseNode
 		// flags: DeclarationFlags = nodes[-1]
 		// path: StringLiteral = nodes[-2]
 	},
-	DeclarationFlags(EnumSet<DeclarationFlag>),
 	StructuralType
 	{
 		size_in_bytes_if_word: Option<u8>,
@@ -144,23 +145,6 @@ pub enum ParseNode
 	{
 		// label: Identifier = nodes[-1]
 		colon: TokenId,
-	},
-	If
-	{
-		comparison: NodeId,
-		// then: Then/ThenElse = nodes[-1]
-	},
-	Then {
-		// then: Statement = nodes[..-1]
-	},
-	ThenElse
-	{
-		then: NodeId,
-		// else: Statement = nodes[..-1]
-	},
-	Block
-	{
-		first: NodeId, // ListItem<Statement>
 	},
 	MethodCall
 	{
@@ -311,6 +295,25 @@ pub enum ParseNode
 	{
 		end: TokenId,
 	},
+	UnpatchedListItem,
+	Then {
+		// then: Statement = nodes[..-1]
+	},
+	// Nodes that contain NodeId:
+	ThenElse
+	{
+		then: NodeId,
+		// else: Statement = nodes[..-1]
+	},
+	If
+	{
+		comparison: NodeId,
+		// then: Then/ThenElse = nodes[-1]
+	},
+	Block
+	{
+		first: NodeId, // ListItem<Statement>
+	},
 	Item
 	{
 		at: NodeId, // ParseNode
@@ -324,9 +327,7 @@ pub enum ParseNode
 		// value: ParseNode = nodes[-1]
 		next: NodeId,
 	},
-	UnpatchedListItem,
-	NoMoreItems,
-	EndlessPrivateZone,
+	// Markers for build_header():
 	StartPrivateZone
 	{
 		end: NodeId,
@@ -335,6 +336,7 @@ pub enum ParseNode
 	{
 		start: NodeId,
 	},
+	EndlessPrivateZone,
 }
 
 impl ParseNode
@@ -365,12 +367,10 @@ impl ParseNode
 		use ParseNode::*;
 		match self
 		{
-			Padding => Padding,
-			ConstantDeclaration {
-				start_of_declaration,
-			} => ConstantDeclaration {
-				start_of_declaration,
-			},
+			NoMoreItems => self,
+			DeclarationFlags(enum_set) => DeclarationFlags(
+				enum_set.difference(EnumSet::from(DeclarationFlag::Public)),
+			),
 			FunctionDeclaration {
 				start_of_declaration,
 			} =>
@@ -380,123 +380,77 @@ impl ParseNode
 					start_of_declaration,
 				}
 			}
-			FunctionHeadDeclaration {
-				start_of_declaration,
-			} => FunctionHeadDeclaration {
-				start_of_declaration,
-			},
-			StructureDeclaration {
-				start_of_declaration,
-			} => StructureDeclaration {
-				start_of_declaration,
-			},
-			ImportDeclaration { .. } =>
-			{
-				// Stripping imports.
-				Padding
-			}
-			DeclarationFlags(enum_set) => DeclarationFlags(
-				enum_set.difference(EnumSet::from(DeclarationFlag::Public)),
-			),
-			StructuralType {
-				size_in_bytes_if_word,
-			} => StructuralType {
-				size_in_bytes_if_word,
-			},
-			Identifier { identifier } => Identifier { identifier },
-			IdentifierAndType { identifier } =>
-			{
-				IdentifierAndType { identifier }
-			}
-			IdentifierAndExpression { identifier } =>
-			{
-				IdentifierAndExpression { identifier }
-			}
-			VariableDeclaration { identifier } =>
-			{
-				VariableDeclaration { identifier }
-			}
-			Assignment {} => Assignment {},
-			Loop { token } => Loop { token },
-			Goto { token } => Goto { token },
-			Label { colon: semicolon } => Label { colon: semicolon },
+			FunctionHeadDeclaration { .. } => self,
+			FunctionBody { .. } => self,
+			ConstantDeclaration { .. } => self,
+			StructureDeclaration { .. } => self,
+			ImportDeclaration { .. } => self,
+			StructuralType { .. } => self,
+			Identifier { .. } => self,
+			IdentifierAndType { .. } => self,
+			IdentifierAndExpression { .. } => self,
+			VariableDeclaration { .. } => self,
+			Assignment {} => self,
+			Loop { .. } => self,
+			Goto { .. } => self,
+			Label { .. } => self,
+			MethodCall { .. } => self,
+			Parenthesized {} => self,
+			Comparison { .. } => self,
+			ComparisonOp(..) => self,
+			Binary { .. } => self,
+			BinaryOp(..) => self,
+			Unary { .. } => self,
+			UnaryOp(..) => self,
+			BooleanLiteral { .. } => self,
+			CharLiteral { .. } => self,
+			UntypedIntegerLiteral { .. } => self,
+			TypedIntegerLiteral { .. } => self,
+			SimpleStringLiteral { .. } => self,
+			CompositeStringLiteral { .. } => self,
+			ArrayLiteral { .. } => self,
+			Structural { .. } => self,
+			Deref { .. } => self,
+			DerefAddressDepth { .. } => self,
+			DerefStepElement {} => self,
+			DerefStepMember { .. } => self,
+			BitCast { .. } => self,
+			TypeCast { .. } => self,
+			LengthOf {} => self,
+			SizeOf {} => self,
+			FunctionCall { .. } => self,
+			SimpleValueType(..) => self,
+			CompositeValueType { .. } => self,
+			ArrayVT { .. } => self,
+			ArrayWithNamedLengthVT { .. } => self,
+			SliceVT {} => self,
+			EndlessArrayVT {} => self,
+			ArraylikeVT {} => self,
+			UnresolvedStructOrWordVT { .. } => self,
+			PointerVT {} => self,
+			ViewVT {} => self,
+			EndOfSpan { .. } => self,
+			UnpatchedListItem => self,
+			Then {} => self,
+			ThenElse { then } => ThenElse { then: adjust(then) },
 			If { comparison } => If {
 				comparison: adjust(comparison),
 			},
-			Then {} => Then {},
-			ThenElse { then } => ThenElse { then: adjust(then) },
 			Block { first } => Block {
 				first: adjust(first),
 			},
-			MethodCall { is_builtin } => MethodCall { is_builtin },
-			Parenthesized {} => Parenthesized {},
-			Comparison { token } => Comparison { token },
-			ComparisonOp(comparison_op) => ComparisonOp(comparison_op),
-			Binary { token } => Binary { token },
-			BinaryOp(binary_op) => BinaryOp(binary_op),
-			Unary { token } => Unary { token },
-			UnaryOp(unary_op) => UnaryOp(unary_op),
-			BooleanLiteral { literal } => BooleanLiteral { literal },
-			CharLiteral { literal } => CharLiteral { literal },
-			UntypedIntegerLiteral { literal } =>
-			{
-				UntypedIntegerLiteral { literal }
-			}
-			TypedIntegerLiteral { literal } => TypedIntegerLiteral { literal },
-			SimpleStringLiteral { literal } => SimpleStringLiteral { literal },
-			CompositeStringLiteral { start } =>
-			{
-				CompositeStringLiteral { start }
-			}
-			ArrayLiteral { num_elements } => ArrayLiteral { num_elements },
-			Structural {
-				unresolved_struct_or_word,
-			} => Structural {
-				unresolved_struct_or_word,
-			},
-			Deref { start_of_reference } => Deref { start_of_reference },
-			DerefAddressDepth { depth } => DerefAddressDepth { depth },
-			DerefStepElement {} => DerefStepElement {},
-			DerefStepMember { field_identifier } =>
-			{
-				DerefStepMember { field_identifier }
-			}
-			BitCast { cast_keyword } => BitCast { cast_keyword },
-			TypeCast { start_of_type } => TypeCast { start_of_type },
-			LengthOf {} => LengthOf {},
-			SizeOf {} => SizeOf {},
-			FunctionCall { is_builtin } => FunctionCall { is_builtin },
-			SimpleValueType(value_type_keyword) =>
-			{
-				SimpleValueType(value_type_keyword)
-			}
-			CompositeValueType { start } => CompositeValueType { start },
-			ArrayVT { fixed_length } => ArrayVT { fixed_length },
-			ArrayWithNamedLengthVT {
-				named_length_identifier,
-			} => ArrayWithNamedLengthVT {
-				named_length_identifier,
-			},
-			SliceVT {} => SliceVT {},
-			EndlessArrayVT {} => EndlessArrayVT {},
-			ArraylikeVT {} => ArraylikeVT {},
-			UnresolvedStructOrWordVT { identifier } =>
-			{
-				UnresolvedStructOrWordVT { identifier }
-			}
-			PointerVT {} => PointerVT {},
-			ViewVT {} => ViewVT {},
-			EndOfSpan { end } => EndOfSpan { end },
 			Item { at } => Item { at: adjust(at) },
 			List { first } => List {
 				first: adjust(first),
 			},
 			ListItem { next } => ListItem { next: adjust(next) },
-			UnpatchedListItem => UnpatchedListItem,
-			NoMoreItems => NoMoreItems,
-			EndlessPrivateZone
-			| StartPrivateZone { .. }
-			| EndPrivateZone { .. } => unreachable!(),
+			StartPrivateZone { .. }
+			| EndPrivateZone { .. }
+			| EndlessPrivateZone =>
+			{
+				debug_assert!(false, "unreachable");
+				self
+			}
 		}
 	}
 }

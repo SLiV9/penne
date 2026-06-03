@@ -11,7 +11,7 @@ use crate::delta::parser::ParsingError;
 use crate::delta::parser::parse_node::U24;
 
 pub const MAX_NUM_PARSING_ERRORS: usize = 100;
-pub(crate) const MAX_PARSE_NODE_CONTEXT: usize = 6;
+pub(crate) const MAX_PARSE_NODE_CONTEXT: usize = 4;
 
 #[path = "parse_tree_xml.rs"]
 mod parse_tree_xml;
@@ -302,47 +302,7 @@ impl ParseTree
 	{
 		assert!(self.errors.is_empty());
 		let mut nodes = Vec::with_capacity(self.nodes.len());
-		{
-			let buffer = nodes.spare_capacity_mut();
-			let mut num_public_nodes = 0;
-			let mut num_skipped_nodes = 0;
-			let mut push = |node| {
-				buffer[num_public_nodes].write(node);
-				num_public_nodes += 1;
-			};
-			let mut i = 0;
-			while i < self.nodes.len()
-			{
-				match self.nodes[i]
-				{
-					ParseNode::EndlessPrivateZone => break,
-					ParseNode::StartPrivateZone { end } =>
-					{
-						let end = usize::from(end.0);
-						// The -2 is because of the 2 blocks of padding.
-						num_skipped_nodes += end + 1 - i - 2;
-						i = end;
-						debug_assert!(matches!(
-							self.nodes[i],
-							ParseNode::EndPrivateZone { .. }
-						));
-						i += 1;
-						// These two padding blocks are load-bearing, see FunctionHead.
-						push(ParseNode::Padding);
-						push(ParseNode::Padding);
-						continue;
-					}
-					ParseNode::EndPrivateZone { .. } => unreachable!(),
-					node =>
-					{
-						push(node.convert_for_head(num_skipped_nodes));
-						i += 1;
-					}
-				}
-			}
-			// Safety: `num_public_nodes` is only modified in the `push` closure.
-			unsafe { nodes.set_len(num_public_nodes) };
-		}
+		self.build_header_nodes(&mut nodes);
 		let mut declarations = Vec::with_capacity(self.declarations.len());
 		for (i, node) in nodes.iter().enumerate()
 		{
@@ -356,6 +316,51 @@ impl ParseTree
 			declarations,
 			errors: Vec::new(),
 		}
+	}
+
+	#[inline(never)]
+	fn build_header_nodes(&self, nodes: &mut Vec<ParseNode>)
+	{
+		assert_eq!(nodes.capacity(), self.nodes.len());
+		let buffer = nodes.spare_capacity_mut();
+		let mut num_public_nodes = 0;
+		let mut num_skipped_nodes = 0;
+		let mut push = |node| {
+			buffer[num_public_nodes].write(node);
+			num_public_nodes += 1;
+		};
+		let mut i = 0;
+		while i < self.nodes.len()
+		{
+			match self.nodes[i]
+			{
+				ParseNode::StartPrivateZone { end } =>
+				{
+					let end = usize::from(end.0);
+					num_skipped_nodes += end + 1 - i;
+					i = end;
+					debug_assert!(matches!(
+						self.nodes[i],
+						ParseNode::EndPrivateZone { .. }
+					));
+					i += 1;
+					continue;
+				}
+				ParseNode::EndPrivateZone { .. } =>
+				{
+					debug_assert!(false, "unreachable");
+					break;
+				}
+				ParseNode::EndlessPrivateZone => break,
+				node =>
+				{
+					push(node.convert_for_head(num_skipped_nodes));
+					i += 1;
+				}
+			}
+		}
+		// Safety: `num_public_nodes` is only modified in the `push` closure.
+		unsafe { nodes.set_len(num_public_nodes) };
 	}
 }
 

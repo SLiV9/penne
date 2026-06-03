@@ -94,7 +94,8 @@ pub fn parse(tokens: &lexer::tokens::Tokens) -> ParseTree
 	let mut buffer = parse_tree.buffer();
 	for _ in 0..MAX_PARSE_NODE_CONTEXT
 	{
-		buffer.push_undeclared(ParseNode::Padding);
+		// Padding.
+		buffer.push_undeclared(ParseNode::NoMoreItems);
 	}
 	let mut start_of_next_declaration = tokens.first_token_id();
 	for _ in 0..(num_declarations + 1)
@@ -381,9 +382,6 @@ fn parse_function_declaration(
 
 	let node = if consume_optional(BaseToken::Semicolon, tokens, span)
 	{
-		// This is to allow layout compatibility with Function.
-		buffer.push_undeclared(ParseNode::Padding);
-		buffer.push_undeclared(ParseNode::Padding);
 		buffer.push_older_node(return_type);
 		buffer.push_list(parameters);
 		buffer.push_undeclared(ParseNode::Identifier { identifier });
@@ -406,10 +404,12 @@ fn parse_function_declaration(
 		// This is to allow layout compatibility with FunctionHead.
 		buffer.push_optional_node(return_value);
 		buffer.push_list(statements);
+		let body = buffer.push(ParseNode::FunctionBody {});
 		if flags.contains(DeclarationFlag::Public)
 		{
 			buffer.set_public();
 		}
+		buffer.expect_most_recent_node(body);
 		buffer.push_older_node(return_type);
 		buffer.push_list(parameters);
 		buffer.push_undeclared(ParseNode::Identifier { identifier });
