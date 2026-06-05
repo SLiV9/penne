@@ -33,7 +33,7 @@ impl ValueTypeAndPayloadId
 		}
 	}
 
-	#[inline(never)]
+	#[inline(always)]
 	pub fn value_type(self) -> ValueTypeKeyword
 	{
 		let value_type = (self.value_type_and_payload_id & 0xFF) as u8;
@@ -42,21 +42,7 @@ impl ValueTypeAndPayloadId
 		value_type.unwrap_or(ValueTypeKeyword::NoKeyword)
 	}
 
-	#[inline(never)]
-	pub fn forced(self) -> ValueTypeKeyword
-	{
-		let x = self.value_type_and_payload_id as u8;
-		if x <= ValueTypeKeyword::Bool as u8
-		{
-			unsafe { std::mem::transmute(x) }
-		}
-		else
-		{
-			ValueTypeKeyword::NoKeyword
-		}
-	}
-
-	#[inline(never)]
+	#[inline(always)]
 	pub fn payload_id(self) -> PayloadId
 	{
 		let payload_id = self.value_type_and_payload_id >> 8;

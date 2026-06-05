@@ -84,12 +84,12 @@ pub enum ParsingError
 pub fn parse(tokens: &lexer::tokens::Tokens) -> ParseTree
 {
 	// let mut tokens = Tokens::from(tokens);
-	let num_declarations = tokens
+	let num_possible_declarations = tokens
 		.base_tokens()
 		.iter()
-		.filter(|&&token| is_actual_declaration_keyword(token))
+		.filter(|&&token| starts_declaration(token))
 		.count();
-	let mut parse_tree = ParseTree::empty(tokens, num_declarations);
+	let mut parse_tree = ParseTree::empty(tokens, num_possible_declarations);
 
 	let mut buffer = parse_tree.buffer();
 	for _ in 0..MAX_PARSE_NODE_CONTEXT
@@ -98,7 +98,7 @@ pub fn parse(tokens: &lexer::tokens::Tokens) -> ParseTree
 		buffer.push_undeclared(ParseNode::NoMoreItems);
 	}
 	let mut start_of_next_declaration = tokens.first_token_id();
-	for _ in 0..(num_declarations + 1)
+	for _ in 0..(num_possible_declarations + 2)
 	{
 		match tokens.get(start_of_next_declaration)
 		{
@@ -128,10 +128,12 @@ pub fn parse(tokens: &lexer::tokens::Tokens) -> ParseTree
 	parse_tree
 }
 
-fn is_actual_declaration_keyword(token: BaseToken) -> bool
+fn starts_declaration(token: BaseToken) -> bool
 {
 	match token
 	{
+		BaseToken::Pub => true,
+		BaseToken::Extern => true,
 		BaseToken::Import => true,
 		BaseToken::Const => true,
 		BaseToken::Fn => true,
@@ -142,16 +144,6 @@ fn is_actual_declaration_keyword(token: BaseToken) -> bool
 		BaseToken::Word64 => true,
 		BaseToken::Word128 => true,
 		_ => false,
-	}
-}
-
-fn starts_declaration(token: BaseToken) -> bool
-{
-	match token
-	{
-		BaseToken::Pub => true,
-		BaseToken::Extern => true,
-		_ => is_actual_declaration_keyword(token),
 	}
 }
 

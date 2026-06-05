@@ -20,6 +20,7 @@ pub struct U24([u8; 3]);
 
 impl U24
 {
+	#[inline(always)]
 	pub fn new(value: usize) -> Self
 	{
 		debug_assert!(value < MAX_NUM_NODES);
@@ -31,6 +32,7 @@ impl U24
 
 impl From<U24> for u32
 {
+	#[inline(always)]
 	fn from(value: U24) -> Self
 	{
 		let [x0, x1, x2] = value.0;
@@ -41,6 +43,7 @@ impl From<U24> for u32
 
 impl From<U24> for usize
 {
+	#[inline(always)]
 	fn from(value: U24) -> Self
 	{
 		u32::from(value) as usize

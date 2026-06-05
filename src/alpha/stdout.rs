@@ -107,9 +107,13 @@ impl StdOut
 		{
 			ariadne::IndexType::Byte
 		}
-		else
+		else if cfg!(feature = "alpha")
 		{
 			ariadne::IndexType::Char
+		}
+		else
+		{
+			panic!("Need either 'delta' or 'alpha' feature to show errors");
 		};
 		let ariadne_config = ariadne::Config::default()
 			.with_index_type(index_type)

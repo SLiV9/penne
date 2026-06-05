@@ -9,8 +9,9 @@ pub fn parse_binary_digits(validated_digits: &[u8])
 			.iter()
 			.copied()
 			.map(char::from)
-			.all(|x| x.is_digit(2))
+			.all(|x| x.is_digit(2) || x == '_')
 	);
+	// TODO faster and with _ support
 	let validated_digits =
 		unsafe { std::str::from_utf8_unchecked(validated_digits) };
 	u128::from_str_radix(validated_digits, 2)
@@ -27,8 +28,9 @@ pub fn parse_decimal_digits(
 			.iter()
 			.copied()
 			.map(char::from)
-			.all(|x| x.is_digit(10))
+			.all(|x| x.is_digit(10) || x == '_')
 	);
+	// TODO faster and with _ support
 	let validated_digits =
 		unsafe { std::str::from_utf8_unchecked(validated_digits) };
 	u128::from_str_radix(validated_digits, 10)
@@ -43,8 +45,9 @@ pub fn parse_hex_digits(validated_digits: &[u8]) -> Result<u128, LexingError>
 			.iter()
 			.copied()
 			.map(char::from)
-			.all(|x| x.is_digit(16))
+			.all(|x| x.is_digit(16) || x == '_')
 	);
+	// TODO faster and with _ support
 	let validated_digits =
 		unsafe { std::str::from_utf8_unchecked(validated_digits) };
 	u128::from_str_radix(validated_digits, 16)
