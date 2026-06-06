@@ -348,14 +348,14 @@ fn parse_struct_members(
 ) -> Result<NodeId, ParsingError>
 {
 	consume(BaseToken::BraceLeft, tokens, span)?;
-	buffer.start_list();
+	let mut list = buffer.start_list();
 	while !consume_optional(BaseToken::BraceRight, tokens, span)
 	{
 		let member = parse_member(tokens, buffer, span)?;
 		consume(BaseToken::Comma, tokens, span)?;
-		buffer.push_list_item(member);
+		buffer.push_list_item(member, &mut list);
 	}
-	let start_of_list = buffer.push_end_of_list();
+	let start_of_list = buffer.push_end_of_list(list);
 	Ok(start_of_list)
 }
 
@@ -372,15 +372,9 @@ fn parse_function_declaration(
 	let (parameters, return_type) =
 		parse_rest_of_function_signature(tokens, buffer, span)?;
 
-	let node = if consume_optional(BaseToken::Semicolon, tokens, span)
+	let body_node = if consume_optional(BaseToken::Semicolon, tokens, span)
 	{
-		buffer.push_older_node(return_type);
-		buffer.push_list(parameters);
-		buffer.push_undeclared(ParseNode::Identifier { identifier });
-		buffer.push_undeclared(ParseNode::DeclarationFlags(flags));
-		buffer.push(ParseNode::FunctionHeadDeclaration {
-			start_of_declaration,
-		})
+		ParseNode::NoMoreItems
 	}
 	else
 	{
@@ -401,15 +395,16 @@ fn parse_function_declaration(
 		{
 			buffer.set_public();
 		}
-		buffer.expect_most_recent_node(body);
-		buffer.push_older_node(return_type);
-		buffer.push_list(parameters);
-		buffer.push_undeclared(ParseNode::Identifier { identifier });
-		buffer.push_undeclared(ParseNode::DeclarationFlags(flags));
-		buffer.push(ParseNode::FunctionDeclaration {
-			start_of_declaration,
-		})
+		ParseNode::FunctionImpl { body }
 	};
+	buffer.push_undeclared(body_node);
+	buffer.push_older_node(return_type);
+	buffer.push_list(parameters);
+	buffer.push_undeclared(ParseNode::Identifier { identifier });
+	buffer.push_undeclared(ParseNode::DeclarationFlags(flags));
+	let node = buffer.push(ParseNode::FunctionDeclaration {
+		start_of_declaration,
+	});
 	Ok(node)
 }
 
@@ -420,7 +415,7 @@ fn parse_rest_of_function_signature(
 ) -> Result<(NodeId, NodeId), ParsingError>
 {
 	consume(BaseToken::ParenLeft, tokens, span)?;
-	buffer.start_list();
+	let mut list = buffer.start_list();
 	loop
 	{
 		if consume_optional(BaseToken::ParenRight, tokens, span)
@@ -428,7 +423,7 @@ fn parse_rest_of_function_signature(
 			break;
 		}
 		let parameter = parse_parameter(tokens, buffer, span)?;
-		buffer.push_list_item(parameter);
+		buffer.push_list_item(parameter, &mut list);
 		if consume_optional(BaseToken::Comma, tokens, span)
 		{
 			continue;
@@ -439,7 +434,7 @@ fn parse_rest_of_function_signature(
 			break;
 		}
 	}
-	let parameters = buffer.push_end_of_list();
+	let parameters = buffer.push_end_of_list(list);
 
 	let return_type = if consume_optional(BaseToken::Arrow, tokens, span)
 	{
@@ -607,25 +602,25 @@ fn parse_function_body(
 ) -> Result<(NodeId, Option<NodeId>), ParsingError>
 {
 	consume(BaseToken::BraceLeft, tokens, span)?;
-	buffer.start_list();
+	let mut list = buffer.start_list();
 	loop
 	{
 		if consume_optional(BaseToken::BraceRight, tokens, span)
 		{
-			let statements = buffer.push_end_of_list();
+			let statements = buffer.push_end_of_list(list);
 			return Ok((statements, None));
 		}
 
 		if consume_optional(BaseToken::Return, tokens, span)
 		{
-			let statements = buffer.push_end_of_list();
+			let statements = buffer.push_end_of_list(list);
 			consume(BaseToken::Colon, tokens, span)?;
 			let return_value = parse_expression(tokens, buffer, span)?;
 			return Ok((statements, Some(return_value)));
 		}
 
 		let statement = parse_statement(tokens, buffer, span)?;
-		buffer.push_list_item(statement);
+		buffer.push_list_item(statement, &mut list);
 	}
 }
 
@@ -635,17 +630,17 @@ fn parse_rest_of_block(
 	span: &mut Span,
 ) -> Result<NodeId, ParsingError>
 {
-	buffer.start_list();
+	let mut list = buffer.start_list();
 	loop
 	{
 		if consume_optional(BaseToken::BraceRight, tokens, span)
 		{
-			let statements = buffer.push_end_of_list();
+			let statements = buffer.push_end_of_list(list);
 			return Ok(statements);
 		}
 
 		let statement = parse_statement(tokens, buffer, span)?;
-		buffer.push_list_item(statement);
+		buffer.push_list_item(statement, &mut list);
 	}
 }
 
@@ -733,7 +728,15 @@ fn parse_statement(
 			{
 				buffer.push(ParseNode::Label { colon })
 			}
-			// TODO method call
+			else if consume_optional(BaseToken::ParenLeft, tokens, span)
+			{
+				let arguments = parse_rest_of_arguments(tokens, buffer, span)?;
+				consume(BaseToken::Semicolon, tokens, span)?;
+				let identifier = first_token_id.into();
+				buffer.push_list(arguments);
+				buffer.push_undeclared(ParseNode::Identifier { identifier });
+				buffer.push(ParseNode::MethodCall { is_builtin: false })
+			}
 			else
 			{
 				let deref_steps = parse_deref_steps_list(tokens, buffer, span)?;
@@ -765,8 +768,13 @@ fn parse_statement(
 		}
 		BaseToken::Builtin =>
 		{
-			// TODO
-			todo!()
+			consume(BaseToken::ParenLeft, tokens, span)?;
+			let arguments = parse_rest_of_arguments(tokens, buffer, span)?;
+			consume(BaseToken::Semicolon, tokens, span)?;
+			let identifier = first_token_id.into();
+			buffer.push_list(arguments);
+			buffer.push_undeclared(ParseNode::Identifier { identifier });
+			buffer.push(ParseNode::MethodCall { is_builtin: true })
 		}
 		BaseToken::Ampersand =>
 		{
@@ -817,6 +825,88 @@ fn parse_statement(
 		}
 	};
 	Ok(statement)
+}
+
+fn parse_rest_of_arguments(
+	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
+	span: &mut Span,
+) -> Result<NodeId, ParsingError>
+{
+	let mut list = buffer.start_list();
+	loop
+	{
+		if consume_optional(BaseToken::ParenRight, tokens, span)
+		{
+			break;
+		}
+
+		let expression = parse_expression(tokens, buffer, span)?;
+		buffer.push_list_item(expression, &mut list);
+
+		if consume_optional(BaseToken::Comma, tokens, span)
+		{
+			continue;
+		}
+		else
+		{
+			consume(BaseToken::ParenRight, tokens, span)?;
+			break;
+		}
+	}
+	let arguments = buffer.push_end_of_list(list);
+	return Ok(arguments);
+}
+
+fn parse_rest_of_structural(
+	tokens: &Tokens,
+	buffer: &mut ParseBuffer<'_>,
+	span: &mut Span,
+) -> Result<NodeId, ParsingError>
+{
+	let mut list = buffer.start_list();
+	loop
+	{
+		if consume_optional(BaseToken::BraceRight, tokens, span)
+		{
+			break;
+		}
+
+		let identifier = span.start.into();
+		consume(BaseToken::Identifier, tokens, span)?;
+		let expression = if consume_optional(BaseToken::Colon, tokens, span)
+		{
+			parse_expression(tokens, buffer, span)?
+		}
+		else
+		{
+			// Field init shorthand.
+			let list = buffer.start_list();
+			let deref_steps = buffer.push_end_of_list(list);
+			buffer.push_list(deref_steps);
+			buffer.push_undeclared(ParseNode::Identifier { identifier });
+			buffer.push_undeclared(ParseNode::DerefAddressDepth { depth: 0 });
+			buffer.push(ParseNode::Deref {
+				start_of_reference: identifier,
+			})
+		};
+		buffer.expect_most_recent_node(expression);
+		let field =
+			buffer.push(ParseNode::IdentifierAndExpression { identifier });
+		buffer.push_list_item(field, &mut list);
+
+		if consume_optional(BaseToken::Comma, tokens, span)
+		{
+			continue;
+		}
+		else
+		{
+			consume(BaseToken::BraceRight, tokens, span)?;
+			break;
+		}
+	}
+	let statements = buffer.push_end_of_list(list);
+	return Ok(statements);
 }
 
 fn parse_then(
@@ -1238,10 +1328,26 @@ fn parse_primary_expression(
 		}
 		BaseToken::Identifier =>
 		{
-			// TODO function call
-			// TODO structure initialization
-
 			let identifier = first_token_id.into();
+			if consume_optional(BaseToken::ParenLeft, tokens, span)
+			{
+				let arguments = parse_rest_of_arguments(tokens, buffer, span)?;
+				buffer.push_list(arguments);
+				buffer.push_undeclared(ParseNode::Identifier { identifier });
+				let expression =
+					buffer.push(ParseNode::FunctionCall { is_builtin: false });
+				return Ok(expression);
+			}
+			if consume_optional(BaseToken::BraceLeft, tokens, span)
+			{
+				let arguments = parse_rest_of_structural(tokens, buffer, span)?;
+				buffer.push_list(arguments);
+				let expression = buffer.push(ParseNode::Structural {
+					unresolved_struct_or_word: identifier,
+				});
+				return Ok(expression);
+			}
+
 			let steps = parse_deref_steps_list(tokens, buffer, span)?;
 			buffer.push_list(steps);
 			buffer.push_undeclared(ParseNode::Identifier { identifier });
@@ -1253,28 +1359,42 @@ fn parse_primary_expression(
 		}
 		BaseToken::Builtin =>
 		{
-			// TODO
-			todo!()
+			consume(BaseToken::ParenLeft, tokens, span)?;
+			let arguments = parse_rest_of_arguments(tokens, buffer, span)?;
+			let identifier = first_token_id.into();
+			buffer.push_list(arguments);
+			buffer.push_undeclared(ParseNode::Identifier { identifier });
+			let expression =
+				buffer.push(ParseNode::FunctionCall { is_builtin: true });
+			Ok(expression)
 		}
 		BaseToken::BracketLeft =>
 		{
 			let mut num_elements: usize = 0;
-			buffer.start_list();
+			let mut list = buffer.start_list();
 			if !consume_optional(BaseToken::BracketRight, tokens, span)
 			{
 				loop
 				{
-					let element = parse_expression(tokens, buffer, span)?;
-					buffer.push_list_item(element);
-					num_elements += 1;
-					if !consume_optional(BaseToken::Comma, tokens, span)
+					if consume_optional(BaseToken::BracketRight, tokens, span)
 					{
 						break;
 					}
+					let element = parse_expression(tokens, buffer, span)?;
+					buffer.push_list_item(element, &mut list);
+					num_elements += 1;
+					if consume_optional(BaseToken::Comma, tokens, span)
+					{
+						continue;
+					}
+					else
+					{
+						consume(BaseToken::BracketRight, tokens, span)?;
+						break;
+					}
 				}
-				consume(BaseToken::BracketRight, tokens, span)?;
 			}
-			let elements = buffer.push_end_of_list();
+			let elements = buffer.push_end_of_list(list);
 			buffer.push_list(elements);
 			let num_elements = parse_node::U24::new(num_elements);
 			let expression =
@@ -1333,7 +1453,7 @@ fn parse_deref_steps_list(
 ) -> Result<NodeId, ParsingError>
 {
 	let start = span.start.into();
-	buffer.start_list();
+	let mut list = buffer.start_list();
 	for _ in 0..MAX_REFERENCE_DEPTH
 	{
 		let step = if consume_optional(BaseToken::BracketLeft, tokens, span)
@@ -1351,10 +1471,10 @@ fn parse_deref_steps_list(
 		}
 		else
 		{
-			let start_of_list = buffer.push_end_of_list();
+			let start_of_list = buffer.push_end_of_list(list);
 			return Ok(start_of_list);
 		};
-		buffer.push_list_item(step);
+		buffer.push_list_item(step, &mut list);
 	}
 	let end = span.start.into();
 	Err(ParsingError::MaximumParseDepthExceeded { start, end })

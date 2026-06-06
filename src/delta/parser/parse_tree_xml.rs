@@ -79,6 +79,7 @@ fn print_xml(
 		(
 			ConstantDeclaration { .. },
 			[
+				_,
 				_expression,
 				Item { at: value_type },
 				Identifier { identifier },
@@ -98,6 +99,7 @@ fn print_xml(
 		(
 			FunctionDeclaration { .. },
 			[
+				FunctionImpl { body },
 				Item { at: return_type },
 				List { first: parameters },
 				Identifier { identifier },
@@ -111,13 +113,14 @@ fn print_xml(
 			))
 			.chain(print_list(parameters, "parameters"))
 			.chain(print_item(return_type))
-			.chain(print_prev(i - 5))
+			.chain(print_item(body))
 			.chain(once(format!("</FunctionDeclaration>"))),
 		),
 
 		(
-			FunctionHeadDeclaration { .. },
+			FunctionDeclaration { .. },
 			[
+				NoMoreItems,
 				Item { at: return_type },
 				List { first: parameters },
 				Identifier { identifier },
@@ -125,18 +128,24 @@ fn print_xml(
 			],
 		) => Box::new(
 			once(format!(
-				"<FunctionHeadDeclaration identifier={:?} flags=\"{}\">",
+				"<FunctionDeclaration identifier={:?} flags=\"{}\">",
 				get_source(identifier),
 				print_flags(flags),
 			))
 			.chain(print_list(parameters, "parameters"))
 			.chain(print_item(return_type))
-			.chain(once(format!("</FunctionHeadDeclaration>"))),
+			.chain(once(format!("</FunctionDeclaration>"))),
 		),
 
 		(
 			FunctionBody { .. },
-			[_, _, Item { at: return_value }, List { first: statements }],
+			[
+				_,
+				_,
+				_,
+				Item { at: return_value },
+				List { first: statements },
+			],
 		) => Box::new(
 			once(format!("<FunctionBody>"))
 				.chain(print_list(statements, "statements"))
@@ -147,6 +156,7 @@ fn print_xml(
 		(
 			StructureDeclaration { .. },
 			[
+				_,
 				List { first: members },
 				StructuralType {
 					size_in_bytes_if_word,
@@ -166,7 +176,7 @@ fn print_xml(
 			.chain(once(format!("</StructureDeclaration>"))),
 		),
 
-		(ImportDeclaration { .. }, [_, _, _, DeclarationFlags(flags)]) =>
+		(ImportDeclaration { .. }, [_, _, _, _, DeclarationFlags(flags)]) =>
 		{
 			Box::new(
 				once(format!(
@@ -219,12 +229,20 @@ fn print_xml(
 				.chain(once(format!("</Assignment>"))),
 		),
 		(Loop { token: _ }, _) => Box::new(once(format!("<Loop />"))),
-		(Goto { token: _ }, [_, _, _, Identifier { identifier }]) => Box::new(
-			once(format!("<Goto label={:?} />", get_source(identifier))),
-		),
-		(Label { colon: _ }, [_, _, _, Identifier { identifier }]) => Box::new(
-			once(format!("<Label src={:?} />", get_source(identifier))),
-		),
+		(Goto { token: _ }, [_, _, _, _, Identifier { identifier }]) =>
+		{
+			Box::new(once(format!(
+				"<Goto label={:?} />",
+				get_source(identifier)
+			)))
+		}
+		(Label { colon: _ }, [_, _, _, _, Identifier { identifier }]) =>
+		{
+			Box::new(once(format!(
+				"<Label src={:?} />",
+				get_source(identifier)
+			)))
+		}
 		(If { comparison }, _) => Box::new(
 			once(format!("<If>"))
 				.chain(print_item(comparison))
@@ -257,14 +275,14 @@ fn print_xml(
 		),
 		(
 			Comparison { token: _ },
-			[_, _, Item { at: left }, ComparisonOp(op)],
+			[_, _, _, Item { at: left }, ComparisonOp(op)],
 		) => Box::new(
 			once(format!("<Comparison op=\"{op:?}\">"))
 				.chain(print_item(left))
 				.chain(print_prev(i - 3))
 				.chain(once(format!("</Comparison>"))),
 		),
-		(Binary { token: _ }, [_, _, Item { at: left }, BinaryOp(op)]) =>
+		(Binary { token: _ }, [_, _, _, Item { at: left }, BinaryOp(op)]) =>
 		{
 			Box::new(
 				once(format!("<Binary op=\"{op:?}\">"))
@@ -273,7 +291,7 @@ fn print_xml(
 					.chain(once(format!("</Binary>"))),
 			)
 		}
-		(Unary { token: _ }, [_, _, _, UnaryOp(op)]) => Box::new(
+		(Unary { token: _ }, [_, _, _, _, UnaryOp(op)]) => Box::new(
 			once(format!("<Unary op=\"{op:?}\">"))
 				.chain(print_prev(i - 2))
 				.chain(once(format!("</Unary>"))),
@@ -306,7 +324,7 @@ fn print_xml(
 			get_source(literal).trim_matches('"')
 		))),
 
-		(CompositeStringLiteral { start }, [_, _, _, EndOfSpan { end }]) =>
+		(CompositeStringLiteral { start }, [_, _, _, _, EndOfSpan { end }]) =>
 		{
 			Box::new(
 				once(format!("<CompositeStringLiteral>"))
@@ -320,6 +338,7 @@ fn print_xml(
 				start_of_reference: _,
 			},
 			[
+				_,
 				_,
 				List { first: steps },
 				Identifier { identifier },

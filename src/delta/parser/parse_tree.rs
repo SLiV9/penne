@@ -11,7 +11,7 @@ use crate::delta::parser::ParsingError;
 use crate::delta::parser::parse_node::U24;
 
 pub const MAX_NUM_PARSING_ERRORS: usize = 100;
-pub(crate) const MAX_PARSE_NODE_CONTEXT: usize = 4;
+pub(crate) const MAX_PARSE_NODE_CONTEXT: usize = 5;
 
 #[path = "parse_tree_xml.rs"]
 mod parse_tree_xml;
@@ -67,7 +67,6 @@ impl ParseTree
 		ParseBuffer {
 			num_nodes: 0,
 			nodes: nodes.spare_capacity_mut(),
-			active_list: None,
 			active_private_zone: None,
 			declarations,
 			errors,
@@ -96,7 +95,6 @@ pub(super) struct ParseBuffer<'buffer>
 	num_nodes: usize,
 	nodes: &'buffer mut [MaybeUninit<ParseNode>],
 
-	active_list: Option<ActiveList>,
 	active_private_zone: Option<NodeId>,
 
 	declarations: &'buffer mut Vec<NodeId>,
@@ -104,7 +102,8 @@ pub(super) struct ParseBuffer<'buffer>
 	errors: &'buffer mut Vec<ParsingError>,
 }
 
-struct ActiveList
+#[must_use]
+pub struct ActiveList
 {
 	first_node: NodeId,
 	last_node: NodeId,
@@ -163,9 +162,9 @@ impl<'buffer> ParseBuffer<'buffer>
 	}
 
 	#[inline]
-	pub(super) fn start_list(&mut self)
+	pub(super) fn start_list(&mut self) -> Option<ActiveList>
 	{
-		debug_assert!(self.active_list.is_none());
+		None
 	}
 
 	#[inline]
@@ -181,12 +180,16 @@ impl<'buffer> ParseBuffer<'buffer>
 	}
 
 	#[inline]
-	pub(super) fn push_list_item(&mut self, content_node: NodeId)
+	pub(super) fn push_list_item(
+		&mut self,
+		content_node: NodeId,
+		active_list: &mut Option<ActiveList>,
+	)
 	{
 		self.expect_most_recent_node(content_node);
 		// This will be patched later, unless there are parse errors.
 		let new_node = self.push(ParseNode::UnpatchedListItem);
-		self.active_list = match self.active_list
+		*active_list = match *active_list
 		{
 			Some(ActiveList {
 				first_node,
@@ -210,13 +213,16 @@ impl<'buffer> ParseBuffer<'buffer>
 	}
 
 	#[inline]
-	pub(super) fn push_end_of_list(&mut self) -> NodeId
+	pub(super) fn push_end_of_list(
+		&mut self,
+		active_list: Option<ActiveList>,
+	) -> NodeId
 	{
 		let new_node = self.push(ParseNode::NoMoreItems);
 		if let Some(ActiveList {
 			first_node,
 			last_node,
-		}) = self.active_list.take()
+		}) = active_list
 		{
 			self.patch_list_item(
 				last_node,

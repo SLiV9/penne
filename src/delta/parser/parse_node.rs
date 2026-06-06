@@ -71,19 +71,7 @@ pub enum ParseNode
 		// identifier: Identifier = nodes[-2]
 		// parameters: List<IdentifierAndType> = nodes[-3]
 		// return_type: Item<ValueType> = nodes[-4]
-		// body: FunctionBody = nodes[..-5]
-	},
-	FunctionHeadDeclaration
-	{
-		start_of_declaration: TokenId,
-		// flags: DeclarationFlags = nodes[-1]
-		// identifier: Identifier = nodes[-2]
-		// parameters: List<IdentifierAndType> = nodes[-3]
-		// return_type: Item<ValueType> = nodes[-4]
-	},
-	FunctionBody {
-		// statements: List<Statement> = nodes[-1]
-		// return_value: Item<Expression>/NoMoreItems = nodes[-2]
+		// body: FunctionBodyBlock/NoMoreItems = nodes[-5]
 	},
 	ConstantDeclaration
 	{
@@ -106,6 +94,10 @@ pub enum ParseNode
 		start_of_declaration: TokenId,
 		// flags: DeclarationFlags = nodes[-1]
 		// path: StringLiteral = nodes[-2]
+	},
+	FunctionBody {
+		// statements: List<Statement> = nodes[-1]
+		// return_value: Item<Expression>/NoMoreItems = nodes[-2]
 	},
 	StructuralType
 	{
@@ -330,6 +322,10 @@ pub enum ParseNode
 		// value: ParseNode = nodes[-1]
 		next: NodeId,
 	},
+	FunctionImpl
+	{
+		body: NodeId, // FunctionBody
+	},
 	// Markers for build_header():
 	StartPrivateZone
 	{
@@ -352,7 +348,6 @@ impl ParseNode
 			self,
 			ConstantDeclaration { .. }
 				| FunctionDeclaration { .. }
-				| FunctionHeadDeclaration { .. }
 				| StructureDeclaration { .. }
 				| ImportDeclaration { .. }
 		)
@@ -374,20 +369,11 @@ impl ParseNode
 			DeclarationFlags(enum_set) => DeclarationFlags(
 				enum_set.difference(EnumSet::from(DeclarationFlag::Public)),
 			),
-			FunctionDeclaration {
-				start_of_declaration,
-			} =>
-			{
-				// Note here we actually change the node type.
-				FunctionHeadDeclaration {
-					start_of_declaration,
-				}
-			}
-			FunctionHeadDeclaration { .. } => self,
-			FunctionBody { .. } => self,
+			FunctionDeclaration { .. } => self,
 			ConstantDeclaration { .. } => self,
 			StructureDeclaration { .. } => self,
 			ImportDeclaration { .. } => self,
+			FunctionBody { .. } => self,
 			StructuralType { .. } => self,
 			Identifier { .. } => self,
 			IdentifierAndType { .. } => self,
@@ -447,6 +433,7 @@ impl ParseNode
 				first: adjust(first),
 			},
 			ListItem { next } => ListItem { next: adjust(next) },
+			FunctionImpl { body: _ } => NoMoreItems,
 			StartPrivateZone { .. }
 			| EndPrivateZone { .. }
 			| EndlessPrivateZone =>
