@@ -343,10 +343,25 @@ impl<'buffer> TokensBuffer<'buffer>
 
 impl Tokens
 {
-	#[inline]
+	#[inline(always)]
 	pub fn base_tokens(&self) -> &[BaseToken]
 	{
 		&self.tokens
+	}
+
+	#[inline(always)]
+	pub fn base_tokens_from(&self, from: TokenId) -> &[BaseToken]
+	{
+		let i = from.0 as usize;
+		&self.tokens[i..]
+	}
+
+	#[inline(always)]
+	pub fn base_tokens_of_span(&self, span: Span) -> &[BaseToken]
+	{
+		let i = span.start.0 as usize;
+		let j = span.end.0 as usize;
+		&self.tokens[i..j]
 	}
 
 	#[inline(always)]
@@ -377,13 +392,7 @@ impl Tokens
 		TokenId(0)
 	}
 
-	pub fn span_from(&self, from: TokenId) -> Span
-	{
-		let len = self.tokens.len();
-		assert!(len > 0, "ends with EndOfSource");
-		from..self.token_id(len - 1)
-	}
-
+	#[inline(always)]
 	pub fn skip_until(
 		&self,
 		until: impl Fn(BaseToken) -> bool,
@@ -461,6 +470,7 @@ impl Tokens
 		}
 	}
 
+	#[inline(always)]
 	pub fn spans_multiple_tokens(&self, span: Span) -> bool
 	{
 		let end_inclusive = TokenId(span.end.0.saturating_sub(1));
