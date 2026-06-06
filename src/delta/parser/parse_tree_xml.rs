@@ -152,6 +152,14 @@ fn print_xml(
 				.chain(print_item(return_value))
 				.chain(once(format!("</FunctionBody>"))),
 		),
+		(
+			FunctionBody { .. },
+			[_, _, _, NoMoreItems, List { first: statements }],
+		) => Box::new(
+			once(format!("<FunctionBody>"))
+				.chain(print_list(statements, "statements"))
+				.chain(once(format!("</FunctionBody>"))),
+		),
 
 		(
 			StructureDeclaration { .. },
@@ -268,6 +276,40 @@ fn print_xml(
 				.chain(once(format!("</Block>"))),
 		),
 
+		(
+			MethodCall { is_builtin },
+			[
+				_,
+				_,
+				_,
+				List { first: arguments },
+				Identifier { identifier },
+			],
+		) => Box::new(
+			once(format!(
+				"<MethodCall identifier={:?} is_builtin=\"{is_builtin}\">",
+				get_source(identifier)
+			))
+			.chain(print_list(arguments, "arguments"))
+			.chain(once(format!("</MethodCall>"))),
+		),
+		(
+			FunctionCall { is_builtin },
+			[
+				_,
+				_,
+				_,
+				List { first: arguments },
+				Identifier { identifier },
+			],
+		) => Box::new(
+			once(format!(
+				"<FunctionCall identifier={:?} is_builtin=\"{is_builtin}\">",
+				get_source(identifier)
+			))
+			.chain(print_list(arguments, "arguments"))
+			.chain(once(format!("</FunctionCall>"))),
+		),
 		(Parenthesized {}, _) => Box::new(
 			once(format!("<Parenthesized>"))
 				.chain(print_prev(i - 1))
@@ -334,6 +376,36 @@ fn print_xml(
 		}
 
 		(
+			ArrayLiteral { num_elements: _ },
+			[_, _, _, _, List { first: elements }],
+		) => Box::new(
+			once(format!("<ArrayLiteral>"))
+				.chain(print_list(elements, "elements"))
+				.chain(once(format!("</ArrayLiteral>"))),
+		),
+		(
+			Structural {
+				unresolved_struct_or_word,
+			},
+			[
+				_,
+				_,
+				_,
+				_,
+				List {
+					first: initializers,
+				},
+			],
+		) => Box::new(
+			once(format!(
+				"<Structural identifier={:?}>",
+				get_source(unresolved_struct_or_word)
+			))
+			.chain(print_list(initializers, "initializers"))
+			.chain(once(format!("</Structural>"))),
+		),
+
+		(
 			Deref {
 				start_of_reference: _,
 			},
@@ -351,6 +423,15 @@ fn print_xml(
 			))
 			.chain(print_list(steps, "steps"))
 			.chain(once(format!("</Deref>"))),
+		),
+		(DerefStepMember { field_identifier }, _) => Box::new(once(format!(
+			"<DerefStepMember identifier={:?} />",
+			get_source(field_identifier)
+		))),
+		(DerefStepElement {}, _) => Box::new(
+			once(format!("<DerefStepElement>"))
+				.chain(print_prev(i - 1))
+				.chain(once(format!("</DerefStepElement>"))),
 		),
 
 		(BitCast { cast_keyword: _ }, _) => Box::new(
@@ -376,8 +457,62 @@ fn print_xml(
 		),
 
 		(SimpleValueType(value_type), _) => Box::new(once(format!(
-			"<UnresolvedStructOrWordVT type=\"{value_type:?}\" />"
+			"<SimpleValueType type=\"{value_type:?}\" />"
 		))),
+		(
+			CompositeValueType { start: _ },
+			[_, _, _, _, EndOfSpan { end: _ }],
+		) => Box::new(
+			once(format!("<CompositeValueType>"))
+				.chain(print_prev(i - 2))
+				.chain(once(format!("</CompositeValueType>"))),
+		),
+		(ArrayVT { fixed_length }, _) => Box::new(
+			once(format!(
+				"<ArrayVT length=\"{}\">",
+				get_integer_value(fixed_length)
+			))
+			.chain(print_prev(i - 1))
+			.chain(once(format!("</ArrayVT>"))),
+		),
+		(
+			ArrayWithNamedLengthVT {
+				named_length_identifier,
+			},
+			_,
+		) => Box::new(
+			once(format!(
+				"<ArrayWithNamedLengthVT identifier={:?}>",
+				get_source(named_length_identifier)
+			))
+			.chain(print_prev(i - 1))
+			.chain(once(format!("</ArrayWithNamedLengthVT>"))),
+		),
+		(SliceVT {}, _) => Box::new(
+			once(format!("<SliceVT>"))
+				.chain(print_prev(i - 1))
+				.chain(once(format!("</SliceVT>"))),
+		),
+		(EndlessArrayVT {}, _) => Box::new(
+			once(format!("<EndlessArrayVT>"))
+				.chain(print_prev(i - 1))
+				.chain(once(format!("</EndlessArrayVT>"))),
+		),
+		(ArraylikeVT {}, _) => Box::new(
+			once(format!("<ArraylikeVT>"))
+				.chain(print_prev(i - 1))
+				.chain(once(format!("</ArraylikeVT>"))),
+		),
+		(PointerVT {}, _) => Box::new(
+			once(format!("<PointerVT>"))
+				.chain(print_prev(i - 1))
+				.chain(once(format!("</PointerVT>"))),
+		),
+		(ViewVT {}, _) => Box::new(
+			once(format!("<ViewVT>"))
+				.chain(print_prev(i - 1))
+				.chain(once(format!("</ViewVT>"))),
+		),
 		(UnresolvedStructOrWordVT { identifier }, _) =>
 		{
 			Box::new(once(format!(

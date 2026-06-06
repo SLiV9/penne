@@ -343,6 +343,7 @@ impl ParseTree
 				ParseNode::StartPrivateZone { end } =>
 				{
 					let end = usize::from(end.0);
+					dbg!(i, end);
 					num_skipped_nodes += end + 1 - i;
 					i = end;
 					debug_assert!(matches!(

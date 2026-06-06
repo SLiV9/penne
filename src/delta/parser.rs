@@ -695,6 +695,7 @@ fn parse_statement(
 			let colon = tokens.cursor().into();
 			if tokens.consume_optional(BaseToken::Colon)
 			{
+				buffer.push_undeclared(ParseNode::Identifier { identifier });
 				buffer.push(ParseNode::Label { colon })
 			}
 			else if tokens.consume_optional(BaseToken::ParenLeft)

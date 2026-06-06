@@ -147,6 +147,12 @@ pub enum ParseNode
 		is_builtin: bool,
 		// arguments: List<Expression> = nodes[-2]
 	},
+	FunctionCall
+	{
+		// identifier: Identifier = nodes[-1]
+		is_builtin: bool,
+		// arguments: List<Expression> = nodes[-2]
+	},
 	Parenthesized {
 		// inner: Expression = nodes[..-1]
 	},
@@ -243,12 +249,6 @@ pub enum ParseNode
 	},
 	SizeOf {
 		// queried_type: ValueType = nodes[..-1]
-	},
-	FunctionCall
-	{
-		// identifier: Identifier = nodes[-1]
-		is_builtin: bool,
-		// arguments: List<Expression> = nodes[-2]
 	},
 	SimpleValueType(ValueTypeKeyword),
 	CompositeValueType
@@ -384,6 +384,7 @@ impl ParseNode
 			Goto { .. } => self,
 			Label { .. } => self,
 			MethodCall { .. } => self,
+			FunctionCall { .. } => self,
 			Parenthesized {} => self,
 			Comparison { .. } => self,
 			ComparisonOp(..) => self,
@@ -407,7 +408,6 @@ impl ParseNode
 			TypeCast { .. } => self,
 			LengthOf {} => self,
 			SizeOf {} => self,
-			FunctionCall { .. } => self,
 			SimpleValueType(..) => self,
 			CompositeValueType { .. } => self,
 			ArrayVT { .. } => self,
