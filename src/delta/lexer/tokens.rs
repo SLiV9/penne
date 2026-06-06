@@ -134,8 +134,8 @@ impl Tokens
 	pub(super) fn empty(source_filename: String, source_len: usize) -> Tokens
 	{
 		// For tokens, we want to avoid the realloc at all costs.
-		// If the source is very big, we expect a medium density.
-		let hard_token_cap = std::cmp::max(source_len / 4, 1 << 16);
+		// If the source is very big, we expect a density of less than 50%.
+		let hard_token_cap = std::cmp::max(source_len / 2, 1 << 16);
 		let token_cap = std::cmp::min(hard_token_cap, MAX_NUM_TOKENS);
 		let tokens = Vec::with_capacity(token_cap);
 		let token_vaps = Vec::with_capacity(token_cap);
@@ -231,6 +231,17 @@ impl Tokens
 			self.tokens.set_len(num_tokens);
 			self.token_vaps.set_len(num_tokens);
 			self.token_locations.set_len(num_tokens);
+		}
+
+		if self.tokens.len() * 2 < self.tokens.capacity()
+		{
+			self.tokens.shrink_to_fit();
+			self.token_vaps.shrink_to_fit();
+			self.token_locations.shrink_to_fit();
+		}
+		if self.integer_payloads.len() * 2 < self.integer_payloads.capacity()
+		{
+			self.integer_payloads.shrink_to_fit();
 		}
 	}
 }

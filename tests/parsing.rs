@@ -240,7 +240,7 @@ fn fail_to_parse_unfinished_comparison()
 #[test]
 fn fail_to_parse_structural_comparison()
 {
-	compile_to_fail(&[300], "tests/samples/invalid/strucutral_comparison.pn")
+	compile_to_fail(&[300], "tests/samples/invalid/structural_comparison.pn")
 }
 
 #[test]

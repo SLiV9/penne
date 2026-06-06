@@ -71,7 +71,7 @@ pub enum ParseNode
 		// identifier: Identifier = nodes[-2]
 		// parameters: List<IdentifierAndType> = nodes[-3]
 		// return_type: Item<ValueType> = nodes[-4]
-		// body: FunctionBodyBlock/NoMoreItems = nodes[-5]
+		// body: FunctionImpl/NoMoreItems = nodes[-5]
 	},
 	ConstantDeclaration
 	{

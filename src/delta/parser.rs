@@ -340,6 +340,14 @@ fn parse_function_declaration(
 	tokens.consume(BaseToken::Identifier)?;
 	let (parameters, return_type) =
 		parse_rest_of_function_signature(tokens, buffer)?;
+	let impl_node_id = buffer.push_unfinished_impl();
+	buffer.push_older_node(return_type);
+	buffer.push_list(parameters);
+	buffer.push_undeclared(ParseNode::Identifier { identifier });
+	buffer.push_undeclared(ParseNode::DeclarationFlags(flags));
+	let declaration_node = buffer.push(ParseNode::FunctionDeclaration {
+		start_of_declaration,
+	});
 
 	let body_node = if tokens.consume_optional(BaseToken::Semicolon)
 	{
@@ -365,15 +373,9 @@ fn parse_function_declaration(
 		}
 		ParseNode::FunctionImpl { body }
 	};
-	buffer.push_undeclared(body_node);
-	buffer.push_older_node(return_type);
-	buffer.push_list(parameters);
-	buffer.push_undeclared(ParseNode::Identifier { identifier });
-	buffer.push_undeclared(ParseNode::DeclarationFlags(flags));
-	let node = buffer.push(ParseNode::FunctionDeclaration {
-		start_of_declaration,
-	});
-	Ok(node)
+	buffer.finish_impl(impl_node_id, body_node);
+
+	Ok(declaration_node)
 }
 
 fn parse_rest_of_function_signature(
@@ -1278,9 +1280,23 @@ fn parse_primary_expression(
 			buffer.push_list(steps);
 			buffer.push_undeclared(ParseNode::Identifier { identifier });
 			buffer.push_undeclared(ParseNode::DerefAddressDepth { depth });
-			let expression = buffer.push(ParseNode::Deref {
+			let mut expression = buffer.push(ParseNode::Deref {
 				start_of_reference: first_token_id.into(),
 			});
+
+			let dots_token_id = tokens.cursor();
+			if tokens.consume_optional(BaseToken::Dots)
+			{
+				let op = BinaryOp::AdvancePointer;
+				let offset_expr = parse_expression(tokens, buffer)?;
+				buffer.expect_most_recent_node(offset_expr);
+				buffer.push_older_node(expression);
+				buffer.push_undeclared(ParseNode::BinaryOp(op));
+				expression = buffer.push(ParseNode::Binary {
+					token: dots_token_id.into(),
+				});
+			}
+
 			Ok(expression)
 		}
 		BaseToken::Identifier =>

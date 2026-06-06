@@ -8,6 +8,7 @@ use crate::alpha::error;
 use crate::delta::lexer::BaseToken;
 use crate::delta::lexer::tokens::Tokens;
 use crate::delta::parser::ParsingError;
+use crate::delta::parser::parse_node::ParseNode::UnpatchedListItem;
 use crate::delta::parser::parse_node::U24;
 
 pub const MAX_NUM_PARSING_ERRORS: usize = 100;
@@ -85,6 +86,15 @@ impl ParseTree
 		// place where `num_nodes` is modified. The caller guarantees the
 		// `num_nodes` argument comes from `into_num_initialized_nodes`.
 		unsafe { self.nodes.set_len(num_nodes) };
+
+		if self.nodes.len() * 2 < self.nodes.capacity()
+		{
+			self.nodes.shrink_to_fit();
+		}
+		if self.declarations.len() * 2 < self.declarations.capacity()
+		{
+			self.declarations.shrink_to_fit();
+		}
 	}
 }
 
@@ -107,6 +117,12 @@ pub struct ActiveList
 {
 	first_node: NodeId,
 	last_node: NodeId,
+}
+
+#[must_use]
+pub struct UnfinishedImpl
+{
+	unfinished_node: NodeId,
 }
 
 impl<'buffer> ParseBuffer<'buffer>
@@ -237,6 +253,23 @@ impl<'buffer> ParseBuffer<'buffer>
 	}
 
 	#[inline]
+	pub(super) fn push_unfinished_impl(&mut self) -> UnfinishedImpl
+	{
+		let unfinished_node = self.push(UnpatchedListItem);
+		UnfinishedImpl { unfinished_node }
+	}
+
+	#[inline]
+	pub(super) fn finish_impl(
+		&mut self,
+		UnfinishedImpl { unfinished_node }: UnfinishedImpl,
+		content: ParseNode,
+	)
+	{
+		self.patch_list_item(unfinished_node, content);
+	}
+
+	#[inline]
 	pub(super) fn push_undeclared(&mut self, node: ParseNode)
 	{
 		let _: NodeId = self.push(node);
@@ -283,7 +316,6 @@ impl<'buffer> ParseBuffer<'buffer>
 
 	pub(super) fn finish_declaration(&mut self, node: NodeId)
 	{
-		self.expect_most_recent_node(node);
 		assert!(self.declarations.len() < self.declarations.capacity());
 		self.declarations.push(node);
 	}
@@ -343,7 +375,6 @@ impl ParseTree
 				ParseNode::StartPrivateZone { end } =>
 				{
 					let end = usize::from(end.0);
-					dbg!(i, end);
 					num_skipped_nodes += end + 1 - i;
 					i = end;
 					debug_assert!(matches!(
