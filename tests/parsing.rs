@@ -232,6 +232,18 @@ fn fail_to_parse_unfinished_function_signature()
 }
 
 #[test]
+fn fail_to_parse_unfinished_comparison()
+{
+	compile_to_fail(&[300], "tests/samples/invalid/unfinished_comparison.pn")
+}
+
+#[test]
+fn fail_to_parse_structural_comparison()
+{
+	compile_to_fail(&[300], "tests/samples/invalid/strucutral_comparison.pn")
+}
+
+#[test]
 fn fail_to_parse_import_without_semicolon()
 {
 	compile_to_fail(&[300], "tests/samples/invalid/import_without_semicolon.pn")

@@ -1,0 +1,15 @@
+word8 foo {
+	bar: u8,
+}
+
+fn main() -> u8
+{
+	var x = 0;
+	var result = 0;
+	// This is not allowed because it is more natural to parse { as a block statement.
+	if x == foo { bar: 0 }
+	{
+		result = 2;
+	}
+	return: result
+}

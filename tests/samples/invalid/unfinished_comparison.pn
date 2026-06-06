@@ -1,0 +1,10 @@
+fn main() -> u8
+{
+	var x = 0;
+	var result = 0;
+	if x ==
+	{
+		result = 2;
+	}
+	return: result
+}
