@@ -646,6 +646,21 @@ fn compile_to_ir_using_delta(
 	// TODO finish
 	let _ = for_wasm;
 	let _ = out_dir;
+	for ((_, tokens, parse_tree), (filename, source)) in
+		modules.iter().zip(sources.iter())
+	{
+		let num_bytes = source.len();
+		let num_tokens = tokens.base_tokens().len();
+		let num_parse_nodes = parse_tree.num_parse_nodes();
+		let num_declarations = parse_tree.num_declarations();
+		dbg!(
+			filename,
+			num_bytes,
+			num_tokens,
+			num_parse_nodes,
+			num_declarations
+		);
+	}
 	Err(anyhow!("unfinished"))
 }
 

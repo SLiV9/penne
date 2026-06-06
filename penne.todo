@@ -232,11 +232,8 @@ Performance:
 	☐	Take a look at issue #5
 
 Compilation speed:
-	- Tracking: very roughly 4 KLOC (4325 Penne LOC in 1.0 seconds)
-	(cloc --read-lang-def support/cloc_penne_definitions.txt core/ vendor/ examples/ src/ tests/)
-	(cargo nextest run --no-fail-fast --release)
 	- Ultimate target:
-		☐	1MLOC for lexing and parsing
+		✔	1MLOC for lexing and parsing
 		☐	100KLOC for semantic analysis
 		No target for code generation because LLVM does hard work
 
@@ -297,13 +294,13 @@ Rewrite using Data-Oriented Compiler Design for 0.5.0:
 		✘	Keep whitespace and comments as tokens @cancelled (2026-05-09 17:17)
 		✔	Add end of file token @done (2026-05-11 20:07)
 		✘	Add unbalanced/missing closing braces as tokens @cancelled (2026-05-14 19:25)
-	☐	Parser
+	✔	Parser
 		✔	Number of parse tree nodes <= number of tokens
 		✔	Store parse tree nodes as postorder traversed array
 		☐   Think about error numbering (2xx is now mixed into 3xx, but are returned separately)	
 			☐   Also, whether types are wellformed is no longer checked during parsing	
 	☐	Rebuilder
-	☐	Everything above at 1MLOC/s (10% of Carbon's goals) to allow formatting
+	✔	Everything above at 1MLOC/s (10% of Carbon's goals) to allow formatting
 		✔	Fuzzer that generates 40MB of random tokens @done (2026-05-10 20:21)
 		☐	Fuzzer that generates 40MB of random valid trees
 	☐	Expander

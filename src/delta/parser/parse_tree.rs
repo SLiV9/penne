@@ -138,7 +138,7 @@ impl<'buffer> ParseBuffer<'buffer>
 		let i = self.num_nodes;
 		if i >= self.nodes.len()
 		{
-			panic!("Number of parse nodes exceeds number of tokens");
+			panic!("Number of parse nodes greatly exceeds number of tokens");
 		}
 		let node_id = NodeId(U24::new(i));
 		self.nodes[i].write(node);
@@ -335,6 +335,16 @@ impl<'buffer> ParseBuffer<'buffer>
 
 impl ParseTree
 {
+	pub fn num_parse_nodes(&self) -> usize
+	{
+		self.nodes.len()
+	}
+
+	pub fn num_declarations(&self) -> usize
+	{
+		self.declarations.len()
+	}
+
 	#[inline(never)]
 	pub fn build_header(&self) -> ParseTree
 	{
