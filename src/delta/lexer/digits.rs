@@ -51,29 +51,14 @@ pub fn parse_decimal_digits(
 		.map_err(|_| LexingError::InvalidIntegerLength)
 }
 
-pub const HEX_LUT: [u8; 256] = const {
-	let mut lut = [0xFF; 256];
-	lut[b'0' as usize] = 0;
-	lut[b'1' as usize] = 1;
-	lut[b'2' as usize] = 2;
-	lut[b'3' as usize] = 3;
-	lut[b'4' as usize] = 4;
-	lut[b'5' as usize] = 5;
-	lut[b'6' as usize] = 6;
-	lut[b'7' as usize] = 7;
-	lut[b'8' as usize] = 8;
-	lut[b'9' as usize] = 9;
-	lut[b'a' as usize] = 10;
-	lut[b'b' as usize] = 11;
-	lut[b'c' as usize] = 12;
-	lut[b'd' as usize] = 13;
-	lut[b'e' as usize] = 14;
-	lut[b'f' as usize] = 15;
-	lut[b'A' as usize] = 10;
-	lut[b'B' as usize] = 11;
-	lut[b'C' as usize] = 12;
-	lut[b'D' as usize] = 13;
-	lut[b'E' as usize] = 14;
-	lut[b'F' as usize] = 15;
-	lut
-};
+#[inline(always)]
+pub fn parse_hex_digit(a: u8) -> Option<u8>
+{
+	match a
+	{
+		b'A'..=b'F' => Some((a & 0b0000_1111) + 9),
+		b'a'..=b'f' => Some((a & 0b0000_1111) + 9),
+		b'0'..=b'9' => Some(a & 0b0000_1111),
+		_ => None,
+	}
+}

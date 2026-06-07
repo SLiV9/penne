@@ -457,8 +457,7 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 						let mut has_overflowed = false;
 						while let Some(&(_, y)) = iter.peek()
 						{
-							let hex_value = HEX_LUT[usize::from(y)];
-							if hex_value != 0xFF
+							if let Some(hex_value) = parse_hex_digit(y)
 							{
 								contains_digits = true;
 								value = match value.checked_mul(16)
@@ -669,8 +668,7 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 								let mut byte_value = 0;
 								while let Some(&(_, y)) = iter.peek()
 								{
-									let hex_value = HEX_LUT[usize::from(y)];
-									if hex_value != 0xFF
+									if let Some(hex_value) = parse_hex_digit(y)
 									{
 										byte_value <<= 4;
 										byte_value |= hex_value;
@@ -822,8 +820,7 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 								let mut byte_value = 0;
 								while let Some(&(_, y)) = iter.peek()
 								{
-									let hex_value = HEX_LUT[usize::from(y)];
-									if hex_value != 0xFF
+									if let Some(hex_value) = parse_hex_digit(y)
 									{
 										byte_value <<= 4;
 										byte_value |= hex_value;
@@ -867,8 +864,8 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 
 									while let Some(&(_, y)) = iter.peek()
 									{
-										let hex_value = HEX_LUT[usize::from(y)];
-										if hex_value != 0xFF
+										if let Some(hex_value) =
+											parse_hex_digit(y)
 										{
 											// Don't need to check for overflow of char_u32,
 											// because we check num_digits < 8.
