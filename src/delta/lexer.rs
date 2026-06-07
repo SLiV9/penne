@@ -6,21 +6,6 @@ pub use crate::alpha::lexer::Error as LexingError;
 use digits::*;
 use tokens::*;
 
-#[inline(never)]
-pub fn _foo(bytes: &[u8; 2]) -> u8
-{
-	let mut sum = 0;
-	let mut bytes: &[u8] = bytes;
-	while let Some((pair, rest)) = bytes.split_first_chunk()
-	{
-		let pair: [u8; 2] = *pair;
-		bytes = rest;
-		let x = parse_double_hex(pair);
-		sum += x;
-	}
-	sum
-}
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[derive(strum::FromRepr, strum::Display, strum::EnumIter)]
 #[repr(u8)]
@@ -467,11 +452,26 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 					{
 						iter.next();
 						location.end += 1;
-						let start_of_literal = location.end;
+						let mut value: u128 = 0;
+						let mut contains_digits = false;
+						let mut has_overflowed = false;
 						while let Some(&(_, y)) = iter.peek()
 						{
-							if y.is_ascii_hexdigit()
+							let hex_value = HEX_LUT[usize::from(y)];
+							if hex_value != 0xFF
 							{
+								contains_digits = true;
+								value = match value.checked_mul(16)
+								{
+									Some(value) => value,
+									None =>
+									{
+										has_overflowed = true;
+										0
+									}
+								};
+								value |= u128::from(hex_value);
+
 								iter.next();
 								location.end += 1;
 							}
@@ -485,12 +485,17 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 								break;
 							}
 						}
-						let literal =
-							&source[location.span_from(start_of_literal)];
-						if !literal.is_empty()
+						if contains_digits
 						{
 							end_of_literal = location.end;
-							parse_hex_digits(&literal)
+							if !has_overflowed
+							{
+								Ok(value)
+							}
+							else
+							{
+								Err(LexingError::InvalidIntegerLength)
+							}
 						}
 						else
 						{
@@ -661,13 +666,17 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 							{
 								let start_of_digits = location.end;
 								let end_of_digits = start_of_digits + 2;
+								let mut byte_value = 0;
 								while let Some(&(_, y)) = iter.peek()
 								{
-									if y.is_ascii_hexdigit()
+									let hex_value = HEX_LUT[usize::from(y)];
+									if hex_value != 0xFF
 									{
+										byte_value <<= 4;
+										byte_value |= hex_value;
+
 										iter.next();
 										location.end += 1;
-
 										if location.end == end_of_digits
 										{
 											break;
@@ -678,12 +687,9 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 										break;
 									}
 								}
-								let digits = &source
-									[location.span_from(start_of_digits)];
-								if let Some(&[a, b]) = digits.as_array()
+								if location.end == end_of_digits
 								{
-									let byte = parse_double_hex([a, b]);
-									push_byte(byte);
+									push_byte(byte_value);
 								}
 								else if first_error.is_none()
 								{
@@ -813,13 +819,17 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 							{
 								let start_of_digits = location.end;
 								let end_of_digits = start_of_digits + 2;
+								let mut byte_value = 0;
 								while let Some(&(_, y)) = iter.peek()
 								{
-									if y.is_ascii_hexdigit()
+									let hex_value = HEX_LUT[usize::from(y)];
+									if hex_value != 0xFF
 									{
+										byte_value <<= 4;
+										byte_value |= hex_value;
+
 										iter.next();
 										location.end += 1;
-
 										if location.end == end_of_digits
 										{
 											break;
@@ -830,12 +840,9 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 										break;
 									}
 								}
-								let digits = &source
-									[location.span_from(start_of_digits)];
-								if let Some(&[a, b]) = digits.as_array()
+								if location.end == end_of_digits
 								{
-									let byte = parse_double_hex([a, b]);
-									push_byte(byte);
+									push_byte(byte_value);
 								}
 								else if first_error.is_none()
 								{
@@ -850,7 +857,8 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 							}
 							Some((_, b'u')) =>
 							{
-								let mut digits = None;
+								let mut num_digits = 0;
+								let mut char_u32 = 0;
 								if let Some((_, b'{')) = iter.peek()
 								{
 									iter.next();
@@ -859,8 +867,14 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 
 									while let Some(&(_, y)) = iter.peek()
 									{
-										if y.is_ascii_hexdigit()
+										let hex_value = HEX_LUT[usize::from(y)];
+										if hex_value != 0xFF
 										{
+											// Don't need to check for overflow of char_u32,
+											// because we check num_digits < 8.
+											char_u32 <<= 4;
+											char_u32 |= u32::from(hex_value);
+
 											iter.next();
 											location.end += 1;
 										}
@@ -868,12 +882,8 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 										{
 											if location.end > start_of_digits
 											{
-												digits = Some(
-													&source[location
-														.span_from(
-															start_of_digits,
-														)],
-												);
+												num_digits = location.end
+													- start_of_digits;
 											}
 											iter.next();
 											location.end += 1;
@@ -881,15 +891,14 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 										}
 										else
 										{
+											num_digits = 0;
 											break;
 										}
 									}
 								};
-								let c = digits
-									.and_then(|digits| {
-										parse_hex_digits(digits).ok()
-									})
-									.and_then(|x| char::from_u32(x as u32));
+								let c = ((1..=6).contains(&num_digits))
+									.then_some(())
+									.and_then(|()| char::from_u32(char_u32));
 								if let Some(c) = c
 								{
 									let mut buffer = [0; 4];
