@@ -2,6 +2,7 @@ mod digits;
 pub mod tokens;
 
 pub use crate::alpha::lexer::Error as LexingError;
+use crate::alpha::lexer::Error::InvalidIntegerLength;
 
 use digits::*;
 use tokens::*;
@@ -506,11 +507,28 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 					{
 						iter.next();
 						location.end += 1;
-						let start_of_literal = location.end;
+						let mut num_digits = 0;
+						let mut value = 0;
 						while let Some(&(_, y)) = iter.peek()
 						{
-							if y == b'0' || y == b'1'
+							if num_digits > 128
 							{
+								break;
+							}
+							else if y == b'0'
+							{
+								num_digits += 1;
+								value <<= 1;
+
+								iter.next();
+								location.end += 1
+							}
+							else if y == b'1'
+							{
+								num_digits += 1;
+								value <<= 1;
+								value |= 0b1;
+
 								iter.next();
 								location.end += 1;
 							}
@@ -524,12 +542,14 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 								break;
 							}
 						}
-						let literal =
-							&source[location.span_from(start_of_literal)];
-						if !literal.is_empty()
+						if num_digits > 128
+						{
+							Err(LexingError::InvalidIntegerLength)
+						}
+						else if num_digits > 0
 						{
 							end_of_literal = location.end;
-							parse_binary_digits(&literal)
+							Ok(value)
 						}
 						else
 						{
@@ -579,12 +599,27 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 			}
 			b'1'..=b'9' =>
 			{
+				let first_digit =
+					parse_decimal_digit(x).expect("checked x in 0..9");
+				let mut value = u128::from(first_digit);
+				let mut has_overflowed = false;
 				// We have to consume the entire token ([1-9][a-zA-Z0-9_]*)
 				// before we can error out and move on to the next token.
 				while let Some(&(_, y)) = iter.peek()
 				{
-					if y.is_ascii_digit()
+					if let Some(digit) = parse_decimal_digit(y)
 					{
+						value = match value.checked_mul(10)
+						{
+							Some(value) => value,
+							None =>
+							{
+								has_overflowed = true;
+								0
+							}
+						};
+						value += u128::from(digit);
+
 						iter.next();
 						location.end += 1;
 					}
@@ -598,7 +633,6 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 						break;
 					}
 				}
-				let literal = &source[location.span()];
 				let end_of_literal = location.end;
 				while let Some(&(_, y)) = iter.peek()
 				{
@@ -613,14 +647,18 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 					}
 				}
 				let suffix = &source[location.span_from(end_of_literal)];
-				match parse_decimal_digits(literal)
+				if has_overflowed
 				{
-					Ok(value) if suffix.is_empty() =>
-					{
-						payload = Some(TokenPayload::Integer(value));
-						Ok(BaseToken::NakedDecimal)
-					}
-					Ok(value) => match parse_integer_suffix(&suffix)
+					Err(InvalidIntegerLength)
+				}
+				else if suffix.is_empty()
+				{
+					payload = Some(TokenPayload::Integer(value));
+					Ok(BaseToken::NakedDecimal)
+				}
+				else
+				{
+					match parse_integer_suffix(&suffix)
 					{
 						Ok(suffix_type) =>
 						{
@@ -629,8 +667,7 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 							Ok(BaseToken::SuffixedInteger)
 						}
 						Err(err) => Err(err),
-					},
-					Err(err) => Err(err),
+					}
 				}
 			}
 			b'\'' =>

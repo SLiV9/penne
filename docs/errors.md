@@ -80,7 +80,7 @@ fn main() -> i32
 
 ### Explanation
 
-Penne source files must be US-ASCII or UTF-8 encoded. In addition, ASCII control characters (`U+0000` through `U+001F`, and `U+007F`) are disallowed inside string literals and must be escaped. Outside of string literals, only letters, digits, underscores and characters used in Penne operators are allowed.
+Penne source files must be US-ASCII or UTF-8 encoded. In addition, ASCII control characters (`U+0000` through `U+001F`, and `U+007F`) are disallowed inside string literals and must be escaped. Outside of string literals and comments, only letters, digits, underscores and characters used in Penne operators are allowed.
 
 ## Error code E140
 
