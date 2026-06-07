@@ -6,6 +6,21 @@ pub use crate::alpha::lexer::Error as LexingError;
 use digits::*;
 use tokens::*;
 
+#[inline(never)]
+pub fn _foo(bytes: &[u8; 2]) -> u8
+{
+	let mut sum = 0;
+	let mut bytes: &[u8] = bytes;
+	while let Some((pair, rest)) = bytes.split_first_chunk()
+	{
+		let pair: [u8; 2] = *pair;
+		bytes = rest;
+		let x = parse_double_hex(pair);
+		sum += x;
+	}
+	sum
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[derive(strum::FromRepr, strum::Display, strum::EnumIter)]
 #[repr(u8)]
