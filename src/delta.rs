@@ -9,6 +9,7 @@
 pub mod fuzzer;
 pub mod lexer;
 pub mod parser;
+pub mod scoper;
 
 pub mod test_suite
 {

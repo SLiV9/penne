@@ -307,6 +307,8 @@ pub enum ParseNode
 	},
 	Block
 	{
+		// TODO I need a way to go through statments backwards,
+		// both for label scoping and for down-up-down typing.
 		first: NodeId, // ListItem<Statement>
 	},
 	Item

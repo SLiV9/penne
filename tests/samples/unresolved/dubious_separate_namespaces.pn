@@ -1,16 +1,28 @@
-// Although this is shared with C and Rust, so maybe not that strange.
+// C and Rust also have separate namespaces, so maybe not that strange.
 
+// Namespace 2: types
 struct foo
 {
-  x: i32
+  // Namespace 5: members (separate sub-namespace for each struct))
+  foo: i32
 }
 
+// Namespace 1: variables; level 0, special because they are outside function
 const foo: i32 = 1;
+const bar: i32 = foo;
 
-fn foo(bar: &foo)
+// Namespace 3: functions
+// (This being a separate namespace is dubious; I might need to revert it
+// if I introduce function pointers at some point.)
+fn foo(
+  // Namespace 1: variables; level 1, inside function
+  foo: &foo
+)
 {
-  if bar.x == foo
+  // Can't use foo here as a constant since it is shadowed by the parameter.
+  if foo.foo == bar
     goto foo;
-  bar.x = 2;
+  foo.foo = 2;
+  // Namespace 4: labels, which are always within one function body
   foo:
 }
