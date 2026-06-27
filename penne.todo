@@ -306,6 +306,9 @@ Rewrite using Data-Oriented Compiler Design for 0.5.0:
 	☐	Expander
 		☐	Somehow insert scoped and typed AST instead of
 	☐	Scoper
+		☐ Top-level scoper
+		☐ Label scoper in reverse
+		☐ Variable scoper that uses scoped labels to detect skipped declarations
 	☐	Typer
 		☐	But this single-pass approach becomes kind of silly when I have type inference within function bodies
 		☐	Separate surface level typing with no inference and function body type inference?
@@ -314,6 +317,7 @@ Rewrite using Data-Oriented Compiler Design for 0.5.0:
 	☐	Resolver
 	☐	Everything above at 100KLOC/s for responsive language server
 		☐	Hmm except you need code generation for declared constants use in array lengths, which currently depends on LLVM
+	☐ Code generation
 
 Development:
 	✘	Drop llvm-sys and generate textual LLVM IR by hand @cancelled (2024-04-13 21:44)
