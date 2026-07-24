@@ -6,6 +6,7 @@
 
 //! The second generation compiler for the Penne programming language.
 
+pub mod expander;
 pub mod fuzzer;
 pub mod lexer;
 pub mod parser;
@@ -28,9 +29,14 @@ pub mod test_suite
 	fn compile(filenames: &[&str]) -> Errors
 	{
 		let mut all_errors = Errors { errors: Vec::new() };
+		let mut all_filepaths = Vec::new();
+		let mut all_sources = Vec::new();
+		let mut all_tokens = Vec::new();
+		let mut all_parse_trees = Vec::new();
+		let mut all_headers = Vec::new();
 		for filename in filenames
 		{
-			let source = std::fs::read_to_string(&filename).unwrap();
+			let source = std::fs::read_to_string(filename).unwrap();
 			let tokens = lexer::lex(source.as_bytes(), filename);
 			if let Some(errors) = tokens.errors()
 			{
@@ -45,8 +51,20 @@ pub mod test_suite
 			}
 
 			let header = parse_tree.build_header();
-			// TODO use these headers when analyzing other fields
+
+			all_filepaths.push(std::path::PathBuf::from(filename));
+			all_sources.push(source);
+			all_tokens.push(tokens);
+			all_parse_trees.push(parse_tree);
+			all_headers.push(header);
 		}
+		if !all_errors.is_empty()
+		{
+			return all_errors.sorted();
+		}
+
+		expander::expand(&all_filepaths, &mut all_parse_trees, &all_headers);
+
 		all_errors.sorted()
 	}
 

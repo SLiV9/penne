@@ -16,8 +16,6 @@ pub struct TopLevelScoper
 	pub(super) resolution_id: usize,
 }
 
-// TOOD scope labels backwards
-
 impl TopLevelScoper
 {
 	fn new_resolution_id(&mut self) -> ResolutionId

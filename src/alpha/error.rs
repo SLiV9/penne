@@ -67,6 +67,11 @@ where
 
 impl Errors
 {
+	pub fn is_empty(&self) -> bool
+	{
+		self.errors.is_empty()
+	}
+
 	#[cfg_attr(coverage, no_coverage)]
 	#[cfg(not(tarpaulin_include))]
 	pub fn panic(self) -> Never

@@ -363,7 +363,22 @@ impl ParseNode
 			debug_assert!(i >= num_skipped_nodes);
 			NodeId(U24::new(i - num_skipped_nodes))
 		};
+		self.convert_and_adjust(adjust)
+	}
 
+	#[inline]
+	pub(crate) fn convert_for_append(self, old_num_nodes: usize) -> Self
+	{
+		let adjust = |node_id: NodeId| -> NodeId {
+			let i = usize::from(node_id.0);
+			NodeId(U24::new(i + old_num_nodes))
+		};
+		self.convert_and_adjust(adjust)
+	}
+
+	#[inline]
+	fn convert_and_adjust(self, adjust: impl Fn(NodeId) -> NodeId) -> Self
+	{
 		use ParseNode::*;
 		match self
 		{

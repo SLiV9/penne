@@ -4,6 +4,7 @@ use super::parse_node::NodeId;
 use super::parse_node::ParseNode;
 
 use crate::alpha::Errors;
+use crate::alpha::common::DeclarationFlag;
 use crate::alpha::error;
 use crate::delta::lexer::BaseToken;
 use crate::delta::lexer::tokens::Tokens;
@@ -409,6 +410,103 @@ impl ParseTree
 		}
 		// Safety: `num_public_nodes` is only modified in the `push` closure.
 		unsafe { nodes.set_len(num_public_nodes) };
+	}
+
+	pub fn append_all(&mut self, other: &ParseTree)
+	{
+		let ParseTree {
+			nodes: other_nodes,
+			declarations: other_declarations,
+			errors: other_errors,
+		} = other;
+		let old_num_nodes = self.nodes.len();
+		let old_num_declarations = self.declarations.len();
+		let old_num_errors = self.errors.len();
+		// TODO if node id would exceed U24 bounds, only store an error
+		self.nodes.copy_from_slice(other_nodes);
+		self.declarations.copy_from_slice(other_declarations);
+		self.errors.copy_from_slice(other_errors);
+		for node in &mut self.nodes[old_num_nodes..]
+		{
+			*node = node.convert_for_append(old_num_nodes);
+		}
+		for declaration in &mut self.declarations[old_num_declarations..]
+		{
+			let i = usize::from(declaration.0);
+			declaration.0 = U24::new(i + old_num_nodes);
+		}
+		for error in &mut self.errors[old_num_errors..]
+		{
+			// TODO somehow the tokenid needs to point to tokens of importee
+			// error.modify_after_append(old_num_nodes);
+		}
+	}
+
+	pub fn imports(
+		&self,
+		tokens: &Tokens,
+		source: &str,
+	) -> impl Iterator<Item = std::path::PathBuf>
+	{
+		self.declarations.iter().filter_map(|decl_node_id| {
+			let i = usize::from(decl_node_id.0);
+			let decl_node = self.nodes[i];
+			let context: &[ParseNode; MAX_PARSE_NODE_CONTEXT] =
+				self.nodes[..i].last_chunk().expect("padding");
+			match (decl_node, context)
+			{
+				(
+					ParseNode::ImportDeclaration {
+						start_of_declaration: _,
+					},
+					[_, _, x2, x1, ParseNode::DeclarationFlags(flags)],
+				) =>
+				{
+					if flags.contains(DeclarationFlag::Public)
+					{
+						// TODO error
+					}
+					let import_string = Self::get_string_literal_contents(
+						x1, x2, tokens, source,
+					);
+					let import = std::path::PathBuf::from(import_string);
+					Some(import)
+				}
+				_ => None,
+			}
+		})
+	}
+
+	fn get_string_literal_contents(
+		string_literal_node: ParseNode,
+		support_node: ParseNode,
+		tokens: &Tokens,
+		source: &str,
+	) -> String
+	{
+		let location = match string_literal_node
+		{
+			ParseNode::SimpleStringLiteral { literal } =>
+			{
+				tokens.get_location(literal.into())
+			}
+			ParseNode::CompositeStringLiteral { start } =>
+			{
+				let ParseNode::EndOfSpan { end } = support_node
+				else
+				{
+					unreachable!("parsing produced invalid parse tree")
+				};
+				tokens.get_location_of_span(start.into()..end.into())
+			}
+			_ => unreachable!("parsing produced invalid parse tree"),
+		};
+		// TODO simple string literal contains quotes
+		// TODO composite contains internal quotes
+		// TODO parse escapes and everything
+		// TODO doing this in the middle of everything else seems awful
+		// TODO I've made lexing faster but everything else worse
+		source[location.span].to_string()
 	}
 }
 
