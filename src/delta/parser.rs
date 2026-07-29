@@ -1,5 +1,6 @@
 pub mod parse_node;
 pub mod parse_tree;
+mod string_literal;
 mod tokens;
 
 use enumset::EnumSet;
@@ -201,10 +202,27 @@ fn parse_import_declaration(
 	flags: EnumSet<DeclarationFlag>,
 ) -> Result<NodeId, ParsingError>
 {
-	let literal = tokens.cursor().into();
-	tokens.consume(BaseToken::StringLiteral)?;
+	let start_of_literal = tokens.cursor().into();
+	let token = BaseToken::StringLiteral;
+	if tokens.consume_optional(token)
+	{
+		let mut end = tokens.cursor().into();
+		while tokens.consume_optional(token)
+		{
+			end = tokens.cursor().into();
+		}
+		buffer.push_undeclared(ParseNode::EndOfSpan { end });
+		buffer.push_undeclared(ParseNode::CompositeStringLiteral {
+			start: start_of_literal,
+		})
+	}
+	else
+	{
+		buffer.push_undeclared(ParseNode::SimpleStringLiteral {
+			literal: start_of_literal,
+		})
+	};
 	tokens.consume(BaseToken::Semicolon)?;
-	buffer.push_undeclared(ParseNode::SimpleStringLiteral { literal });
 	buffer.push_undeclared(ParseNode::DeclarationFlags(flags));
 	let node = buffer.push(ParseNode::ImportDeclaration {
 		start_of_declaration,

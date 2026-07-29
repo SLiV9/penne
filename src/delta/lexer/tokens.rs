@@ -93,6 +93,16 @@ pub struct TokenLocation
 
 impl TokenLocation
 {
+	pub fn dummy() -> Self
+	{
+		Self {
+			start: 0,
+			end: 0,
+			start_of_line: u32::MAX,
+			line_number: u32::MAX,
+		}
+	}
+
 	pub fn span(&self) -> std::ops::Range<usize>
 	{
 		self.span_from(self.start)

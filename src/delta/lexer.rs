@@ -827,216 +827,16 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 					Err(LexingError::InvalidCharLiteral)
 				}
 			}
-			b'"' =>
+			b'"' => match lex_string_literal(
+				x,
+				&mut location,
+				&mut iter,
+				|_byte: u8| {},
+			)
 			{
-				let opening_quote = x;
-				let push_byte = |_byte: u8| {};
-				let mut closed = false;
-				let mut first_error = None;
-
-				while let Some((_, x)) = iter.next_if(|&(_, y)| y != b'\n')
-				{
-					location.end += 1;
-					if x == b'\\'
-					{
-						let start_of_escape = location.end - 1;
-						location.end += 1;
-						match iter.next()
-						{
-							Some((_, b'n')) => push_byte(b'\n'),
-							Some((_, b'r')) => push_byte(b'\r'),
-							Some((_, b't')) => push_byte(b'\t'),
-							Some((_, b'\\')) => push_byte(b'\\'),
-							Some((_, b'\'')) => push_byte(b'\''),
-							Some((_, b'\"')) => push_byte(b'\"'),
-							Some((_, b'0')) => push_byte(b'\0'),
-							Some((_, b'x')) =>
-							{
-								let start_of_digits = location.end;
-								let end_of_digits = start_of_digits + 2;
-								let mut byte_value = 0;
-								while let Some(&(_, y)) = iter.peek()
-								{
-									if let Some(hex_value) = parse_hex_digit(y)
-									{
-										byte_value <<= 4;
-										byte_value |= hex_value;
-
-										iter.next();
-										location.end += 1;
-										if location.end == end_of_digits
-										{
-											break;
-										}
-									}
-									else
-									{
-										break;
-									}
-								}
-								if location.end == end_of_digits
-								{
-									push_byte(byte_value);
-								}
-								else if first_error.is_none()
-								{
-									first_error = Some((
-										LexingError::InvalidEscapeSequence,
-										TokenLocation {
-											start: start_of_escape,
-											..location
-										},
-									));
-								}
-							}
-							Some((_, b'u')) =>
-							{
-								let mut num_digits = 0;
-								let mut char_u32 = 0;
-								if let Some((_, b'{')) = iter.peek()
-								{
-									iter.next();
-									location.end += 1;
-									let start_of_digits = location.end;
-
-									while let Some(&(_, y)) = iter.peek()
-									{
-										if let Some(hex_value) =
-											parse_hex_digit(y)
-										{
-											// Don't need to check for overflow of char_u32,
-											// because we check num_digits < 8.
-											char_u32 <<= 4;
-											char_u32 |= u32::from(hex_value);
-
-											iter.next();
-											location.end += 1;
-										}
-										else if y == b'}'
-										{
-											if location.end > start_of_digits
-											{
-												num_digits = location.end
-													- start_of_digits;
-											}
-											iter.next();
-											location.end += 1;
-											break;
-										}
-										else
-										{
-											num_digits = 0;
-											break;
-										}
-									}
-								};
-								let c = ((1..=6).contains(&num_digits))
-									.then_some(())
-									.and_then(|()| char::from_u32(char_u32));
-								if let Some(c) = c
-								{
-									let mut buffer = [0; 4];
-									let slice = c.encode_utf8(&mut buffer);
-									for &byte in slice.as_bytes()
-									{
-										push_byte(byte)
-									}
-								}
-								else if first_error.is_none()
-								{
-									first_error = Some((
-										LexingError::InvalidEscapeSequence,
-										TokenLocation {
-											start: start_of_escape,
-											..location
-										},
-									));
-								}
-							}
-							Some((_, _y)) =>
-							{
-								if first_error.is_none()
-								{
-									first_error = Some((
-										LexingError::InvalidEscapeSequence,
-										TokenLocation {
-											start: start_of_escape,
-											..location
-										},
-									));
-								}
-							}
-							None =>
-							{
-								location.end -= 1;
-								if first_error.is_none()
-								{
-									first_error = Some((
-										LexingError::UnexpectedTrailingBackslash,
-										TokenLocation {
-											start: start_of_escape,
-											..location
-										})
-									);
-								}
-							}
-						}
-					}
-					else if x == opening_quote
-					{
-						closed = true;
-						break;
-					}
-					else if x == b' '
-					{
-						push_byte(b' ');
-					}
-					else if x.is_ascii_graphic()
-					{
-						push_byte(x);
-					}
-					else if x.is_ascii()
-					{
-						if first_error.is_none()
-						{
-							first_error = Some((
-								LexingError::UnexpectedCharacter,
-								TokenLocation {
-									start: location.end - 1,
-									..location
-								},
-							));
-						}
-					}
-					else
-					{
-						debug_assert!(x >= 128);
-						push_byte(x);
-					}
-				}
-				if !closed
-				{
-					if first_error.is_none()
-					{
-						first_error = Some((
-							LexingError::MissingClosingQuote,
-							TokenLocation {
-								start: location.end,
-								..location
-							},
-						));
-					}
-				}
-				if let Some((error, error_location)) = first_error
-				{
-					location = error_location;
-					Err(error)
-				}
-				else
-				{
-					Ok(BaseToken::StringLiteral)
-				}
-			}
+				Ok(()) => Ok(BaseToken::StringLiteral),
+				Err(err) => Err(err),
+			},
 			_ => Err(LexingError::UnexpectedCharacter),
 		};
 		match result
@@ -1059,6 +859,220 @@ fn lex_source_into_buffer<'source: 'tokens, 'tokens: 'buffer, 'buffer>(
 		line_number,
 	};
 	buffer.push_end_of_source(end_of_source_location)
+}
+
+#[inline]
+pub fn lex_string_literal<I: std::iter::Iterator<Item = (usize, u8)>>(
+	opening_quote: u8,
+	location: &mut TokenLocation,
+	iter: &mut std::iter::Peekable<I>,
+	mut push_byte: impl FnMut(u8),
+) -> Result<(), LexingError>
+{
+	assert_eq!(opening_quote, b'"');
+	let mut closed = false;
+	let mut first_error = None;
+
+	while let Some((_, x)) = iter.next_if(|&(_, y)| y != b'\n')
+	{
+		location.end += 1;
+		if x == b'\\'
+		{
+			let start_of_escape = location.end - 1;
+			location.end += 1;
+			match iter.next()
+			{
+				Some((_, b'n')) => push_byte(b'\n'),
+				Some((_, b'r')) => push_byte(b'\r'),
+				Some((_, b't')) => push_byte(b'\t'),
+				Some((_, b'\\')) => push_byte(b'\\'),
+				Some((_, b'\'')) => push_byte(b'\''),
+				Some((_, b'\"')) => push_byte(b'\"'),
+				Some((_, b'0')) => push_byte(b'\0'),
+				Some((_, b'x')) =>
+				{
+					let start_of_digits = location.end;
+					let end_of_digits = start_of_digits + 2;
+					let mut byte_value = 0;
+					while let Some(&(_, y)) = iter.peek()
+					{
+						if let Some(hex_value) = parse_hex_digit(y)
+						{
+							byte_value <<= 4;
+							byte_value |= hex_value;
+
+							iter.next();
+							location.end += 1;
+							if location.end == end_of_digits
+							{
+								break;
+							}
+						}
+						else
+						{
+							break;
+						}
+					}
+					if location.end == end_of_digits
+					{
+						push_byte(byte_value);
+					}
+					else if first_error.is_none()
+					{
+						first_error = Some((
+							LexingError::InvalidEscapeSequence,
+							TokenLocation {
+								start: start_of_escape,
+								..*location
+							},
+						));
+					}
+				}
+				Some((_, b'u')) =>
+				{
+					let mut num_digits = 0;
+					let mut char_u32 = 0;
+					if let Some((_, b'{')) = iter.peek()
+					{
+						iter.next();
+						location.end += 1;
+						let start_of_digits = location.end;
+
+						while let Some(&(_, y)) = iter.peek()
+						{
+							if let Some(hex_value) = parse_hex_digit(y)
+							{
+								// Don't need to check for overflow of char_u32,
+								// because we check num_digits < 8.
+								char_u32 <<= 4;
+								char_u32 |= u32::from(hex_value);
+
+								iter.next();
+								location.end += 1;
+							}
+							else if y == b'}'
+							{
+								if location.end > start_of_digits
+								{
+									num_digits = location.end - start_of_digits;
+								}
+								iter.next();
+								location.end += 1;
+								break;
+							}
+							else
+							{
+								num_digits = 0;
+								break;
+							}
+						}
+					};
+					let c = ((1..=6).contains(&num_digits))
+						.then_some(())
+						.and_then(|()| char::from_u32(char_u32));
+					if let Some(c) = c
+					{
+						let mut buffer = [0; 4];
+						let slice = c.encode_utf8(&mut buffer);
+						for &byte in slice.as_bytes()
+						{
+							push_byte(byte)
+						}
+					}
+					else if first_error.is_none()
+					{
+						first_error = Some((
+							LexingError::InvalidEscapeSequence,
+							TokenLocation {
+								start: start_of_escape,
+								..*location
+							},
+						));
+					}
+				}
+				Some((_, _y)) =>
+				{
+					if first_error.is_none()
+					{
+						first_error = Some((
+							LexingError::InvalidEscapeSequence,
+							TokenLocation {
+								start: start_of_escape,
+								..*location
+							},
+						));
+					}
+				}
+				None =>
+				{
+					location.end -= 1;
+					if first_error.is_none()
+					{
+						first_error = Some((
+							LexingError::UnexpectedTrailingBackslash,
+							TokenLocation {
+								start: start_of_escape,
+								..*location
+							},
+						));
+					}
+				}
+			}
+		}
+		else if x == opening_quote
+		{
+			closed = true;
+			break;
+		}
+		else if x == b' '
+		{
+			push_byte(b' ');
+		}
+		else if x.is_ascii_graphic()
+		{
+			push_byte(x);
+		}
+		else if x.is_ascii()
+		{
+			if first_error.is_none()
+			{
+				first_error = Some((
+					LexingError::UnexpectedCharacter,
+					TokenLocation {
+						start: location.end - 1,
+						..*location
+					},
+				));
+			}
+		}
+		else
+		{
+			debug_assert!(x >= 128);
+			push_byte(x);
+		}
+	}
+	if !closed
+	{
+		if first_error.is_none()
+		{
+			first_error = Some((
+				LexingError::MissingClosingQuote,
+				TokenLocation {
+					start: location.end,
+					..*location
+				},
+			));
+		}
+	}
+	if let Some((error, error_location)) = first_error
+	{
+		*location = error_location;
+		Err(error)
+	}
+	else
+	{
+		Ok(())
+	}
 }
 
 #[inline(always)]

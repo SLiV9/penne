@@ -1,0 +1,11 @@
+import
+	"valid/"
+	"position.pn";
+
+const POS: Position = Position { x: 150, y: 50 };
+
+fn main() -> i32
+{
+	let result = POS.x + POS.y;
+	return: result
+}

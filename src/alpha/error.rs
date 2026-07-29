@@ -365,6 +365,10 @@ pub enum Error
 		location: Location,
 		hinted_package_name: String,
 	},
+	NonUtf8Import
+	{
+		location: Location
+	},
 	PublicImport
 	{
 		location: Location
@@ -644,6 +648,7 @@ impl Error
 			Error::NotACompileTimeConstant { .. } => 433,
 			Error::UnresolvedImport { .. } => 470,
 			Error::UnresolvedImportWithHint { .. } => 477,
+			Error::NonUtf8Import { .. } => 478,
 			Error::PublicImport { .. } => 479,
 			Error::VariableDeclarationMayBeSkipped { .. } => 482,
 			Error::ConflictingTypes { .. } => 500,
@@ -768,6 +773,7 @@ impl Error
 			Error::NotACompileTimeConstant { location, .. } => &location,
 			Error::UnresolvedImport { location, .. } => &location,
 			Error::UnresolvedImportWithHint { location, .. } => &location,
+			Error::NonUtf8Import { location, .. } => &location,
 			Error::PublicImport { location, .. } => &location,
 			Error::ConflictingTypes { location, .. } => &location,
 			Error::NotAnArray { location, .. } => &location,
@@ -1845,6 +1851,16 @@ fn write<'a>(
 				"Add '{}' as a compiler argument to include it.",
 				hinted_package_name.fg(colors.primary)
 			)),
+
+		Error::NonUtf8Import { location } => report
+			.with_message("Non-UTF8 import")
+			.with_label(
+				location
+					.label()
+					.with_message(format!("Invalid bytes in import filepath."))
+					.with_color(PRIMARY),
+			)
+			.with_note("Import filepaths must be UTF8."),
 
 		Error::PublicImport { location } =>
 		{

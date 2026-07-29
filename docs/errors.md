@@ -915,6 +915,20 @@ In order to use a core library, add it as an extra argument after the main entry
 $ penne build src/main.pn core:text
 ```
 
+## Error code E478
+
+An `import` filepath contained non-UTF8 bytes.
+
+### Example of erroneous code
+
+```penne
+import "n\xE1zev.pn";
+```
+
+### Explanation
+
+The Penne compiler currently does not support filenames in encodings other than US-ASCII or UTF-8.
+
 ## Error code E479
 
 An `import` was declared `pub`.

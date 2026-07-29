@@ -12,6 +12,7 @@ use crate::delta::lexer::tokens::Tokens;
 use crate::delta::parser::ParsingError;
 use crate::delta::parser::parse_node::ParseNode::UnpatchedListItem;
 use crate::delta::parser::parse_node::U24;
+use crate::delta::parser::string_literal::relex_string_literal;
 
 pub const MAX_NUM_PARSING_ERRORS: usize = 100;
 pub(crate) const MAX_PARSE_NODE_CONTEXT: usize = 5;
@@ -460,7 +461,6 @@ impl ParseTree
 			let decl_node = self.nodes[i];
 			let context: &[ParseNode; MAX_PARSE_NODE_CONTEXT] =
 				self.nodes[..i].last_chunk().expect("padding");
-			dbg!(decl_node, context);
 			match (decl_node, context)
 			{
 				(
@@ -475,8 +475,6 @@ impl ParseTree
 					{
 						unreachable!("parsing produced invalid parse tree")
 					};
-					dbg!(start_of_declaration);
-					dbg!(flags);
 					if flags.contains(DeclarationFlag::Public)
 					{
 						// TODO nicer location
@@ -485,12 +483,27 @@ impl ParseTree
 								.get_location(start_of_declaration.into()),
 						});
 					}
-					let import_string = Self::get_string_literal_contents(
+					let filename_bytes = Self::get_string_literal_contents(
 						*x1, *x2, tokens, source,
 					);
-					let filename = import_string.clone();
-					let import = std::path::PathBuf::from(import_string);
-					let result = callback(&import);
+					let filename = match String::from_utf8(filename_bytes)
+					{
+						Ok(filename) => filename,
+						Err(std::string::FromUtf8Error { .. }) =>
+						{
+							// TODO nicer location
+							self.analysis_errors.push(
+								error::Error::NonUtf8Import {
+									location: tokens.get_location(
+										start_of_declaration.into(),
+									),
+								},
+							);
+							continue;
+						}
+					};
+					let import = std::path::Path::new(&filename);
+					let result = callback(import);
 					match result
 					{
 						Ok(()) => (),
@@ -530,7 +543,7 @@ impl ParseTree
 		support_node: ParseNode,
 		tokens: &Tokens,
 		source: &str,
-	) -> String
+	) -> Vec<u8>
 	{
 		let location = match string_literal_node
 		{
@@ -549,14 +562,7 @@ impl ParseTree
 			}
 			_ => unreachable!("parsing produced invalid parse tree"),
 		};
-		// TODO simple string literal contains quotes
-		// TODO composite contains internal quotes
-		// TODO parse escapes and everything
-		// TODO doing this in the middle of everything else seems awful
-		// TODO I've made lexing faster but everything else worse
-		// TODO in fact if I don't store the result then I need to do it multiple times probably
-		// TODO or maybe I can add a separate string internalizer step
-		source[location.span].to_string()
+		relex_string_literal(&source[location.span])
 	}
 }
 

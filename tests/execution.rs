@@ -665,6 +665,18 @@ fn execute_import_sum_of_squares() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_import_composite_literal() -> Result<(), anyhow::Error>
+{
+	let output = execute_with_imports(&[
+		"tests/samples/valid/import_composite_literal.pn",
+		"tests/samples/valid/position.pn",
+	])?;
+	let result = calculation_result_from_output(output)?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_hello_world() -> Result<(), anyhow::Error>
 {
 	let output = execute("examples/hello_world.pn")?;

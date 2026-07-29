@@ -32,7 +32,6 @@ pub fn expand(
 			},
 		);
 
-		dbg!(&imported_modules);
 		for importee in imported_modules.drain(..)
 		{
 			assert_ne!(importer, importee);
