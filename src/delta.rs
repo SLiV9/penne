@@ -28,11 +28,11 @@ pub mod test_suite
 
 	fn compile(filenames: &[&str]) -> Errors
 	{
-		let mut all_errors = Errors { errors: Vec::new() };
+		let mut all_errors = Errors::default();
 		let mut all_filepaths = Vec::new();
 		let mut all_sources = Vec::new();
 		let mut all_tokens = Vec::new();
-		let mut all_parse_trees = Vec::new();
+		let mut all_modules = Vec::new();
 		let mut all_headers = Vec::new();
 		for filename in filenames
 		{
@@ -43,8 +43,8 @@ pub mod test_suite
 				all_errors = all_errors.combined_with(errors);
 				continue;
 			}
-			let parse_tree = parser::parse(&tokens);
-			if let Some(errors) = parse_tree.errors(&tokens)
+			let mut parse_tree = parser::parse(&tokens);
+			if let Some(errors) = parse_tree.drain_errors(&tokens)
 			{
 				all_errors = all_errors.combined_with(errors);
 				continue;
@@ -55,7 +55,7 @@ pub mod test_suite
 			all_filepaths.push(std::path::PathBuf::from(filename));
 			all_sources.push(source);
 			all_tokens.push(tokens);
-			all_parse_trees.push(parse_tree);
+			all_modules.push(parse_tree);
 			all_headers.push(header);
 		}
 		if !all_errors.is_empty()
@@ -63,7 +63,35 @@ pub mod test_suite
 			return all_errors.sorted();
 		}
 
-		expander::expand(&all_filepaths, &mut all_parse_trees, &all_headers);
+		assert_eq!(filenames.len(), all_filepaths.len());
+		assert_eq!(filenames.len(), all_sources.len());
+		assert_eq!(filenames.len(), all_tokens.len());
+		assert_eq!(filenames.len(), all_modules.len());
+		assert_eq!(filenames.len(), all_headers.len());
+		expander::expand(
+			&all_filepaths,
+			&all_sources,
+			&all_tokens,
+			&mut all_modules,
+			&all_headers,
+		);
+		drop(all_headers);
+
+		assert_eq!(filenames.len(), all_filepaths.len());
+		assert_eq!(filenames.len(), all_sources.len());
+		assert_eq!(filenames.len(), all_tokens.len());
+		assert_eq!(filenames.len(), all_modules.len());
+		for i in 0..filenames.len()
+		{
+			let source = &all_sources[i];
+			let tokens = &all_tokens[i];
+			let module = &mut all_modules[i];
+			if let Some(errors) = module.drain_errors(&tokens)
+			{
+				all_errors = all_errors.combined_with(errors);
+				continue;
+			}
+		}
 
 		all_errors.sorted()
 	}

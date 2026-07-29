@@ -17,7 +17,7 @@ pub type ValueType = value_type::ValueType<Identifier>;
 
 use ariadne::{Fmt, Label, Report, ReportKind};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Errors
 {
 	pub errors: Vec<Error>,
@@ -365,6 +365,10 @@ pub enum Error
 		location: Location,
 		hinted_package_name: String,
 	},
+	PublicImport
+	{
+		location: Location
+	},
 	ConflictingTypes
 	{
 		name: String,
@@ -640,6 +644,7 @@ impl Error
 			Error::NotACompileTimeConstant { .. } => 433,
 			Error::UnresolvedImport { .. } => 470,
 			Error::UnresolvedImportWithHint { .. } => 477,
+			Error::PublicImport { .. } => 479,
 			Error::VariableDeclarationMayBeSkipped { .. } => 482,
 			Error::ConflictingTypes { .. } => 500,
 			Error::NotAnArray { .. } => 501,
@@ -763,6 +768,7 @@ impl Error
 			Error::NotACompileTimeConstant { location, .. } => &location,
 			Error::UnresolvedImport { location, .. } => &location,
 			Error::UnresolvedImportWithHint { location, .. } => &location,
+			Error::PublicImport { location, .. } => &location,
 			Error::ConflictingTypes { location, .. } => &location,
 			Error::NotAnArray { location, .. } => &location,
 			Error::NotAnArrayWithLength { location, .. } => &location,
@@ -1839,6 +1845,18 @@ fn write<'a>(
 				"Add '{}' as a compiler argument to include it.",
 				hinted_package_name.fg(colors.primary)
 			)),
+
+		Error::PublicImport { location } =>
+		{
+			report.with_message("Public import").with_label(
+				location
+					.label()
+					.with_message(format!(
+						"Imports are not allowed to be public."
+					))
+					.with_color(PRIMARY),
+			)
+		}
 
 		Error::ConflictingTypes {
 			name,

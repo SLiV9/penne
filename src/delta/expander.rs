@@ -1,7 +1,9 @@
-use crate::delta::parser::parse_tree::ParseTree;
+use crate::delta::{lexer::tokens::Tokens, parser::parse_tree::ParseTree};
 
 pub fn expand(
 	source_paths: &[std::path::PathBuf],
+	sources: &[String],
+	tokens: &[Tokens],
 	modules: &mut [ParseTree],
 	headers: &[ParseTree],
 )
@@ -15,18 +17,26 @@ pub fn expand(
 	{
 		imported_modules.clear();
 
-		// TODO find all import statements
-		// TODO check not pub import
-
-		for importee in imported_modules
-		{
-			if importee == importer
+		modules[importer].process_imports(
+			&tokens[importer],
+			&sources[importer],
+			|import| match source_paths.iter().position(|x| x == import)
 			{
-				// TODO insert error somehow
-				break;
-			}
+				Some(x) if x == importer => Err(()),
+				Some(importee) =>
+				{
+					imported_modules.push(importee);
+					Ok(())
+				}
+				None => Err(()),
+			},
+		);
 
-			modules[importer].append_all(headers[importee]);
+		dbg!(&imported_modules);
+		for importee in imported_modules.drain(..)
+		{
+			assert_ne!(importer, importee);
+			modules[importer].append_header(&headers[importee]);
 		}
 	}
 }

@@ -6,6 +6,7 @@ use super::parse_node::ParseNode;
 use crate::alpha::Errors;
 use crate::alpha::common::DeclarationFlag;
 use crate::alpha::error;
+use crate::alpha::included;
 use crate::delta::lexer::BaseToken;
 use crate::delta::lexer::tokens::Tokens;
 use crate::delta::parser::ParsingError;
@@ -25,7 +26,8 @@ pub struct ParseTree
 
 	declarations: Vec<NodeId>,
 
-	errors: Vec<ParsingError>,
+	parsing_errors: Vec<ParsingError>,
+	analysis_errors: Vec<error::Error>,
 }
 
 impl ParseTree
@@ -47,12 +49,16 @@ impl ParseTree
 		// For errors we have MAX_NUM_PARSING_ERRORS as a hard cap
 		// because there is no point showing the user millions of errors.
 		let error_cap = std::cmp::min(num_tokens, MAX_NUM_PARSING_ERRORS);
-		let errors = Vec::with_capacity(error_cap);
+		let parsing_errors = Vec::with_capacity(error_cap);
+
+		// Don't reserve post-parse errors.
+		let analysis_errors = Vec::new();
 
 		Self {
 			nodes,
 			declarations,
-			errors,
+			parsing_errors,
+			analysis_errors,
 		}
 	}
 
@@ -61,11 +67,13 @@ impl ParseTree
 		let Self {
 			nodes,
 			declarations,
-			errors,
+			parsing_errors: errors,
+			analysis_errors,
 		} = self;
 		assert_eq!(nodes.len(), 0);
 		assert_eq!(declarations.len(), 0);
 		assert_eq!(errors.len(), 0);
+		assert_eq!(analysis_errors.len(), 0);
 		ParseBuffer {
 			num_nodes: 0,
 			nodes: nodes.spare_capacity_mut(),
@@ -349,7 +357,7 @@ impl ParseTree
 	#[inline(never)]
 	pub fn build_header(&self) -> ParseTree
 	{
-		assert!(self.errors.is_empty());
+		assert!(self.parsing_errors.is_empty());
 		let mut nodes = Vec::with_capacity(self.nodes.len());
 		self.build_header_nodes(&mut nodes);
 		let mut declarations = Vec::with_capacity(self.declarations.len());
@@ -363,7 +371,8 @@ impl ParseTree
 		ParseTree {
 			nodes,
 			declarations,
-			errors: Vec::new(),
+			parsing_errors: Vec::new(),
+			analysis_errors: Vec::new(),
 		}
 	}
 
@@ -412,20 +421,21 @@ impl ParseTree
 		unsafe { nodes.set_len(num_public_nodes) };
 	}
 
-	pub fn append_all(&mut self, other: &ParseTree)
+	pub fn append_header(&mut self, other: &ParseTree)
 	{
 		let ParseTree {
 			nodes: other_nodes,
 			declarations: other_declarations,
-			errors: other_errors,
+			parsing_errors: other_parsing_errors,
+			analysis_errors: other_analysis_errors,
 		} = other;
+		assert!(other_parsing_errors.is_empty());
+		assert!(other_analysis_errors.is_empty());
 		let old_num_nodes = self.nodes.len();
 		let old_num_declarations = self.declarations.len();
-		let old_num_errors = self.errors.len();
 		// TODO if node id would exceed U24 bounds, only store an error
 		self.nodes.copy_from_slice(other_nodes);
 		self.declarations.copy_from_slice(other_declarations);
-		self.errors.copy_from_slice(other_errors);
 		for node in &mut self.nodes[old_num_nodes..]
 		{
 			*node = node.convert_for_append(old_num_nodes);
@@ -435,46 +445,84 @@ impl ParseTree
 			let i = usize::from(declaration.0);
 			declaration.0 = U24::new(i + old_num_nodes);
 		}
-		for error in &mut self.errors[old_num_errors..]
-		{
-			// TODO somehow the tokenid needs to point to tokens of importee
-			// error.modify_after_append(old_num_nodes);
-		}
 	}
 
-	pub fn imports(
-		&self,
+	pub fn process_imports(
+		&mut self,
 		tokens: &Tokens,
 		source: &str,
-	) -> impl Iterator<Item = std::path::PathBuf>
+		mut callback: impl FnMut(&std::path::Path) -> Result<(), ()>,
+	)
 	{
-		self.declarations.iter().filter_map(|decl_node_id| {
+		for decl_node_id in &self.declarations
+		{
 			let i = usize::from(decl_node_id.0);
 			let decl_node = self.nodes[i];
 			let context: &[ParseNode; MAX_PARSE_NODE_CONTEXT] =
 				self.nodes[..i].last_chunk().expect("padding");
+			dbg!(decl_node, context);
 			match (decl_node, context)
 			{
 				(
 					ParseNode::ImportDeclaration {
-						start_of_declaration: _,
+						start_of_declaration,
 					},
-					[_, _, x2, x1, ParseNode::DeclarationFlags(flags)],
+					[_, _, x2, x1, flags],
 				) =>
 				{
+					let ParseNode::DeclarationFlags(flags) = flags
+					else
+					{
+						unreachable!("parsing produced invalid parse tree")
+					};
+					dbg!(start_of_declaration);
+					dbg!(flags);
 					if flags.contains(DeclarationFlag::Public)
 					{
-						// TODO error
+						// TODO nicer location
+						self.analysis_errors.push(error::Error::PublicImport {
+							location: tokens
+								.get_location(start_of_declaration.into()),
+						});
 					}
 					let import_string = Self::get_string_literal_contents(
-						x1, x2, tokens, source,
+						*x1, *x2, tokens, source,
 					);
+					let filename = import_string.clone();
 					let import = std::path::PathBuf::from(import_string);
-					Some(import)
+					let result = callback(&import);
+					match result
+					{
+						Ok(()) => (),
+						Err(()) =>
+						{
+							// TODO nicer location
+							let location = tokens
+								.get_location(start_of_declaration.into());
+							let hint = included::source_name_hint(&filename)
+								.map(str::to_string);
+							let error = match hint
+							{
+								Some(hinted_package_name) =>
+								{
+									error::Error::UnresolvedImportWithHint {
+										filename,
+										location,
+										hinted_package_name,
+									}
+								}
+								None => error::Error::UnresolvedImport {
+									filename,
+									location,
+								},
+							};
+							self.analysis_errors.push(error);
+						}
+					}
 				}
-				_ => None,
+				_ => (),
 			}
-		})
+		}
 	}
 
 	fn get_string_literal_contents(
@@ -506,21 +554,24 @@ impl ParseTree
 		// TODO parse escapes and everything
 		// TODO doing this in the middle of everything else seems awful
 		// TODO I've made lexing faster but everything else worse
+		// TODO in fact if I don't store the result then I need to do it multiple times probably
+		// TODO or maybe I can add a separate string internalizer step
 		source[location.span].to_string()
 	}
 }
 
 impl ParseTree
 {
-	pub fn errors(&self, tokens: &Tokens) -> Option<Errors>
+	pub fn drain_errors(&mut self, tokens: &Tokens) -> Option<Errors>
 	{
-		if self.errors.is_empty()
+		if self.parsing_errors.is_empty() && self.analysis_errors.is_empty()
 		{
 			return None;
 		}
 
-		let errors = (self.errors.iter().copied())
+		let errors = (self.parsing_errors.drain(..))
 			.map(|error| build_error(error, tokens))
+			.chain(self.analysis_errors.drain(..))
 			.collect();
 
 		Some(Errors { errors })

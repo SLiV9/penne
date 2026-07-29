@@ -915,6 +915,20 @@ In order to use a core library, add it as an extra argument after the main entry
 $ penne build src/main.pn core:text
 ```
 
+## Error code E479
+
+An `import` was declared `pub`.
+
+### Example of erroneous code
+
+```penne
+pub import "useful_types.pn";
+```
+
+### Explanation
+
+The Penne compiler currently does not support re-exporting imports.
+
 ## Error code E482
 
 A `goto` statement jumps past a variable declaration to a label, but this variable is used afterwards. This results in a variable that is declared in some branches, but not others, which is unsound.

@@ -578,9 +578,16 @@ fn compile_to_ir_using_delta(
 	stdout: &mut stdout::StdOut,
 ) -> Result<String, anyhow::Error>
 {
-	let mut sources = Vec::new();
-	let mut modules = Vec::new();
+	let mut all_errors = penne::alpha::error::Errors::default();
 
+	let mut all_filepaths = Vec::new();
+	let mut all_filenames = Vec::new();
+	let mut all_sources = Vec::new();
+	let mut all_tokens = Vec::new();
+	let mut all_modules = Vec::new();
+	let mut all_headers = Vec::new();
+
+	let num_sources = compilation_units.len();
 	for (filepath, source) in compilation_units
 	{
 		let filename = filepath.to_string_lossy().to_string();
@@ -593,34 +600,38 @@ fn compile_to_ir_using_delta(
 		{
 			source.push_str(" ");
 		}
-		sources.push((filename, source));
+		all_filepaths.push(filepath);
+		all_filenames.push(filename);
+		all_sources.push(source);
+		all_tokens.push(tokens);
+	}
+	let all_filepaths = all_filepaths;
+	let all_filenames = all_filenames;
+	let all_sources = all_sources;
+	let all_tokens = all_tokens;
+	assert_eq!(all_filepaths.len(), num_sources);
+	assert_eq!(all_filenames.len(), num_sources);
+	assert_eq!(all_sources.len(), num_sources);
+	assert_eq!(all_tokens.len(), num_sources);
 
+	for i in 0..num_sources
+	{
+		let filename = &all_filenames[i];
+		let source = &all_sources[i];
+		let tokens = &all_tokens[i];
 		if let Some(errors) = tokens.errors()
 		{
-			if !stdout.is_silent
-			{
-				let mut source_cache = ariadne::sources(sources);
-				stdout.prepare_for_errors()?;
-				stdout.show_errors(errors, &mut source_cache)?;
-			}
-			return Err(anyhow!("compilation failed"));
+			all_errors = all_errors.combined_with(errors);
+			continue;
 		}
-
-		let (filename, source) = sources.last().unwrap();
 		stdout.dump_xml("Tokens", filename, tokens.as_xml(source))?;
 
 		stdout.header("Parsing", filename)?;
-		let parse_tree = penne::delta::parser::parse(&tokens);
+		let mut parse_tree = penne::delta::parser::parse(&tokens);
 
-		if let Some(errors) = parse_tree.errors(&tokens)
+		if let Some(errors) = parse_tree.drain_errors(&tokens)
 		{
-			if !stdout.is_silent
-			{
-				let mut source_cache = ariadne::sources(sources);
-				stdout.prepare_for_errors()?;
-				stdout.show_errors(errors, &mut source_cache)?;
-			}
-			return Err(anyhow!("compilation failed"));
+			all_errors = all_errors.combined_with(errors);
 		}
 
 		// dbg!(&parse_tree);
@@ -640,15 +651,47 @@ fn compile_to_ir_using_delta(
 			header.as_xml(&tokens, source),
 		)?;
 
-		modules.push((filepath, tokens, parse_tree));
+		all_modules.push(parse_tree);
+		all_headers.push(header);
 	}
+	if !all_errors.is_empty()
+	{
+		if !stdout.is_silent
+		{
+			let sources = all_filenames.into_iter().zip(all_sources);
+			let mut source_cache = ariadne::sources(sources);
+			stdout.prepare_for_errors()?;
+			stdout.show_errors(all_errors, &mut source_cache)?;
+		}
+		return Err(anyhow!("compilation failed"));
+	}
+	let all_headers = all_headers;
+	assert_eq!(all_filepaths.len(), num_sources);
+	assert_eq!(all_filenames.len(), num_sources);
+	assert_eq!(all_sources.len(), num_sources);
+	assert_eq!(all_tokens.len(), num_sources);
+	assert_eq!(all_modules.len(), num_sources);
+	assert_eq!(all_headers.len(), num_sources);
+
+	penne::delta::expander::expand(
+		&all_filepaths,
+		&all_sources,
+		&all_tokens,
+		&mut all_modules,
+		&all_headers,
+	);
+	assert_eq!(all_modules.len(), num_sources);
+	drop(all_headers);
 
 	// TODO finish
 	let _ = for_wasm;
 	let _ = out_dir;
-	for ((_, tokens, parse_tree), (filename, source)) in
-		modules.iter().zip(sources.iter())
+	for i in 0..num_sources
 	{
+		let filename = &all_filenames[i];
+		let source = &all_sources[i];
+		let tokens = &all_tokens[i];
+		let parse_tree = &mut all_modules[i];
 		let num_bytes = source.len();
 		let num_tokens = tokens.base_tokens().len();
 		let num_parse_nodes = parse_tree.num_parse_nodes();
@@ -660,6 +703,25 @@ fn compile_to_ir_using_delta(
 			num_parse_nodes,
 			num_declarations
 		);
+
+		if let Some(errors) = parse_tree.drain_errors(tokens)
+		{
+			all_errors = all_errors.combined_with(errors);
+			continue;
+		}
+
+		// TODO finish
+	}
+	if !all_errors.is_empty()
+	{
+		if !stdout.is_silent
+		{
+			let sources = all_filenames.into_iter().zip(all_sources);
+			let mut source_cache = ariadne::sources(sources);
+			stdout.prepare_for_errors()?;
+			stdout.show_errors(all_errors, &mut source_cache)?;
+		}
+		return Err(anyhow!("compilation failed"));
 	}
 	Err(anyhow!("unfinished"))
 }
