@@ -1,0 +1,4 @@
+
+// This is disallowed, but also unnecessary. Instead use `[BUFFER_LEN]u8`.
+const BUFFER: [12]u8 = "Hello world!";
+const BUFFER_LEN: usize = |BUFFER|;

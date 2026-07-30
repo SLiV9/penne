@@ -131,7 +131,16 @@ fn fail_to_analyze_constant_evaluated_array_length()
 {
 	compile_to_fail(
 		&[360],
-		"tests/samples/invalid/constant_evaluated_dereference.pn",
+		"tests/samples/invalid/constant_evaluated_array_length.pn",
+	);
+}
+
+#[test]
+fn fail_to_analyze_constant_evaluated_string_length()
+{
+	compile_to_fail(
+		&[360],
+		"tests/samples/invalid/constant_evaluated_string_length.pn",
 	);
 }
 
