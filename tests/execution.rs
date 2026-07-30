@@ -665,6 +665,19 @@ fn execute_import_sum_of_squares() -> Result<(), anyhow::Error>
 }
 
 #[test]
+fn execute_import_dependency_privacy() -> Result<(), anyhow::Error>
+{
+	let output = execute_with_imports(&[
+		"tests/samples/valid/import_dependency_privacy.pn",
+		"tests/samples/valid/position.pn",
+		"tests/samples/valid/sum_of_squares.pn",
+	])?;
+	let result = calculation_result_from_output(output)?;
+	assert_eq!(result, 200);
+	Ok(())
+}
+
+#[test]
 fn execute_import_composite_literal() -> Result<(), anyhow::Error>
 {
 	let output = execute_with_imports(&[

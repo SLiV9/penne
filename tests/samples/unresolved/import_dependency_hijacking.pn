@@ -1,4 +1,4 @@
-import "sum_of_squares.pn";
+import "line.pn";
 
 struct Position { 
 	z: i32,
@@ -6,6 +6,9 @@ struct Position {
 
 fn main() -> i32
 {
-	var result = sum_of_squares(2, 14);
+	var result = Line {
+		from: Position { x: 3, y: 4 },
+		to: Position { z: 10 },
+	};
 	return: result
 }
