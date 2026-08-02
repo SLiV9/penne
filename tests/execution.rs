@@ -665,12 +665,13 @@ fn execute_import_sum_of_squares() -> Result<(), anyhow::Error>
 }
 
 #[test]
-fn execute_import_dependency_privacy() -> Result<(), anyhow::Error>
+fn execute_cyclical_imports() -> Result<(), anyhow::Error>
 {
 	let output = execute_with_imports(&[
-		"tests/samples/valid/import_dependency_privacy.pn",
-		"tests/samples/valid/position.pn",
-		"tests/samples/valid/sum_of_squares.pn",
+		"tests/samples/valid/cyclical_imports.pn",
+		"tests/samples/valid/cyclical_imports_b.pn",
+		"tests/samples/valid/cyclical_imports_c.pn",
+		"tests/samples/valid/cyclical_imports_d.pn",
 	])?;
 	let result = calculation_result_from_output(output)?;
 	assert_eq!(result, 200);

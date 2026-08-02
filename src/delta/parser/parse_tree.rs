@@ -435,8 +435,8 @@ impl ParseTree
 		let old_num_nodes = self.nodes.len();
 		let old_num_declarations = self.declarations.len();
 		// TODO if node id would exceed U24 bounds, only store an error
-		self.nodes.copy_from_slice(other_nodes);
-		self.declarations.copy_from_slice(other_declarations);
+		self.nodes.extend_from_slice(other_nodes);
+		self.declarations.extend_from_slice(other_declarations);
 		for node in &mut self.nodes[old_num_nodes..]
 		{
 			*node = node.convert_for_append(old_num_nodes);

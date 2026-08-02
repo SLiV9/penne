@@ -1,0 +1,8 @@
+import "cyclical_imports.pn";
+import "cyclical_imports_c.pn";
+
+pub struct D {
+	e: E,
+}
+
+pub const X99: i32 = X98 + 1;

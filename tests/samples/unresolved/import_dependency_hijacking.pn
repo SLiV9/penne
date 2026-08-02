@@ -1,4 +1,4 @@
-import "line.pn";
+import "tests/samples/valid/line.pn";
 
 struct Position { 
 	z: i32,

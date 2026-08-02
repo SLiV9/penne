@@ -1,0 +1,31 @@
+import "cyclical_imports_b.pn";
+import "cyclical_imports_d.pn";
+
+pub struct A {
+	b: B,
+}
+
+pub struct E {
+	x: i32,
+}
+
+pub const X96: i32 = 96;
+
+const X: i32 = X99 + 1;
+
+fn main() -> i32 {
+	var a = A {
+		b: B {
+			c: C {
+				d: D {
+					e: E {
+						x: X
+					}
+				}
+			}
+		}
+	};
+	var x = a.b.c.d.e.x;
+	var y = A;
+	return: x + y;
+}

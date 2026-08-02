@@ -154,16 +154,32 @@ fn fail_to_type_variable_array_length()
 }
 
 #[test]
-fn fail_to_parse_unresolved_import()
+fn fail_to_expand_unresolved_import()
 {
 	compile_to_fail(&[470], "tests/samples/invalid/unresolved_import.pn")
 }
 
 #[test]
-fn fail_to_parse_unresolved_import_core()
+fn fail_to_expand_unresolved_import_core()
 {
 	// Despite this example file being valid, this test should fail because
 	// we are not specifying the inclusion of 'core:text'.
 	// Compare and contrast the integration test `run_import_core`.
 	compile_to_fail(&[477], "examples/import_core.pn")
+}
+
+#[test]
+fn fail_to_expand_invalid_unicode_in_import()
+{
+	compile_to_fail(
+		&[478],
+		"tests/samples/invalid/invalid_unicode_in_import.pn",
+	)
+}
+
+#[test]
+fn fail_to_expand_public_import()
+{
+	// The 470 is because we are not providing the (otherwise valid) import.
+	compile_to_fail(&[479, 470], "tests/samples/invalid/public_import.pn")
 }

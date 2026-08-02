@@ -1,7 +1,8 @@
-pub import "position.pn";
+pub import "tests/samples/valid/position.pn";
 
 fn main() -> i32
 {
 	var foo = Foo { x: 20, y: 0 };
 	return: foo.x + foo.y
 }
+ 

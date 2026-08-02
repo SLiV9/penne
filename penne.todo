@@ -141,6 +141,8 @@ Functionality:
 			Oof I would lose the fact that declaration keywords always start a declaration.
 	  	☐	Exclusive pointers will solve github issue #5
 	  ☐	Requires unsafe keyword and scoping rules
+	☐ Modules
+		In particular resolve import_dependency_privacy.pn as valid and import_dependency_hijacking.pn as invalid, somehow.
 
 Syntactic sugar:
 	☐	Operator assignment syntax (e.g. i += 1)
@@ -304,7 +306,6 @@ Rewrite using Data-Oriented Compiler Design for 0.5.0:
 		✔	Fuzzer that generates 40MB of random tokens @done (2026-05-10 20:21)
 		☐	Fuzzer that generates 40MB of random valid trees
 	☐	Expander
-		☐	Somehow insert scoped and typed AST instead of
 	☐	Scoper
 		☐ Top-level scoper
 		☐ Label scoper in reverse

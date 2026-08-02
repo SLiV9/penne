@@ -634,7 +634,6 @@ fn compile_to_ir_using_delta(
 			all_errors = all_errors.combined_with(errors);
 		}
 
-		// dbg!(&parse_tree);
 		stdout.dump_xml(
 			"ParseTree",
 			filename,
@@ -644,7 +643,6 @@ fn compile_to_ir_using_delta(
 		stdout.header("Creating header for", filename)?;
 		let header = parse_tree.build_header();
 
-		// dbg!(&header);
 		stdout.dump_xml(
 			"HeaderParseTree",
 			filename,
@@ -673,6 +671,8 @@ fn compile_to_ir_using_delta(
 	assert_eq!(all_modules.len(), num_sources);
 	assert_eq!(all_headers.len(), num_sources);
 
+	stdout.basic_header("Expanding all imports")?;
+
 	penne::delta::expander::expand(
 		&all_filepaths,
 		&all_sources,
@@ -692,23 +692,18 @@ fn compile_to_ir_using_delta(
 		let source = &all_sources[i];
 		let tokens = &all_tokens[i];
 		let parse_tree = &mut all_modules[i];
-		let num_bytes = source.len();
-		let num_tokens = tokens.base_tokens().len();
-		let num_parse_nodes = parse_tree.num_parse_nodes();
-		let num_declarations = parse_tree.num_declarations();
-		dbg!(
-			filename,
-			num_bytes,
-			num_tokens,
-			num_parse_nodes,
-			num_declarations
-		);
 
 		if let Some(errors) = parse_tree.drain_errors(tokens)
 		{
 			all_errors = all_errors.combined_with(errors);
 			continue;
 		}
+
+		stdout.dump_xml(
+			"ParseTree",
+			filename,
+			parse_tree.as_xml(&tokens, source),
+		)?;
 
 		// TODO finish
 	}
