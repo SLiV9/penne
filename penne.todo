@@ -306,6 +306,9 @@ Rewrite using Data-Oriented Compiler Design for 0.5.0:
 		✔	Fuzzer that generates 40MB of random tokens @done (2026-05-10 20:21)
 		☐	Fuzzer that generates 40MB of random valid trees
 	☐	Expander
+		☐ Fix TokenIds to point to different source files
+		  However, how is the scoper going to work? I cannot modify the parse tree to insert nodes.
+		  Why bother expanding at all, why not run the header files through the scoper?
 	☐	Scoper
 		☐ Top-level scoper
 		☐ Label scoper in reverse
