@@ -306,18 +306,39 @@ Rewrite using Data-Oriented Compiler Design for 0.5.0:
 		✔	Fuzzer that generates 40MB of random tokens @done (2026-05-10 20:21)
 		☐	Fuzzer that generates 40MB of random valid trees
 	☐	Expander
-		☐ Fix TokenIds to point to different source files
-		  However, how is the scoper going to work? I cannot modify the parse tree to insert nodes.
-		  Why bother expanding at all, why not run the header files through the scoper?
+		✘	Fix TokenIds to point to different source files
+			However, how is the scoper going to work? I cannot modify the parse tree to insert nodes.
+			Why bother expanding at all, why not run the header files through the scoper?
+	☐	"Surfacer" (top level scoper + typer + constness check + generator)
+		☐	First pass declares names and types
+		☐	Second pass checks references and typechecks (no inference except inside expressions)
+			☐	That same pass checks constness
+			☐	No extra analyzer, linter or resolver necessary
+		☐	Third pass generates LLVM IR and executes it to get constant values
+			☐	Careful: the generated LLVM IR can be wrong/unusable but not UB
+		☐	First and second passes are forgotten and redone, e.g. to check const array lengths during typing
 	☐	Scoper
-		☐ Top-level scoper
-		☐ Label scoper in reverse
-		☐ Variable scoper that uses scoped labels to detect skipped declarations
+		☐	New IR tree separate from ParseTree for scoped-and-typed IR
+			☐	Needs a way to incrementally type nodes without moving nodes
+			☐	Needs a quick way to flag a node as poisoned without reallocating
+		✘	Surface level scoper (top to bottom)
+		☐	Label scoper (bottom to top)
+		☐	Variable scoper (top to bottom) that uses scoped labels to detect skipped declarations
 	☐	Typer
-		☐	But this single-pass approach becomes kind of silly when I have type inference within function bodies
-		☐	Separate surface level typing with no inference and function body type inference?
+		✘	Separate surface level typing with no inference at all (top to bottom)
+		☐	Full type inference per function body, with surface types from the surface level pass
+			☐	First pass (top to bottom) together with the variable scoping
+			☐	Second pass (bottom to top)
+			☐	Third pass (top to bottom) generates type inference errors
 	☐	Analyzer
+		✘	Constness (surface level only because it only affects the RHS of a constant declaration)
+		☐	Function calls (only full)
+		☐	Mutability (only full)
+		☐	Syntax (only full)
+		☐	One pass per function body
+		☐	AFAICT this doesn't actually modify IR, only poisons
 	☐	Linter
+		☐	Does not alter code, so can happen as a separate pass after all analysis
 	☐	Resolver
 	☐	Everything above at 100KLOC/s for responsive language server
 		☐	Hmm except you need code generation for declared constants use in array lengths, which currently depends on LLVM

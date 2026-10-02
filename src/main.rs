@@ -718,7 +718,7 @@ fn compile_to_ir_using_delta(
 		}
 		return Err(anyhow!("compilation failed"));
 	}
-	Err(anyhow!("unfinished"))
+	Err(anyhow!("reached end of implemented stages"))
 }
 
 #[inline(never)]
