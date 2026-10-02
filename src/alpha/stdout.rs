@@ -325,9 +325,23 @@ impl StdOut
 			let colorspec_dump = ColorSpec::new().set_dimmed(true).to_owned();
 			self.stdout.set_color(&colorspec_dump)?;
 			writeln!(self.stdout, "<{kind} filename={filename:?}>")?;
+			let mut padding = 1;
 			for xml in xml_lines
 			{
+				let xml = xml.to_string();
+				if xml.starts_with("</")
+				{
+					padding -= 1;
+				}
+				for _ in 0..padding
+				{
+					write!(self.stdout, "  ")?;
+				}
 				writeln!(self.stdout, "{xml}")?;
+				if !xml.starts_with("</") && !xml.ends_with("/>")
+				{
+					padding += 1;
+				}
 			}
 			writeln!(self.stdout, "</{kind}>")?;
 			writeln!(self.stdout)?;

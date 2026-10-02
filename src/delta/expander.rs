@@ -1,6 +1,3 @@
-use core::num;
-use std::collections::{HashMap, HashSet};
-
 use crate::delta::{lexer::tokens::Tokens, parser::parse_tree::ParseTree};
 
 pub fn expand(
