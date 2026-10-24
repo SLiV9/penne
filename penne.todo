@@ -312,11 +312,16 @@ Rewrite using Data-Oriented Compiler Design for 0.5.0:
 	☐	"Surfacer" (top level scoper + typer + constness check + generator)
 		☐	First pass declares names and types
 		☐	Second pass checks references and typechecks (no inference except inside expressions)
-			☐	That same pass checks constness
+			☐	In sorted order, same as alpha; possible because cycles cannot be resolved
+				☐	No, not possible, because "sorted order" requires scoping the const expressions.
+			☐	Checks constness and do constant folding at the same time
 			☐	No extra analyzer, linter or resolver necessary
-		☐	Third pass generates LLVM IR and executes it to get constant values
-			☐	Careful: the generated LLVM IR can be wrong/unusable but not UB
-		☐	First and second passes are forgotten and redone, e.g. to check const array lengths during typing
+			☐	This requires having a compile-time sizeof that is identical to C... however this is implementation defined / platform dependent (Windows x86 ABI vs SysV x64 ABI, and Windows has an alignment difference between x86-64 and AMD64). At that point, why not generate C code for constants and struct layouts... Using TCC? Fundamentally what I don't like is that type-checking without LLVM requires executing a bash script. But conversely that using llvm-sys requires analyzing one constant at a time. But is that even that bad? It's not very data-oriented at least, it requires random access.
+			Even worse! What about sizeof(usize) and cross-compilation? To be compatible with C and to make any sense, sizeof(usize) needs to be the size of usize on the target CPU, not on the host CPU. I guess that is still possible if we pass the right target tuple to llvm-sys, to the bitcode IR generator, or two clang.
+		✘	Third pass generates LLVM bitcode and executes it to get constant values
+			✘	Careful: it is fine if the generated LLVM IR turns out to be wrong, but it cannot be UB or the compilation stage itself because UB.
+			✘	Generate textual IR from the bitcode for debugging
+		☐	Surfacer passes are forgotten and redone, e.g. to check const array lengths during typing
 	☐	Scoper
 		☐	New IR tree separate from ParseTree for scoped-and-typed IR
 			☐	Needs a way to incrementally type nodes without moving nodes
@@ -350,13 +355,31 @@ Development:
 		Means we lose constant folding.
 		Means we lose expression folding which means textual IR is much larger.
 		Means we lose C struct compatibility.
+		It should be bitcode IR, converted to textual IR for debugging, because bitcode is more stable than textual IR.
 		✘	Think about uncancelling if, as an intermediate project, I build a little library that does struct sizing and constant folding for Penne and "extern C" structs, with LLVM-backed tests confirming that it works. The problem being that the size of e.g. bool is not defined in a spec, but depends on the target (and in a way on LLVM) @cancelled (2026-05-08 23:32)
 		☐	Alternatively, since I don't have const fn, can I separate the declarations that can appear in the definition of a named parameter, generate LLVM IR for those, do one syscall to an LLVM tool to get me all the resulting constants in one go, and then use those in the type checking of everything else?
 			In fact I already doing something similar when invoking the backend
+			☐	I'm not actually sure this works. When calling llvm-sys to build the constant expression, the constant folding happens in llvm-sys before the bitcode is written. Doing the constant folding through llvm without a library would mean writing non-constant expressions, executing that bitcode, printing it and parsing the output.
+			☐	How would I do that for struct layouts? I guess I only need sizeof(S) when it appears in named constants. So actually are named constants the only thing that requires code generation before type checking?
+			☐	Similarly the expression folding happens in the library, so dropping llvm sys as a library means generating bigger IR. Although the IR is also closer to the source code so maybe that is not the worst problem. But does the IR to machine code step perform those optimizations, or does it skip them because the step before LLVM IR generation is responsible for it?
 		✘	To do so, change most tests to be binary integration tests @cancelled (2026-05-08 23:32)
 		✔	Alternatively hide all the implementation details in a v1 submodule, move some logic from main into lib and make the public interface of penne lib more opaque, taking &Path as inputs and String as output @done (2026-05-08 23:32)
 		✔	Relatedly, think about how language server and CompilerExplorer would use either lib or main @done (2026-05-08 23:33)
 			However for an LSP server you want a stateful (tree-sitting) binary
+	☐	Alternatively, instead of doing llvm-sys or generating LLVM IR, generate C and use clang
+		If this is surface level enough, it may even be possible to identify the subset of C that is the codomain of this transpiler F, and make a bidirectional transpiler, i.e. some G such that F(G(F(x))) == F(x) for all Penne source files x, i.e. F and G are bijections between X and Y, where F[Penne] subseteq Y and G[Y] subseteq X. Or is that Turing hard?
+		The benefit is that C is much more stable and readable than bitcode IR, and portable / preinstalled on users machines.
+		- No comments or extra whitespace.
+		- Brackets everywhere to avoid precedency differences between Penne and C.
+		- All functions and structures are extern.
+		- Disambiguate "foo * x;" (pointer or multiplication) somehow, e.g. every statement must be a statement and therefore this must be a declaration.
+		- Goto statements work because Penne gotos are a subset of C gotos, and as a fun bonus it means that I have a goto checker for C as well. Although what is difficult is that labels are bottom-up-block-scoped in Penne but function-scoped in C.
+		- No include statements (in either language), no macros except maybe builtins and some stdlib functions.
+		Problem with both generating IR and generating C is that the generated code might contain UB that the source code might or might not. E.g. tests/samples/invalid/constant_evaluated_divide_by_zero.pn. I could detect that in the "surfacer" pass, but then I have to be very careful about all other cases. What about signed integer overflow?
+		Ok it is not super surface level because it requires typechecking to resolve the derefs. So doing this would require writing a decent chunk of a C compiler typechecker. But only the parts that are equivalent to Penne code that I've implemented.
+		Maybe I can do some sort of hybrid compiler that parses either Penne or C, generates parse nodes that are a union of both, does scoping and typing in a shared way, producing an AST that is specific enough to easily generate either Penne or C. That way, I can also have an F' that acts as the identity from X to X (modulo whitespace), and probably I want F'(x) = F(G(F(x))) for all Penne source files x.
+		Is all that worth it? It is pretty cool.
+		Wait, if I do this, don't all structs and functions become effectively extern?
 	✘	Release 0.4.0 @cancelled (2026-05-09 20:05)
 		☐	Flesh out core and vendor/libc
 		☐	Add/check documentation for E359, E553
@@ -366,7 +389,7 @@ Development:
 	☐	Rewrite from scratch using data-oriented compiler design
 		☐	Do this as a separate compiler with 0.4.0 as the reference
 		☐	Release 0.5.0
-	☐	Write intermediate stages as XML-like output so that I can diff them, like ContextFree does
+	✔	Write intermediate stages as XML-like output so that I can diff them, like ContextFree does
 	☐	Language server and IDE integrations
 	☐	CompilerExplorer on godbolt.org
 

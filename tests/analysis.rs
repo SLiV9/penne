@@ -163,6 +163,15 @@ fn fail_to_analyze_constant_evaluated_function()
 }
 
 #[test]
+fn fail_to_analyze_constant_evaluated_divide_by_zero()
+{
+	compile_to_fail(
+		&[360],
+		"tests/samples/invalid/constant_evaluated_divide_by_zero.pn",
+	);
+}
+
+#[test]
 fn fail_to_analyze_skip_declaration()
 {
 	compile_to_fail(&[482], "tests/samples/invalid/skip_declaration.pn");
