@@ -3,3 +3,13 @@ const X: i32 = 5 / 0;
 const Y: i32 = 0 / 0;
 // This is UB in LLVM and in C, what happens here?
 const Z: i8 = -128 / -1;
+
+// This is an obvious case but it is clear why this generalizes
+// to arbitrarily complex structures.
+struct Foo {
+    x: u8,
+}
+const ZERO: usize = |:Foo| - 1;
+
+// This requires evaluating ZERO before generating IR/code for U.
+const U: usize = 1 / ZERO;

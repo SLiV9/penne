@@ -312,12 +312,18 @@ Rewrite using Data-Oriented Compiler Design for 0.5.0:
 	☐	"Surfacer" (top level scoper + typer + constness check + generator)
 		☐	First pass declares names and types
 		☐	Second pass checks references and typechecks (no inference except inside expressions)
-			☐	In sorted order, same as alpha; possible because cycles cannot be resolved
-				☐	No, not possible, because "sorted order" requires scoping the const expressions.
-			☐	Checks constness and do constant folding at the same time
-			☐	No extra analyzer, linter or resolver necessary
-			☐	This requires having a compile-time sizeof that is identical to C... however this is implementation defined / platform dependent (Windows x86 ABI vs SysV x64 ABI, and Windows has an alignment difference between x86-64 and AMD64). At that point, why not generate C code for constants and struct layouts... Using TCC? Fundamentally what I don't like is that type-checking without LLVM requires executing a bash script. But conversely that using llvm-sys requires analyzing one constant at a time. But is that even that bad? It's not very data-oriented at least, it requires random access.
-			Even worse! What about sizeof(usize) and cross-compilation? To be compatible with C and to make any sense, sizeof(usize) needs to be the size of usize on the target CPU, not on the host CPU. I guess that is still possible if we pass the right target tuple to llvm-sys, to the bitcode IR generator, or two clang.
+			✘	In sorted order, same as alpha; possible because cycles cannot be resolved
+				✘	No, not possible, because "sorted order" requires scoping the const expressions.
+			☐	In any order, because we don't need to do inference
+			☐	Check constness at the same time
+			☐	Need to avoid compilation errors or UB when array sizes are wrong
+			✘	Do constant folding at the same time
+				☐	This requires having a compile-time sizeof that is identical to C... however this is implementation defined / platform dependent (Windows x86 ABI vs SysV x64 ABI, and Windows has an alignment difference between x86-64 and AMD64). At that point, why not generate C code for constants and struct layouts... Using TCC? Fundamentally what I don't like is that type-checking without LLVM requires executing a bash script. But conversely that using llvm-sys requires analyzing one constant at a time. But is that even that bad? It's not very data-oriented at least, it requires random access.
+				Even worse! What about sizeof(usize) and cross-compilation? To be compatible with C and to make any sense, sizeof(usize) needs to be the size of usize on the target CPU, not on the host CPU. I guess that is still possible if we pass the right target tuple to llvm-sys, to the bitcode IR generator, or to clang.
+				Yeah using TCC is not as nice, I think, in terms of cross compilation. But invoking clang might be too slow...
+			☐	No extra analysis, linter or resolver necessary
+			✘	Same pass generates a tiny C program to resolve constants
+			☐	At the moment, only usize constants are needed
 		✘	Third pass generates LLVM bitcode and executes it to get constant values
 			✘	Careful: it is fine if the generated LLVM IR turns out to be wrong, but it cannot be UB or the compilation stage itself because UB.
 			✘	Generate textual IR from the bitcode for debugging
@@ -376,6 +382,7 @@ Development:
 		- Goto statements work because Penne gotos are a subset of C gotos, and as a fun bonus it means that I have a goto checker for C as well. Although what is difficult is that labels are bottom-up-block-scoped in Penne but function-scoped in C.
 		- No include statements (in either language), no macros except maybe builtins and some stdlib functions.
 		Problem with both generating IR and generating C is that the generated code might contain UB that the source code might or might not. E.g. tests/samples/invalid/constant_evaluated_divide_by_zero.pn. I could detect that in the "surfacer" pass, but then I have to be very careful about all other cases. What about signed integer overflow?
+		No I cannot detect it *before* generating the code, because the zero might itself be a constant. But I could write safety checks to detect it while running that code.
 		Ok it is not super surface level because it requires typechecking to resolve the derefs. So doing this would require writing a decent chunk of a C compiler typechecker. But only the parts that are equivalent to Penne code that I've implemented.
 		Maybe I can do some sort of hybrid compiler that parses either Penne or C, generates parse nodes that are a union of both, does scoping and typing in a shared way, producing an AST that is specific enough to easily generate either Penne or C. That way, I can also have an F' that acts as the identity from X to X (modulo whitespace), and probably I want F'(x) = F(G(F(x))) for all Penne source files x.
 		Is all that worth it? It is pretty cool.
