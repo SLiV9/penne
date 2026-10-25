@@ -10,6 +10,8 @@ use crate::alpha::resolved::*;
 
 use std::ffi::{CStr, CString};
 
+use llvm_sys_60 as llvm_sys;
+
 use llvm_sys::analysis::*;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;

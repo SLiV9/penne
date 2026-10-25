@@ -482,6 +482,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "llvm-sys"
+version = "221.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d19cbc1fbc2f93b1508959fe2c92a09b6d760ffbea9a89be30fed6327f6c786"
+dependencies = [
+ "anyhow",
+ "cc",
+ "lazy_static",
+ "libc",
+ "regex-lite",
+ "semver 1.0.28",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -549,7 +563,8 @@ dependencies = [
  "enumset",
  "include_dir",
  "libc",
- "llvm-sys",
+ "llvm-sys 221.1.1",
+ "llvm-sys 60.6.0",
  "pretty_assertions",
  "rand",
  "serde",
@@ -675,6 +690,12 @@ name = "regex-automata"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e1dd4122fc1595e8162618945476892eefca7b88c52820e74af6262213cae8f"
+
+[[package]]
+name = "regex-lite"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cab834c73d247e67f4fae452806d17d3c7501756d98c8808d7c9c7aa7d18f973"
 
 [[package]]
 name = "regex-syntax"

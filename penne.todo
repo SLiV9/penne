@@ -309,40 +309,45 @@ Rewrite using Data-Oriented Compiler Design for 0.5.0:
 		✘	Fix TokenIds to point to different source files
 			However, how is the scoper going to work? I cannot modify the parse tree to insert nodes.
 			Why bother expanding at all, why not run the header files through the scoper?
-	☐	"Surfacer" (top level scoper + typer + constness check + generator)
-		☐	First pass declares names and types
-		☐	Second pass checks references and typechecks (no inference except inside expressions)
+	✘	"Surfacer" (top level scoper + typer + constness check + generator)
+		✘	First pass declares names and types
+		✘	Second pass checks references and typechecks (no inference except inside expressions)
 			✘	In sorted order, same as alpha; possible because cycles cannot be resolved
 				✘	No, not possible, because "sorted order" requires scoping the const expressions.
-			☐	In any order, because we don't need to do inference
-			☐	Check constness at the same time
-			☐	Need to avoid compilation errors or UB when array sizes are wrong
+			✘	In any order, because we don't need to do inference
+			✘	Check constness at the same time
+			✘	Need to skip array size checks, but also need to avoid compilation errors or UB when array sizes are wrong
+				How though? If Y depends on X and X has a bug, how do I prevent Y from being UB or an IR compile error that blocks the penne compiler from knowing what was wrong with X? I can do it incrementally but that's part of what I'm trying to avoid with moving away from llvm-sys...
 			✘	Do constant folding at the same time
-				☐	This requires having a compile-time sizeof that is identical to C... however this is implementation defined / platform dependent (Windows x86 ABI vs SysV x64 ABI, and Windows has an alignment difference between x86-64 and AMD64). At that point, why not generate C code for constants and struct layouts... Using TCC? Fundamentally what I don't like is that type-checking without LLVM requires executing a bash script. But conversely that using llvm-sys requires analyzing one constant at a time. But is that even that bad? It's not very data-oriented at least, it requires random access.
+				This requires having a compile-time sizeof that is identical to C... however this is implementation defined / platform dependent (Windows x86 ABI vs SysV x64 ABI, and Windows has an alignment difference between x86-64 and AMD64). At that point, why not generate C code for constants and struct layouts... Using TCC? Fundamentally what I don't like is that type-checking without LLVM requires executing a bash script. But conversely that using llvm-sys requires analyzing one constant at a time. But is that even that bad? It's not very data-oriented at least, it requires random access.
 				Even worse! What about sizeof(usize) and cross-compilation? To be compatible with C and to make any sense, sizeof(usize) needs to be the size of usize on the target CPU, not on the host CPU. I guess that is still possible if we pass the right target tuple to llvm-sys, to the bitcode IR generator, or to clang.
 				Yeah using TCC is not as nice, I think, in terms of cross compilation. But invoking clang might be too slow...
-			☐	No extra analysis, linter or resolver necessary
+			✘	No extra analysis, linter or resolver necessary
 			✘	Same pass generates a tiny C program to resolve constants
-			☐	At the moment, only usize constants are needed
 		✘	Third pass generates LLVM bitcode and executes it to get constant values
+			✘	At the moment, only usize constants are needed
+			✘	Ooh! Or are there other queries that generator.rs currently does, e.g. using struct size or struct member offset?
+				- GetDefaultTargetTriple() (i.e. target triple of host machine)
+				- size_in_bits()
 			✘	Careful: it is fine if the generated LLVM IR turns out to be wrong, but it cannot be UB or the compilation stage itself because UB.
+				✘	Checked integer division that marks constants with results that would cause UB as undef and prints undef, so that the compiler can turn that into E360. Or literally print E360 and line numbers maybe?
 			✘	Generate textual IR from the bitcode for debugging
-		☐	Surfacer passes are forgotten and redone, e.g. to check const array lengths during typing
+		✘	Surfacer passes are forgotten and redone, e.g. to check const array lengths during typing
 	☐	Scoper
 		☐	New IR tree separate from ParseTree for scoped-and-typed IR
 			☐	Needs a way to incrementally type nodes without moving nodes
 			☐	Needs a quick way to flag a node as poisoned without reallocating
-		✘	Surface level scoper (top to bottom)
+		☐	Surface level scoper (top to bottom)
 		☐	Label scoper (bottom to top)
 		☐	Variable scoper (top to bottom) that uses scoped labels to detect skipped declarations
 	☐	Typer
-		✘	Separate surface level typing with no inference at all (top to bottom)
+		☐	Separate surface level typing with no inference at all (in 'container depth' order)
 		☐	Full type inference per function body, with surface types from the surface level pass
 			☐	First pass (top to bottom) together with the variable scoping
 			☐	Second pass (bottom to top)
 			☐	Third pass (top to bottom) generates type inference errors
 	☐	Analyzer
-		✘	Constness (surface level only because it only affects the RHS of a constant declaration)
+		☐	Constness (surface level only because it only affects the RHS of a constant declaration)
 		☐	Function calls (only full)
 		☐	Mutability (only full)
 		☐	Syntax (only full)
@@ -351,28 +356,31 @@ Rewrite using Data-Oriented Compiler Design for 0.5.0:
 	☐	Linter
 		☐	Does not alter code, so can happen as a separate pass after all analysis
 	☐	Resolver
+	☐	Module building and constant folding using llvm-sys
 	☐	Everything above at 100KLOC/s for responsive language server
-		☐	Hmm except you need code generation for declared constants use in array lengths, which currently depends on LLVM
-	☐ Code generation
+	☐	Textual IR / bitcode generation from modules using llvm-sys
+	☐	Binary generation using PENNE_BACKEND
 
 Development:
-	✘	Drop llvm-sys and generate textual LLVM IR by hand @cancelled (2024-04-13 21:44)
-		Requires calculating struct sizes by hand.
-		Means we lose constant folding.
-		Means we lose expression folding which means textual IR is much larger.
-		Means we lose C struct compatibility.
+	✘	Drop llvm-sys and generate textual LLVM IR by hand
+		✘	Requires calculating struct sizes by hand.
+			Means we lose constant folding.
+			Means we lose expression folding which means textual IR is much larger.
+		✘	Means we lose C struct compatibility.
 		It should be bitcode IR, converted to textual IR for debugging, because bitcode is more stable than textual IR.
 		✘	Think about uncancelling if, as an intermediate project, I build a little library that does struct sizing and constant folding for Penne and "extern C" structs, with LLVM-backed tests confirming that it works. The problem being that the size of e.g. bool is not defined in a spec, but depends on the target (and in a way on LLVM) @cancelled (2026-05-08 23:32)
-		☐	Alternatively, since I don't have const fn, can I separate the declarations that can appear in the definition of a named parameter, generate LLVM IR for those, do one syscall to an LLVM tool to get me all the resulting constants in one go, and then use those in the type checking of everything else?
+		✘	Alternatively, since I don't have const fn, can I separate the declarations that can appear in the definition of a named parameter, generate LLVM IR for those, do one syscall to an LLVM tool to get me all the resulting constants in one go, and then use those in the type checking of everything else?
 			In fact I already doing something similar when invoking the backend
-			☐	I'm not actually sure this works. When calling llvm-sys to build the constant expression, the constant folding happens in llvm-sys before the bitcode is written. Doing the constant folding through llvm without a library would mean writing non-constant expressions, executing that bitcode, printing it and parsing the output.
-			☐	How would I do that for struct layouts? I guess I only need sizeof(S) when it appears in named constants. So actually are named constants the only thing that requires code generation before type checking?
-			☐	Similarly the expression folding happens in the library, so dropping llvm sys as a library means generating bigger IR. Although the IR is also closer to the source code so maybe that is not the worst problem. But does the IR to machine code step perform those optimizations, or does it skip them because the step before LLVM IR generation is responsible for it?
+			✘	I'm not actually sure this works. When calling llvm-sys to build the constant expression, the constant folding happens in llvm-sys before the bitcode is written.
+			Doing the constant folding through llvm without a library would mean writing non-constant expressions, executing that bitcode, printing it and parsing the output.
+			✔	How would I do that for struct layouts? I guess I only need sizeof(S) when it appears in named constants. So actually are named constants the only thing that requires code generation before type checking?
+			Similarly the expression folding happens in the library, so dropping llvm sys as a library means generating bigger IR. Although the IR is also closer to the source code so maybe that is not the worst problem. But does the IR to machine code step perform those optimizations, or does it skip them because the step before LLVM IR generation is responsible for it?
+			Actually I can't imagine it being skipped if you compile IR with O3.
 		✘	To do so, change most tests to be binary integration tests @cancelled (2026-05-08 23:32)
 		✔	Alternatively hide all the implementation details in a v1 submodule, move some logic from main into lib and make the public interface of penne lib more opaque, taking &Path as inputs and String as output @done (2026-05-08 23:32)
 		✔	Relatedly, think about how language server and CompilerExplorer would use either lib or main @done (2026-05-08 23:33)
 			However for an LSP server you want a stateful (tree-sitting) binary
-	☐	Alternatively, instead of doing llvm-sys or generating LLVM IR, generate C and use clang
+	✘	Alternatively, instead of doing llvm-sys or generating LLVM IR, generate C and use clang
 		If this is surface level enough, it may even be possible to identify the subset of C that is the codomain of this transpiler F, and make a bidirectional transpiler, i.e. some G such that F(G(F(x))) == F(x) for all Penne source files x, i.e. F and G are bijections between X and Y, where F[Penne] subseteq Y and G[Y] subseteq X. Or is that Turing hard?
 		The benefit is that C is much more stable and readable than bitcode IR, and portable / preinstalled on users machines.
 		- No comments or extra whitespace.
@@ -388,14 +396,14 @@ Development:
 		Is all that worth it? It is pretty cool.
 		Wait, if I do this, don't all structs and functions become effectively extern?
 	✘	Release 0.4.0 @cancelled (2026-05-09 20:05)
+	✔	Rewrite from scratch using data-oriented compiler design
+		✔	Do this as a separate compiler with 0.4.0 as the reference
+	☐	Release 0.5.0
 		☐	Flesh out core and vendor/libc
 		☐	Add/check documentation for E359, E553
 		☐	Describe core as "batteries included but not pre-installed"
 		☐	Mention that "as" is well-defined, "cast" is unsafe / platform dependent
 		☐	Deploy website
-	☐	Rewrite from scratch using data-oriented compiler design
-		☐	Do this as a separate compiler with 0.4.0 as the reference
-		☐	Release 0.5.0
 	✔	Write intermediate stages as XML-like output so that I can diff them, like ContextFree does
 	☐	Language server and IDE integrations
 	☐	CompilerExplorer on godbolt.org

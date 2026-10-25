@@ -24,7 +24,8 @@ serde_plain = "1.0"
 toml = "0.5"
 clap = { version = "4.0", features = ["derive"] }
 libc = "0.2"
-llvm-sys = { version = "60", optional = true }
+llvm-sys-60 = { package = "llvm-sys", version = "60", optional = true }
+llvm-sys-221 = { package = "llvm-sys", version = "221", optional = true }
 strum = { version = "0.28", features = ["derive"] }
 rand = { version = "0.10", features = ["alloc"] }
 
